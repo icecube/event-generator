@@ -127,3 +127,16 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# exclude everything
+data/*
+logs/*
+checkpoints/*
+configs/user/*
+
+# exception to the rule
+!data/.gitkeep
+!logs/.gitkeep
+!checkpoints/.gitkeep
+!configs/user/.gitkeep
