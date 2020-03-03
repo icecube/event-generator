@@ -14,8 +14,8 @@ before_script:
   - pip install -U -r test_requirements.txt
 
 script:
-  - pytest --cov-config=.coveragerc --cov=python_package_template
-  - travis-sphinx build --source=doc/source
+  - pytest --cov-config=.coveragerc --cov=egenerator
+  - travis-sphinx build --source=docs/source
 
 after_success:
   - coveralls
