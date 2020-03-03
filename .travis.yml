@@ -9,6 +9,8 @@ python:
   - '3.6'
   - '3.7'
 
+dist: xenial
+
 before_install:
   - python --version
   - pip install -U pip
@@ -20,6 +22,7 @@ install:
 
 script:
   - coverage run test/test_constants.py # run tests
+
 after_success:
   - codecov # submit coverage
 
