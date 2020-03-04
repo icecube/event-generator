@@ -3,5 +3,3 @@ codecov
 sphinx
 sphinx-rtd-theme
 travis-sphinx
-#sphinx_bootstrap_theme
-#coveralls
