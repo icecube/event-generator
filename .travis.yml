@@ -23,10 +23,11 @@ install:
 script:
   - coverage run -m unittest discover # run tests
   - coverage report -m # report to console
+  - travis-sphinx build --source=docs/source
 
 after_success:
-  - coveralls
   - codecov # submit coverage
+  - travis-sphinx deploy # deploy docs
 
 # before_script:
 #   - pip install -U -r requirements.txt

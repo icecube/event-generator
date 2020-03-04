@@ -1,6 +1,7 @@
 coverage
 codecov
-#coveralls
-#sphinx
+sphinx
+sphinx-rtd-theme
+travis-sphinx
 #sphinx_bootstrap_theme
-#travis-sphinx
+#coveralls
