@@ -1,6 +1,6 @@
 | Testing | Coverage | Documentation |
 | :-----: | :------: | :-----------: |
-| [![Build Status](https://travis-ci.org/mhuen/event-generator.svg?branch=master)](https://travis-ci.org/mhuen/event-generator) | [![Coverage Status](https://coveralls.io/repos/github/mhuen/event-generator/badge.svg?branch=master)](https://coveralls.io/github/mhuen/event-generator?branch=master) | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://mhuen.github.io/event-generator) |
+| [![Build Status](https://travis-ci.org/mhuen/event-generator.svg?branch=master)](https://travis-ci.org/mhuen/event-generator) | [![Coverage Status](https://codecov.io/gh/mhuen/event-generator/branch/master/graph/badge.svg)](https://codecov.io/gh/mhuen/event-generator/branch/master) | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://mhuen.github.io/event-generator) |
 
 # event-generator
 event-generator is a package designed for the IceCube neutrino telescope. It can be used to generate and reconstruct arbitrary event
@@ -23,15 +23,6 @@ comments and deployed
 `egenerator` contains the python source code of the package.
 
 `test` contains unit tests which can be run locally
-
-
-## Setting Up Test Coverage
-
-To set up test coverage, go to [coveralls.io](https://coveralls.io/repos/new),
-login with your github account, and activate the project to add coverage reports.
-
-Note: If the project does not appear immediately, you may need to hit the "sync
-repositories" button to have it appear.
 
 ## Setting Up Documentation Deployment
 
