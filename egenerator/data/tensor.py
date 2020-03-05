@@ -5,8 +5,9 @@ from copy import deepcopy
 
 class DataTensor(object):
 
-    def __init__(self, name, shape, tensor_type, dtype, vector_info=None,
-                 trafo=False, trafo_reduce_axes=None, trafo_log=None, **specs):
+    def __init__(self, name, shape, tensor_type, dtype, exists=True,
+                 vector_info=None, trafo=False, trafo_reduce_axes=None,
+                 trafo_log=None, trafo_batch_axis=0, **specs):
         """Class for specifying data input tensors.
 
         Parameters
@@ -17,8 +18,11 @@ class DataTensor(object):
             The shape of the tensor. Unkown shapes can be specified with None.
         tensor_type : str
             The type of tensor: 'data', 'label', 'weight', 'misc'
-        dtype : np.dtype or tf.dtype
-            The data type of the tensor.
+        dtype : str
+            The data type of the tensor as str.
+            getattr(np, dtype) and getattr(tf, dtype) must exist.
+        exists : bool, optional
+            Indicates whether this data tensor is being loaded.
         vector_info : dict, optional
             A dictionary containing further information regarding the vector
             type. If 'vector_info' is None, it is assumed, that the tensor is
@@ -38,22 +42,37 @@ class DataTensor(object):
             Description
         trafo_log : None, optional
             Description
+        trafo_batch_axis : int, optional
+            Description
         **specs
+            Description
+
+        Raises
+        ------
+        ValueError
             Description
         """
         self.name = name
         self.shape = shape
         self.type = tensor_type
         self.dtype = dtype
+        self.exists = exists
         self.vector_info = vector_info
         self.trafo = trafo
         self.trafo_reduce_axes = trafo_reduce_axes
         self.trafo_log = trafo_log
+        self.trafo_batch_axis = trafo_batch_axis
         self.specs = specs
 
         # sanity checks
         if self.type not in ['data', 'label', 'weight', 'misc']:
             raise ValueError('Unknown type: {!r}'.format(self.type))
+
+        if not isinstance(self.dtype, str):
+            raise ValueError('{!r} != {!r}'.format(type(self.type), str))
+
+        if not hasattr(np, self.dtype):
+            raise ValueError('Invalid dtype str: {!r}'.format(self.type))
 
         if self.vector_info is not None:
             if self.vector_info['type'] not in ['index', 'value']:
@@ -99,12 +118,14 @@ class DataTensorList(object):
         self.names = []
         self.shapes = []
         self.types = []
+        self.exists = []
         self._name_dict = {}
         self._index_dict = {}
         for i, data_tensor in enumerate(self.list):
             self.names.append(data_tensor.name)
             self.shapes.append(data_tensor.shape)
             self.types.append(data_tensor.type)
+            self.exists.append(data_tensor.exists)
             self._name_dict[data_tensor.name] = i
             self._index_dict[i] = data_tensor.name
 

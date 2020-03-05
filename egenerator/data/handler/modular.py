@@ -77,11 +77,19 @@ class ModuleDataHandler(BaseDataHandler):
         self._load_modules(config)
 
         # configure modules
-        self.data_module.configure(data_tensors)
-        self.label_module.configure(label_tensors)
-        self.weight_module.configure(weight_tensors)
-        self.misc_module.configure(misc_tensors)
+        data_tensors = self.data_module.configure(self.data_tensors)
+        label_tensors = self.label_module.configure(self.label_tensors)
+        weight_tensors = self.weight_module.configure(self.weight_tensors)
+        misc_tensors = self.misc_module.configure(self.misc_tensors)
         self.filters.configure()
+
+        # check if tensors match
+        for t1, t2 in zip((data_tensors, self.data_tensors),
+                          (label_tensors, self.label_tensors),
+                          (weight_tensors, self.weight_tensors),
+                          (misc_tensors, self.misc_tensors)):
+            if not t1 == t2:
+                raise ValueError('{!r} != {!r}'.format(t1, t2))
 
         # check if skip_check_keys match
         skip_check_keys = self.get_skip_check_keys()

@@ -256,7 +256,7 @@ class BaseDataHandler(object):
             if tensor.shape is not None and tensor.vector_info is None:
                 if len(values.shape) != len(tensor.shape):
                     raise ValueError(
-                        'Dimensions {!r} and {!r} do not match for {}'format(
+                        'Dimensions {!r} and {!r} do not match for {}'.format(
                                 len(values.shape), len(tensor.shape),
                                 tensor.name))
                 for s1, s2 in zip(values.shape, tensor.shape):

@@ -15,6 +15,7 @@ class DummyMiscModule(BaseModule):
 
         If there are skip_check_keys, e.g. config keys that do not have to
         match, they must be defined here.
+        Any settings used within the module must be saved to 'self.settings'.
 
         Parameters
         ----------

@@ -14,6 +14,7 @@ class BaseModule(object):
         """
         self.is_configured = False
         self.skip_check_keys = []
+        self.settings = {}
         self._initialize(*args, **kwargs)
 
     def _initialize(self, *args, **kwargs):
