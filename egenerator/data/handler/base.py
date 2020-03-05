@@ -8,176 +8,269 @@ import ruamel.yaml as yaml
 from copy import deepcopy
 import logging
 
-
-class DataTensor(object):
-
-    def __init__(self, name, shape, tensor_type, dtype, vector_info=None,
-                 trafo=False, trafo_reduce_axes=None, trafo_log=None, **specs):
-        """Class for specifying data input tensors.
-
-        Parameters
-        ----------
-        name : str
-            The name of the data tensor.
-        shape : tuple of int or None
-            The shape of the tensor. Unkown shapes can be specified with None.
-        tensor_type : str
-            The type of tensor: 'data', 'label', 'weight', 'misc'
-        dtype : np.dtype or tf.dtype
-            The data type of the tensor.
-        vector_info : dict, optional
-            A dictionary containing further information regarding the vector
-            type. If 'vector_info' is None, it is assumed, that the tensor is
-            not a vector type, e.g. it is in event-structure
-            (first axis corresponds to batch id). If the tensor is a vector,
-            vector_info must contain the following:
-                'type': str
-                    The type of the vector: 'index', 'value'
-                'reference': str
-                    The tensor it references. For an index tensor this is the
-                    name of the tensor for which it describes the indices. For
-                    the value tensor, this is the name of the tensor that
-                    specifies the indices.
-        trafo : bool, optional
-            Description
-        trafo_reduce_axes : None, optional
-            Description
-        trafo_log : None, optional
-            Description
-        **specs
-            Description
-        """
-        self.name = name
-        self.shape = shape
-        self.type = tensor_type
-        self.dtype = dtype
-        self.vector_info = vector_info
-        self.trafo = trafo
-        self.trafo_reduce_axes = trafo_reduce_axes
-        self.trafo_log = trafo_log
-        self.specs = specs
-
-        # sanity checks
-        if self.vector_info is not None:
-            if self.vector_info['type'] not in ['index', 'value']:
-                raise ValueError('Unknown vector type: {!r}'.format(
-                    self.vector_info['type']))
-
-
-class DataTensorList(object):
-
-    def __init__(self, data_tensors):
-        """Create a data tensor list object
-
-        Parameters
-        ----------
-        data_tensors : list of DataTensor objects
-            A list of data tensor objects.
-        """
-        data_tensors = deepcopy(data_tensors)
-
-        # sort the data tensors according to their name
-        names = [tensor.name for tensor in data_tensors]
-        sorted_indices = np.argsort(names)
-        sorted_data_tensors = data_tensors[sorted_indices]
-
-        self.list = sorted_data_tensors
-        self.names = []
-        self.shapes = []
-        self.types = []
-        self._name_dict = {}
-        self._index_dict = {}
-        for i, data_tensor in enumerate(self.list):
-            self.names.append(data_tensor.name)
-            self.shapes.append(data_tensor.shape)
-            self.types.append(data_tensor.type)
-            self._name_dict[data_tensor.name] = i
-            self._index_dict[i] = data_tensor.name
-
-    def get_index(self, name):
-        """Get the index of the tensor 'name'
-
-        Parameters
-        ----------
-        name : str
-            The name of the tensor for which to return the index.
-
-        Returns
-        -------
-        int
-            The index of the specified tensor.
-        """
-        return self._name_dict[name]
-
-    def get_name(self, index):
-        """Get the name of the tensor number 'index'
-
-        Parameters
-        ----------
-        index : int
-            The index of the specified tensor.
-
-        Returns
-        -------
-        str
-            The name of the specified tensor.
-
-        """
-        return self._index_dict[index]
+from egenerator.data.tensor import DataTensorList
 
 
 class BaseDataHandler(object):
 
-    def __init__(self, config, data_tensors, settings={}, skip_check_keys=[],
-                 logger=None):
+    """The basic data handler class.
+    All data handlers must be derived from this class.
+
+    Attributes
+    ----------
+    config : config : dict
+            Configuration of the DataHandler.
+    is_setup : bool
+        If True, the data handler is setup and ready to be used.
+    logger : logging.logger
+        The logger to use for logging.
+    skip_check_keys : list, optional
+        List of keys in the config that do not need to be checked, e.g.
+        that may change.
+    tensors : DataTensorList
+        A list of DataTensor objects. These are the tensors the data
+        handler will create and load. They must always be in the same order
+        and have the described settings.
+    """
+
+    def __init__(self, logger=None):
         """Initializes DataHandler object.
 
         Parameters
         ----------
-        config : dict
-            Dictionary containing all settings as read in from config file.
-            This config must contain all settings needed to configure the
-            data handler.
-        data_tensors : DataTensorList
-            A list of DataTensor objects. These are the tensors the data
-            handler will create and load. They must always be in the same order
-            and have the described settings.
-        settings : dict, optional
-            Settins of the DataHandler.
-        skip_check_keys : list, optional
-            List of keys in the settings that do not need to be checked, e.g.
-            that may change.
-        logger : None, optional
-            Description
-
-        Raises
-        ------
-        ValueError
-            Description
+        logger : logging.logger, optional
+            A logging instance.
         """
         self.logger = logger or logging.getLogger(__name__)
 
-        # read and save config
-        self._config = dict(deepcopy(config))
-
-        # create object settings
-        self.settings = settings
-        self.skip_check_keys = skip_check_keys
-
-        # define data tensors
-        if not isinstance(data_tensors, DataTensorList):
-            raise ValueError(
-                'Unsupported type: {!r}'.format(type(data_tensors)))
-        self.tensors = data_tensors
+        # create empty member variables
+        self.tensors = None
+        self.config = None
+        self.skip_check_keys = None
 
         # keep track of multiprocessing processes
         self._mp_processes = []
 
         self.is_setup = False
 
+    def _configure_settings(self, data_tensors, config, skip_check_keys=[]):
+        """Set the configuration settings of the data handler.
+
+        Parameters
+        ----------
+        data_tensors : DataTensorList
+            A list of DataTensor objects. These are the tensors the data
+            handler will create and load. They must always be in the same order
+            and have the described settings.
+        config : dict
+            Configuration of the DataHandler.
+        skip_check_keys : list, optional
+            List of keys in the config that do not need to be checked, e.g.
+            that may change.
+
+        Raises
+        ------
+        ValueError
+            if data handler is already set up or if wrong data type is passed.
+        """
+        if self.is_setup:
+            raise ValueError('The data handler is already set up!')
+
+        # define data tensors
+        if not isinstance(data_tensors, DataTensorList):
+            raise ValueError(
+                'Unsupported type: {!r}'.format(type(data_tensors)))
+
+        self.tensors = data_tensors
+        self.config = dict(deepcopy(config))
+        self.skip_check_keys = list(deepcopy(skip_check_keys))
+        self._configure_settings_of_derived_class()
+        self.is_setup = True
+
+    def _configure_settings_of_derived_class(self):
+        """Perform any additional operations to setup and configure the
+        derived class.
+        When this method is called, the member variables:
+            'tensors', 'config', and 'skip_check_keys'
+        have been set and may be used.
+        """
+        raise NotImplementedError
+
+    def check_if_setup(self, msg='Data handler needs to be set up first!'):
+        """Checks if the data handler is setup.
+
+        Raises
+        ------
+        ValueError
+            If the data handler is not set up yet.
+        """
+        if not self.is_setup:
+            raise ValueError(msg)
+
+    def setup(self, config, test_data=None, check_config=True):
+        """Setup the datahandler with a test input file.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration of the DataHandler.
+        test_data : str or list of str, optional
+            File name pattern or list of file patterns which define the paths
+            to input data files. The first of the specified files will be
+            read in to obtain meta data.
+        check_config : bool, optional
+            If True, the config passed in to this function and the one obtained
+            from the setup data handler will be checked to see if they are
+            equal.
+
+        Raises
+        ------
+        ValueError
+            If check_config is True and configs do not match.
+        """
+        if test_data is not None:
+            if isinstance(test_data, list):
+                test_input_data = []
+                for input_pattern in test_data[:3]:
+                    test_input_data.extend(glob.glob(input_pattern))
+            else:
+                test_input_data = glob.glob(test_data)
+            test_data = test_input_data
+
+        data_tensors, config_new, skip_check_keys = \
+            self._setup(config, test_data)
+
+        # check if settings match
+        if check_config and config != config_new:
+            raise ValueError('{!r} != {!r}'.format(config, config_new))
+
+        self._configure_settings(data_tensors, config_new, skip_check_keys)
+
+    def _setup(self, config, test_data=None):
+        """Setup the datahandler with a test input file.
+        This method needs to be implemented by derived class.
+
+        Parameters
+        ----------
+        config : dict
+            Configuration of the DataHandler.
+        test_data : list of str, optional
+            List of valid file paths to input data files. The first of the
+            specified files will be read in to obtain meta data and to setup
+            the data handler.
+
+        Returns
+        -------
+        DataTensorList
+            A list of DataTensor objects. These are the tensors the data
+            handler will create and load. They must always be in the same order
+            and have the described settings.
+        dict
+            Configuration of the DataHandler.
+        list
+            List of keys in the config that do not need to be checked, e.g.
+            that may change.
+        """
+        raise NotImplementedError()
+
+    def load(self, file):
+        """Load the data handler configuration from file.
+
+        Parameters
+        ----------
+        file : str
+            The file path from which the data handler configuration will be
+            loaded.
+        """
+        with open(file, 'r') as stream:
+            data_dict = yaml.safe_load(stream)
+
+        # deserialize data_tensors
+        data_dict['data_tensors'] = data_dict['data_tensors'].deserialize()
+
+        self._configure_settings(**data_dict)
+
+    def save(self, output_file, overwrite=False):
+        """Save the data handler configuration to the specified output_file.
+        A new data handler can be set up with this exported configuration by
+        calling load(output_file)
+
+        Parameters
+        ----------
+        output_file : str
+            The file path to the output file to which the settings will be
+            saved.
+        overwrite : bool, optional
+            If true, overwrite files if they exist, otherwise raise an error.
+        """
+        self.check_if_setup()
+
+        output_dir = os.path.dirname(output_file)
+        if not os.path.isdir(output_dir):
+            self.logger.info('Creating directory {!r}'.format(output_dir))
+            os.makedirs(output_dir)
+
+        if os.path.exists(output_file):
+            if overwrite:
+                self.logger.info('Overwriting file {!r}'.format(output_file))
+            else:
+                raise IOError('File {!r} already exists!'.format(output_file))
+
+        data_dict = {}
+        data_dict['skip_check_keys'] = self.skip_check_keys
+        data_dict['config'] = self.config
+        data_dict['data_tensors'] = self.tensors.serialize()
+
+        with open(output_file, 'w') as yaml_file:
+            yaml.dump(data_dict, yaml_file, sort_keys=True)
+
+    def _check_data_structure(self, data, only_data_tensors=False):
+        """Check data structure.
+
+        Note: this only checks if the length of tensors and their shapes match.
+
+        Parameters
+        ----------
+        data : tuple of array-like
+            The data tuple to be checked.
+        only_data_tensors : bool, optional
+            If True, the data only consists of tensors of type 'data'. Only
+            these will be checked.
+
+        Raises
+        ------
+        ValueError
+            If the shape or length of tensors do not match.
+        """
+
+        if only_data_tensors:
+            raise NotImplementedError()
+
+        # check length
+        if len(data) != len(self.tensors.names):
+            raise ValueError('Lengths {!r} and {!r} do not match!'.format(
+                len(data), len(self.tensors.names)))
+
+        # check shape
+        for values, tensor in zip(data, self.list):
+            if tensor.shape is not None and tensor.vector_info is None:
+                if len(values.shape) != len(tensor.shape):
+                    raise ValueError(
+                        'Dimensions {!r} and {!r} do not match for {}'format(
+                                len(values.shape), len(tensor.shape),
+                                tensor.name))
+                for s1, s2 in zip(values.shape, tensor.shape):
+                    if s2 is not None and s1 != s2:
+                        raise ValueError(
+                            'Shapes {!r} and {!r} do not match for {}!'.format(
+                                values.shape, tensor.shape, tensor.name))
+
+            if tensor.shape is not None and tensor.vector_info is not None:
+                # vector tensors: todo write check for this
+                pass
+
     def get_data_from_hdf(self, file, *args, **kwargs):
-        """Get data from hdf file. This method needs to be implemented by
-        inheriting class.
+        """Get data from hdf file.
 
         Parameters
         ----------
@@ -197,11 +290,39 @@ class BaseDataHandler(object):
             DataTensorList (self.tensors).
 
         """
-        raise NotImplementedError
+        self.check_if_setup()
+
+        num_events, data = self._get_data_from_hdf(file, *args, **kwargs)
+        self._check_data_structure(data)
+        return num_events, data
+
+    def _get_data_from_hdf(self, file, *args, **kwargs):
+        """Get data from hdf file. This method needs to be implemented by
+        derived class.
+
+        Parameters
+        ----------
+        file : str
+            The path to the hdf file.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        int
+            Number of events.
+        tuple of array-like tensors
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+
+        """
+        raise NotImplementedError()
 
     def get_data_from_frame(self, frame, *args, **kwargs):
-        """Get data from I3Frame. This method needs to be implemented by
-        inheriting class
+        """Get data from I3Frame.
+        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -218,11 +339,37 @@ class BaseDataHandler(object):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        raise NotImplementedError
+        self.check_if_setup()
+
+        num_events, data = self._get_data_from_frame(frame, *args, **kwargs)
+        self._check_data_structure(data, only_data_tensors=True)
+        return num_events, data
+
+    def _get_data_from_frame(self, frame, *args, **kwargs):
+        """Get data from I3Frame. This method needs to be implemented by
+        derived class.
+        This will only return tensors of type 'data'.
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The I3Frame from which to get the data.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        tuple of array-like tensors
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+        """
+        raise NotImplementedError()
 
     def create_data_from_frame(self, frame, *args, **kwargs):
-        """Create data from I3Frame. This method needs to be implemented by
-        inheriting class
+        """Create data from I3Frame.
+        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -239,10 +386,37 @@ class BaseDataHandler(object):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        raise NotImplementedError
+        self.check_if_setup()
+
+        num_events, data = self._create_data_from_frame(frame, *args, **kwargs)
+        self._check_data_structure(data, only_data_tensors=True)
+        return num_events, data
+
+    def _create_data_from_frame(self, frame, *args, **kwargs):
+        """Create data from I3Frame. This method needs to be implemented by
+        derived class.
+        This will only return tensors of type 'data'.
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The I3Frame from which to get the data.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        tuple of array-like tensors
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+        """
+        raise NotImplementedError()
 
     def write_data_to_frame(self, data, frame, *args, **kwargs):
         """Write data to I3Frame.
+        This will only write tensors of type 'data' to frame.
 
         Parameters
         ----------
@@ -256,7 +430,28 @@ class BaseDataHandler(object):
         **kwargs
             Arbitrary keyword arguments.
         """
-        raise NotImplementedError
+        self.check_if_setup()
+
+        self._write_data_to_frame(data, frame, *args, **kwargs)
+
+    def _write_data_to_frame(self, data, frame, *args, **kwargs):
+        """Write data to I3Frame. This method needs to be implemented by
+        derived class.
+        This will only write tensors of type 'data' to frame.
+
+        Parameters
+        ----------
+        data : tuple of array-like tensors
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+        frame : I3Frame
+            The I3Frame to which the data is to be written to.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+        """
+        raise NotImplementedError()
 
     def batch_to_event_structure(self, values, indices, num_events):
         """Restructures values which are provided as a list [-1, ...] over
@@ -391,8 +586,7 @@ class BaseDataHandler(object):
             Description
         """
 
-        if not self.is_setup:
-            raise ValueError('DataHandler needs to be set up first!')
+        self.check_if_setup()
 
         if isinstance(input_data, list):
             file_list = []
