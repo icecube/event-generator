@@ -6,7 +6,7 @@ from copy import deepcopy
 class DataTensor(object):
 
     def __init__(self, name, shape, tensor_type, dtype, exists=True,
-                 vector_info=None, trafo=False, trafo_reduce_axes=None,
+                 vector_info=None, trafo=False, trafo_reduce_axes=(),
                  trafo_log=None, trafo_batch_axis=0, **specs):
         """Class for specifying data input tensors.
 
@@ -37,13 +37,22 @@ class DataTensor(object):
                     the value tensor, this is the name of the tensor that
                     specifies the indices.
         trafo : bool, optional
-            Description
-        trafo_reduce_axes : None, optional
-            Description
-        trafo_log : None, optional
-            Description
+            If True, a transformation for this tensor will be built by the
+            data trafo class.
+        trafo_reduce_axes : tuple of int, optional
+            This list indicates along which axes the mean and std. deviation
+            should be the same. This is useful, for instance, when all DOMs
+            should be treated equally, even though the tensor has separate
+            entries for each DOM.
+        trafo_log : bool, tuple of bool, optional
+            Whether or not to perform logarithm on values during
+            transformation. if trafo_log is a bool and True, the logarithm will
+            be applied to the complete tensor. If it is a list of bool, the
+            logarithm will be applied to
+                values[..., i] if trafo_log[i] is True
         trafo_batch_axis : int, optional
-            Description
+            The axis which defines the batch dimension. The mean and variance
+            will be calculated by reducing over this axis.
         **specs
             Description
 
@@ -95,6 +104,22 @@ class DataTensor(object):
         if self.__class__ != other.__class__:
             return False
         return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        """Check for inequality of two data tensors.
+        Overrides the default implementation (unnecessary in Python 3)
+
+        Parameters
+        ----------
+        other : DataTensor object
+            The other data tensor to compare against.
+
+        Returns
+        -------
+        bool
+            True, if data tensors are unequal
+        """
+        return not self.__eq__(other)
 
 
 class DataTensorList(object):
@@ -149,6 +174,22 @@ class DataTensorList(object):
             if not t1 == t2:
                 return False
         return self.__dict__ == other.__dict__
+
+    def __ne__(self, other):
+        """Check for inequality of two data tensors.
+        Overrides the default implementation (unnecessary in Python 3)
+
+        Parameters
+        ----------
+        other : DataTensor object
+            The other data tensor to compare against.
+
+        Returns
+        -------
+        bool
+            True, if data tensors are not equal
+        """
+        return not self.__eq__(other)
 
     def __getitem__(self, name):
         """Get a tensor by its 'name' via the [] operator
