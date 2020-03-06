@@ -43,8 +43,9 @@ class BaseModule(object):
         **kwargs
             Arbitrary keyword arguments.
         """
-        self._configure(*args, **kwargs)
+        return_value = self._configure(*args, **kwargs)
         self.is_configured = True
+        return return_value
 
     def _configure(self, *args, **kwargs):
         """Configure Module Class

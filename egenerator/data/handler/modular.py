@@ -6,6 +6,7 @@ import pandas as pd
 
 from egenerator import misc
 from egenerator.data.handler.base import BaseDataHandler
+from egenerator.data.tensor import DataTensorList
 
 
 class ModuleDataHandler(BaseDataHandler):
@@ -55,7 +56,7 @@ class ModuleDataHandler(BaseDataHandler):
         self.misc_tensors = None
 
         logger = logger or logging.getLogger(__name__)
-        super(BaseModuleDataHandler, self).__init__(logger=logger)
+        super(ModuleDataHandler, self).__init__(logger=logger)
 
     def _configure_settings_of_derived_class(self):
         """Perform any additional operations to setup and configure the
@@ -74,20 +75,21 @@ class ModuleDataHandler(BaseDataHandler):
                                             if l.type == 'misc'])
 
         # load modules if not loaded yet
-        self._load_modules(config)
+        if not self.modules_are_loaded:
+            self._load_modules(self.config)
 
         # configure modules
         data_tensors = self.data_module.configure(self.data_tensors)
         label_tensors = self.label_module.configure(self.label_tensors)
         weight_tensors = self.weight_module.configure(self.weight_tensors)
         misc_tensors = self.misc_module.configure(self.misc_tensors)
-        self.filters.configure()
+        self.filter_module.configure()
 
         # check if tensors match
-        for t1, t2 in zip((data_tensors, self.data_tensors),
-                          (label_tensors, self.label_tensors),
-                          (weight_tensors, self.weight_tensors),
-                          (misc_tensors, self.misc_tensors)):
+        for t1, t2 in ((data_tensors, self.data_tensors),
+                       (label_tensors, self.label_tensors),
+                       (weight_tensors, self.weight_tensors),
+                       (misc_tensors, self.misc_tensors)):
             if not t1 == t2:
                 raise ValueError('{!r} != {!r}'.format(t1, t2))
 
@@ -119,7 +121,7 @@ class ModuleDataHandler(BaseDataHandler):
         # load the label loader module
         if self.label_module is None:
             label_class = misc.load_class(
-                base.format('label', config['label_module']))
+                base.format('labels', config['label_module']))
             self.label_module = label_class(**config['label_settings'])
 
         # load the weight loader module
@@ -166,8 +168,6 @@ class ModuleDataHandler(BaseDataHandler):
             List of keys in the config that do not need to be checked, e.g.
             that may change.
         """
-        if test_data is None:
-            raise ValueError('Must provide a test_data file!')
 
         # load the label loader module
         self._load_modules(config)
@@ -177,11 +177,12 @@ class ModuleDataHandler(BaseDataHandler):
         self.label_tensors = self.label_module.configure(test_data)
         self.weight_tensors = self.weight_module.configure(test_data)
         self.misc_tensors = self.misc_module.configure(test_data)
-        self.filters.configure()
+        self.filter_module.configure()
 
         # combine tensors
-        tensors = DataTensorList(data_tensors.list + label_tensors.list +
-                                 weight_tensors.list + misc_tensors.list)
+        tensors = DataTensorList(
+            self.data_tensors.list + self.label_tensors.list +
+            self.weight_tensors.list + self.misc_tensors.list)
 
         # get a list of keys whose settings do not have to match
         skip_check_keys = self.get_skip_check_keys()
@@ -240,34 +241,38 @@ class ModuleDataHandler(BaseDataHandler):
         # combine data in correct order
         num_events = None
 
-        def check_num_events(num):
+        def check_num_events(num_events, num):
             if num_events is None:
                 num_events = num
             elif num_events != num:
                 raise ValueError('{!r} != {!r}'.format(num_events, num))
+            return num_events
 
         event_batch = []
-        for tensor in self.tensors:
+        for tensor in self.tensors.list:
 
-            if tensor.type == 'data':
-                check_num_events(num_data)
-                event_batch.append(
-                    data[self.data_tensors.get_index(tensor.name)])
+            if tensor.exists:
+                if tensor.type == 'data':
+                    num_events = check_num_events(num_events, num_data)
+                    event_batch.append(
+                        data[self.data_tensors.get_index(tensor.name)])
 
-            elif tensor.type == 'label':
-                check_num_events(num_labels)
-                event_batch.append(
-                    labels[self.label_tensors.get_index(tensor.name)])
+                elif tensor.type == 'label':
+                    num_events = check_num_events(num_events, num_labels)
+                    event_batch.append(
+                        labels[self.label_tensors.get_index(tensor.name)])
 
-            elif tensor.type == 'misc':
-                check_num_events(num_misc)
-                event_batch.append(
-                    misc[self.misc_tensors.get_index(tensor.name)])
+                elif tensor.type == 'misc':
+                    num_events = check_num_events(num_events, num_misc)
+                    event_batch.append(
+                        misc[self.misc_tensors.get_index(tensor.name)])
 
-                check_num_events(num_weights)
-            elif tensor.type == 'weight':
-                event_batch.append(
-                    weights[self.weight_tensors.get_index(tensor.name)])
+                elif tensor.type == 'weight':
+                    num_events = check_num_events(num_events, num_weights)
+                    event_batch.append(
+                        weights[self.weight_tensors.get_index(tensor.name)])
+            else:
+                event_batch.append(None)
 
         if num_events is None:
             raise ValueError('Something went wrong!')

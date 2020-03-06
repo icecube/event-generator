@@ -161,6 +161,22 @@ class TestDataTensorList(unittest.TestCase):
     """Test data tensor list class.
     Make sure correct exceptions are raised.
     """
+    def test_empty_list(self):
+        tensor_list = DataTensorList([])
+        self.assertEqual(tensor_list.list, [])
+        self.assertEqual(tensor_list.names, [])
+        self.assertEqual(tensor_list.shapes, [])
+        self.assertEqual(tensor_list.exists, [])
+        self.assertEqual(tensor_list._name_dict, {})
+        self.assertEqual(tensor_list._index_dict, {})
+
+        with self.assertRaises(ValueError) as context:
+            names = ['t3', 't2', 'arbitray_name', 't6', 't6', 'weights', 's']
+            tensors = create_tensors(names)
+            tensor_list = DataTensorList(tensors)
+
+        self.assertTrue('Found duplicate names:' in str(context.exception))
+
     def test_duplicate_name(self):
         with self.assertRaises(ValueError) as context:
             names = ['t3', 't2', 'arbitray_name', 't6', 't6', 'weights', 's']

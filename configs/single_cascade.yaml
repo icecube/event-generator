@@ -14,7 +14,7 @@ unique_name: 'single_cascade'
 #-----------------------
 
 # These settings describe the data iterators
-data_iterator_settings: {
+'data_iterator_settings': {
 
     # The training data iterator
     'training': {
@@ -53,8 +53,8 @@ data_iterator_settings: {
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/02000-02999/*.hdf5',
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/03000-03999/*.hdf5',
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/04000-04999/*.hdf5',
-        ]
-    }
+        ],
+    },
 
     # The trafo data iterator
     'trafo': {
@@ -70,8 +70,8 @@ data_iterator_settings: {
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/trigger_time/04000-04999/*.hdf5',
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/trigger_time/04000-04999/*.hdf5',
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/trigger_time/04000-04999/*.hdf5',
-        ]
-    }
+        ],
+    },
 
     # The validation data iterator
     'validation': {
@@ -92,8 +92,8 @@ data_iterator_settings: {
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*.hdf5',
             # 1e5 - 1e6 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*.hdf5',
-        ]
-    }
+        ],
+    },
 
     # The test data iterator
     'test': {
@@ -119,8 +119,8 @@ data_iterator_settings: {
              #  # NuGen -- L5MonopodFit4 vertex
              '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
              '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
-        ]
-    }
+        ],
+    },
 }
 
 #-----------------------------
@@ -155,7 +155,7 @@ data_handler_settings: {
         'dom_exclusions_key': ,
         'time_exclusions_key': ,
         'float_precision': 'float32',
-    }
+    },
 
     # --------------------
     # LabelModule Settings
@@ -170,7 +170,7 @@ data_handler_settings: {
         'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
         'float_precision': 'float32',
-    }
+    },
 
     # ---------------------
     # WeightModule Settings
@@ -179,7 +179,7 @@ data_handler_settings: {
     'weight_module': 'dummy.DummyWeightModule',
 
     # settings for the weight module
-    'weight_settings':{}
+    'weight_settings':{},
 
     # -------------------
     # MiscModule Settings
@@ -188,7 +188,7 @@ data_handler_settings: {
     'misc_module': 'dummy.DummyMiscModule',
 
     # settings for the misc module
-    'misc_settings':{}
+    'misc_settings':{},
 
     # -------------------
     # FilterModule Settings
@@ -197,7 +197,7 @@ data_handler_settings: {
     'filter_module': 'dummy.DummyFilterModule',
 
     # settings for the filter module
-    'filter_settings':{}
+    'filter_settings':{},
 }
 
 #----------------------

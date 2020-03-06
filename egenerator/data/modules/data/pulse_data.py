@@ -59,26 +59,30 @@ class PulseDataModule(BaseModule):
 
         self.np_float_precision = getattr(np, self.settings['float_precision'])
         self.time_exclusions_exist = \
-            self.settings['time_exclusions_key'] is None
+            self.settings['time_exclusions_key'] is not None
 
         self.dom_exclusions_exist = \
-            self.settings['dom_exclusions_key'] is None
+            self.settings['dom_exclusions_key'] is not None
 
-    def _configure(self, *args, **kwargs):
+    def _configure(self, config_data):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
         Parameters
         ----------
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
+        config_data : None, str, or DataTensorList
+            This is either the path to a test file or a data tensor list
+            object. The module will be configured with this.
 
         Returns
         -------
         DataTensorList
             The tensors of type 'data' that will be loaded.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
 
         x_dom_charge = DataTensor(name='x_dom_charge',
@@ -163,8 +167,7 @@ class PulseDataModule(BaseModule):
                 dom_exclusions = None
 
         except Exception as e:
-            self.logger.warning(e)
-            self.logger.warning('Skipping file: {}'.format(file))
+            self.logger.warning('Skipping file: {} due to {}'.format(file, e))
             return None, None
         f.close()
 
@@ -235,7 +238,7 @@ class PulseDataModule(BaseModule):
             'x_time_exclusions_ids': x_time_exclusions_ids,
         }
         event_batch = []
-        for tensor in self.tensors:
+        for tensor in self.tensors.list:
             event_batch.append(data_dict[tensor.name])
 
         return size, event_batch

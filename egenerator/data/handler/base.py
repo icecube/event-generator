@@ -1,5 +1,6 @@
 from __future__ import division, print_function
 import os
+import time
 import multiprocessing
 import numpy as np
 import glob
@@ -252,8 +253,9 @@ class BaseDataHandler(object):
                 len(data), len(self.tensors.names)))
 
         # check shape
-        for values, tensor in zip(data, self.list):
-            if tensor.shape is not None and tensor.vector_info is None:
+        for values, tensor in zip(data, self.tensors.list):
+            if tensor.exists and tensor.shape is not None and \
+                    tensor.vector_info is None:
                 if len(values.shape) != len(tensor.shape):
                     raise ValueError(
                         'Dimensions {!r} and {!r} do not match for {}'.format(

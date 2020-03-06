@@ -29,10 +29,10 @@ def main(config_files):
     config = setup_manager.get_config()
 
     # Check if path already exists
-    if os.path.exists(config['data_trafo_settings']['trafo_model_path']):
+    if os.path.exists(config['data_trafo_settings']['model_path']):
         if not click.confirm(
                 'File already exists at destination. Overwrite {!r}?'.format(
-                    config['data_trafo_settings']['trafo_model_path']),
+                    config['data_trafo_settings']['model_path']),
                 default=False):
             raise ValueError('Aborting!')
 
@@ -56,7 +56,7 @@ def main(config_files):
 
     # save trafo model to file
     data_transformer.save_trafo_model(
-        config['data_trafo_settings']['trafo_model_path'], overwrite=True)
+        config['data_trafo_settings']['model_path'], overwrite=True)
 
     # kill multiprocessing queues and workers
     data_handler.kill()
@@ -64,7 +64,7 @@ def main(config_files):
     print('\n=======================================')
     print('= Successfully saved trafo model to:  =')
     print('=======================================')
-    print('{!r}\n'.format(config['data_trafo_settings']['trafo_model_path']))
+    print('{!r}\n'.format(config['data_trafo_settings']['model_path']))
 
 
 if __name__ == '__main__':

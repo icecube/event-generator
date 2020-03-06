@@ -119,7 +119,7 @@ class CascadeGeneratorLabelModule(BaseModule):
         cascade_parameters = np.array(cascade_parameters).T
         num_events = len(cascade_parameters)
 
-        return num_events, cascade_parameters
+        return num_events, (cascade_parameters,)
 
     def _shift_to_maximum(self, x, y, z, zenith, azimuth, ref_energy,
                           eps=1e-6):

@@ -42,7 +42,7 @@ class DummyMiscModule(BaseModule):
             The tensors of type 'misc' that will be loaded.
         """
 
-        if not isinstance(config_data, (str, DataTensorList)):
+        if not isinstance(config_data, (type(None), str, DataTensorList)):
             raise ValueError('Unknown type: {!r}'.format(type(config_data)))
 
         return DataTensorList([])
@@ -64,4 +64,4 @@ class DummyMiscModule(BaseModule):
             DataTensorList (self.tensors).
             Returns None if no misc data is loaded.
         """
-        return None, None
+        return None, (None,)

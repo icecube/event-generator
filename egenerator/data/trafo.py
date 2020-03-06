@@ -27,7 +27,7 @@ class DataTransformer(object):
         ValueError
             If data handler is not setup yet.
         """
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)
 
         if not data_handler.is_setup:
             raise ValueError('Data Handler is not set up!')
