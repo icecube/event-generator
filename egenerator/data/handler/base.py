@@ -782,20 +782,21 @@ class BaseDataHandler(object):
                 current_queue_size = num_events
                 fill_event_list(data_batch, event_list, exists, num_events)
 
-                while (current_queue_size <
-                       np.sqrt(max(0, num_repetitions - 1)) * batch_size and
+                n_files = 0
+                while ((n_files < num_add_files or current_queue_size <
+                        np.sqrt(max(0, num_repetitions - 1)) * batch_size) and
                        data_left_in_queue.value):
 
                     # avoid dead lock and delay for a bit
                     time.sleep(0.1)
 
-                    for i in range(num_add_files):
-                        if (data_batch_queue.qsize() > 1 or
-                                not data_batch_queue.empty()):
-                            num_events, data_batch = data_batch_queue.get()
-                            current_queue_size += len(num_events)
-                            fill_event_list(data_batch, event_list, exists,
-                                            num_events)
+                    if (data_batch_queue.qsize() > 1 or
+                            not data_batch_queue.empty()):
+                        num_events, data_batch = data_batch_queue.get()
+                        n_files += 1
+                        current_queue_size += len(num_events)
+                        fill_event_list(data_batch, event_list, exists,
+                                        num_events)
 
                 # concatenate into one numpy array:
                 for i, tensor in enumerate(self.tensors.list):

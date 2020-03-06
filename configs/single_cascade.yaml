@@ -1,0 +1,204 @@
+---
+##############
+# Config for single cascade events
+#
+# Detailed information on the parameters are given in the SetupManager
+# class located in egenerator.settings.setup_manager.py.
+##############
+
+# Provide a unique name for the model
+unique_name: 'single_cascade'
+
+#-----------------------
+# Data Iterator settings
+#-----------------------
+
+# These settings describe the data iterators
+data_iterator_settings: {
+
+    # The training data iterator
+    'training': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 2,
+        'batch_capacity': 20,
+        'num_jobs': 10,
+        'num_add_files': 2,
+        'num_repetitions': 3,
+        'input_data': [
+            # mono-energetic cascades at 10 TeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10000/cgenerator_10000_step_3_pass2_get_pulses_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10000/cgenerator_10000_step_3_pass2_get_pulses_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10000/cgenerator_10000_step_3_pass2_get_pulses_IC86_pulses/*/02000-02999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10000/cgenerator_10000_step_3_pass2_get_pulses_IC86_pulses/*/03000-03999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10000/cgenerator_10000_step_3_pass2_get_pulses_IC86_pulses/*/04000-04999/*.hdf5',
+
+            # 1e2 - 1e3 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/*/02000-02999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/*/03000-03999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/*/04000-04999/*.hdf5',
+
+            # 1e3 - 1e5 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/02000-02999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/03000-03999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/04000-04999/*.hdf5',
+
+            # 1e5 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/02000-02999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/03000-03999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/04000-04999/*.hdf5',
+        ]
+    }
+
+    # The trafo data iterator
+    'trafo': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 2,
+        'num_jobs': 20,
+        'num_add_files': 1,
+        'num_repetitions': 1,
+        'pick_random_files_forever': False,
+        'input_data': [
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/trigger_time/04000-04999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/trigger_time/04000-04999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/trigger_time/04000-04999/*.hdf5',
+        ]
+    }
+
+    # The validation data iterator
+    'validation': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 3,
+        'num_jobs': 1,
+        'num_add_files': 0,
+        'num_repetitions': 1,
+        'pick_random_files_forever': True,
+        'input_data': [
+             # mono-energetic cascades at 10 TeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10000/cgenerator_10000_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*.hdf5',
+            # 1e2 - 1e3 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*.hdf5',
+            # 1e3 - 1e5 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*.hdf5',
+            # 1e5 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*.hdf5',
+        ]
+    }
+
+    # The test data iterator
+    'test': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 3,
+        'num_jobs': 1,
+        'num_add_files': 0,
+        'num_repetitions': 1,
+        'sample_randomly': False,
+        'pick_random_files_forever': False,
+        'input_data': [
+              # # mono-energetic cascades at 10 TeV [uniform spread around vertex time, vertex time]
+              # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10000/cgenerator_10000_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*0.hdf5',
+              # # 1e2 - 1e3 GeV [uniform spread around vertex time, vertex time]
+              # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10001/cgenerator_10001_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*0.hdf5',
+              # # 1e3 - 1e5 GeV [uniform spread around vertex time, vertex time]
+              # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10002/cgenerator_10002_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*0.hdf5',
+              # # 1e5 - 1e6 GeV [uniform spread around vertex time, vertex time]
+              # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*0.hdf5',
+
+             #  # NuGen -- L5MonopodFit4 vertex
+             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
+             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+        ]
+    }
+}
+
+#-----------------------------
+# Data Transformation settings
+#-----------------------------
+data_trafo_settings: {
+    'float_precision': 'float64',
+    'norm_constant': !!float 1e-6,
+    'num_batches': 1000,
+    'model_path': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_single_cascade_pulse_data.npy',
+}
+
+#----------------------
+# Data Handler settings
+#----------------------
+
+# The data handler class to use
+data_handler: 'modular.ModuleDataHandler'
+
+# Settings for the data handler class
+data_handler_settings: {
+
+    # -------------------
+    # DataModule Settings
+    # -------------------
+    # which data module to use
+    'data_module': 'pulse_data.PulseDataModule',
+
+    # settings for the data module
+    'data_settings':{
+        'pulse_key': 'AggregatedPulses_combined',
+        'dom_exclusions_key': ,
+        'time_exclusions_key': ,
+        'float_precision': 'float32',
+    }
+
+    # --------------------
+    # LabelModule Settings
+    # --------------------
+    # which label module to use
+    'label_module': 'cascades.CascadeGeneratorLabelModule',
+
+    # settings for the label module
+    'label_settings':{
+        'shift_cascade_vertex': False,
+        # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
+        'trafo_log': [False, False, False, False, False, True, False],
+        'label_key': 'LabelsDeepLearning',
+        'float_precision': 'float32',
+    }
+
+    # ---------------------
+    # WeightModule Settings
+    # ---------------------
+    # which weight module to use
+    'weight_module': 'dummy.DummyWeightModule',
+
+    # settings for the weight module
+    'weight_settings':{}
+
+    # -------------------
+    # MiscModule Settings
+    # -------------------
+    # which misc module to use
+    'misc_module': 'dummy.DummyMiscModule',
+
+    # settings for the misc module
+    'misc_settings':{}
+
+    # -------------------
+    # FilterModule Settings
+    # -------------------
+    # which filter module to use
+    'filter_module': 'dummy.DummyFilterModule',
+
+    # settings for the filter module
+    'filter_settings':{}
+}
+
+#----------------------
+...

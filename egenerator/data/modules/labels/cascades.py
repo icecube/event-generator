@@ -14,7 +14,8 @@ class CascadeGeneratorLabelModule(BaseModule):
     for the cascade-generator project.
     """
 
-    def _initialize(self, shift_cascade_vertex, trafo_log, *args, **kwargs):
+    def _initialize(self, shift_cascade_vertex, trafo_log,
+                    label_key='LabelsDeepLearning', *args, **kwargs):
         """Initialize Module class.
         This is an abstract method and must be implemented by derived class.
 
@@ -32,6 +33,8 @@ class CascadeGeneratorLabelModule(BaseModule):
             If a single bool is given, this applies to all labels. Otherwise
             a list of bools corresponds to the labels in the order:
                 x, y, z, zenith, azimuth, energy, time
+        label_key : str, optional
+            The name of the key under which the labels are saved.
         *args
             Variable length argument list.
         **kwargs
@@ -40,6 +43,7 @@ class CascadeGeneratorLabelModule(BaseModule):
         self.logger = logging.getLogger(__name__)
         self.settings['shift_cascade_vertex'] = shift_cascade_vertex
         self.settings['trafo_log'] = trafo_log
+        self.settings['label_key'] = label_key
 
     def _configure(self, config_data):
         """Configure Module Class
@@ -93,7 +97,7 @@ class CascadeGeneratorLabelModule(BaseModule):
 
         cascade_parameters = []
         try:
-            _labels = f['LabelsDeepLearning']
+            _labels = f[self.settings['label_key']]
             for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
                       'cascade_azimuth', 'cascade_energy', 'cascade_t']:
                 cascade_parameters.append(_labels[l])

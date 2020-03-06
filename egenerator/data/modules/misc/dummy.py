@@ -42,17 +42,10 @@ class DummyMiscModule(BaseModule):
             The tensors of type 'misc' that will be loaded.
         """
 
-        if isinstance(config_data, str):
-            collect_tensor_data = True
-        elif isinstance(config_data, DataTensorList):
-            collect_tensor_data = False
-        else:
+        if not isinstance(config_data, (str, DataTensorList)):
             raise ValueError('Unknown type: {!r}'.format(type(config_data)))
 
-        if collect_tensor_data:
-            return DataTensorList([])
-        else:
-            return config_data
+        return DataTensorList([])
 
     def get_data_from_hdf(self, file):
         """Get misc data from hdf file.
@@ -71,4 +64,4 @@ class DummyMiscModule(BaseModule):
             DataTensorList (self.tensors).
             Returns None if no misc data is loaded.
         """
-        return 0, None
+        return None, None

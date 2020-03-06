@@ -14,20 +14,13 @@ class DataTransformer(object):
     """Data Transformer class
     """
 
-    def __init__(self, data_handler, float_precision='float64',
-                 norm_constant=1e-6):
+    def __init__(self, data_handler):
         """Initialized Data Transformer class
 
         Parameters
         ----------
         data_handler : BaseDataHandler
             Data handler object.
-        float_precision : str, optional
-            Float precision to use for trafo methods.
-            Examples: 'float32', 'float64'
-        norm_constant : float
-            A small constant that is added to the denominator during
-            normalization to ensure finite values.
 
         Raises
         ------
@@ -39,16 +32,11 @@ class DataTransformer(object):
         if not data_handler.is_setup:
             raise ValueError('Data Handler is not set up!')
 
-        self._np_float_dtype = getattr(np, float_precision)
-        self._tf_float_dtype = getattr(tf, float_precision)
-
         self.data_handler = data_handler
         self.trafo_model = {
             'config': data_handler.config,
             'skip_keys': data_handler.skip_check_keys,
             'tensors': data_handler.tensors,
-            'float_precision': float_precision,
-            'norm_constant': norm_constant,
         }
         self._setup_complete = False
 
@@ -128,7 +116,9 @@ class DataTransformer(object):
         return self._update_online_variance_vars(data_batch=data_batch, n=n,
                                                  mean=mean, M2=M2)
 
-    def create_trafo_model_iteratively(self, data_iterator, num_batches):
+    def create_trafo_model_iteratively(self, data_iterator, num_batches,
+                                       float_precision='float64',
+                                       norm_constant=1e-6):
         """Iteratively create a transformation model.
 
         Parameters
@@ -138,9 +128,26 @@ class DataTransformer(object):
             dom_responses and cascade_parameters.
         num_batches : int
             How many batches to use to create the transformation model.
+        float_precision : str, optional
+            Float precision to use for trafo methods.
+            Examples: 'float32', 'float64'
+        norm_constant : float
+            A small constant that is added to the denominator during
+            normalization to ensure finite values.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
         if self._setup_complete:
             raise ValueError('Trafo model is already setup!')
+
+        # set precision and norm constant
+        self.trafo_model['float_precision'] = float_precision
+        self.trafo_model['norm_constant'] = norm_constant
+        self._np_float_dtype = getattr(np, self.trafo_model['float_precision'])
+        self._tf_float_dtype = getattr(tf, self.trafo_model['float_precision'])
 
         # create empty onlince variance variables
         var_dict = {}
@@ -243,17 +250,29 @@ class DataTransformer(object):
 
         # update trafo model
         self.trafo_model = trafo_model
+        self._np_float_dtype = getattr(np, self.trafo_model['float_precision'])
+        self._tf_float_dtype = getattr(tf, self.trafo_model['float_precision'])
 
         self._setup_complete = True
 
-    def save_trafo_model(self, model_path):
+    def save_trafo_model(self, model_path, overwrite=False):
         """Saves transformation model to file.
 
         Parameters
         ----------
         model_path : str
             Path to trafo model file.
+        overwrite : bool, optional
+            If True, potential existing files will be overwritten.
+            If False, an error will be raised.
         """
+        if os.path.exists(model_path):
+            if overwrite:
+                self.logger.info('Overwriting existing file at: {}'.format(
+                                                                model_path))
+            else:
+                raise IOError('File already exists!')
+
         directory = os.path.dirname(model_path)
         if not os.path.isdir(directory):
             os.makedirs(directory)

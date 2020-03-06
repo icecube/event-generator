@@ -108,7 +108,7 @@ class TestDataTensor(unittest.TestCase):
                 shape=None,
                 tensor_type='data',
                 dtype=1)
-        self.assertTrue("'int'> != <" in str(context.exception))
+        self.assertTrue(" != " in str(context.exception))
 
     def test_dtype_not_part_of_numpy(self):
         with self.assertRaises(ValueError) as context:
@@ -137,7 +137,8 @@ class TestDataTensor(unittest.TestCase):
         names = ['tensor_name'] * 5 + ['arbitray_name', 's']
         tensors = create_tensors(names)
 
-        self.assertFalse(tensors[0] == None)
+        self.assertFalse(tensors[0] is None)
+        self.assertFalse(tensors[0] == 3)
         self.assertTrue(tensors[0] == tensors[1])
         self.assertFalse(tensors[0] == tensors[2])
         self.assertFalse(tensors[0] == tensors[3])
@@ -145,7 +146,8 @@ class TestDataTensor(unittest.TestCase):
         self.assertFalse(tensors[2] == tensors[3])
         self.assertFalse(tensors[3] == tensors[4])
 
-        self.assertTrue(tensors[0] != None)
+        self.assertTrue(tensors[0] is not None)
+        self.assertTrue(tensors[0] != 3)
         self.assertFalse(tensors[0] != tensors[1])
         self.assertTrue(tensors[0] != tensors[2])
         self.assertTrue(tensors[0] != tensors[3])
