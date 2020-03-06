@@ -12,7 +12,7 @@ def create_tensors(names):
     Parameters
     ----------
     names : list of str
-        A list of strings. Must have length 6.
+        A list of strings. Must have length 7.
 
     Returns
     -------
@@ -71,6 +71,16 @@ def create_tensors(names):
                       'reference': 'value_tensor2',
                       'additional_key': None,
                    }),
+        DataTensor(name=names[6],
+                   shape=None,
+                   tensor_type='data',
+                   dtype='float32',
+                   vector_info={
+                      'type': 'index',
+                      'reference': 'value_tensor2',
+                      'additional_key': None,
+                   },
+                   new_member_var=42),
     ]
     return tensors
 
@@ -98,8 +108,7 @@ class TestDataTensor(unittest.TestCase):
                 shape=None,
                 tensor_type='data',
                 dtype=1)
-        self.assertTrue("<type 'int'> != <type 'str'>"
-                        in str(context.exception))
+        self.assertTrue("'int'> != <" in str(context.exception))
 
     def test_dtype_not_part_of_numpy(self):
         with self.assertRaises(ValueError) as context:
@@ -125,7 +134,7 @@ class TestDataTensor(unittest.TestCase):
 
     def test_equality_and_inequality(self):
 
-        names = ['tensor_name'] * 5 + ['arbitray_name']
+        names = ['tensor_name'] * 5 + ['arbitray_name', 's']
         tensors = create_tensors(names)
 
         self.assertFalse(tensors[0] == None)
@@ -152,32 +161,32 @@ class TestDataTensorList(unittest.TestCase):
     """
     def test_duplicate_name(self):
         with self.assertRaises(ValueError) as context:
-            names = ['t3', 't2', 'arbitray_name', 't6', 't6', 'weights']
+            names = ['t3', 't2', 'arbitray_name', 't6', 't6', 'weights', 's']
             tensors = create_tensors(names)
             tensor_list = DataTensorList(tensors)
 
         self.assertTrue('Found duplicate names:' in str(context.exception))
 
     def test_initializer_and_sorting_of_tensors(self):
-        names = ['t3', 't2', 'arbitray_name', 't6', 'labels', 'weights']
+        names = ['t3', 't2', 'arbitray_name', 't6', 'labels', 'weights', 's']
         tensors = create_tensors(names)
         tensor_list = DataTensorList(tensors)
         self.assertListEqual(sorted(names),
                              tensor_list.names)
 
     def test_get_methods(self):
-        names = ['t3', 't2', 'arbitray_name', 't6', 'labels', 'weights']
+        names = ['t3', 't2', 'arbitray_name', 't6', 'labels', 'weights', 's']
         tensors = create_tensors(names)
         tensor_list = DataTensorList(tensors)
         self.assertEqual(tensor_list.get_index('arbitray_name'), 0)
-        self.assertEqual(tensor_list.get_index('weights'), 5)
+        self.assertEqual(tensor_list.get_index('weights'), 6)
         self.assertEqual(tensor_list.get_name(0), 'arbitray_name')
         self.assertTrue(tensor_list.list[0] == tensor_list['arbitray_name'])
         self.assertTrue(tensor_list.list[1] == tensor_list['labels'])
 
     def test_equality_and_inequality(self):
 
-        names = ['t3', 't2', 'arbitray_name', 't6', 'labels', 'weights']
+        names = ['t3', 't2', 'arbitray_name', 't6', 'labels', 'weights', 's']
         tensors = create_tensors(names)
         tensor_list1 = DataTensorList(tensors[:3])
         tensor_list2 = DataTensorList(tensors[:3])
@@ -194,6 +203,18 @@ class TestDataTensorList(unittest.TestCase):
         self.assertTrue(tensor_list3 != tensor_list1)
         self.assertFalse(tensor_list2 == tensor_list4)
         self.assertTrue(tensor_list2 != tensor_list4)
+
+    def test_serialization_methods(self):
+        names = ['t3', 't2', 'arbitray_name', 't6', 'labels', 'weights', 's']
+        tensors = create_tensors(names)
+        tensor_list1 = DataTensorList(tensors[1:3])
+        tensor_list2 = DataTensorList(tensors[5:7])
+        tensor_list3 = DataTensorList(tensor_list1.serialize())
+        tensor_list4 = DataTensorList(tensor_list2.serialize())
+
+        self.assertTrue(tensor_list1 != tensor_list2)
+        self.assertTrue(tensor_list1 == tensor_list3)
+        self.assertTrue(tensor_list2 == tensor_list4)
 
 
 if __name__ == '__main__':

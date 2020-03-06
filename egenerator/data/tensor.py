@@ -121,6 +121,20 @@ class DataTensor(object):
         """
         return not self.__eq__(other)
 
+    def to_dict(self):
+        """Transform DataTensor object to a python dictionary.
+
+        Returns
+        -------
+        dict
+            A dictionary with all of the settings of the DataTensor
+        """
+        tensor_dict = {}
+        for key, value in self.__dict__.items():
+            if '__' != key[:2]:
+                tensor_dict[key] = deepcopy(value)
+        return tensor_dict
+
 
 class DataTensorList(object):
 
@@ -129,9 +143,26 @@ class DataTensorList(object):
 
         Parameters
         ----------
-        data_tensors : list of DataTensor objects
-            A list of data tensor objects.
+        data_tensors : list of dict, list of DataTensor objects, DataTensorList
+            A list of data tensor objects. This can be in form of a
+            DataTensorList object, a python list of DataTensor objects, or a
+            list of serialized tensors (python dicts).
+
+        Raises
+        ------
+        ValueError
+            If duplicate names of tensors are provided.
         """
+        if isinstance(data_tensors, DataTensorList):
+
+            # enable copy constructor: intialize from existing DataTensorList
+            data_tensors = data_tensors.list
+
+        elif len(data_tensors) > 0 and isinstance(data_tensors[0], dict):
+
+            # this is a desiarlized list of data tensors, so deserialize
+            data_tensors = self.deserialize(data_tensors).list
+
         data_tensors = deepcopy(data_tensors)
 
         # sort the data tensors according to their name
@@ -215,10 +246,46 @@ class DataTensorList(object):
         return self.list[self.get_index(name)]
 
     def serialize(self):
-        raise NotImplementedError()
+        """Serialize DataTensorList object to pyton built-in types such as
+        dicts, strings and lists, so that the obect can be easily written
+        to yaml data files.
+        """
+        serialized_tensor_list = []
+        for tensor in self.list:
+            serialized_tensor_list.append(tensor.to_dict())
+        return serialized_tensor_list
 
-    def deserialize(self):
-        raise NotImplementedError()
+    def deserialize(self, serialized_tensor_list):
+        """Deserialize serialized DataTensorList object from pyton built-in
+        types such as dicts, strings and lists, to DataTensorList object.
+        This is the inverse transformation from serialize.
+
+        Parameters
+        ----------
+        serialized_tensor_list : list of dict
+            A list of serialized tensors.
+
+        Returns
+        -------
+        DataTensorList
+            The deserialized DataTensorList object.
+        """
+        serialized_tensor_list = deepcopy(serialized_tensor_list)
+        tensors = []
+        for serialized_tensor in serialized_tensor_list:
+
+            # rename type to tensor_type and expand specs
+            serialized_tensor['tensor_type'] = serialized_tensor['type']
+            for key, value in serialized_tensor['specs'].items():
+                serialized_tensor[key] = value
+
+            del serialized_tensor['type']
+            del serialized_tensor['specs']
+
+            # create data tensor object
+            tensors.append(DataTensor(**serialized_tensor))
+
+        return DataTensorList(tensors)
 
     def get_index(self, name):
         """Get the index of the tensor 'name'
