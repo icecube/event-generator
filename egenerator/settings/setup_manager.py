@@ -1,5 +1,6 @@
 from __future__ import division, print_function
 import os
+import logging
 import numpy as np
 from copy import deepcopy
 import tensorflow as tf
@@ -65,6 +66,7 @@ class SetupManager:
         program_options : str
             A string defining the program options.
         """
+        self.logger = logging.getLogger(__name__)
         self._config_files = config_files
 
         # load and combine configs
@@ -79,6 +81,11 @@ class SetupManager:
             If no config files are given.
             If a setting is defined in multiplie config files.
         """
+        if not isinstance(self._config_files, (list, tuple)):
+            raise ValueError(
+                'Wrong data type: {!r}. Must be list of file paths'.format(
+                    self._config_files))
+
         if len(self._config_files) == 0:
             raise ValueError('You must specify at least one config file!')
 
@@ -112,8 +119,11 @@ class SetupManager:
         # define numpy and tensorflow float precision
         config['tf_float_precision'] = getattr(tf, config['float_precision'])
         config['np_float_precision'] = getattr(np, config['float_precision'])
-        import tfscripts as tfs
-        tfs.FLOAT_PRECISION = config['tf_float_precision']
+        try:
+            import tfscripts as tfs
+            tfs.FLOAT_PRECISION = config['tf_float_precision']
+        except ImportError:
+            self.logger.warning('Could not import tfscripts package.')
 
         # get git repo information
         config['git_short_sha'] = str(version_control.short_sha)

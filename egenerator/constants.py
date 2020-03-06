@@ -1,2 +1,0 @@
-
-MY_DUMMY_CONSTANT = 42
