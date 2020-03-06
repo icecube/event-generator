@@ -49,8 +49,9 @@ class BaseDataHandler(object):
         self.config = None
         self.skip_check_keys = None
 
-        # keep track of multiprocessing processes
+        # keep track of multiprocessing processes and managers
         self._mp_processes = []
+        self._mp_managers = []
 
         self.is_setup = False
 
@@ -612,6 +613,7 @@ class BaseDataHandler(object):
 
         # create and randomly fill file_list queue
         file_list_queue = multiprocessing.Manager().Queue(maxsize=0)
+
         number_of_files = 0
         if sample_randomly:
             np.random.shuffle(file_list)
@@ -629,6 +631,12 @@ class BaseDataHandler(object):
         # create final_batch_queue
         final_batch_queue = multiprocessing.Manager().Queue(
                                                     maxsize=batch_capacity)
+
+        # keep references to managers alive, such that these do not shut
+        # down until the BaseDataHandler object gets garbage collected
+        self._mp_managers.append(file_list_queue)
+        self._mp_managers.append(data_batch_queue)
+        self._mp_managers.append(final_batch_queue)
 
         def file_loader(seed):
             """Helper Method to load files.
@@ -926,6 +934,8 @@ class BaseDataHandler(object):
         time.sleep(0.1)
         for process in self._mp_processes:
             process.join(timeout=1.0)
+
+        self._mp_managers = []
 
     def __del__(self):
         self.kill()
