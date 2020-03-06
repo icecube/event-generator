@@ -78,7 +78,7 @@ class DataTensor(object):
             raise ValueError('Unknown type: {!r}'.format(self.type))
 
         if not isinstance(self.dtype, str):
-            raise ValueError('{!r} != {!r}'.format(type(self.type), str))
+            raise ValueError('{!r} != {!r}'.format(type(self.dtype), str))
 
         if not hasattr(np, self.dtype):
             raise ValueError('Invalid dtype str: {!r}'.format(self.type))
@@ -136,8 +136,13 @@ class DataTensorList(object):
 
         # sort the data tensors according to their name
         names = [tensor.name for tensor in data_tensors]
+
+        # check for duplicates
+        if len(set(names)) != len(names):
+            raise ValueError('Found duplicate names: {!r}'.format(names))
+
         sorted_indices = np.argsort(names)
-        sorted_data_tensors = data_tensors[sorted_indices]
+        sorted_data_tensors = [data_tensors[index] for index in sorted_indices]
 
         self.list = sorted_data_tensors
         self.names = []
@@ -170,8 +175,11 @@ class DataTensorList(object):
         if self.__class__ != other.__class__:
             return False
 
+        if len(self.list) != len(other.list):
+            return False
+
         for t1, t2 in zip(self.list, other.list):
-            if not t1 == t2:
+            if t1 != t2:
                 return False
         return self.__dict__ == other.__dict__
 
