@@ -3,3 +3,4 @@ codecov
 sphinx
 sphinx-rtd-theme
 travis-sphinx
+tensorflow
