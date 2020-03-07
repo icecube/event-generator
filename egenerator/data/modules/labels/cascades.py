@@ -71,6 +71,7 @@ class CascadeGeneratorLabelModule(BaseModule):
                                         shape=[None, 7],
                                         tensor_type='label',
                                         dtype='float32',
+                                        trafo=True,
                                         trafo_log=self.settings['trafo_log'])])
 
         if isinstance(config_data, DataTensorList):

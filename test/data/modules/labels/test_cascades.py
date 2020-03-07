@@ -76,6 +76,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
                                         shape=[None, 7],
                                         tensor_type='label',
                                         dtype='float32',
+                                        trafo=True,
                                         trafo_log=trafo_log)])
             self.assertTrue(tensors == tensors_true)
 
