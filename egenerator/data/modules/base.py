@@ -13,6 +13,7 @@ class BaseModule(object):
             Arbitrary keyword arguments.
         """
         self.is_configured = False
+        self.tensors = None
         self.skip_check_keys = []
         self.settings = {}
         self._initialize(*args, **kwargs)

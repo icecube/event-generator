@@ -58,27 +58,39 @@ class ModuleDataHandler(BaseDataHandler):
         logger = logger or logging.getLogger(__name__)
         super(ModuleDataHandler, self).__init__(logger=logger)
 
-    def _configure_settings_of_derived_class(self):
-        """Perform any additional operations to setup and configure the
-        derived class.
-        When this method is called, the member variables:
-            'tensors', 'config', and 'skip_check_keys'
-        have been set and may be used.
+    def _assign_settings_of_derived_class(self, tensors, config,
+                                          skip_check_keys):
+        """Perform operations to setup and configure the derived class.
+        This is only necessary when the data handler is loaded
+        from file. In this case the setup methods '_setup' and 'setup' have
+        not run.
+
+        Parameters
+        ----------
+        tensors : DataTensorList
+            A list of DataTensor objects. These are the tensors the data
+            handler will create and load. They must always be in the same order
+            and have the described settings.
+        config : dict
+            Configuration of the DataHandler.
+        skip_check_keys : list
+            List of keys in the config that do not need to be checked, e.g.
+            that may change.
         """
-        self.data_tensors = DataTensorList([l for l in self.tensors.list
+
+        self.data_tensors = DataTensorList([l for l in tensors.list
                                             if l.type == 'data'])
-        self.label_tensors = DataTensorList([l for l in self.tensors.list
+        self.label_tensors = DataTensorList([l for l in tensors.list
                                              if l.type == 'label'])
-        self.weight_tensors = DataTensorList([l for l in self.tensors.list
+        self.weight_tensors = DataTensorList([l for l in tensors.list
                                               if l.type == 'weight'])
-        self.misc_tensors = DataTensorList([l for l in self.tensors.list
+        self.misc_tensors = DataTensorList([l for l in tensors.list
                                             if l.type == 'misc'])
 
-        # load modules if not loaded yet
-        if not self.modules_are_loaded:
-            self._load_modules(self.config)
+        # load modules
+        self._load_modules(config)
 
-        # configure modules
+        # configure modules if this has not happened yet
         data_tensors = self.data_module.configure(self.data_tensors)
         label_tensors = self.label_module.configure(self.label_tensors)
         weight_tensors = self.weight_module.configure(self.weight_tensors)
@@ -113,34 +125,29 @@ class ModuleDataHandler(BaseDataHandler):
         base = 'egenerator.data.modules.{}.{}'
 
         # load the data loader module
-        if self.data_module is None:
-            data_class = misc.load_class(
-                base.format('data', config['data_module']))
-            self.data_module = data_class(**config['data_settings'])
+        data_class = misc.load_class(
+            base.format('data', config['data_module']))
+        self.data_module = data_class(**config['data_settings'])
 
         # load the label loader module
-        if self.label_module is None:
-            label_class = misc.load_class(
-                base.format('labels', config['label_module']))
-            self.label_module = label_class(**config['label_settings'])
+        label_class = misc.load_class(
+            base.format('labels', config['label_module']))
+        self.label_module = label_class(**config['label_settings'])
 
         # load the weight loader module
-        if self.weight_module is None:
-            weight_class = misc.load_class(
-                base.format('weights', config['weight_module']))
-            self.weight_module = weight_class(**config['weight_settings'])
+        weight_class = misc.load_class(
+            base.format('weights', config['weight_module']))
+        self.weight_module = weight_class(**config['weight_settings'])
 
         # load the misc loader module
-        if self.misc_module is None:
-            misc_class = misc.load_class(
-                base.format('misc', config['misc_module']))
-            self.misc_module = misc_class(**config['misc_settings'])
+        misc_class = misc.load_class(
+            base.format('misc', config['misc_module']))
+        self.misc_module = misc_class(**config['misc_settings'])
 
         # load the filter module
-        if self.filter_module is None:
-            filter_class = misc.load_class(
-                base.format('filters', config['filter_module']))
-            self.filter_module = filter_class(**config['filter_settings'])
+        filter_class = misc.load_class(
+            base.format('filters', config['filter_module']))
+        self.filter_module = filter_class(**config['filter_settings'])
 
         self.modules_are_loaded = True
 
@@ -340,4 +347,5 @@ class ModuleDataHandler(BaseDataHandler):
         **kwargs
             Arbitrary keyword arguments.
         """
-        return self.data_module.write_data_to_frame(frame, *args, **kwargs)
+        return self.data_module.write_data_to_frame(
+            data, frame, *args, **kwargs)

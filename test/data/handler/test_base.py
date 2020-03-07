@@ -49,27 +49,27 @@ class TestBaseDataHandler(unittest.TestCase):
         data_handler._is_setup = True
         data_handler.check_if_setup()
 
-    def test_method_configure_settings_not_setup_yet(self):
+    def test_method_assign_settings_not_setup_yet(self):
         data_handler = BaseDataHandler()
 
         with self.assertRaises(ValueError) as context:
             data_handler._is_setup = True
-            data_handler._configure_settings([2, 3], {})
+            data_handler._assign_settings([2, 3], {}, [], False)
         self.assertTrue('The data handler is already set up!'
                         in str(context.exception))
 
-    def test_method_configure_settings_wrong_tensor_type(self):
+    def test_method_assign_settings_wrong_tensor_type(self):
         data_handler = BaseDataHandler()
 
         with self.assertRaises(ValueError) as context:
-            data_handler._configure_settings([2, 3], {})
+            data_handler._assign_settings([2, 3], {}, [], False)
         self.assertTrue('Unsupported type:' in str(context.exception))
 
-    def test_method_configure_settings_pure_virtual_method(self):
+    def test_method_assign_settings_pure_virtual_method(self):
         data_handler = BaseDataHandler()
 
         with self.assertRaises(NotImplementedError) as context:
-            data_handler._configure_settings(DataTensorList([]), {})
+            data_handler._assign_settings(DataTensorList([]), {}, [], True)
 
     def test_method_setup_pure_virtual_method(self):
         data_handler = BaseDataHandler()

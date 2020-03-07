@@ -55,8 +55,9 @@ class BaseDataHandler(object):
 
         self._is_setup = False
 
-    def _configure_settings(self, data_tensors, config, skip_check_keys=[]):
-        """Set the configuration settings of the data handler.
+    def _assign_settings(self, data_tensors, config, skip_check_keys,
+                         submodules_need_to_be_configured):
+        """Assign the configuration settings of the data handler.
 
         Parameters
         ----------
@@ -66,9 +67,15 @@ class BaseDataHandler(object):
             and have the described settings.
         config : dict
             Configuration of the DataHandler.
-        skip_check_keys : list, optional
+        skip_check_keys : list
             List of keys in the config that do not need to be checked, e.g.
             that may change.
+        submodules_need_to_be_configured : bool
+            Indicates whether the sub modules need to be configured. This
+            is the case, if the data handler configuration is being loaded
+            from file. If instead the data handler was configured via setup,
+            the sub modules have already been run via _setup and must not
+            be setup again.
 
         Raises
         ------
@@ -86,15 +93,29 @@ class BaseDataHandler(object):
         self.tensors = data_tensors
         self.config = dict(deepcopy(config))
         self.skip_check_keys = list(deepcopy(skip_check_keys))
-        self._configure_settings_of_derived_class()
+        if submodules_need_to_be_configured:
+            self._assign_settings_of_derived_class(
+                self.tensors, self.config, self.skip_check_keys)
         self._is_setup = True
 
-    def _configure_settings_of_derived_class(self):
-        """Perform any additional operations to setup and configure the
-        derived class.
-        When this method is called, the member variables:
-            'tensors', 'config', and 'skip_check_keys'
-        have been set and may be used.
+    def _assign_settings_of_derived_class(self, tensors, config,
+                                          skip_check_keys):
+        """Perform operations to setup and configure the derived class.
+        This is only necessary when the data handler is loaded
+        from file. In this case the setup methods '_setup' and 'setup' have
+        not run.
+
+        Parameters
+        ----------
+        tensors : DataTensorList
+            A list of DataTensor objects. These are the tensors the data
+            handler will create and load. They must always be in the same order
+            and have the described settings.
+        config : dict
+            Configuration of the DataHandler.
+        skip_check_keys : list
+            List of keys in the config that do not need to be checked, e.g.
+            that may change.
         """
         raise NotImplementedError
 
@@ -130,6 +151,9 @@ class BaseDataHandler(object):
         ValueError
             If check_config is True and configs do not match.
         """
+        if self._is_setup:
+            raise ValueError('The data handler is already set up!')
+
         if test_data is not None:
             if isinstance(test_data, list):
                 test_input_data = []
@@ -146,7 +170,8 @@ class BaseDataHandler(object):
         if check_config and config != config_new:
             raise ValueError('{!r} != {!r}'.format(config, config_new))
 
-        self._configure_settings(data_tensors, config_new, skip_check_keys)
+        self._assign_settings(data_tensors, config_new, skip_check_keys,
+                              submodules_need_to_be_configured=False)
 
     def _setup(self, config, test_data=None):
         """Setup the datahandler with a test input file.
@@ -186,12 +211,12 @@ class BaseDataHandler(object):
         """
         with open(file, 'r') as stream:
             data_dict = yaml.load(stream, Loader=yaml.Loader)
-            # data_dict = yaml.load(stream, Loader=yaml.FullLoader)
 
         # deserialize data_tensors
         data_dict['data_tensors'] = DataTensorList(data_dict['data_tensors'])
 
-        self._configure_settings(**data_dict)
+        self._assign_settings(submodules_need_to_be_configured=True,
+                              **data_dict)
 
     def save(self, output_file, overwrite=False):
         """Save the data handler configuration to the specified output_file.

@@ -17,6 +17,7 @@ class TestDummyMiscModule(unittest.TestCase):
         dummy_module = DummyMiscModule()
         self.assertEqual(dummy_module.skip_check_keys, [])
         self.assertEqual(dummy_module.settings, {})
+        self.assertEqual(dummy_module.tensors, None)
 
     def test_configuration_data_type_check(self):
         dummy_module = DummyMiscModule()
@@ -46,6 +47,7 @@ class TestDummyMiscModule(unittest.TestCase):
 
         # check if configured data_tensors are correct
         self.assertEqual(data_tensors, DataTensorList([]))
+        self.assertEqual(dummy_module.tensors, DataTensorList([]))
         self.assertEqual(dummy_module.get_skip_check_keys(), [])
         self.assertEqual(dummy_module.skip_check_keys, [])
         self.assertEqual(dummy_module.settings, {})
