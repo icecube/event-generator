@@ -41,9 +41,9 @@ class CascadeGeneratorLabelModule(BaseModule):
             Arbitrary keyword arguments.
         """
         self.logger = logging.getLogger(__name__)
-        self.settings['shift_cascade_vertex'] = shift_cascade_vertex
-        self.settings['trafo_log'] = trafo_log
-        self.settings['label_key'] = label_key
+        self._settings['shift_cascade_vertex'] = shift_cascade_vertex
+        self._settings['trafo_log'] = trafo_log
+        self._settings['label_key'] = label_key
 
         # sanity checks:
         if not isinstance(self.settings['shift_cascade_vertex'], bool):
@@ -66,7 +66,7 @@ class CascadeGeneratorLabelModule(BaseModule):
             The tensors of type 'label' that will be loaded.
         """
 
-        self.tensors = DataTensorList([DataTensor(
+        self._tensors = DataTensorList([DataTensor(
                                         name='cascade_labels',
                                         shape=[None, 7],
                                         tensor_type='label',

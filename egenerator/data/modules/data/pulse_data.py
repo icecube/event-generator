@@ -49,13 +49,13 @@ class PulseDataModule(BaseModule):
             Arbitrary keyword arguments.
         """
         self.logger = logging.getLogger(__name__)
-        self.skip_check_keys.extend(['pulse_key', 'dom_exclusions_key',
-                                     'time_exclusions_key'])
+        self._skip_check_keys.extend(['pulse_key', 'dom_exclusions_key',
+                                      'time_exclusions_key'])
 
-        self.settings['pulse_key'] = pulse_key
-        self.settings['dom_exclusions_key'] = dom_exclusions_key
-        self.settings['time_exclusions_key'] = time_exclusions_key
-        self.settings['float_precision'] = float_precision
+        self._settings['pulse_key'] = pulse_key
+        self._settings['dom_exclusions_key'] = dom_exclusions_key
+        self._settings['time_exclusions_key'] = time_exclusions_key
+        self._settings['float_precision'] = float_precision
 
         self.np_float_precision = getattr(np, self.settings['float_precision'])
         self.time_exclusions_exist = \
@@ -117,7 +117,7 @@ class PulseDataModule(BaseModule):
                                            dtype='int32',
                                            exists=self.time_exclusions_exist)
 
-        self.tensors = DataTensorList([
+        self._tensors = DataTensorList([
             x_dom_charge, x_dom_exclusions, x_pulses, x_pulses_ids,
             x_time_exclusions, x_time_exclusions_ids])
 

@@ -45,7 +45,7 @@ class DummyWeightModule(BaseModule):
         if not isinstance(config_data, (type(None), str, DataTensorList)):
             raise ValueError('Unknown type: {!r}'.format(type(config_data)))
 
-        self.tensors = DataTensorList([])
+        self._tensors = DataTensorList([])
         return self.tensors
 
     def get_data_from_hdf(self, file):

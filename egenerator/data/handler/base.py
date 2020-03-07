@@ -34,6 +34,22 @@ class BaseDataHandler(object):
         and have the described settings.
     """
 
+    @property
+    def config(self):
+        return self._config
+
+    @property
+    def is_setup(self):
+        return self._is_setup
+
+    @property
+    def skip_check_keys(self):
+        return self._skip_check_keys
+
+    @property
+    def tensors(self):
+        return self._tensors
+
     def __init__(self, logger=None):
         """Initializes DataHandler object.
 
@@ -45,9 +61,9 @@ class BaseDataHandler(object):
         self.logger = logger or logging.getLogger(__name__)
 
         # create empty member variables
-        self.tensors = None
-        self.config = None
-        self.skip_check_keys = None
+        self._tensors = None
+        self._config = None
+        self._skip_check_keys = None
 
         # keep track of multiprocessing processes and managers
         self._mp_processes = []
@@ -90,12 +106,12 @@ class BaseDataHandler(object):
             raise ValueError(
                 'Unsupported type: {!r}'.format(type(data_tensors)))
 
-        self.tensors = data_tensors
-        self.config = dict(deepcopy(config))
-        self.skip_check_keys = list(deepcopy(skip_check_keys))
+        self._tensors = data_tensors
+        self._config = dict(deepcopy(config))
+        self._skip_check_keys = list(deepcopy(skip_check_keys))
         if submodules_need_to_be_configured:
             self._assign_settings_of_derived_class(
-                self.tensors, self.config, self.skip_check_keys)
+                self._tensors, self._config, self._skip_check_keys)
         self._is_setup = True
 
     def _assign_settings_of_derived_class(self, tensors, config,
@@ -245,9 +261,9 @@ class BaseDataHandler(object):
                 raise IOError('File {!r} already exists!'.format(output_file))
 
         data_dict = {}
-        data_dict['skip_check_keys'] = self.skip_check_keys
-        data_dict['config'] = self.config
-        data_dict['data_tensors'] = self.tensors.serialize()
+        data_dict['skip_check_keys'] = self._skip_check_keys
+        data_dict['config'] = self._config
+        data_dict['data_tensors'] = self._tensors.serialize()
 
         with open(output_file, 'w') as yaml_file:
             yaml.dump(data_dict, yaml_file)
@@ -275,12 +291,12 @@ class BaseDataHandler(object):
             raise NotImplementedError()
 
         # check rank
-        if len(data) != len(self.tensors.names):
+        if len(data) != len(self._tensors.names):
             raise ValueError('Length {!r} and {!r} do not match!'.format(
-                len(data), len(self.tensors.names)))
+                len(data), len(self._tensors.names)))
 
         # check shape
-        for values, tensor in zip(data, self.tensors.list):
+        for values, tensor in zip(data, self._tensors.list):
             if tensor.exists and tensor.vector_info is None:
                 if len(values.shape) != len(tensor.shape):
                     raise ValueError(
@@ -316,7 +332,7 @@ class BaseDataHandler(object):
             Number of events.
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
 
         """
         self.check_if_setup()
@@ -344,7 +360,7 @@ class BaseDataHandler(object):
             Number of events.
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
 
         """
         raise NotImplementedError()
@@ -366,7 +382,7 @@ class BaseDataHandler(object):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
         """
         self.check_if_setup()
 
@@ -392,7 +408,7 @@ class BaseDataHandler(object):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
         """
         raise NotImplementedError()
 
@@ -413,7 +429,7 @@ class BaseDataHandler(object):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
         """
         self.check_if_setup()
 
@@ -439,7 +455,7 @@ class BaseDataHandler(object):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
         """
         raise NotImplementedError()
 
@@ -451,7 +467,7 @@ class BaseDataHandler(object):
         ----------
         data : tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
         frame : I3Frame
             The I3Frame to which the data is to be written to.
         *args
@@ -472,7 +488,7 @@ class BaseDataHandler(object):
         ----------
         data : tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self._tensors).
         frame : I3Frame
             The I3Frame to which the data is to be written to.
         *args
@@ -607,7 +623,7 @@ class BaseDataHandler(object):
         generator
             A generator object which yields batches of input data.
             The returned object is a tuple of array-like tensors with the
-            specifications as defined in the DataTensorList (self.tensors).
+            specifications as defined in the DataTensorList (self._tensors).
 
         Raises
         ------
@@ -748,7 +764,7 @@ class BaseDataHandler(object):
         def fill_event_list(data_batch, event_list, exists, num_events):
             """Fills an event_list with a given data_batch.
             """
-            for i, tensor in enumerate(self.tensors.list):
+            for i, tensor in enumerate(self._tensors.list):
 
                 # check if data exists
                 if data_batch[i] is None:
@@ -761,7 +777,7 @@ class BaseDataHandler(object):
                         continue
                     elif tensor.vector_info['type'] == 'index':
                         # get value tensor
-                        value_index = self.tensors.get_index(
+                        value_index = self._tensors.get_index(
                             tensor.vector_info['reference'])
                         values = data_batch[value_index]
                         indices = data_batch[i]
@@ -805,13 +821,13 @@ class BaseDataHandler(object):
 
             # reset event batch
             size = 0
-            batch = [[] for v in self.tensors.names]
+            batch = [[] for v in self._tensors.names]
 
             while data_left_in_queue.value:
                 # create lists and concatenate at end
                 # (faster than concatenating in each step)
-                exists = [True for v in self.tensors.names]
-                event_list = [[] for v in self.tensors.names]
+                exists = [True for v in self._tensors.names]
+                event_list = [[] for v in self._tensors.names]
 
                 # get a new set of events from queue and fill
                 num_events, data_batch = data_batch_queue.get()
@@ -835,7 +851,7 @@ class BaseDataHandler(object):
                                         num_events)
 
                 # concatenate into one numpy array:
-                for i, tensor in enumerate(self.tensors.list):
+                for i, tensor in enumerate(self._tensors.list):
                     if exists[i] and tensor.vector_info is None:
                         event_list[i] = np.concatenate(event_list[i], axis=0)
 
@@ -855,7 +871,7 @@ class BaseDataHandler(object):
                     for index in shuffled_indices:
 
                         # add event to batch
-                        for i, tensor in enumerate(self.tensors.list):
+                        for i, tensor in enumerate(self._tensors.list):
                             if exists[i]:
                                 if tensor.vector_info is None:
                                     batch[i].append(event_list[i][index])
@@ -874,7 +890,7 @@ class BaseDataHandler(object):
                         if size == batch_size:
 
                             # create numpy arrays from input tensors
-                            for i, tensor in enumerate(self.tensors.list):
+                            for i, tensor in enumerate(self._tensors.list):
                                 if exists[i]:
                                     if tensor.vector_info is None:
                                         batch[i] = np.asarray(batch[i])
@@ -900,7 +916,7 @@ class BaseDataHandler(object):
 
                             # reset event batch
                             size = 0
-                            batch = [[] for v in self.tensors.names]
+                            batch = [[] for v in self._tensors.names]
 
                 if not pick_random_files_forever:
                     with file_counter_lock:
@@ -911,7 +927,7 @@ class BaseDataHandler(object):
             # collect leftovers and put them in an (incomplete) batch
             if size > 0:
                 # create numpy arrays from input tensors
-                for i, tensor in enumerate(self.tensors.list):
+                for i, tensor in enumerate(self._tensors.list):
                     if exists[i]:
                         if tensor.vector_info is None:
                             batch[i] = np.asarray(batch[i])

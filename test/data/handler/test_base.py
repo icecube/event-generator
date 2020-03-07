@@ -18,12 +18,12 @@ class TestBaseDataHandler(unittest.TestCase):
 
         # fake setup
         data_handler._is_setup = True
-        data_handler.config = {'setting1': 1337}
-        data_handler.skip_check_keys = ['ignore_key']
-        data_handler.tensors = DataTensorList([DataTensor(name='data_tensor',
-                                                          shape=[None, 86, 1],
-                                                          tensor_type='data',
-                                                          dtype='float32')])
+        data_handler._config = {'setting1': 1337}
+        data_handler._skip_check_keys = ['ignore_key']
+        data_handler._tensors = DataTensorList([DataTensor(name='data_tensor',
+                                                           shape=[None, 86, 1],
+                                                           tensor_type='data',
+                                                           dtype='float32')])
         self.data_handler = data_handler
 
     def test_object_initialization(self):

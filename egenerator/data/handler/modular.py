@@ -21,19 +21,66 @@ class ModuleDataHandler(BaseDataHandler):
     data_module : DataModule
         The data module which is responsible for loading and creating of
         tensors of type 'data'.
+    data_tensors : DataTensorList
+        The data tensor list of tensors of type 'data'.
     filter_module : FilterModule
         A filter module that is used to filter certain events from the input
         batch.
     label_module : LabelModule
         The weight module which handles loading of tensors of type 'label'.
+    label_tensors : DataTensorList
+        The data tensor list of tensors of type 'label'.
     misc_module : MiscModule
         The weight module which handles loading of tensors of type 'misc'.
+    misc_tensors : DataTensorList
+        The data tensor list of tensors of type 'misc'.
     modules_are_loaded : bool
         Indicates whether the models have been loaded.
         If True, the modules have been loaded.
     weight_module : WeightModule
         The weight module which handles loading of tensors of type 'weight'.
+    weight_tensors : DataTensorList
+        The data tensor list of tensors of type 'weight'.
     """
+    @property
+    def data_module(self):
+        return self._data_module
+
+    @property
+    def data_tensors(self):
+        return self._data_tensors
+
+    @property
+    def filter_module(self):
+        return self._filter_module
+
+    @property
+    def label_module(self):
+        return self._label_module
+
+    @property
+    def label_tensors(self):
+        return self._label_tensors
+
+    @property
+    def misc_module(self):
+        return self._misc_module
+
+    @property
+    def misc_tensors(self):
+        return self._misc_tensors
+
+    @property
+    def modules_are_loaded(self):
+        return self._modules_are_loaded
+
+    @property
+    def weight_module(self):
+        return self._weight_module
+
+    @property
+    def weight_tensors(self):
+        return self._weight_tensors
 
     def __init__(self, logger=None):
         """Initialize data handler
@@ -43,17 +90,17 @@ class ModuleDataHandler(BaseDataHandler):
         logger : logging.logger, optional
             A logging instance.
         """
-        self.modules_are_loaded = False
-        self.data_module = None
-        self.label_module = None
-        self.weight_module = None
-        self.misc_module = None
-        self.filter_module = None
+        self._modules_are_loaded = False
+        self._data_module = None
+        self._label_module = None
+        self._weight_module = None
+        self._misc_module = None
+        self._filter_module = None
 
-        self.data_tensors = None
-        self.label_tensors = None
-        self.weight_tensors = None
-        self.misc_tensors = None
+        self._data_tensors = None
+        self._label_tensors = None
+        self._misc_tensors = None
+        self._weight_tensors = None
 
         logger = logger or logging.getLogger(__name__)
         super(ModuleDataHandler, self).__init__(logger=logger)
@@ -78,30 +125,30 @@ class ModuleDataHandler(BaseDataHandler):
             that may change.
         """
 
-        self.data_tensors = DataTensorList([l for l in tensors.list
+        self._data_tensors = DataTensorList([l for l in tensors.list
                                             if l.type == 'data'])
-        self.label_tensors = DataTensorList([l for l in tensors.list
+        self._label_tensors = DataTensorList([l for l in tensors.list
                                              if l.type == 'label'])
-        self.weight_tensors = DataTensorList([l for l in tensors.list
+        self._weight_tensors = DataTensorList([l for l in tensors.list
                                               if l.type == 'weight'])
-        self.misc_tensors = DataTensorList([l for l in tensors.list
+        self._misc_tensors = DataTensorList([l for l in tensors.list
                                             if l.type == 'misc'])
 
         # load modules
         self._load_modules(config)
 
         # configure modules if this has not happened yet
-        data_tensors = self.data_module.configure(self.data_tensors)
-        label_tensors = self.label_module.configure(self.label_tensors)
-        weight_tensors = self.weight_module.configure(self.weight_tensors)
-        misc_tensors = self.misc_module.configure(self.misc_tensors)
-        self.filter_module.configure()
+        data_tensors = self._data_module.configure(self._data_tensors)
+        label_tensors = self._label_module.configure(self._label_tensors)
+        weight_tensors = self._weight_module.configure(self._weight_tensors)
+        misc_tensors = self._misc_module.configure(self._misc_tensors)
+        self._filter_module.configure()
 
         # check if tensors match
-        for t1, t2 in ((data_tensors, self.data_tensors),
-                       (label_tensors, self.label_tensors),
-                       (weight_tensors, self.weight_tensors),
-                       (misc_tensors, self.misc_tensors)):
+        for t1, t2 in ((data_tensors, self._data_tensors),
+                       (label_tensors, self._label_tensors),
+                       (weight_tensors, self._weight_tensors),
+                       (misc_tensors, self._misc_tensors)):
             if not t1 == t2:
                 raise ValueError('{!r} != {!r}'.format(t1, t2))
 
@@ -119,7 +166,7 @@ class ModuleDataHandler(BaseDataHandler):
         config : dict
             Configuration of the DataHandler.
         """
-        if self.modules_are_loaded:
+        if self._modules_are_loaded:
             raise ValueError('Modules have already been loaded!')
 
         base = 'egenerator.data.modules.{}.{}'
@@ -127,29 +174,29 @@ class ModuleDataHandler(BaseDataHandler):
         # load the data loader module
         data_class = misc.load_class(
             base.format('data', config['data_module']))
-        self.data_module = data_class(**config['data_settings'])
+        self._data_module = data_class(**config['data_settings'])
 
         # load the label loader module
         label_class = misc.load_class(
             base.format('labels', config['label_module']))
-        self.label_module = label_class(**config['label_settings'])
+        self._label_module = label_class(**config['label_settings'])
 
         # load the weight loader module
         weight_class = misc.load_class(
             base.format('weights', config['weight_module']))
-        self.weight_module = weight_class(**config['weight_settings'])
+        self._weight_module = weight_class(**config['weight_settings'])
 
         # load the misc loader module
         misc_class = misc.load_class(
             base.format('misc', config['misc_module']))
-        self.misc_module = misc_class(**config['misc_settings'])
+        self._misc_module = misc_class(**config['misc_settings'])
 
         # load the filter module
         filter_class = misc.load_class(
             base.format('filters', config['filter_module']))
-        self.filter_module = filter_class(**config['filter_settings'])
+        self._filter_module = filter_class(**config['filter_settings'])
 
-        self.modules_are_loaded = True
+        self._modules_are_loaded = True
 
     def _setup(self, config, test_data=None):
         """Setup the datahandler with a test input file.
@@ -180,16 +227,16 @@ class ModuleDataHandler(BaseDataHandler):
         self._load_modules(config)
 
         # read test file and collect meta data
-        self.data_tensors = self.data_module.configure(test_data)
-        self.label_tensors = self.label_module.configure(test_data)
-        self.weight_tensors = self.weight_module.configure(test_data)
-        self.misc_tensors = self.misc_module.configure(test_data)
-        self.filter_module.configure()
+        self._data_tensors = self._data_module.configure(test_data)
+        self._label_tensors = self._label_module.configure(test_data)
+        self._weight_tensors = self._weight_module.configure(test_data)
+        self._misc_tensors = self._misc_module.configure(test_data)
+        self._filter_module.configure()
 
         # combine tensors
         tensors = DataTensorList(
-            self.data_tensors.list + self.label_tensors.list +
-            self.weight_tensors.list + self.misc_tensors.list)
+            self._data_tensors.list + self._label_tensors.list +
+            self._weight_tensors.list + self._misc_tensors.list)
 
         # get a list of keys whose settings do not have to match
         skip_check_keys = self.get_skip_check_keys()
@@ -203,14 +250,14 @@ class ModuleDataHandler(BaseDataHandler):
         list of str
             A list of config keys which do not have to match.
         """
-        if not self.modules_are_loaded:
+        if not self._modules_are_loaded:
             raise ValueError('Modules must first be loaded!')
 
-        keys = self.data_module.get_skip_check_keys() + \
-            self.label_module.get_skip_check_keys() +\
-            self.weight_module.get_skip_check_keys() +\
-            self.misc_module.get_skip_check_keys() +\
-            self.filter_module.get_skip_check_keys()
+        keys = self._data_module.get_skip_check_keys() + \
+            self._label_module.get_skip_check_keys() +\
+            self._weight_module.get_skip_check_keys() +\
+            self._misc_module.get_skip_check_keys() +\
+            self._filter_module.get_skip_check_keys()
         return sorted(keys)
 
     def _get_data_from_hdf(self, file, *args, **kwargs):
@@ -236,13 +283,13 @@ class ModuleDataHandler(BaseDataHandler):
         """
 
         # load data
-        num_data, data = self.data_module.get_data_from_hdf(
+        num_data, data = self._data_module.get_data_from_hdf(
                                                         file, *args, **kwargs)
-        num_labels, labels = self.label_module.get_data_from_hdf(
+        num_labels, labels = self._label_module.get_data_from_hdf(
                                                         file, *args, **kwargs)
-        num_misc, misc = self.misc_module.get_data_from_hdf(
+        num_misc, misc = self._misc_module.get_data_from_hdf(
                                                         file, *args, **kwargs)
-        num_weights, weights = self.weight_module.get_data_from_hdf(
+        num_weights, weights = self._weight_module.get_data_from_hdf(
                                                         file, *args, **kwargs)
 
         # combine data in correct order
@@ -262,29 +309,29 @@ class ModuleDataHandler(BaseDataHandler):
                 if tensor.type == 'data':
                     num_events = check_num_events(num_events, num_data)
                     event_batch.append(
-                        data[self.data_tensors.get_index(tensor.name)])
+                        data[self._data_tensors.get_index(tensor.name)])
 
                 elif tensor.type == 'label':
                     num_events = check_num_events(num_events, num_labels)
                     event_batch.append(
-                        labels[self.label_tensors.get_index(tensor.name)])
+                        labels[self._label_tensors.get_index(tensor.name)])
 
                 elif tensor.type == 'misc':
                     num_events = check_num_events(num_events, num_misc)
                     event_batch.append(
-                        misc[self.misc_tensors.get_index(tensor.name)])
+                        misc[self._misc_tensors.get_index(tensor.name)])
 
                 elif tensor.type == 'weight':
                     num_events = check_num_events(num_events, num_weights)
                     event_batch.append(
-                        weights[self.weight_tensors.get_index(tensor.name)])
+                        weights[self._weight_tensors.get_index(tensor.name)])
             else:
                 event_batch.append(None)
 
         if num_events is None:
             raise ValueError('Something went wrong!')
 
-        num_events, event_batch = self.filter_module.filter_data(
+        num_events, event_batch = self._filter_module.filter_data(
                                         self.tensors, num_events, event_batch)
 
         return num_events, event_batch
@@ -308,7 +355,7 @@ class ModuleDataHandler(BaseDataHandler):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        return self.data_module.get_data_from_frame(frame, *args, **kwargs)
+        return self._data_module.get_data_from_frame(frame, *args, **kwargs)
 
     def _create_data_from_frame(self, frame, *args, **kwargs):
         """Create data from I3Frame.
@@ -329,7 +376,7 @@ class ModuleDataHandler(BaseDataHandler):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        return self.data_module.create_data_from_frame(frame, *args, **kwargs)
+        return self._data_module.create_data_from_frame(frame, *args, **kwargs)
 
     def _write_data_to_frame(self, data, frame, *args, **kwargs):
         """Write data to I3Frame.
@@ -347,5 +394,5 @@ class ModuleDataHandler(BaseDataHandler):
         **kwargs
             Arbitrary keyword arguments.
         """
-        return self.data_module.write_data_to_frame(
+        return self._data_module.write_data_to_frame(
             data, frame, *args, **kwargs)

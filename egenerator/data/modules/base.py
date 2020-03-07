@@ -2,6 +2,37 @@ from __future__ import division, print_function
 
 
 class BaseModule(object):
+
+    """Summary
+
+    Attributes
+    ----------
+    is_configured : bool
+        Indicates whether the module is configured.
+    settings : dict
+        All settings which define the module.
+    skip_check_keys : list
+        A list of settings that do not need to match when comparing to modules.
+    tensors : DataTensorList
+        A list of data tensors that belong to this module.
+    """
+
+    @property
+    def is_configured(self):
+        return self._is_configured
+
+    @property
+    def tensors(self):
+        return self._tensors
+
+    @property
+    def settings(self):
+        return self._settings
+
+    @property
+    def skip_check_keys(self):
+        return self._skip_check_keys
+
     def __init__(self, *args, **kwargs):
         """Initialize Base Module Class
 
@@ -12,10 +43,10 @@ class BaseModule(object):
         **kwargs
             Arbitrary keyword arguments.
         """
-        self.is_configured = False
-        self.tensors = None
-        self.skip_check_keys = []
-        self.settings = {}
+        self._is_configured = False
+        self._tensors = None
+        self._skip_check_keys = []
+        self._settings = {}
         self._initialize(*args, **kwargs)
 
     def _initialize(self, *args, **kwargs):
@@ -44,10 +75,10 @@ class BaseModule(object):
         **kwargs
             Arbitrary keyword arguments.
         """
-        if self.is_configured:
+        if self._is_configured:
             raise ValueError('Module is already configured!')
         return_value = self._configure(*args, **kwargs)
-        self.is_configured = True
+        self._is_configured = True
         return return_value
 
     def _configure(self, *args, **kwargs):
@@ -71,6 +102,6 @@ class BaseModule(object):
         list of str
             Config keys which do not have to match
         """
-        if not self.is_configured:
+        if not self._is_configured:
             raise ValueError('Module must first be configured!')
-        return sorted(self.skip_check_keys)
+        return sorted(self._skip_check_keys)
