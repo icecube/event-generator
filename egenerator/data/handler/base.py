@@ -53,7 +53,7 @@ class BaseDataHandler(object):
         self._mp_processes = []
         self._mp_managers = []
 
-        self.is_setup = False
+        self._is_setup = False
 
     def _configure_settings(self, data_tensors, config, skip_check_keys=[]):
         """Set the configuration settings of the data handler.
@@ -75,7 +75,7 @@ class BaseDataHandler(object):
         ValueError
             if data handler is already set up or if wrong data type is passed.
         """
-        if self.is_setup:
+        if self._is_setup:
             raise ValueError('The data handler is already set up!')
 
         # define data tensors
@@ -87,7 +87,7 @@ class BaseDataHandler(object):
         self.config = dict(deepcopy(config))
         self.skip_check_keys = list(deepcopy(skip_check_keys))
         self._configure_settings_of_derived_class()
-        self.is_setup = True
+        self._is_setup = True
 
     def _configure_settings_of_derived_class(self):
         """Perform any additional operations to setup and configure the
@@ -106,7 +106,7 @@ class BaseDataHandler(object):
         ValueError
             If the data handler is not set up yet.
         """
-        if not self.is_setup:
+        if not self._is_setup:
             raise ValueError(msg)
 
     def setup(self, config, test_data=None, check_config=True):
@@ -185,10 +185,11 @@ class BaseDataHandler(object):
             loaded.
         """
         with open(file, 'r') as stream:
-            data_dict = yaml.safe_load(stream)
+            data_dict = yaml.load(stream, Loader=yaml.Loader)
+            # data_dict = yaml.load(stream, Loader=yaml.FullLoader)
 
         # deserialize data_tensors
-        data_dict['data_tensors'] = data_dict['data_tensors'].deserialize()
+        data_dict['data_tensors'] = DataTensorList(data_dict['data_tensors'])
 
         self._configure_settings(**data_dict)
 
@@ -224,9 +225,9 @@ class BaseDataHandler(object):
         data_dict['data_tensors'] = self.tensors.serialize()
 
         with open(output_file, 'w') as yaml_file:
-            yaml.dump(data_dict, yaml_file, sort_keys=True)
+            yaml.dump(data_dict, yaml_file)
 
-    def _check_data_structure(self, data, only_data_tensors=False):
+    def _check_data_structure(self, data, check_vector_tensors=False):
         """Check data structure.
 
         Note: this only checks if the length of tensors and their shapes match.
@@ -235,7 +236,7 @@ class BaseDataHandler(object):
         ----------
         data : tuple of array-like
             The data tuple to be checked.
-        only_data_tensors : bool, optional
+        check_vector_tensors : bool, optional
             If True, the data only consists of tensors of type 'data'. Only
             these will be checked.
 
@@ -245,21 +246,20 @@ class BaseDataHandler(object):
             If the shape or length of tensors do not match.
         """
 
-        if only_data_tensors:
+        if check_vector_tensors:
             raise NotImplementedError()
 
-        # check length
+        # check rank
         if len(data) != len(self.tensors.names):
-            raise ValueError('Lengths {!r} and {!r} do not match!'.format(
+            raise ValueError('Length {!r} and {!r} do not match!'.format(
                 len(data), len(self.tensors.names)))
 
         # check shape
         for values, tensor in zip(data, self.tensors.list):
-            if tensor.exists and tensor.shape is not None and \
-                    tensor.vector_info is None:
+            if tensor.exists and tensor.vector_info is None:
                 if len(values.shape) != len(tensor.shape):
                     raise ValueError(
-                        'Dimensions {!r} and {!r} do not match for {}'.format(
+                        'Rank {!r} and {!r} do not match for {}'.format(
                                 len(values.shape), len(tensor.shape),
                                 tensor.name))
                 for s1, s2 in zip(values.shape, tensor.shape):
@@ -268,9 +268,10 @@ class BaseDataHandler(object):
                             'Shapes {!r} and {!r} do not match for {}!'.format(
                                 values.shape, tensor.shape, tensor.name))
 
-            if tensor.shape is not None and tensor.vector_info is not None:
+            if tensor.vector_info is not None:
                 # vector tensors: todo write check for this
-                pass
+                self.logger.warning('Not checking vector tensor {!r}'.format(
+                    tensor.name))
 
     def get_data_from_hdf(self, file, *args, **kwargs):
         """Get data from hdf file.

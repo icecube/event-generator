@@ -429,8 +429,9 @@ class TestDataTransformer(unittest.TestCase):
             data_iterator, data_handler.n_batches)
 
         # save trafo model
-        file_path = os.path.join(os.path.dirname(__file__),
-                                 '../../data/temp_test_files/trafo_model.npy')
+        file_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../data/temp_test_files/trafo_model/trafo_model.npy')
         data_trafo.save_trafo_model(file_path, overwrite=True)
 
         # check error message when attempting to overwrite file
@@ -468,8 +469,9 @@ class TestDataTransformer(unittest.TestCase):
             data_iterator, data_handler.n_batches)
 
         # save trafo model
-        file_path = os.path.join(os.path.dirname(__file__),
-                                 '../../data/temp_test_files/trafo_model.npy')
+        file_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../data/temp_test_files/trafo_model/trafo_model.npy')
         if os.path.exists(file_path):
             os.remove(file_path)
         if os.path.exists(os.path.dirname(file_path)):
@@ -477,10 +479,10 @@ class TestDataTransformer(unittest.TestCase):
         data_trafo.save_trafo_model(file_path, overwrite=True)
 
         # check that trafo model can not be loaded with wrong settings
+        loaded_data_trafo = DataTransformer(data_handler_wrong)
         with self.assertRaises(ValueError) as context:
-            loaded_data_trafo = DataTransformer(data_handler_wrong)
             loaded_data_trafo.load_trafo_model(file_path)
-        self.assertTrue('does not match!' in str(context.exception))
+        self.assertTrue('does not match' in str(context.exception))
 
     def test_check_loading_of_mismatched_trafo_model_additional_key(self):
         """Test the saving and loading of a previously created trafo model.
@@ -496,8 +498,9 @@ class TestDataTransformer(unittest.TestCase):
             data_iterator, data_handler.n_batches)
 
         # save trafo model
-        file_path = os.path.join(os.path.dirname(__file__),
-                                 '../../data/temp_test_files/trafo_model.npy')
+        file_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../data/temp_test_files/trafo_model/trafo_model.npy')
         if os.path.exists(file_path):
             os.remove(file_path)
         if os.path.exists(os.path.dirname(file_path)):
@@ -524,8 +527,9 @@ class TestDataTransformer(unittest.TestCase):
         data_trafo.trafo_model['numpy_array'] = np.array([1, 3, 4, 3])
 
         # save trafo model
-        file_path = os.path.join(os.path.dirname(__file__),
-                                 '../../data/temp_test_files/trafo_model.npy')
+        file_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../data/temp_test_files/trafo_model/trafo_model.npy')
         data_trafo.save_trafo_model(file_path, overwrite=True)
 
         # check if numpy arrays are wrong
