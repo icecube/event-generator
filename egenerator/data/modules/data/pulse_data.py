@@ -148,6 +148,8 @@ class PulseDataModule(BaseModule):
             DataTensorList (self.tensors).
 
         """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
 
         # open file
         f = pd.HDFStore(file, 'r')
@@ -169,7 +171,8 @@ class PulseDataModule(BaseModule):
         except Exception as e:
             self.logger.warning('Skipping file: {} due to {}'.format(file, e))
             return None, None
-        f.close()
+        finally:
+            f.close()
 
         # create Dictionary with event IDs
         size = len(_labels['Event'])
@@ -223,7 +226,8 @@ class PulseDataModule(BaseModule):
                 string = row[7]
                 dom = row[8]
                 if dom > 60:
-                    print('skipping exclusion DOM:', string, dom)
+                    msg = 'skipping exclusion DOM: {!r} {!r}'
+                    self.logger.warning(msg.format(string, dom))
                     continue
                 index = event_dict[(row[1:5])]
                 x_dom_exclusions[index, string-1, dom-1, 0] = False
@@ -262,6 +266,9 @@ class PulseDataModule(BaseModule):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
+
         raise NotImplementedError()
 
     def create_data_from_frame(self, frame, *args, **kwargs):
@@ -283,6 +290,9 @@ class PulseDataModule(BaseModule):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
+
         raise NotImplementedError()
 
     def write_data_to_frame(self, data, frame, *args, **kwargs):
@@ -301,4 +311,7 @@ class PulseDataModule(BaseModule):
         **kwargs
             Arbitrary keyword arguments.
         """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
+
         raise NotImplementedError()

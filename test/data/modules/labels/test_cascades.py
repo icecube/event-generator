@@ -2,12 +2,27 @@
 
 import unittest
 import numpy as np
+import os
 
 from egenerator.data.modules.labels.cascades import CascadeGeneratorLabelModule
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
 class TestCascadeLabelsModule(unittest.TestCase):
+
+    def setUp(self):
+        self.file_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../../test_data/cascade_mesc_l5_nue_low.hdf5')
+
+        self.cascades_true = np.array([
+            [-13.094963629354766, -197.0847391208472, -322.0192710148053,
+             1.0771952265275238, 4.601483747646196, 2360.8997600199427,
+             9663.551318717717],
+            [-70.78487964475926, -32.47261211840669, -426.5132607462965,
+             1.586083894785944, 1.5573642249002815, 924.7251046427211,
+             9789.880753474426],
+            ])
 
     """Test cascade label module.
     """
@@ -117,6 +132,56 @@ class TestCascadeLabelsModule(unittest.TestCase):
         self.assertTrue(np.allclose(x, x_true))
         self.assertTrue(np.allclose(y, y_true))
         self.assertTrue(np.allclose(z, z_true))
+
+    def test_get_data_from_hdf_check_configured(self):
+        """Check if error is raised when not configured
+        """
+        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
+
+        with self.assertRaises(ValueError) as context:
+            num_events, data = module.get_data_from_hdf('wrong_file_path')
+        self.assertTrue('Module not configured yet!' in str(context.exception))
+
+    def test_get_data_from_hdf_skip_file(self):
+        """Check if file is skipped correctly if a label does not exist.
+        """
+        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
+        module.configure('dummy_data')
+
+        num_events, data = module.get_data_from_hdf(self.file_path)
+
+        self.assertEqual(num_events, None)
+        self.assertEqual(data, None)
+
+    def test_get_data_from_hdf_wrong_file_name(self):
+        """Check if IOError is raised if file does not exist
+        """
+        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
+        module.configure('dummy_data')
+
+        with self.assertRaises(IOError) as context:
+            num_events, data = module.get_data_from_hdf('wrong_file_path')
+        self.assertTrue('does not exist' in str(context.exception))
+
+    def test_get_data_from_hdf(self):
+        """Test if loaded data is correct
+        """
+        module = CascadeGeneratorLabelModule(False, False)
+        module.configure('dummy_data')
+
+        num_events, data = module.get_data_from_hdf(self.file_path)
+        self.assertEqual(num_events, 2)
+        self.assertTrue((self.cascades_true == data[0]).all())
+
+    def test_get_data_from_hdf_with_shifted_vertex(self):
+        """Test if loaded data is correct
+        """
+        module = CascadeGeneratorLabelModule(True, False)
+        module.configure('dummy_data')
+
+        num_events, data = module.get_data_from_hdf(self.file_path)
+        self.assertEqual(num_events, 2)
+        self.assertTrue((self.cascades_true[:, 3:] == data[0][:, 3:]).all())
 
 
 if __name__ == '__main__':

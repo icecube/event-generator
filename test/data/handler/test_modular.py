@@ -59,11 +59,6 @@ class TestModuleDataHandler(unittest.TestCase):
         self.config2['label_settings']['trafo_log'] = \
             [False, False, False, False, False, False, False]
 
-        # # create handler object
-        # data_handler = ModuleDataHandler()
-        # data_handler.setup(config)
-        # self.data_handler = data_handler
-
     def test_object_initialization(self):
         data_handler = ModuleDataHandler()
         self.assertEqual(data_handler.tensors, None)
@@ -239,41 +234,213 @@ class TestModuleDataHandler(unittest.TestCase):
         with self.assertRaises(NotImplementedError) as context:
             data_handler.write_data_to_frame(None, None)
 
-    # def test_method_batch_to_event_structure(self):
-    #     """Test restructuring method which restructures a vector shape to
-    #     a structure where the first dimension corresponds to the event id.
-    #     """
-    #     random_state = np.random.RandomState(42)
-    #     values_list_true = []
-    #     indices_list_true = []
-    #     values = []
-    #     indices = []
-    #     num_events = 10
-    #     for i in range(num_events):
-    #         num_pulses_per_event = random_state.randint(0, 30)
+    def test_method_batch_to_event_structure(self):
+        """Test restructuring method which restructures a vector shape to
+        a structure where the first dimension corresponds to the event id.
+        """
+        data_handler = ModuleDataHandler()
+        data_handler.setup(self.config)
 
-    #         pulses = []
-    #         index_list = []
-    #         for p in range(num_pulses_per_event):
-    #             pulse = random_state.uniform(size=3)
-    #             index = [i, p]
-    #             pulses.append(pulse)
-    #             values.append(pulse)
-    #             indices.append(index)
-    #             index_list.append(index)
-    #         values_list_true.append(pulses)
-    #         indices_list_true.append(index_list)
+        random_state = np.random.RandomState(42)
+        values_list_true = []
+        indices_list_true = []
+        values = []
+        indices = []
+        num_events = 10
+        for i in range(num_events):
+            num_pulses_per_event = random_state.randint(0, 30)
 
-    #     values = np.array(values)
-    #     indices = np.array(indices)
+            pulses = []
+            index_list = []
+            for p in range(num_pulses_per_event):
+                pulse = random_state.uniform(size=3)
+                index = [i, p]
+                pulses.append(pulse)
+                values.append(pulse)
+                indices.append(index)
+                index_list.append(index)
+            values_list_true.append(pulses)
+            indices_list_true.append(index_list)
 
-    #     values_list, indices_list = self.data_handler.batch_to_event_structure(
-    #         values, indices, num_events)
+        values = np.array(values)
+        indices = np.array(indices)
 
-    #     for v1, v2 in zip(values_list, values_list_true):
-    #         self.assertTrue(np.allclose(v1, v2))
-    #     for v1, v2 in zip(indices_list, indices_list_true):
-    #         self.assertTrue(np.allclose(v1, v2))
+        values_list, indices_list = data_handler.batch_to_event_structure(
+            values, indices, num_events)
+
+        for v1, v2 in zip(values_list, values_list_true):
+            self.assertTrue(np.allclose(v1, v2))
+        for v1, v2 in zip(indices_list, indices_list_true):
+            self.assertTrue(np.allclose(v1, v2))
+
+
+class TestModuleDataHandlerOnTestData(unittest.TestCase):
+
+    """Test base data handler class while loading in test data
+    """
+    def setUp(self):
+
+        # setup module
+        config = {
+            # settings for the data module
+            'data_module': 'pulse_data.PulseDataModule',
+            'data_settings': {
+                'pulse_key': 'InIceDSTPulses',
+                'dom_exclusions_key': 'BrightDOMs',
+                'time_exclusions_key': None,
+                'float_precision': 'float32',
+            },
+
+            # settings for the label module
+            'label_module': 'cascades.CascadeGeneratorLabelModule',
+            'label_settings': {
+                'shift_cascade_vertex': False,
+                # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
+                'trafo_log': [False, False, False, False, False, True, False],
+                'label_key': 'LabelsDeepLearning',
+                'float_precision': 'float32',
+            },
+
+            # settings for the weight module
+            'weight_module': 'dummy.DummyWeightModule',
+            'weight_settings': {},
+
+            # settings for the misc module
+            'misc_module': 'dummy.DummyMiscModule',
+            'misc_settings': {},
+
+            # settings for the filter module
+            'filter_module': 'dummy.DummyFilterModule',
+            'filter_settings': {},
+        }
+
+        # modify tensor data
+        config2 = dict(deepcopy(config))
+        config2['label_settings']['label_key'] = 'wrong_key'
+
+        # create handler object
+        data_handler = ModuleDataHandler()
+        data_handler.setup(config)
+        self.data_handler = data_handler
+
+        data_handler2 = ModuleDataHandler()
+        data_handler2.setup(config2)
+        self.data_handler2 = data_handler2
+
+        # Test Data
+        self.file_path = os.path.join(
+            os.path.dirname(__file__),
+            '../../test_data/cascade_mesc_l5_nue_low.hdf5')
+
+        self.times_618_to_627 = [11737.0, 10813.0, 10743.0, 10419.0, 10430.0,
+                                 10439.0, 10481.0, 10440.0, 11055.0, 10487.0]
+        self.charges_618_to_627 = [0.824999988079071, 1.024999976158142,
+                                   1.774999976158142, 0.42500001192092896,
+                                   1.774999976158142, 0.22499999403953552,
+                                   1.1749999523162842, 0.32499998807907104,
+                                   0.875, 1.4249999523162842]
+        self.total_event_charge = np.array([1080.0499, 668.4249])
+
+        self.dom_exclusions = np.ones([2, 86, 60, 1], dtype=bool)
+        self.dom_exclusions[0, 25, 47] = False
+        self.dom_exclusions[0, 25, 48] = False
+        self.dom_exclusions[0, 25, 49] = False
+        self.dom_exclusions[1, 34, 53] = False
+        self.dom_exclusions[1, 34, 54] = False
+        self.dom_exclusions[1, 34, 55] = False
+
+        self.cascades_true = np.array([
+            [-13.094963629354766, -197.0847391208472, -322.0192710148053,
+             1.0771952265275238, 4.601483747646196, 2360.8997600199427,
+             9663.551318717717],
+            [-70.78487964475926, -32.47261211840669, -426.5132607462965,
+             1.586083894785944, 1.5573642249002815, 924.7251046427211,
+             9789.880753474426],
+            ])
+
+    def test_get_data_from_hdf(self):
+        """Test if loaded data is correct
+        """
+
+        num_events, data = self.data_handler.get_data_from_hdf(self.file_path)
+        self.assertEqual(num_events, 2)
+        self.assertEqual(len(data), 7)
+        self.assertEqual(data[5], None)
+        self.assertEqual(data[6], None)
+
+        # check specific values for pulse times
+        self.assertListEqual(list(data[3][618:628, 1]),
+                             self.times_618_to_627)
+
+        # check specific values for pulse charges
+        self.assertListEqual(list(data[3][618:628, 0]),
+                             self.charges_618_to_627)
+
+        # check total event charge
+        event_sum = np.sum(data[1], axis=(1, 2, 3))
+        self.assertTrue(np.allclose(self.total_event_charge, event_sum))
+
+        # collect all pulses of an event and accumulate charge
+        pulses = data[3]
+        pulses_ids = data[4]
+        total_charge = [np.sum(pulses[pulses_ids[:, 0] == 0][:, 0]),
+                        np.sum(pulses[pulses_ids[:, 0] == 1][:, 0])]
+        self.assertTrue(np.allclose(self.total_event_charge, total_charge))
+
+        # check dom exclusions
+        self.assertTrue((data[2] == self.dom_exclusions).all())
+
+    def test_get_data_from_hdf_missing_label_key(self):
+        """Test if module properly skips a file if there is an error, such as
+        that the label key is missing.
+        """
+        # check error message when attempting to overwrite file
+        num_events, data = self.data_handler2.get_data_from_hdf(
+                self.file_path)
+        self.assertEqual(num_events, None)
+        self.assertEqual(data, None)
+
+    def test_get_batch_generator_test_one_epoch(self):
+        """Test batch generator
+        """
+        iterator = self.data_handler.get_batch_generator(
+                                            input_data=self.file_path,
+                                            batch_size=1,
+                                            sample_randomly=False,
+                                            pick_random_files_forever=False,
+                                            file_capacity=1,
+                                            batch_capacity=1,
+                                            num_jobs=1,
+                                            num_add_files=0,
+                                            num_repetitions=1)
+        for i, data_batch in enumerate(iterator):
+            self.assertEqual(len(data_batch[0]), 1)
+            self.assertTrue((self.cascades_true[i] == data_batch[0]).all())
+
+        self.data_handler.kill()
+
+    def test_get_batch_generator_forever(self):
+        """Test batch generator
+        """
+        batch_size = 3
+        iterator = self.data_handler.get_batch_generator(
+                                            input_data=self.file_path,
+                                            batch_size=batch_size,
+                                            sample_randomly=True,
+                                            pick_random_files_forever=True,
+                                            file_capacity=1,
+                                            batch_capacity=1,
+                                            num_jobs=1,
+                                            num_add_files=2,
+                                            num_repetitions=3)
+        for i in range(10):
+            data_batch = next(iterator)
+            self.assertEqual(len(data_batch[0]), batch_size)
+            self.assertTrue(
+                (self.cascades_true[0] == data_batch[0][0]).all() or
+                (self.cascades_true[1] == data_batch[0][0]).all())
+
+        self.data_handler.kill()
 
 
 if __name__ == '__main__':

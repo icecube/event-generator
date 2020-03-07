@@ -96,6 +96,8 @@ class CascadeGeneratorLabelModule(BaseModule):
             DataTensorList (self.tensors).
             Returns None if no label data is loaded.
         """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
 
         # open file
         f = pd.HDFStore(file, 'r')
@@ -111,7 +113,8 @@ class CascadeGeneratorLabelModule(BaseModule):
             self.logger.warning(e)
             self.logger.warning('Skipping file: {}'.format(file))
             return None, None
-        f.close()
+        finally:
+            f.close()
 
         # shift cascade vertex to shower maximum?
         if self.settings['shift_cascade_vertex']:

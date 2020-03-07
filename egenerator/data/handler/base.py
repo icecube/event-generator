@@ -291,7 +291,7 @@ class BaseDataHandler(object):
             raise NotImplementedError()
 
         # check rank
-        if len(data) != len(self._tensors.names):
+        if len(data) != self._tensors.len:
             raise ValueError('Length {!r} and {!r} do not match!'.format(
                 len(data), len(self._tensors.names)))
 
@@ -338,6 +338,8 @@ class BaseDataHandler(object):
         self.check_if_setup()
 
         num_events, data = self._get_data_from_hdf(file, *args, **kwargs)
+        if num_events is None and data is None:
+            return None, None
         self._check_data_structure(data)
         return num_events, data
 
@@ -387,6 +389,8 @@ class BaseDataHandler(object):
         self.check_if_setup()
 
         num_events, data = self._get_data_from_frame(frame, *args, **kwargs)
+        if num_events is None and data is None:
+            return None, None
         self._check_data_structure(data, only_data_tensors=True)
         return num_events, data
 
@@ -434,6 +438,8 @@ class BaseDataHandler(object):
         self.check_if_setup()
 
         num_events, data = self._create_data_from_frame(frame, *args, **kwargs)
+        if num_events is None and data is None:
+            return None, None
         self._check_data_structure(data, only_data_tensors=True)
         return num_events, data
 

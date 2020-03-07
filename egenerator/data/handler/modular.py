@@ -292,6 +292,23 @@ class ModuleDataHandler(BaseDataHandler):
         num_weights, weights = self._weight_module.get_data_from_hdf(
                                                         file, *args, **kwargs)
 
+        # check if there were any problems loading files and skip if there were
+        found_problem = False
+        if self.data_tensors.len > 0 and num_data is None and data is None:
+            found_problem = True
+        if self.label_tensors.len > 0 and num_labels is None \
+                and labels is None:
+            found_problem = True
+        if self.misc_tensors.len > 0 and num_misc is None and misc is None:
+            found_problem = True
+        if self.weight_tensors.len > 0 and num_weights is None \
+                and weights is None:
+            found_problem = True
+        if found_problem:
+            self.logger.warning('Found missing values, skipping {!r}'.format(
+                file))
+            return None, None
+
         # combine data in correct order
         num_events = None
 

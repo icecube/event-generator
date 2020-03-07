@@ -199,6 +199,7 @@ class DataTensorList(object):
         sorted_indices = np.argsort(names)
         sorted_data_tensors = [data_tensors[index] for index in sorted_indices]
 
+        self.len = len(sorted_data_tensors)
         self.list = sorted_data_tensors
         self.names = []
         self.shapes = []
