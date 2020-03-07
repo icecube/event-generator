@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import os
+import logging
 import click
 import ruamel.yaml as yaml
 
@@ -61,10 +62,11 @@ def main(config_files):
     # kill multiprocessing queues and workers
     data_handler.kill()
 
-    print('\n=======================================')
-    print('= Successfully saved trafo model to:  =')
-    print('=======================================')
-    print('{!r}\n'.format(config['data_trafo_settings']['model_path']))
+    logger = logging.getLogger(__name__)
+    logger.info('\n=======================================')
+    logger.info('= Successfully saved trafo model to:  =')
+    logger.info('=======================================')
+    logger.info('{!r}\n'.format(config['data_trafo_settings']['model_path']))
 
 
 if __name__ == '__main__':

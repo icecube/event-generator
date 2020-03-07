@@ -804,7 +804,7 @@ class BaseDataHandler(object):
                             not data_batch_queue.empty()):
                         num_events, data_batch = data_batch_queue.get()
                         n_files += 1
-                        current_queue_size += len(num_events)
+                        current_queue_size += num_events
                         fill_event_list(data_batch, event_list, exists,
                                         num_events)
 

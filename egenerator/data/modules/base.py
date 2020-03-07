@@ -43,6 +43,8 @@ class BaseModule(object):
         **kwargs
             Arbitrary keyword arguments.
         """
+        if self.is_configured:
+            raise ValueError('Module is already configured!')
         return_value = self._configure(*args, **kwargs)
         self.is_configured = True
         return return_value

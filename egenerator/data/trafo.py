@@ -1,6 +1,8 @@
 from __future__ import division, print_function
+import os
 import numpy as np
 import logging
+import pickle
 from copy import deepcopy
 from tqdm import tqdm
 from datetime import datetime
@@ -173,9 +175,9 @@ class DataTransformer(object):
             # loop through tensors and update online variance calculation
             for tensor in self.data_handler.tensors.list:
                 if tensor.exists and tensor.trafo:
-                    index = data_handler.tensors.get_index(tensor.name)
+                    index = self.data_handler.tensors.get_index(tensor.name)
                     n, mean, m2 = self._perform_update_step(
-                                    log_bins=tensor.trafo_log,
+                                    trafo_log=tensor.trafo_log,
                                     data_batch=data[index],
                                     n=var_dict[tensor.name]['n'],
                                     mean=var_dict[tensor.name]['mean'],

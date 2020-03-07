@@ -45,6 +45,11 @@ class CascadeGeneratorLabelModule(BaseModule):
         self.settings['trafo_log'] = trafo_log
         self.settings['label_key'] = label_key
 
+        # sanity checks:
+        if not isinstance(self.settings['shift_cascade_vertex'], bool):
+            raise ValueError('{!r} is not a boolean value!'.format(
+                self.settings['shift_cascade_vertex']))
+
     def _configure(self, config_data):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
