@@ -488,7 +488,6 @@ class TestDataTransformer(unittest.TestCase):
         """Test the saving and loading of a previously created trafo model.
         """
         data_handler = DummyDataHandler(trafo=True, trafo_log=True)
-        data_handler_wrong = DummyDataHandler(trafo=True, trafo_log=False)
         data_trafo = DataTransformer(data_handler)
 
         data_iterator = data_handler.create_data_iterator()
@@ -508,9 +507,9 @@ class TestDataTransformer(unittest.TestCase):
         data_trafo.save_trafo_model(file_path, overwrite=True)
 
         # check if additional key exists, but not in loaded file
+        loaded_data_trafo = DataTransformer(data_handler)
+        loaded_data_trafo.trafo_model['wrong_key'] = 'wrong'
         with self.assertRaises(KeyError) as context:
-            loaded_data_trafo = DataTransformer(data_handler_wrong)
-            loaded_data_trafo.trafo_model['wrong_key'] = 'wrong'
             loaded_data_trafo.load_trafo_model(file_path)
         self.assertTrue('does not exist in' in str(context.exception))
 
@@ -533,9 +532,9 @@ class TestDataTransformer(unittest.TestCase):
         data_trafo.save_trafo_model(file_path, overwrite=True)
 
         # check if numpy arrays are wrong
+        data_trafo_mod = DataTransformer(data_handler)
+        data_trafo_mod.trafo_model['numpy_array'] = np.array([1, 3, 4, 5])
         with self.assertRaises(ValueError) as context:
-            data_trafo_mod = DataTransformer(data_handler)
-            data_trafo_mod.trafo_model['numpy_array'] = np.array([1, 3, 4, 5])
             data_trafo_mod.load_trafo_model(file_path)
         self.assertTrue('does not match' in str(context.exception))
 
