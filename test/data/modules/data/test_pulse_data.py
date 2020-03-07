@@ -1,7 +1,6 @@
 #!/usr/local/bin/python3
 
 import unittest
-import os
 import numpy as np
 
 from egenerator.data.modules.data.pulse_data import PulseDataModule

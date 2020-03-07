@@ -7,7 +7,8 @@ class DataTensor(object):
 
     def __init__(self, name, shape, tensor_type, dtype, exists=True,
                  vector_info=None, trafo=False, trafo_reduce_axes=(),
-                 trafo_log=None, trafo_batch_axis=0, **specs):
+                 trafo_log=None, trafo_log_axis=-1, trafo_batch_axis=0,
+                 **specs):
         """Class for specifying data input tensors.
 
         Parameters
@@ -48,8 +49,12 @@ class DataTensor(object):
             Whether or not to perform logarithm on values during
             transformation. if trafo_log is a bool and True, the logarithm will
             be applied to the complete tensor. If it is a list of bool, the
-            logarithm will be applied to
+            logarithm will be applied to the ith component along the
+            trafo_log_axis. Example for trafo_log_axis == -1:
                 values[..., i] if trafo_log[i] is True
+        trafo_log_axis : int, optional
+            The axis along which the logarithm will be applied if trafo_log
+            is True.
         trafo_batch_axis : int, optional
             The axis which defines the batch dimension. The mean and variance
             will be calculated by reducing over this axis.
@@ -70,10 +75,20 @@ class DataTensor(object):
         self.trafo = trafo
         self.trafo_reduce_axes = trafo_reduce_axes
         self.trafo_log = trafo_log
+        self.trafo_log_axis = trafo_log_axis
         self.trafo_batch_axis = trafo_batch_axis
         self.specs = specs
 
         # sanity checks
+        if self.shape is None:
+            raise ValueError(
+                'Shape must be defined but is {!r}'.format(self.shape))
+
+        if not isinstance(self.trafo_log_axis, int):
+            raise ValueError(
+                'Trafo log axis must be an integer, but is {!r}'.format(
+                                                        self.trafo_log_axis))
+
         if self.type not in ['data', 'label', 'weight', 'misc']:
             raise ValueError('Unknown type: {!r}'.format(self.type))
 
@@ -87,6 +102,15 @@ class DataTensor(object):
             if self.vector_info['type'] not in ['index', 'value']:
                 raise ValueError('Unknown vector type: {!r}'.format(
                     self.vector_info['type']))
+
+        # expand trafo log to a list of boolean values if it is a single bool
+        if isinstance(self.trafo_log, bool):
+            if self.shape[self.trafo_log_axis] is None:
+                msg = 'When using logarithm trafo, the shape along the trafo '
+                msg += 'axis {!r} must be specified, but the shape is {!r}'
+                raise ValueError(msg.format(self.trafo_log_axis, self.shape))
+            self.trafo_log = [self.trafo_log for i in
+                              range(self.shape[self.trafo_log_axis])]
 
     def __eq__(self, other):
         """Check for equality of two data tensors.

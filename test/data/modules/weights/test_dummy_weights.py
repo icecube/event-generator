@@ -1,7 +1,6 @@
 #!/usr/local/bin/python3
 
 import unittest
-import os
 
 from egenerator.data.modules.weights.dummy import DummyWeightModule
 from egenerator.data.tensor import DataTensorList

@@ -82,7 +82,7 @@ class DataTransformer(object):
 
         Parameters
         ----------
-        trafo_log : bool, tuple of bool
+        trafo_log : tuple of bool
             Defines whether the natural logarithm is appllied to bins along
             last axis. Must have same length as data_batch.shape[-1].
         data_batch : numpy ndarray
@@ -105,9 +105,8 @@ class DataTransformer(object):
 
         # perform logarithm on bins
         if trafo_log is not None:
-            if isinstance(trafo_log, bool):
-                if trafo_log:
-                    data_batch = np.log(1.0 + data_batch)
+            if np.alltrue(trafo_log):
+                data_batch = np.log(1.0 + data_batch)
             else:
                 for bin_i, log_bin in enumerate(trafo_log):
                     if log_bin:
@@ -239,7 +238,7 @@ class DataTransformer(object):
         # make sure that settings match
         for key in self.trafo_model:
             if key not in trafo_model:
-                raise ValueError('Key {!r} does not exist in {!r}'.format(
+                raise KeyError('Key {!r} does not exist in {!r}'.format(
                     key, model_path))
 
             mismatch = self.trafo_model[key] != trafo_model[key]
@@ -312,7 +311,7 @@ class DataTransformer(object):
             raise ValueError('DataTransformer needs to create or load a trafo '
                              'model prior to transform call.')
 
-        if tensor_name not in self.trafo_model['tensors']:
+        if tensor_name not in self.trafo_model['tensors'].names:
             raise ValueError('Tensor {!r} is unknown!'.format(tensor_name))
 
         # get tensor
@@ -334,7 +333,9 @@ class DataTransformer(object):
             if dtype != self._tf_float_dtype:
                 data = tf.cast(data, dtype=self._tf_float_dtype)
         else:
-            data = np.asarray(data, dtype=self._np_float_dtype)
+            # we need to create a copy of the array, so that we do not alter
+            # the original one during the transformation steps
+            data = np.array(data, dtype=self._np_float_dtype)
 
         # choose numpy or tensorflow log function
         if is_tf:
@@ -373,6 +374,12 @@ class DataTransformer(object):
 
         # perform logarithm on bins
         if bias_correction and tensor.trafo_log is not None:
+
+            # trafo log axis other than last axis of tensor is not yet
+            # supported
+            if tensor.trafo_log_axis != -1:
+                raise NotImplementedError()
+
             if np.all(tensor.trafo_log):
                 # logarithm is applied to all bins: one operation
                 data = log_func(1.0 + data)
@@ -438,6 +445,12 @@ class DataTransformer(object):
 
         # undo logarithm on bins
         if bias_correction and tensor.trafo_log is not None:
+
+            # trafo log axis other than last axis of tensor is not yet
+            # supported
+            if tensor.trafo_log_axis != -1:
+                raise NotImplementedError()
+
             if np.all(tensor.trafo_log):
                 # logarithm is applied to all bins: one operation
                 data = exp_func(data) - 1.0
