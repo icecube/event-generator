@@ -482,6 +482,28 @@ class TestDataTransformer(unittest.TestCase):
             loaded_data_trafo.load_trafo_model(file_path)
         self.assertTrue('does not match!' in str(context.exception))
 
+    def test_check_loading_of_mismatched_trafo_model_additional_key(self):
+        """Test the saving and loading of a previously created trafo model.
+        """
+        data_handler = DummyDataHandler(trafo=True, trafo_log=True)
+        data_handler_wrong = DummyDataHandler(trafo=True, trafo_log=False)
+        data_trafo = DataTransformer(data_handler)
+
+        data_iterator = data_handler.create_data_iterator()
+
+        # create trafo model
+        data_trafo.create_trafo_model_iteratively(
+            data_iterator, data_handler.n_batches)
+
+        # save trafo model
+        file_path = os.path.join(os.path.dirname(__file__),
+                                 '../../data/temp_test_files/trafo_model.npy')
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        if os.path.exists(os.path.dirname(file_path)):
+            os.removedirs(os.path.dirname(file_path))
+        data_trafo.save_trafo_model(file_path, overwrite=True)
+
         # check if additional key exists, but not in loaded file
         with self.assertRaises(KeyError) as context:
             loaded_data_trafo = DataTransformer(data_handler_wrong)
