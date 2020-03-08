@@ -4,4 +4,4 @@ pandas
 click
 gitpython
 tqdm
-h5py
+tables==3.4.2
