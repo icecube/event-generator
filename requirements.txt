@@ -4,4 +4,3 @@ pandas
 click
 gitpython
 tqdm
-tables
