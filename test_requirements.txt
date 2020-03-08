@@ -4,3 +4,4 @@ sphinx
 sphinx-rtd-theme
 travis-sphinx
 tensorflow
+h5py==2.7.1
