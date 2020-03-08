@@ -12,8 +12,7 @@ python:
 addons:
   apt:
     packages:
-    # - libhdf5-serial-dev
-    - libhdf5-dev==1.8.18
+    - libhdf5-serial-dev==1.8.18
 
 dist: xenial
 
