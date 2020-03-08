@@ -12,9 +12,9 @@ python:
 addons:
   apt:
     packages:
-    - libhdf5-serial-dev==1.8.18
+    - libhdf5-serial-dev
 
-dist: xenial
+dist: bionic
 
 before_install:
   - python --version
