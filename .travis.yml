@@ -9,6 +9,11 @@ python:
   - '3.6'
   - '3.7'
 
+addons:
+  apt:
+    packages:
+    - libhdf5-serial-dev
+
 dist: xenial
 
 before_install:
