@@ -9,10 +9,11 @@ import ruamel.yaml as yaml
 from copy import deepcopy
 import logging
 
+from egenerator.manager.component import BaseComponent
 from egenerator.data.tensor import DataTensorList
 
 
-class BaseDataHandler(object):
+class BaseDataHandler(BaseComponent):
 
     """The basic data handler class.
     All data handlers must be derived from this class.
@@ -39,10 +40,6 @@ class BaseDataHandler(object):
         return self._config
 
     @property
-    def is_setup(self):
-        return self._is_setup
-
-    @property
     def skip_check_keys(self):
         return self._skip_check_keys
 
@@ -58,18 +55,19 @@ class BaseDataHandler(object):
         logger : logging.logger, optional
             A logging instance.
         """
-        self.logger = logger or logging.getLogger(__name__)
+        self._logger = logger or logging.getLogger(__name__)
+        super(BaseDataHandler, self).__init__(logger=self._logger)
 
-        # create empty member variables
-        self._tensors = None
-        self._config = None
-        self._skip_check_keys = None
+        # # create empty member variables
+        # self._tensors = None
+        # self._config = None
+        # self._skip_check_keys = None
 
         # keep track of multiprocessing processes and managers
-        self._mp_processes = []
-        self._mp_managers = []
+        self._untracked_data['mp_processes'] = []
+        self._untracked_data['mp_managers'] = []
 
-        self._is_setup = False
+        # self._is_setup = False
 
     def _assign_settings(self, data_tensors, config, skip_check_keys,
                          submodules_need_to_be_configured):
@@ -98,7 +96,7 @@ class BaseDataHandler(object):
         ValueError
             if data handler is already set up or if wrong data type is passed.
         """
-        if self._is_setup:
+        if self.is_configured:
             raise ValueError('The data handler is already set up!')
 
         # define data tensors
@@ -143,7 +141,7 @@ class BaseDataHandler(object):
         ValueError
             If the data handler is not set up yet.
         """
-        if not self._is_setup:
+        if not self.is_configured:
             raise ValueError(msg)
 
     def setup(self, config, test_data=None, check_config=True):
@@ -167,7 +165,7 @@ class BaseDataHandler(object):
         ValueError
             If check_config is True and configs do not match.
         """
-        if self._is_setup:
+        if self.is_configured:
             raise ValueError('The data handler is already set up!')
 
         if test_data is not None:
@@ -216,57 +214,57 @@ class BaseDataHandler(object):
         """
         raise NotImplementedError()
 
-    def load(self, file):
-        """Load the data handler configuration from file.
+    # def load(self, file):
+    #     """Load the data handler configuration from file.
 
-        Parameters
-        ----------
-        file : str
-            The file path from which the data handler configuration will be
-            loaded.
-        """
-        with open(file, 'r') as stream:
-            data_dict = yaml.load(stream, Loader=yaml.Loader)
+    #     Parameters
+    #     ----------
+    #     file : str
+    #         The file path from which the data handler configuration will be
+    #         loaded.
+    #     """
+    #     with open(file, 'r') as stream:
+    #         data_dict = yaml.load(stream, Loader=yaml.Loader)
 
-        # deserialize data_tensors
-        data_dict['data_tensors'] = DataTensorList(data_dict['data_tensors'])
+    #     # deserialize data_tensors
+    #     data_dict['data_tensors'] = DataTensorList(data_dict['data_tensors'])
 
-        self._assign_settings(submodules_need_to_be_configured=True,
-                              **data_dict)
+    #     self._assign_settings(submodules_need_to_be_configured=True,
+    #                           **data_dict)
 
-    def save(self, output_file, overwrite=False):
-        """Save the data handler configuration to the specified output_file.
-        A new data handler can be set up with this exported configuration by
-        calling load(output_file)
+    # def save(self, output_file, overwrite=False):
+    #     """Save the data handler configuration to the specified output_file.
+    #     A new data handler can be set up with this exported configuration by
+    #     calling load(output_file)
 
-        Parameters
-        ----------
-        output_file : str
-            The file path to the output file to which the settings will be
-            saved.
-        overwrite : bool, optional
-            If true, overwrite files if they exist, otherwise raise an error.
-        """
-        self.check_if_setup()
+    #     Parameters
+    #     ----------
+    #     output_file : str
+    #         The file path to the output file to which the settings will be
+    #         saved.
+    #     overwrite : bool, optional
+    #         If true, overwrite files if they exist, otherwise raise an error.
+    #     """
+    #     self.check_if_setup()
 
-        output_dir = os.path.dirname(output_file)
-        if not os.path.isdir(output_dir):
-            self.logger.info('Creating directory {!r}'.format(output_dir))
-            os.makedirs(output_dir)
+    #     output_dir = os.path.dirname(output_file)
+    #     if not os.path.isdir(output_dir):
+    #         self._logger.info('Creating directory {!r}'.format(output_dir))
+    #         os.makedirs(output_dir)
 
-        if os.path.exists(output_file):
-            if overwrite:
-                self.logger.info('Overwriting file {!r}'.format(output_file))
-            else:
-                raise IOError('File {!r} already exists!'.format(output_file))
+    #     if os.path.exists(output_file):
+    #         if overwrite:
+    #             self._logger.info('Overwriting file {!r}'.format(output_file))
+    #         else:
+    #             raise IOError('File {!r} already exists!'.format(output_file))
 
-        data_dict = {}
-        data_dict['skip_check_keys'] = self._skip_check_keys
-        data_dict['config'] = self._config
-        data_dict['data_tensors'] = self._tensors.serialize()
+    #     data_dict = {}
+    #     data_dict['skip_check_keys'] = self._skip_check_keys
+    #     data_dict['config'] = self._config
+    #     data_dict['data_tensors'] = self._tensors.serialize()
 
-        with open(output_file, 'w') as yaml_file:
-            yaml.dump(data_dict, yaml_file)
+    #     with open(output_file, 'w') as yaml_file:
+    #         yaml.dump(data_dict, yaml_file)
 
     def _check_data_structure(self, data, check_vector_tensors=False):
         """Check data structure.
@@ -311,7 +309,7 @@ class BaseDataHandler(object):
 
             if tensor.vector_info is not None:
                 # vector tensors: todo write check for this
-                self.logger.warning('Not checking vector tensor {!r}'.format(
+                self._logger.warning('Not checking vector tensor {!r}'.format(
                     tensor.name))
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -682,9 +680,9 @@ class BaseDataHandler(object):
 
         # keep references to managers alive, such that these do not shut
         # down until the BaseDataHandler object gets garbage collected
-        self._mp_managers.append(file_list_queue)
-        self._mp_managers.append(data_batch_queue)
-        self._mp_managers.append(final_batch_queue)
+        self._untracked_data['mp_managers'].append(file_list_queue)
+        self._untracked_data['mp_managers'].append(data_batch_queue)
+        self._untracked_data['mp_managers'].append(final_batch_queue)
 
         def file_loader(seed):
             """Helper Method to load files.
@@ -721,7 +719,7 @@ class BaseDataHandler(object):
                         usage = resource.getrusage(resource.RUSAGE_SELF)
                         msg = "{} {:02.1f} GB. file_list_queue:" \
                               " {}. data_batch_queue: {}"
-                        self.logger.debug(msg.format(
+                        self._logger.debug(msg.format(
                             file, usage.ru_maxrss / 1024.0 / 1024.0,
                             file_list_queue.qsize(), data_batch_queue.qsize()))
                     num_events, data = \
@@ -758,7 +756,7 @@ class BaseDataHandler(object):
                                 data_batch_queue.put((len(split_indices),
                                                       batch))
                 else:
-                    self.logger.warning(
+                    self._logger.warning(
                         'File {!r} does not exist.'.format(file))
 
                 if not pick_random_files_forever:
@@ -863,7 +861,7 @@ class BaseDataHandler(object):
 
                 queue_size = current_queue_size
                 if verbose:
-                    self.logger.debug('queue_size:', queue_size)
+                    self._logger.debug('queue_size:', queue_size)
 
                 # num_repetitions:
                 #   potentially dangerous for batch_size approx file_size
@@ -913,7 +911,7 @@ class BaseDataHandler(object):
                                 msg = "{:02.1f} GB. file_list_queue: {}." \
                                       " data_batch_queue: {}. " \
                                       "final_batch_queue: {}"
-                                self.logger.debug(msg.format(
+                                self._logger.debug(msg.format(
                                     usage / 1024.0 / 1024.0,
                                     file_list_queue.qsize(),
                                     data_batch_queue.qsize(),
@@ -963,27 +961,27 @@ class BaseDataHandler(object):
             process = multiprocessing.Process(target=file_loader, args=(i,))
             process.daemon = True
             process.start()
-            self._mp_processes.append(process)
+            self._untracked_data['mp_processes'].append(process)
 
         process = multiprocessing.Process(target=data_queue_iterator,
                                           args=(sample_randomly,))
         process.daemon = True
         process.start()
-        self._mp_processes.append(process)
+        self._untracked_data['mp_processes'].append(process)
 
         return batch_iterator()
 
     def kill(self):
         """Kill Multiprocessing queues and workers
         """
-        for process in self._mp_processes:
+        for process in self._untracked_data['mp_processes']:
             process.terminate()
 
         time.sleep(0.1)
-        for process in self._mp_processes:
+        for process in self._untracked_data['mp_processes']:
             process.join(timeout=1.0)
 
-        self._mp_managers = []
+        self._untracked_data['mp_managers'] = []
 
     def __del__(self):
         self.kill()

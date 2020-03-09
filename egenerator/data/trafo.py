@@ -8,39 +8,132 @@ from tqdm import tqdm
 from datetime import datetime
 import tensorflow as tf
 
+from egenerator.manager.component import BaseComponent
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
-class DataTransformer(object):
+class DataTransformer(BaseComponent):
 
     """Data Transformer class
-    """
 
-    def __init__(self, data_handler):
-        """Initialized Data Transformer class
+    Attributes
+    ----------
+    trafo_model : dict
+        The data transformation model.
+    """
+    def __init__(self, logger=None):
+        """Instanciate DataTransformer class
 
         Parameters
         ----------
-        data_handler : BaseDataHandler
-            Data handler object.
+        logger : logging.logger, optional
+            The logger to use.
+        """
+        self._logger = logger or logging.getLogger(__name__)
+        super(DataTransformer, self).__init__(logger=self._logger)
+
+    def _configure(self, data_handler, data_iterator, num_batches,
+                   float_precision='float64',
+                   norm_constant=1e-6):
+        """Configure DataTransformer object.
+
+        Iteratively create a transformation model for a given data_handler and
+        data_iterator.
+
+        Parameters
+        ----------
+        data_handler : DataHandler
+            A data handler object.
+        data_iterator : generator object
+            A python generator object which generates batches of
+            dom_responses and cascade_parameters.
+        num_batches : int
+            How many batches to use to create the transformation model.
+        float_precision : str, optional
+            Float precision to use for trafo methods.
+            Examples: 'float32', 'float64'
+        norm_constant : float
+            A small constant that is added to the denominator during
+            normalization to ensure finite values.
 
         Raises
         ------
         ValueError
-            If data handler is not setup yet.
+            Description
         """
-        self.logger = logging.getLogger(__name__)
+        if self.is_configured:
+            raise ValueError('Trafo model is already setup!')
 
-        if not data_handler.is_setup:
-            raise ValueError('Data Handler is not set up!')
+        self._data['tensors'] = data_handler.tensors
 
-        self.data_handler = data_handler
-        self.trafo_model = {
-            'config': data_handler.config,
-            'skip_keys': data_handler.skip_check_keys,
-            'tensors': data_handler.tensors,
-        }
-        self._setup_complete = False
+        # set precision and norm constant
+        self._data['float_precision'] = float_precision
+        self._data['norm_constant'] = norm_constant
+        self._data['np_float_dtype'] = \
+            getattr(np, self.data['float_precision'])
+        self._data['tf_float_dtype'] = \
+            getattr(tf, self.data['float_precision'])
+
+        # create empty onlince variance variables
+        var_dict = {}
+        for tensor in data_handler.tensors.list:
+
+            # check if tensor exists and whether a transformation is defined
+            if tensor.exists and tensor.trafo:
+
+                trafo_shape = list(tensor.shape)
+                # remove batch axis
+                trafo_shape.pop(tensor.trafo_batch_axis)
+
+                var_dict[tensor.name] = {
+                    'n': 0.,
+                    'mean': np.zeros(trafo_shape),
+                    'M2': np.zeros(trafo_shape),
+                }
+
+        for i in tqdm(range(num_batches)):
+
+            data = next(data_iterator)
+
+            # loop through tensors and update online variance calculation
+            for tensor in data_handler.tensors.list:
+                if tensor.exists and tensor.trafo:
+                    index = data_handler.tensors.get_index(tensor.name)
+                    n, mean, m2 = self._perform_update_step(
+                                    trafo_log=tensor.trafo_log,
+                                    data_batch=data[index],
+                                    n=var_dict[tensor.name]['n'],
+                                    mean=var_dict[tensor.name]['mean'],
+                                    M2=var_dict[tensor.name]['M2'])
+                    var_dict[tensor.name]['n'] = n
+                    var_dict[tensor.name]['mean'] = mean
+                    var_dict[tensor.name]['M2'] = m2
+
+        # Calculate standard deviation
+        for tensor in data_handler.tensors.list:
+            if tensor.exists and tensor.trafo:
+                std_dev = np.sqrt(var_dict[tensor.name]['M2'] /
+                                  var_dict[tensor.name]['n'])
+
+                # combine mean and std. dev. values over specified
+                # reduction axes
+                self._data[tensor.name+'_std'] = np.mean(
+                    std_dev, axis=tensor.trafo_reduce_axes, keepdims=True)
+
+                self._data[tensor.name+'_mean'] = np.mean(
+                    var_dict[tensor.name]['mean'],
+                    axis=tensor.trafo_reduce_axes, keepdims=True)
+
+                # set constant parameters to have a std dev of 1
+                # instead of zero
+                mask = self._data[tensor.name+'_std'] == 0
+                self._data[tensor.name+'_std'][mask] = 1.
+
+        # create an identifer for the trafo model
+        now = datetime.now()
+        dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        self._data['creation_time'] = dt_string
 
     def _update_online_variance_vars(self, data_batch, n, mean, M2):
         """Update online variance variables.
@@ -101,7 +194,7 @@ class DataTransformer(object):
             n, mean, M2
             Returns the updated online variance variables
         """
-        data_batch = np.array(data_batch, dtype=self._np_float_dtype)
+        data_batch = np.array(data_batch, dtype=self.data['np_float_dtype'])
 
         # perform logarithm on bins
         if trafo_log is not None:
@@ -117,171 +210,76 @@ class DataTransformer(object):
         return self._update_online_variance_vars(data_batch=data_batch, n=n,
                                                  mean=mean, M2=M2)
 
-    def create_trafo_model_iteratively(self, data_iterator, num_batches,
-                                       float_precision='float64',
-                                       norm_constant=1e-6):
-        """Iteratively create a transformation model.
+    # def load_trafo_model(self, model_path):
+    #     """Load a transformation model from file.
 
-        Parameters
-        ----------
-        data_iterator : generator object
-            A python generator object which generates batches of
-            dom_responses and cascade_parameters.
-        num_batches : int
-            How many batches to use to create the transformation model.
-        float_precision : str, optional
-            Float precision to use for trafo methods.
-            Examples: 'float32', 'float64'
-        norm_constant : float
-            A small constant that is added to the denominator during
-            normalization to ensure finite values.
+    #     Parameters
+    #     ----------
+    #     model_path : str
+    #         Path to trafo model file.
 
-        Raises
-        ------
-        ValueError
-            Description
-        """
-        if self._setup_complete:
-            raise ValueError('Trafo model is already setup!')
+    #     Raises
+    #     ------
+    #     ValueError
+    #         If settings in loaded transformation model do not match specified
+    #         settings.
+    #         If not all specified settings are defined in the loaded
+    #         transformation model.
+    #     """
+    #     if self.is_configured:
+    #         raise ValueError('Trafo model is already setup!')
 
-        # set precision and norm constant
-        self.trafo_model['float_precision'] = float_precision
-        self.trafo_model['norm_constant'] = norm_constant
-        self._np_float_dtype = getattr(np, self.trafo_model['float_precision'])
-        self._tf_float_dtype = getattr(tf, self.trafo_model['float_precision'])
+    #     # load trafo model from file
+    #     with open(model_path, 'rb') as handle:
+    #         trafo_model = pickle.load(handle)
 
-        # create empty onlince variance variables
-        var_dict = {}
-        for tensor in self.data_handler.tensors.list:
+    #     # make sure that settings match
+    #     for key in self.data:
+    #         if key not in trafo_model:
+    #             raise KeyError('Key {!r} does not exist in {!r}'.format(
+    #                 key, model_path))
 
-            # check if tensor exists and whether a transformation is defined
-            if tensor.exists and tensor.trafo:
+    #         mismatch = self.data[key] != trafo_model[key]
+    #         error_msg = 'Setting {!r} does not match!'.format(key)
+    #         if isinstance(mismatch, bool):
+    #             if mismatch:
+    #                 raise ValueError(error_msg)
+    #         elif mismatch.any():
+    #             raise ValueError(error_msg)
 
-                trafo_shape = list(tensor.shape)
-                # remove batch axis
-                trafo_shape.pop(tensor.trafo_batch_axis)
+    #     # update trafo model
+    #     self._data = trafo_model
+    #     self.data['np_float_dtype'] = getattr(np, self.data['float_precision'])
+    #     self.data['tf_float_dtype'] = getattr(tf, self.data['float_precision'])
 
-                var_dict[tensor.name] = {
-                    'n': 0.,
-                    'mean': np.zeros(trafo_shape),
-                    'M2': np.zeros(trafo_shape),
-                }
+    #     self.is_configured = True
 
-        for i in tqdm(range(num_batches)):
+    # def save_trafo_model(self, model_path, overwrite=False):
+    #     """Saves transformation model to file.
 
-            data = next(data_iterator)
+    #     Parameters
+    #     ----------
+    #     model_path : str
+    #         Path to trafo model file.
+    #     overwrite : bool, optional
+    #         If True, potential existing files will be overwritten.
+    #         If False, an error will be raised.
+    #     """
+    #     if os.path.exists(model_path):
+    #         if overwrite:
+    #             self._logger.info('Overwriting existing file at: {}'.format(
+    #                                                             model_path))
+    #         else:
+    #             raise IOError('File already exists!')
 
-            # loop through tensors and update online variance calculation
-            for tensor in self.data_handler.tensors.list:
-                if tensor.exists and tensor.trafo:
-                    index = self.data_handler.tensors.get_index(tensor.name)
-                    n, mean, m2 = self._perform_update_step(
-                                    trafo_log=tensor.trafo_log,
-                                    data_batch=data[index],
-                                    n=var_dict[tensor.name]['n'],
-                                    mean=var_dict[tensor.name]['mean'],
-                                    M2=var_dict[tensor.name]['M2'])
-                    var_dict[tensor.name]['n'] = n
-                    var_dict[tensor.name]['mean'] = mean
-                    var_dict[tensor.name]['M2'] = m2
+    #     directory = os.path.dirname(model_path)
+    #     if not os.path.isdir(directory):
+    #         os.makedirs(directory)
+    #         self._logger.info('Creating directory: {}'.format(directory))
 
-        # Calculate standard deviation
-        for tensor in self.data_handler.tensors.list:
-            if tensor.exists and tensor.trafo:
-                std_dev = np.sqrt(var_dict[tensor.name]['M2'] /
-                                  var_dict[tensor.name]['n'])
-
-                # combine mean and std. dev. values over specified
-                # reduction axes
-                self.trafo_model[tensor.name+'_std'] = np.mean(
-                    std_dev, axis=tensor.trafo_reduce_axes, keepdims=True)
-
-                self.trafo_model[tensor.name+'_mean'] = np.mean(
-                    var_dict[tensor.name]['mean'],
-                    axis=tensor.trafo_reduce_axes, keepdims=True)
-
-                # set constant parameters to have a std dev of 1
-                # instead of zero
-                mask = self.trafo_model[tensor.name+'_std'] == 0
-                self.trafo_model[tensor.name+'_std'][mask] = 1.
-
-        # create an identifer for the trafo model
-        now = datetime.now()
-        dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-
-        self.trafo_model['creation_time'] = dt_string
-        self._setup_complete = True
-
-    def load_trafo_model(self, model_path):
-        """Load a transformation model from file.
-
-        Parameters
-        ----------
-        model_path : str
-            Path to trafo model file.
-
-        Raises
-        ------
-        ValueError
-            If settings in loaded transformation model do not match specified
-            settings.
-            If not all specified settings are defined in the loaded
-            transformation model.
-        """
-        if self._setup_complete:
-            raise ValueError('Trafo model is already setup!')
-
-        # load trafo model from file
-        with open(model_path, 'rb') as handle:
-            trafo_model = pickle.load(handle)
-
-        # make sure that settings match
-        for key in self.trafo_model:
-            if key not in trafo_model:
-                raise KeyError('Key {!r} does not exist in {!r}'.format(
-                    key, model_path))
-
-            mismatch = self.trafo_model[key] != trafo_model[key]
-            error_msg = 'Setting {!r} does not match!'.format(key)
-            if isinstance(mismatch, bool):
-                if mismatch:
-                    raise ValueError(error_msg)
-            elif mismatch.any():
-                raise ValueError(error_msg)
-
-        # update trafo model
-        self.trafo_model = trafo_model
-        self._np_float_dtype = getattr(np, self.trafo_model['float_precision'])
-        self._tf_float_dtype = getattr(tf, self.trafo_model['float_precision'])
-
-        self._setup_complete = True
-
-    def save_trafo_model(self, model_path, overwrite=False):
-        """Saves transformation model to file.
-
-        Parameters
-        ----------
-        model_path : str
-            Path to trafo model file.
-        overwrite : bool, optional
-            If True, potential existing files will be overwritten.
-            If False, an error will be raised.
-        """
-        if os.path.exists(model_path):
-            if overwrite:
-                self.logger.info('Overwriting existing file at: {}'.format(
-                                                                model_path))
-            else:
-                raise IOError('File already exists!')
-
-        directory = os.path.dirname(model_path)
-        if not os.path.isdir(directory):
-            os.makedirs(directory)
-            self.logger.info('Creating directory: {}'.format(directory))
-
-        with open(model_path, 'wb') as handle:
-            pickle.dump(self.trafo_model, handle,
-                        protocol=pickle.HIGHEST_PROTOCOL)
+    #     with open(model_path, 'wb') as handle:
+    #         pickle.dump(self.data, handle,
+    #                     protocol=pickle.HIGHEST_PROTOCOL)
 
     def _check_settings(self, data, tensor_name):
         """Check settings and return necessary parameters for trafo and inverse
@@ -307,15 +305,15 @@ class DataTransformer(object):
         """
         dtype = data.dtype
 
-        if not self._setup_complete:
+        if not self.is_configured:
             raise ValueError('DataTransformer needs to create or load a trafo '
                              'model prior to transform call.')
 
-        if tensor_name not in self.trafo_model['tensors'].names:
+        if tensor_name not in self.data['tensors'].names:
             raise ValueError('Tensor {!r} is unknown!'.format(tensor_name))
 
         # get tensor
-        tensor = self.trafo_model['tensors'][tensor_name]
+        tensor = self.data['tensors'][tensor_name]
 
         # check if shape of data matches expected shape
         trafo_shape = list(tensor.shape)
@@ -330,12 +328,12 @@ class DataTransformer(object):
         is_tf = tf.is_tensor(data)
 
         if is_tf:
-            if dtype != self._tf_float_dtype:
-                data = tf.cast(data, dtype=self._tf_float_dtype)
+            if dtype != self.data['tf_float_dtype']:
+                data = tf.cast(data, dtype=self.data['tf_float_dtype'])
         else:
             # we need to create a copy of the array, so that we do not alter
             # the original one during the transformation steps
-            data = np.array(data, dtype=self._np_float_dtype)
+            data = np.array(data, dtype=self.data['np_float_dtype'])
 
         # choose numpy or tensorflow log function
         if is_tf:
@@ -399,13 +397,13 @@ class DataTransformer(object):
 
         # normalize data
         if bias_correction:
-            data -= self.trafo_model['{}_mean'.format(tensor_name)]
-        data /= (self.trafo_model['norm_constant'] +
-                 self.trafo_model['{}_std'.format(tensor_name)])
+            data -= self.data['{}_mean'.format(tensor_name)]
+        data /= (self.data['norm_constant'] +
+                 self.data['{}_std'.format(tensor_name)])
 
         # cast back to original dtype
         if is_tf:
-            if dtype != self._tf_float_dtype:
+            if dtype != self.data['tf_float_dtype']:
                 data = tf.cast(data, dtype=dtype)
         else:
             data = data.astype(dtype)
@@ -438,10 +436,10 @@ class DataTransformer(object):
             self._check_settings(data, tensor_name)
 
         # de-normalize data
-        data *= (self.trafo_model['norm_constant'] +
-                 self.trafo_model['{}_std'.format(tensor_name)])
+        data *= (self.data['norm_constant'] +
+                 self.data['{}_std'.format(tensor_name)])
         if bias_correction:
-            data += self.trafo_model['{}_mean'.format(tensor_name)]
+            data += self.data['{}_mean'.format(tensor_name)]
 
         # undo logarithm on bins
         if bias_correction and tensor.trafo_log is not None:
@@ -472,7 +470,7 @@ class DataTransformer(object):
 
         # cast back to original dtype
         if is_tf:
-            if dtype != self._tf_float_dtype:
+            if dtype != self.data['tf_float_dtype']:
                 data = tf.cast(data, dtype=dtype)
         else:
             data = data.astype(dtype)

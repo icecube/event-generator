@@ -14,7 +14,7 @@ unique_name: 'single_cascade'
 #-----------------------
 
 # These settings describe the data iterators
-'data_iterator_settings': {
+data_iterator_settings: {
 
     # The training data iterator
     'training': {
@@ -137,11 +137,11 @@ data_trafo_settings: {
 # Data Handler settings
 #----------------------
 
-# The data handler class to use
-data_handler: 'modular.ModuleDataHandler'
-
 # Settings for the data handler class
 data_handler_settings: {
+
+    # The data handler class to use
+    'data_handler': 'modular.ModuleDataHandler'
 
     # -------------------
     # DataModule Settings

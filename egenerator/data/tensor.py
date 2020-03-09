@@ -89,7 +89,7 @@ class DataTensor(object):
                 'Trafo log axis must be an integer, but is {!r}'.format(
                                                         self.trafo_log_axis))
 
-        if self.type not in ['data', 'label', 'weight', 'misc']:
+        if self.type not in ['data', 'label', 'weight', 'misc', 'prediction']:
             raise ValueError('Unknown type: {!r}'.format(self.type))
 
         if not isinstance(self.dtype, str):

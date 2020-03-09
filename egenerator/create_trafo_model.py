@@ -39,7 +39,7 @@ def main(config_files):
 
     # Create Data Handler object
     DataHandlerClass = misc.load_class('egenerator.data.handler.{}'.format(
-                                                config['data_handler']))
+                            config['data_handler_settings']['data_handler']))
     data_handler = DataHandlerClass()
     data_handler.setup(config['data_handler_settings'])
 
