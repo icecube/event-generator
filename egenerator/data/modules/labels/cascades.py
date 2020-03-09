@@ -4,27 +4,75 @@ import logging
 import numpy as np
 import pandas as pd
 
-from egenerator.data.modules.base import BaseModule
+from egenerator import misc
+from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
-class CascadeGeneratorLabelModule(BaseModule):
+class CascadeGeneratorLabelModule(BaseComponent):
 
     """This is a label module that loads the cascade labels which are also used
     for the cascade-generator project.
     """
 
-    def _initialize(self, shift_cascade_vertex, trafo_log,
-                    label_key='LabelsDeepLearning', *args, **kwargs):
-        """Initialize Module class.
-        This is an abstract method and must be implemented by derived class.
-
-        If there are skip_check_keys, e.g. config keys that do not have to
-        match, they must be defined here.
-        Any settings used within the module must be saved to 'self.settings'.
+    def __init__(self, logger=None):
+        """Initialize cascade module
 
         Parameters
         ----------
+        logger : logging.logger, optional
+            A logging instance.
+        """
+
+        logger = logger or logging.getLogger(__name__)
+        super(CascadeGeneratorLabelModule, self).__init__(logger=logger)
+
+    # def _initialize(self, shift_cascade_vertex, trafo_log,
+    #                 label_key='LabelsDeepLearning', *args, **kwargs):
+    #     """Initialize Module class.
+    #     This is an abstract method and must be implemented by derived class.
+
+    #     If there are skip_check_keys, e.g. config keys that do not have to
+    #     match, they must be defined here.
+    #     Any settings used within the module must be saved to 'self.settings'.
+
+    #     Parameters
+    #     ----------
+    #     shift_cascade_vertex : bool
+    #         Shift cascade vertex to shower maximum instead of interaction
+    #         point.
+    #     trafo_log : None or bool or list of bool
+    #         Whether or not to apply logarithm on cascade parameters.
+    #         If a single bool is given, this applies to all labels. Otherwise
+    #         a list of bools corresponds to the labels in the order:
+    #             x, y, z, zenith, azimuth, energy, time
+    #     label_key : str, optional
+    #         The name of the key under which the labels are saved.
+    #     *args
+    #         Variable length argument list.
+    #     **kwargs
+    #         Arbitrary keyword arguments.
+    #     """
+    #     self._logger = logging.getLogger(__name__)
+    #     self._settings['shift_cascade_vertex'] = shift_cascade_vertex
+    #     self._settings['trafo_log'] = trafo_log
+    #     self._settings['label_key'] = label_key
+
+    #     # sanity checks:
+    #     if not isinstance(self.settings['shift_cascade_vertex'], bool):
+    #         raise ValueError('{!r} is not a boolean value!'.format(
+    #             self.settings['shift_cascade_vertex']))
+
+    def _configure(self, config_data, shift_cascade_vertex, trafo_log,
+                   float_precision, label_key='LabelsDeepLearning'):
+        """Configure Module Class
+        This is an abstract method and must be implemented by derived class.
+
+        Parameters
+        ----------
+        config_data : None, str, or DataTensorList
+            This is either the path to a test file or a data tensor list
+            object. The module will be configured with this.
         shift_cascade_vertex : bool
             Shift cascade vertex to shower maximum instead of interaction
             point.
@@ -35,50 +83,68 @@ class CascadeGeneratorLabelModule(BaseModule):
                 x, y, z, zenith, azimuth, energy, time
         label_key : str, optional
             The name of the key under which the labels are saved.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-        """
-        self.logger = logging.getLogger(__name__)
-        self._settings['shift_cascade_vertex'] = shift_cascade_vertex
-        self._settings['trafo_log'] = trafo_log
-        self._settings['label_key'] = label_key
-
-        # sanity checks:
-        if not isinstance(self.settings['shift_cascade_vertex'], bool):
-            raise ValueError('{!r} is not a boolean value!'.format(
-                self.settings['shift_cascade_vertex']))
-
-    def _configure(self, config_data):
-        """Configure Module Class
-        This is an abstract method and must be implemented by derived class.
-
-        Parameters
-        ----------
-        config_data : None, str, or DataTensorList
-            This is either the path to a test file or a data tensor list
-            object. The module will be configured with this.
+        float_precision : str
+            The float precision as a str.
 
         Returns
         -------
-        DataTensorList
-            The tensors of type 'label' that will be loaded.
+        Configuration object
+            The configuration object of the newly configured component.
+            This does not need to include configurations of sub components
+            as these are automatically gathered.The dependent_sub_components
+            may also be left empty. This is later filled by the base class
+            from the returned sub components dict.
+            Settings that need to be defined are:
+                class_string:
+                    misc.get_full_class_string_of_object(self)
+                settings: dict
+                    The settings of the component.
+                mutable_settings: dict, default={}
+                    The mutable settings of the component.
+                check_values: dict, default={}
+                    Additional check values.
+        dict
+            The data of the component. Contains:
+                'label_tensors': DataTensorList
+                    The tensors of type 'label' that will be loaded.
+        dict
+            A dictionary of dependent sub components. This is a dictionary
+            of sub components that need to be saved and loaded recursively
+            when the component is saved and loaded.
+            Return None if no dependent sub components exist.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
 
-        self._tensors = DataTensorList([DataTensor(
+        # sanity checks:
+        if not isinstance(shift_cascade_vertex, bool):
+            raise ValueError('{!r} is not a boolean value!'.format(
+                shift_cascade_vertex))
+
+        data = {}
+        data['label_tensors'] = DataTensorList([DataTensor(
                                         name='cascade_labels',
                                         shape=[None, 7],
                                         tensor_type='label',
                                         dtype='float32',
                                         trafo=True,
-                                        trafo_log=self.settings['trafo_log'])])
+                                        trafo_log=trafo_log)])
 
         if isinstance(config_data, DataTensorList):
-            if not config_data == self.tensors:
+            if not config_data == data['label_tensors']:
                 raise ValueError('{!r} != {!r}'.format(config_data,
-                                                       self.tensors))
-        return self.tensors
+                                                       data['label_tensors']))
+        configuration = Configuration(
+            class_string=misc.get_full_class_string_of_object(self),
+            settings=dict(config_data=config_data,
+                          shift_cascade_vertex=shift_cascade_vertex,
+                          trafo_log=trafo_log,
+                          float_precision=float_precision,
+                          label_key=label_key))
+        return configuration, data, {}
 
     def get_data_from_hdf(self, file):
         """Get label data from hdf file.
@@ -105,27 +171,29 @@ class CascadeGeneratorLabelModule(BaseModule):
 
         cascade_parameters = []
         try:
-            _labels = f[self.settings['label_key']]
+            _labels = f[self.configuration.config['label_key']]
             for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
                       'cascade_azimuth', 'cascade_energy', 'cascade_t']:
                 cascade_parameters.append(_labels[l])
 
         except Exception as e:
-            self.logger.warning(e)
-            self.logger.warning('Skipping file: {}'.format(file))
+            self._logger.warning(e)
+            self._logger.warning('Skipping file: {}'.format(file))
             return None, None
         finally:
             f.close()
 
         # shift cascade vertex to shower maximum?
-        if self.settings['shift_cascade_vertex']:
+        if self.configuration.config['shift_cascade_vertex']:
             x, y, z = self._shift_to_maximum(*cascade_parameters[:6])
             cascade_parameters[0] = x
             cascade_parameters[1] = y
             cascade_parameters[2] = z
 
         # format cascade parameters
-        cascade_parameters = np.array(cascade_parameters).T
+        dtype = getattr(np, self.configuration.config['float_precision'])
+        cascade_parameters = np.array(cascade_parameters,
+                                      dtype=dtype).T
         num_events = len(cascade_parameters)
 
         return num_events, (cascade_parameters,)

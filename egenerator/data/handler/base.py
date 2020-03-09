@@ -9,7 +9,7 @@ import ruamel.yaml as yaml
 from copy import deepcopy
 import logging
 
-from egenerator.manager.component import BaseComponent
+from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList
 
 
@@ -36,16 +36,11 @@ class BaseDataHandler(BaseComponent):
     """
 
     @property
-    def config(self):
-        return self._config
-
-    @property
-    def skip_check_keys(self):
-        return self._skip_check_keys
-
-    @property
     def tensors(self):
-        return self._tensors
+        if self.data is not None and 'tensors' in self.data:
+            return self.data['tensors']
+        else:
+            return None
 
     def __init__(self, logger=None):
         """Initializes DataHandler object.
@@ -59,7 +54,7 @@ class BaseDataHandler(BaseComponent):
         super(BaseDataHandler, self).__init__(logger=self._logger)
 
         # # create empty member variables
-        # self._tensors = None
+        # self.tensors = None
         # self._config = None
         # self._skip_check_keys = None
 
@@ -69,71 +64,71 @@ class BaseDataHandler(BaseComponent):
 
         # self._is_setup = False
 
-    def _assign_settings(self, data_tensors, config, skip_check_keys,
-                         submodules_need_to_be_configured):
-        """Assign the configuration settings of the data handler.
+    # def _assign_settings(self, tensors, config, skip_check_keys,
+    #                      submodules_need_to_be_configured):
+    #     """Assign the configuration settings of the data handler.
 
-        Parameters
-        ----------
-        data_tensors : DataTensorList
-            A list of DataTensor objects. These are the tensors the data
-            handler will create and load. They must always be in the same order
-            and have the described settings.
-        config : dict
-            Configuration of the DataHandler.
-        skip_check_keys : list
-            List of keys in the config that do not need to be checked, e.g.
-            that may change.
-        submodules_need_to_be_configured : bool
-            Indicates whether the sub modules need to be configured. This
-            is the case, if the data handler configuration is being loaded
-            from file. If instead the data handler was configured via setup,
-            the sub modules have already been run via _setup and must not
-            be setup again.
+    #     Parameters
+    #     ----------
+    #     tensors : DataTensorList
+    #         A list of DataTensor objects. These are the tensors the data
+    #         handler will create and load. They must always be in the same order
+    #         and have the described settings.
+    #     config : dict
+    #         Configuration of the DataHandler.
+    #     skip_check_keys : list
+    #         List of keys in the config that do not need to be checked, e.g.
+    #         that may change.
+    #     submodules_need_to_be_configured : bool
+    #         Indicates whether the sub modules need to be configured. This
+    #         is the case, if the data handler configuration is being loaded
+    #         from file. If instead the data handler was configured via setup,
+    #         the sub modules have already been run via _setup and must not
+    #         be setup again.
 
-        Raises
-        ------
-        ValueError
-            if data handler is already set up or if wrong data type is passed.
-        """
-        if self.is_configured:
-            raise ValueError('The data handler is already set up!')
+    #     Raises
+    #     ------
+    #     ValueError
+    #         if data handler is already set up or if wrong data type is passed.
+    #     """
+    #     if self.is_configured:
+    #         raise ValueError('The data handler is already set up!')
 
-        # define data tensors
-        if not isinstance(data_tensors, DataTensorList):
-            raise ValueError(
-                'Unsupported type: {!r}'.format(type(data_tensors)))
+    #     # define data tensors
+    #     if not isinstance(tensors, DataTensorList):
+    #         raise ValueError(
+    #             'Unsupported type: {!r}'.format(type(tensors)))
 
-        self._tensors = data_tensors
-        self._config = dict(deepcopy(config))
-        self._skip_check_keys = list(deepcopy(skip_check_keys))
-        if submodules_need_to_be_configured:
-            self._assign_settings_of_derived_class(
-                self._tensors, self._config, self._skip_check_keys)
-        self._is_setup = True
+    #     self.tensors = tensors
+    #     self._config = dict(deepcopy(config))
+    #     self._skip_check_keys = list(deepcopy(skip_check_keys))
+    #     if submodules_need_to_be_configured:
+    #         self._assign_settings_of_derived_class(
+    #             self.tensors, self._config, self._skip_check_keys)
+    #     self._is_setup = True
 
-    def _assign_settings_of_derived_class(self, tensors, config,
-                                          skip_check_keys):
-        """Perform operations to setup and configure the derived class.
-        This is only necessary when the data handler is loaded
-        from file. In this case the setup methods '_setup' and 'setup' have
-        not run.
+    # def _assign_settings_of_derived_class(self, tensors, config,
+    #                                       skip_check_keys):
+    #     """Perform operations to setup and configure the derived class.
+    #     This is only necessary when the data handler is loaded
+    #     from file. In this case the setup methods '_setup' and 'setup' have
+    #     not run.
 
-        Parameters
-        ----------
-        tensors : DataTensorList
-            A list of DataTensor objects. These are the tensors the data
-            handler will create and load. They must always be in the same order
-            and have the described settings.
-        config : dict
-            Configuration of the DataHandler.
-        skip_check_keys : list
-            List of keys in the config that do not need to be checked, e.g.
-            that may change.
-        """
-        raise NotImplementedError
+    #     Parameters
+    #     ----------
+    #     tensors : DataTensorList
+    #         A list of DataTensor objects. These are the tensors the data
+    #         handler will create and load. They must always be in the same order
+    #         and have the described settings.
+    #     config : dict
+    #         Configuration of the DataHandler.
+    #     skip_check_keys : list
+    #         List of keys in the config that do not need to be checked, e.g.
+    #         that may change.
+    #     """
+    #     raise NotImplementedError
 
-    def check_if_setup(self, msg='Data handler needs to be set up first!'):
+    def check_if_configured(self):
         """Checks if the data handler is setup.
 
         Raises
@@ -142,16 +137,16 @@ class BaseDataHandler(BaseComponent):
             If the data handler is not set up yet.
         """
         if not self.is_configured:
-            raise ValueError(msg)
+            raise ValueError('Data handler needs to be set up first!')
 
-    def setup(self, config, test_data=None, check_config=True):
-        """Setup the datahandler with a test input file.
+    def _configure(self, config, config_data=None, check_config=True):
+        """Configure the BaseDataHandler component instance.
 
         Parameters
         ----------
         config : dict
             Configuration of the DataHandler.
-        test_data : str or list of str, optional
+        config_data : str or list of str, optional
             File name pattern or list of file patterns which define the paths
             to input data files. The first of the specified files will be
             read in to obtain meta data.
@@ -159,6 +154,34 @@ class BaseDataHandler(BaseComponent):
             If True, the config passed in to this function and the one obtained
             from the setup data handler will be checked to see if they are
             equal.
+
+        Returns
+        -------
+        Configuration object
+            The configuration object of the newly configured component.
+            This does not need to include configurations of sub components
+            which are passed as parameters into the configure method,
+            as these are automatically gathered. The dependent_sub_components
+            may also be left empty for these passed sub components.
+            Sum components created within a component must be added.
+            Settings that need to be defined are:
+                class_string:
+                    misc.get_full_class_string_of_object(self)
+                settings: dict
+                    The settings of the component.
+                mutable_settings: dict, default={}
+                    The mutable settings of the component.
+                check_values: dict, default={}
+                    Additional check values.
+        dict
+            The data of the component.
+            This must at least contain the tensor list which must be
+            stored under the key 'tensors'.
+        dict
+            A dictionary of dependent sub components. This is a dictionary
+            of sub components that need to be saved and loaded recursively
+            when the component is saved and loaded.
+            Return None if no dependent sub components exist.
 
         Raises
         ------
@@ -168,49 +191,73 @@ class BaseDataHandler(BaseComponent):
         if self.is_configured:
             raise ValueError('The data handler is already set up!')
 
-        if test_data is not None:
-            if isinstance(test_data, list):
+        if config_data is not None:
+            if isinstance(config_data, list):
                 test_input_data = []
-                for input_pattern in test_data[:3]:
+                for input_pattern in config_data[:3]:
                     test_input_data.extend(glob.glob(input_pattern))
             else:
-                test_input_data = glob.glob(test_data)
-            test_data = test_input_data
+                test_input_data = glob.glob(config_data)
+            config_data = test_input_data
 
-        data_tensors, config_new, skip_check_keys = \
-            self._setup(config, test_data)
+        configuration, component_data, sub_components = \
+            self._configure_derived_class(config, config_data)
 
-        # check if settings match
-        if check_config and config != config_new:
-            raise ValueError('{!r} != {!r}'.format(config, config_new))
+        # check if component data has at least the list of data tensors
+        if 'tensors' not in component_data:
+            raise KeyError('The component data must at least contain the data '
+                           'tensors list in the key "tensors"')
+        if not isinstance(component_data['tensors'], DataTensorList):
+            raise TypeError('Expected DataTensorList but got {!r}'.format(
+                type(component_data['tensors'])))
 
-        self._assign_settings(data_tensors, config_new, skip_check_keys,
-                              submodules_need_to_be_configured=False)
+        return configuration, component_data, sub_components
+        # # # check if settings match
+        # # if check_config and config != config_new:
+        # #     raise ValueError('{!r} != {!r}'.format(config, config_new))
 
-    def _setup(self, config, test_data=None):
-        """Setup the datahandler with a test input file.
+        # self._assign_settings(tensors, config_new, skip_check_keys,
+        #                       submodules_need_to_be_configured=False)
+
+    def _configure_derived_class(self, config, config_data=None):
+        """Setup the data handler with a test input file.
         This method needs to be implemented by derived class.
 
         Parameters
         ----------
         config : dict
-            Configuration of the DataHandler.
-        test_data : list of str, optional
-            List of valid file paths to input data files. The first of the
-            specified files will be read in to obtain meta data and to setup
-            the data handler.
+            Configuration of the data handler.
+        config_data : str or list of str, optional
+            File name pattern or list of file patterns which define the paths
+            to input data files. The first of the specified files will be
+            read in to obtain meta data.
 
         Returns
         -------
-        DataTensorList
-            A list of DataTensor objects. These are the tensors the data
-            handler will create and load. They must always be in the same order
-            and have the described settings.
+        Configuration object
+            The configuration object of the newly configured component.
+            This does not need to include configurations of sub components
+            as these are automatically gathered.The dependent_sub_components
+            may also be left empty. This is later filled by the base class
+            from the returned sub components dict.
+            Settings that need to be defined are:
+                class_string:
+                    misc.get_full_class_string_of_object(self)
+                settings: dict
+                    The settings of the component.
+                mutable_settings: dict, default={}
+                    The mutable settings of the component.
+                check_values: dict, default={}
+                    Additional check values.
         dict
-            Configuration of the DataHandler.
-        list
-            List of keys in the config that do not need to be checked, e.g.
-            that may change.
+            The data of the component.
+            This must at least contain the data tensor list which must be
+            stored under the key 'tensors'.
+        dict
+            A dictionary of dependent sub components. This is a dictionary
+            of sub components that need to be saved and loaded recursively
+            when the component is saved and loaded.
+            Return None if no dependent sub components exist.
         """
         raise NotImplementedError()
 
@@ -226,8 +273,8 @@ class BaseDataHandler(BaseComponent):
     #     with open(file, 'r') as stream:
     #         data_dict = yaml.load(stream, Loader=yaml.Loader)
 
-    #     # deserialize data_tensors
-    #     data_dict['data_tensors'] = DataTensorList(data_dict['data_tensors'])
+    #     # deserialize tensors
+    #     data_dict['tensors'] = DataTensorList(data_dict['tensors'])
 
     #     self._assign_settings(submodules_need_to_be_configured=True,
     #                           **data_dict)
@@ -245,7 +292,7 @@ class BaseDataHandler(BaseComponent):
     #     overwrite : bool, optional
     #         If true, overwrite files if they exist, otherwise raise an error.
     #     """
-    #     self.check_if_setup()
+    #     self.check_if_configured()
 
     #     output_dir = os.path.dirname(output_file)
     #     if not os.path.isdir(output_dir):
@@ -261,7 +308,7 @@ class BaseDataHandler(BaseComponent):
     #     data_dict = {}
     #     data_dict['skip_check_keys'] = self._skip_check_keys
     #     data_dict['config'] = self._config
-    #     data_dict['data_tensors'] = self._tensors.serialize()
+    #     data_dict['tensors'] = self.tensors.serialize()
 
     #     with open(output_file, 'w') as yaml_file:
     #         yaml.dump(data_dict, yaml_file)
@@ -289,12 +336,12 @@ class BaseDataHandler(BaseComponent):
             raise NotImplementedError()
 
         # check rank
-        if len(data) != self._tensors.len:
+        if len(data) != self.tensors.len:
             raise ValueError('Length {!r} and {!r} do not match!'.format(
-                len(data), len(self._tensors.names)))
+                len(data), len(self.tensors.names)))
 
         # check shape
-        for values, tensor in zip(data, self._tensors.list):
+        for values, tensor in zip(data, self.tensors.list):
             if tensor.exists and tensor.vector_info is None:
                 if len(values.shape) != len(tensor.shape):
                     raise ValueError(
@@ -330,10 +377,10 @@ class BaseDataHandler(BaseComponent):
             Number of events.
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
 
         """
-        self.check_if_setup()
+        self.check_if_configured()
 
         num_events, data = self._get_data_from_hdf(file, *args, **kwargs)
         if num_events is None and data is None:
@@ -360,7 +407,7 @@ class BaseDataHandler(BaseComponent):
             Number of events.
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
 
         """
         raise NotImplementedError()
@@ -382,14 +429,14 @@ class BaseDataHandler(BaseComponent):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
         """
-        self.check_if_setup()
+        self.check_if_configured()
 
         num_events, data = self._get_data_from_frame(frame, *args, **kwargs)
         if num_events is None and data is None:
             return None, None
-        self._check_data_structure(data, only_data_tensors=True)
+        self._check_data_structure(data, check_vector_tensors=True)
         return num_events, data
 
     def _get_data_from_frame(self, frame, *args, **kwargs):
@@ -410,7 +457,7 @@ class BaseDataHandler(BaseComponent):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
         """
         raise NotImplementedError()
 
@@ -431,14 +478,14 @@ class BaseDataHandler(BaseComponent):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
         """
-        self.check_if_setup()
+        self.check_if_configured()
 
         num_events, data = self._create_data_from_frame(frame, *args, **kwargs)
         if num_events is None and data is None:
             return None, None
-        self._check_data_structure(data, only_data_tensors=True)
+        self._check_data_structure(data, check_vector_tensors=True)
         return num_events, data
 
     def _create_data_from_frame(self, frame, *args, **kwargs):
@@ -459,7 +506,7 @@ class BaseDataHandler(BaseComponent):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
         """
         raise NotImplementedError()
 
@@ -471,7 +518,7 @@ class BaseDataHandler(BaseComponent):
         ----------
         data : tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
         frame : I3Frame
             The I3Frame to which the data is to be written to.
         *args
@@ -479,7 +526,7 @@ class BaseDataHandler(BaseComponent):
         **kwargs
             Arbitrary keyword arguments.
         """
-        self.check_if_setup()
+        self.check_if_configured()
 
         self._write_data_to_frame(data, frame, *args, **kwargs)
 
@@ -492,7 +539,7 @@ class BaseDataHandler(BaseComponent):
         ----------
         data : tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self._tensors).
+            DataTensorList (self.tensors).
         frame : I3Frame
             The I3Frame to which the data is to be written to.
         *args
@@ -627,7 +674,7 @@ class BaseDataHandler(BaseComponent):
         generator
             A generator object which yields batches of input data.
             The returned object is a tuple of array-like tensors with the
-            specifications as defined in the DataTensorList (self._tensors).
+            specifications as defined in the DataTensorList (self.tensors).
 
         Raises
         ------
@@ -635,7 +682,7 @@ class BaseDataHandler(BaseComponent):
             Description
         """
 
-        self.check_if_setup()
+        self.check_if_configured()
 
         if isinstance(input_data, list):
             file_list = []
@@ -768,7 +815,7 @@ class BaseDataHandler(BaseComponent):
         def fill_event_list(data_batch, event_list, exists, num_events):
             """Fills an event_list with a given data_batch.
             """
-            for i, tensor in enumerate(self._tensors.list):
+            for i, tensor in enumerate(self.tensors.list):
 
                 # check if data exists
                 if data_batch[i] is None:
@@ -781,7 +828,7 @@ class BaseDataHandler(BaseComponent):
                         continue
                     elif tensor.vector_info['type'] == 'index':
                         # get value tensor
-                        value_index = self._tensors.get_index(
+                        value_index = self.tensors.get_index(
                             tensor.vector_info['reference'])
                         values = data_batch[value_index]
                         indices = data_batch[i]
@@ -825,13 +872,13 @@ class BaseDataHandler(BaseComponent):
 
             # reset event batch
             size = 0
-            batch = [[] for v in self._tensors.names]
+            batch = [[] for v in self.tensors.names]
 
             while data_left_in_queue.value:
                 # create lists and concatenate at end
                 # (faster than concatenating in each step)
-                exists = [True for v in self._tensors.names]
-                event_list = [[] for v in self._tensors.names]
+                exists = [True for v in self.tensors.names]
+                event_list = [[] for v in self.tensors.names]
 
                 # get a new set of events from queue and fill
                 num_events, data_batch = data_batch_queue.get()
@@ -855,7 +902,7 @@ class BaseDataHandler(BaseComponent):
                                         num_events)
 
                 # concatenate into one numpy array:
-                for i, tensor in enumerate(self._tensors.list):
+                for i, tensor in enumerate(self.tensors.list):
                     if exists[i] and tensor.vector_info is None:
                         event_list[i] = np.concatenate(event_list[i], axis=0)
 
@@ -875,7 +922,7 @@ class BaseDataHandler(BaseComponent):
                     for index in shuffled_indices:
 
                         # add event to batch
-                        for i, tensor in enumerate(self._tensors.list):
+                        for i, tensor in enumerate(self.tensors.list):
                             if exists[i]:
                                 if tensor.vector_info is None:
                                     batch[i].append(event_list[i][index])
@@ -894,7 +941,7 @@ class BaseDataHandler(BaseComponent):
                         if size == batch_size:
 
                             # create numpy arrays from input tensors
-                            for i, tensor in enumerate(self._tensors.list):
+                            for i, tensor in enumerate(self.tensors.list):
                                 if exists[i]:
                                     if tensor.vector_info is None:
                                         batch[i] = np.asarray(batch[i])
@@ -920,7 +967,7 @@ class BaseDataHandler(BaseComponent):
 
                             # reset event batch
                             size = 0
-                            batch = [[] for v in self._tensors.names]
+                            batch = [[] for v in self.tensors.names]
 
                 if not pick_random_files_forever:
                     with file_counter_lock:
@@ -931,7 +978,7 @@ class BaseDataHandler(BaseComponent):
             # collect leftovers and put them in an (incomplete) batch
             if size > 0:
                 # create numpy arrays from input tensors
-                for i, tensor in enumerate(self._tensors.list):
+                for i, tensor in enumerate(self.tensors.list):
                     if exists[i]:
                         if tensor.vector_info is None:
                             batch[i] = np.asarray(batch[i])

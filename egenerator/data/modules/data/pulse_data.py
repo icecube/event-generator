@@ -4,11 +4,12 @@ import logging
 import numpy as np
 import pandas as pd
 
-from egenerator.data.modules.base import BaseModule
+from egenerator import misc
+from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
-class PulseDataModule(BaseModule):
+class PulseDataModule(BaseComponent):
 
     """Pulse data module
 
@@ -24,47 +25,60 @@ class PulseDataModule(BaseModule):
         Indicates wheter a time exclusions key was provided.
     """
 
-    def _initialize(self, pulse_key, dom_exclusions_key, time_exclusions_key,
-                    float_precision, *args, **kwargs):
-        """Initialize Module class.
-        This is an abstract method and must be implemented by derived class.
-
-        If there are skip_check_keys, e.g. config keys that do not have to
-        match, they must be defined here.
-        Any settings used within the module must be saved to 'self.settings'.
+    def __init__(self, logger=None):
+        """Initialize pulse data module
 
         Parameters
         ----------
-        pulse_key : str, optional
-            The key in which the pulse series are saved to.
-        dom_exclusions_key : str, optional
-            The key in which the dom exclusions are saved to.
-        time_exclusions_key : str, optional
-            The key in which the time window exclusions are saved to.
-        float_precision : str
-            The float precision as a str.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
+        logger : logging.logger, optional
+            A logging instance.
         """
-        self.logger = logging.getLogger(__name__)
-        self._skip_check_keys.extend(['pulse_key', 'dom_exclusions_key',
-                                      'time_exclusions_key'])
 
-        self._settings['pulse_key'] = pulse_key
-        self._settings['dom_exclusions_key'] = dom_exclusions_key
-        self._settings['time_exclusions_key'] = time_exclusions_key
-        self._settings['float_precision'] = float_precision
+        logger = logger or logging.getLogger(__name__)
+        super(PulseDataModule, self).__init__(logger=logger)
 
-        self.np_float_precision = getattr(np, self.settings['float_precision'])
-        self.time_exclusions_exist = \
-            self.settings['time_exclusions_key'] is not None
+    # def _initialize(self, pulse_key, dom_exclusions_key, time_exclusions_key,
+    #                 float_precision, *args, **kwargs):
+    #     """Initialize Module class.
+    #     This is an abstract method and must be implemented by derived class.
 
-        self.dom_exclusions_exist = \
-            self.settings['dom_exclusions_key'] is not None
+    #     If there are skip_check_keys, e.g. config keys that do not have to
+    #     match, they must be defined here.
+    #     Any settings used within the module must be saved to 'self.settings'.
 
-    def _configure(self, config_data):
+    #     Parameters
+    #     ----------
+    #     pulse_key : str, optional
+    #         The key in which the pulse series are saved to.
+    #     dom_exclusions_key : str, optional
+    #         The key in which the dom exclusions are saved to.
+    #     time_exclusions_key : str, optional
+    #         The key in which the time window exclusions are saved to.
+    #     float_precision : str
+    #         The float precision as a str.
+    #     *args
+    #         Variable length argument list.
+    #     **kwargs
+    #         Arbitrary keyword arguments.
+    #     """
+    #     self._logger = logging.getLogger(__name__)
+    #     self._skip_check_keys.extend(['pulse_key', 'dom_exclusions_key',
+    #                                   'time_exclusions_key'])
+
+    #     self._settings['pulse_key'] = pulse_key
+    #     self._settings['dom_exclusions_key'] = dom_exclusions_key
+    #     self._settings['time_exclusions_key'] = time_exclusions_key
+    #     self._settings['float_precision'] = float_precision
+
+    #     self.np_float_precision = getattr(np, self.settings['float_precision'])
+    #     self.data['time_exclusions_exist'] = \
+    #         self.settings['time_exclusions_key'] is not None
+
+    #     self.data['dom_exclusions_exist'] = \
+    #         self.settings['dom_exclusions_key'] is not None
+
+    def _configure(self, config_data, pulse_key, dom_exclusions_key,
+                   time_exclusions_key, float_precision):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -73,22 +87,53 @@ class PulseDataModule(BaseModule):
         config_data : None, str, or DataTensorList
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
+        pulse_key : str
+            The key in which the pulse series are saved to.
+        dom_exclusions_key : str, optional
+            The key in which the dom exclusions are saved to.
+        time_exclusions_key : str, optional
+            The key in which the time window exclusions are saved to.
+        float_precision : str
+            The float precision as a str.
 
         Returns
         -------
-        DataTensorList
-            The tensors of type 'data' that will be loaded.
-
-        Raises
-        ------
-        ValueError
-            Description
+        Configuration object
+            The configuration object of the newly configured component.
+            This does not need to include configurations of sub components
+            as these are automatically gathered.The dependent_sub_components
+            may also be left empty. This is later filled by the base class
+            from the returned sub components dict.
+            Settings that need to be defined are:
+                class_string:
+                    misc.get_full_class_string_of_object(self)
+                settings: dict
+                    The settings of the component.
+                mutable_settings: dict, default={}
+                    The mutable settings of the component.
+                check_values: dict, default={}
+                    Additional check values.
+        dict
+            The data of the component. Contains:
+                'data_tensors': DataTensorList
+                    The tensors of type 'data' that will be loaded.
+        dict
+            A dictionary of dependent sub components. This is a dictionary
+            of sub components that need to be saved and loaded recursively
+            when the component is saved and loaded.
+            Return None if no dependent sub components exist.
         """
+        if not isinstance(pulse_key, str):
+            msg = 'Pulse key type: {!r} != str'
+            raise TypeError(msg.format(type(pulse_key)))
+
+        time_exclusions_exist = time_exclusions_key is not None
+        dom_exclusions_exist = dom_exclusions_key is not None
 
         x_dom_charge = DataTensor(name='x_dom_charge',
                                   shape=[None, 86, 60, 1],
                                   tensor_type='data',
-                                  dtype=self.settings['float_precision'],
+                                  dtype=float_precision,
                                   trafo=True,
                                   trafo_reduce_axes=(1, 2),
                                   trafo_log=True,
@@ -97,11 +142,11 @@ class PulseDataModule(BaseModule):
                                       shape=[None, 86, 60, 1],
                                       tensor_type='data',
                                       dtype='bool',
-                                      exists=self.dom_exclusions_exist)
+                                      exists=dom_exclusions_exist)
         x_pulses = DataTensor(name='x_pulses',
                               shape=[None, 2],
                               tensor_type='data',
-                              dtype=self.settings['float_precision'])
+                              dtype=float_precision)
         x_pulses_ids = DataTensor(name='x_pulses_ids',
                                   shape=[None, 3],
                                   tensor_type='data',
@@ -109,23 +154,37 @@ class PulseDataModule(BaseModule):
         x_time_exclusions = DataTensor(name='x_time_exclusions',
                                        shape=[None, 2],
                                        tensor_type='data',
-                                       dtype=self.settings['float_precision'],
-                                       exists=self.time_exclusions_exist)
+                                       dtype=float_precision,
+                                       exists=time_exclusions_exist)
         x_time_exclusions_ids = DataTensor(name='x_time_exclusions_ids',
                                            shape=[None, 3],
                                            tensor_type='data',
                                            dtype='int32',
-                                           exists=self.time_exclusions_exist)
+                                           exists=time_exclusions_exist)
 
-        self._tensors = DataTensorList([
+        data = {}
+        data['data_tensors'] = DataTensorList([
             x_dom_charge, x_dom_exclusions, x_pulses, x_pulses_ids,
             x_time_exclusions, x_time_exclusions_ids])
 
+        data['np_float_precision'] = getattr(np, float_precision)
+
+        data['time_exclusions_exist'] = time_exclusions_exist
+        data['dom_exclusions_exist'] = dom_exclusions_exist
+
         if isinstance(config_data, DataTensorList):
-            if not config_data == self.tensors:
+            if not config_data == data['data_tensors']:
                 raise ValueError('{!r} != {!r}'.format(config_data,
-                                                       self.tensors))
-        return self.tensors
+                                                       data['data_tensors']))
+        configuration = Configuration(
+            class_string=misc.get_full_class_string_of_object(self),
+            settings=dict(config_data=config_data,
+                          float_precision=float_precision),
+            mutable_settings=dict(pulse_key=pulse_key,
+                                  dom_exclusions_key=dom_exclusions_key,
+                                  time_exclusions_key=time_exclusions_key),
+            )
+        return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
         """Get data from hdf file.
@@ -145,7 +204,7 @@ class PulseDataModule(BaseModule):
             Number of events.
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self.data['data_tensors']).
 
         """
         if not self.is_configured:
@@ -155,21 +214,22 @@ class PulseDataModule(BaseModule):
         f = pd.HDFStore(file, 'r')
 
         try:
-            pulses = f[self.settings['pulse_key']]
+            pulses = f[self.configuration.config['pulse_key']]
             _labels = f['LabelsDeepLearning']
-            if self.dom_exclusions_exist:
+            if self.data['dom_exclusions_exist']:
                 try:
-                    dom_exclusions = f[self.settings['dom_exclusions_key']]
+                    dom_exclusions = \
+                        f[self.configuration.config['dom_exclusions_key']]
                 except KeyError:
                     msg = 'Could not find exclusion key {!r}'
-                    self.logger.warning(msg.format(
-                        self.settings['dom_exclusions_key']))
+                    self._logger.warning(msg.format(
+                        self.configuration.config['dom_exclusions_key']))
                     dom_exclusions = None
             else:
                 dom_exclusions = None
 
         except Exception as e:
-            self.logger.warning('Skipping file: {} due to {}'.format(file, e))
+            self._logger.warning('Skipping file: {} due to {}'.format(file, e))
             return None, None
         finally:
             f.close()
@@ -182,14 +242,14 @@ class PulseDataModule(BaseModule):
 
         # create empty array for DOM charges
         x_dom_charge = np.zeros([size, 86, 60, 1],
-                                dtype=self.np_float_precision)
+                                dtype=self.data['np_float_precision'])
 
-        if self.dom_exclusions_exist:
+        if self.data['dom_exclusions_exist']:
             x_dom_exclusions = np.ones_like(x_dom_charge, dtype=bool)
         else:
             x_dom_exclusions = None
 
-        if self.time_exclusions_exist:
+        if self.data['time_exclusions_exist']:
             raise NotImplementedError(
                 'Time window exclusions not yet implemented!')
         else:
@@ -197,7 +257,8 @@ class PulseDataModule(BaseModule):
             x_time_exclusions_ids = None
 
         num_pulses = len(pulses['Event'])
-        x_pulses = np.empty((num_pulses, 2), dtype=self.np_float_precision)
+        x_pulses = np.empty((num_pulses, 2),
+                            dtype=self.data['np_float_precision'])
         x_pulses_ids = np.empty((num_pulses, 3), dtype=np.int32)
 
         # get pulse information
@@ -205,7 +266,7 @@ class PulseDataModule(BaseModule):
             string = row[6]
             dom = row[7]
             if dom > 60:
-                self.logger.warning(
+                self._logger.warning(
                     'skipping pulse: {} {}'.format(string, dom))
                 continue
             index = event_dict[(row[1:5])]
@@ -227,7 +288,7 @@ class PulseDataModule(BaseModule):
                 dom = row[8]
                 if dom > 60:
                     msg = 'skipping exclusion DOM: {!r} {!r}'
-                    self.logger.warning(msg.format(string, dom))
+                    self._logger.warning(msg.format(string, dom))
                     continue
                 index = event_dict[(row[1:5])]
                 x_dom_exclusions[index, string-1, dom-1, 0] = False
@@ -242,7 +303,7 @@ class PulseDataModule(BaseModule):
             'x_time_exclusions_ids': x_time_exclusions_ids,
         }
         event_batch = []
-        for tensor in self.tensors.list:
+        for tensor in self.data['data_tensors'].list:
             event_batch.append(data_dict[tensor.name])
 
         return size, event_batch
@@ -264,7 +325,7 @@ class PulseDataModule(BaseModule):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self.data['data_tensors']).
         """
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
@@ -288,7 +349,7 @@ class PulseDataModule(BaseModule):
         -------
         tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self.data['data_tensors']).
         """
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
@@ -303,7 +364,7 @@ class PulseDataModule(BaseModule):
         ----------
         data : tuple of array-like tensors
             The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
+            DataTensorList (self.data['data_tensors']).
         frame : I3Frame
             The I3Frame to which the data is to be written to.
         *args

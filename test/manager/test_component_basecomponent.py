@@ -12,7 +12,8 @@ class DummyComponent(BaseComponent):
 
     def _configure(self, data, new_subcomponent=None, **kwargs):
         kwargs['data'] = data
-        class_string = os.path.splitext(__file__)[0] + '.DummyComponent'
+        class_string = os.path.splitext(__file__)[0].replace('/', '.') + \
+            '.DummyComponent'
         configuration = Configuration(class_string, kwargs)
         if new_subcomponent is None:
             dependent_components = None

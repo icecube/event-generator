@@ -3,6 +3,7 @@
 import unittest
 import os
 import numpy as np
+from copy import deepcopy
 
 from egenerator.data.modules.data.pulse_data import PulseDataModule
 from egenerator.data.tensor import DataTensorList, DataTensor
@@ -44,61 +45,91 @@ class TestPulseDataModule(unittest.TestCase):
         self.dom_exclusions_key[1, 34, 54] = False
         self.dom_exclusions_key[1, 34, 55] = False
 
+        self.config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'InIceDSTPulses',
+            'dom_exclusions_key': 'BrightDOMs',
+            'time_exclusions_key': None,
+            'float_precision': 'float64',
+        }
+
     def test_class_initialization_parameters(self):
         """Check that initializer only tak
         """
-        with self.assertRaises(TypeError) as context:
-            PulseDataModule(config_data=4)
-
-        with self.assertRaises(TypeError) as context:
-            PulseDataModule(4, label_key='labels')
-
-        with self.assertRaises(TypeError) as context:
-            PulseDataModule(4, True)
-
-        with self.assertRaises(AttributeError) as context:
-            PulseDataModule('pulse_key', None, None, 'float31')
-        self.assertTrue("has no attribute 'float31'" in str(context.exception))
-
-        module = PulseDataModule('pulse_key', None, None, 'float32')
-
-    def test_member_variables(self):
-        """Test if member variables have correct values.
-        """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
-        self.assertEqual(module.skip_check_keys,
-                         ['pulse_key', 'dom_exclusions_key',
-                          'time_exclusions_key'])
-        settings_true = {
+        config = {
+            'config_data': 'dummy_data',
             'pulse_key': 'pulse_key',
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
         }
-        self.assertEqual(module.settings, settings_true)
+
+        with self.assertRaises(TypeError) as context:
+            module = PulseDataModule()
+            mod_config = dict(deepcopy(config))
+            mod_config['pulse_key'] = 4
+            module.configure(**mod_config)
+
+        with self.assertRaises(ValueError) as context:
+            module = PulseDataModule()
+            mod_config = dict(deepcopy(config))
+            mod_config['float_precision'] = 'float31'
+            module.configure(**mod_config)
+        self.assertTrue("Invalid dtype str" in str(context.exception))
+
+        module = PulseDataModule()
+        module.configure(**config)
+
+    def test_member_variables(self):
+        """Test if member variables have correct values.
+        """
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'pulse_key',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
+
+        self.assertEqual(module.configuration.config, config)
 
     def test_configuration_check(self):
         """Check whether passed tensor list in confguration is checked and
         found to be wrong.
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
+        config = {
+            'pulse_key': 'pulse_key',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
 
         # check if error is correctly rasied when wrong data type is passed
         with self.assertRaises(ValueError) as context:
-            module.configure(config_data=DataTensorList([]))
+            module.configure(config_data=DataTensorList([]), **config)
         self.assertTrue(' != ' in str(context.exception))
 
         # pasing a file path should be fine
-        module.configure(config_data='file_path_string')
+        module.configure(config_data='file_path_string', **config)
 
     def test_correct_configuration(self):
         """Check if the module correctly creates the tensors
         """
         for dom_exclusions_key in [None, 'exclusion_key']:
             for float_precision in ['float32', 'float64']:
-                module = PulseDataModule('pulse_key', dom_exclusions_key, None,
-                                         float_precision)
-                tensors = module.configure(config_data='file_path_string')
+                config = {
+                    'config_data': 'file_path_string',
+                    'pulse_key': 'pulse_key',
+                    'dom_exclusions_key': dom_exclusions_key,
+                    'time_exclusions_key': None,
+                    'float_precision': float_precision,
+                }
+                module = PulseDataModule()
+                module.configure(**config)
+
                 tensors_true = DataTensorList([
                     DataTensor(name='x_dom_charge',
                                shape=[None, 86, 60, 1],
@@ -132,18 +163,31 @@ class TestPulseDataModule(unittest.TestCase):
                                dtype='int32',
                                exists=False),
                     ])
-                self.assertTrue(tensors == tensors_true)
+                self.assertTrue(module.data['data_tensors'] == tensors_true)
 
                 # make sure the internal check also works
-                module = PulseDataModule('pulse_key', dom_exclusions_key, None,
-                                         float_precision)
-                tensors = module.configure(config_data=tensors_true)
+                config = {
+                    'config_data': tensors_true,
+                    'pulse_key': 'pulse_key',
+                    'dom_exclusions_key': dom_exclusions_key,
+                    'time_exclusions_key': None,
+                    'float_precision': float_precision,
+                }
+                module = PulseDataModule()
+                module.configure(**config)
 
     def test_not_implemented_get_data_from_frame(self):
         """Check not implemented method
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'pulse_key',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
 
         # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(NotImplementedError) as context:
@@ -152,8 +196,15 @@ class TestPulseDataModule(unittest.TestCase):
     def test_not_implemented_create_data_from_frame(self):
         """Check not implemented method
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'pulse_key',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
 
         # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(NotImplementedError) as context:
@@ -162,8 +213,15 @@ class TestPulseDataModule(unittest.TestCase):
     def test_not_implemented_write_data_to_frame(self):
         """Check not implemented method
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'pulse_key',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
 
         # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(NotImplementedError) as context:
@@ -172,8 +230,16 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_hdf_skip_file(self):
         """Check if file is skipped correctly if a label does not exist.
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'pulse_key',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
+
         num_events, data = module.get_data_from_hdf(self.file_path)
 
         self.assertEqual(num_events, None)
@@ -183,9 +249,16 @@ class TestPulseDataModule(unittest.TestCase):
         """Check if missing exclusion key is handled as if there were no
         exclusions.
         """
-        module = PulseDataModule('InIceDSTPulses', 'missing_key',
-                                 None, 'float32')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'InIceDSTPulses',
+            'dom_exclusions_key': 'missing_key',
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
+
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
         self.assertTrue((data[1] == np.ones([2, 86, 60, 1], dtype=bool)).all())
@@ -193,7 +266,7 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_hdf_check_configured(self):
         """Check if error is raised when not configured
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
+        module = PulseDataModule()
 
         with self.assertRaises(ValueError) as context:
             num_events, data = module.get_data_from_hdf('wrong_file_path')
@@ -202,7 +275,7 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_frame_check_configured(self):
         """Check if error is raised when not configured
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
+        module = PulseDataModule()
 
         with self.assertRaises(ValueError) as context:
             num_events, data = module.get_data_from_frame('wrong_file_path')
@@ -211,7 +284,7 @@ class TestPulseDataModule(unittest.TestCase):
     def test_write_data_to_frame_check_configured(self):
         """Check if error is raised when not configured
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
+        module = PulseDataModule()
 
         with self.assertRaises(ValueError) as context:
             num_events, data = module.write_data_to_frame(None, None)
@@ -220,7 +293,7 @@ class TestPulseDataModule(unittest.TestCase):
     def test_create_data_from_frame_check_configured(self):
         """Check if error is raised when not configured
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
+        module = PulseDataModule()
 
         with self.assertRaises(ValueError) as context:
             num_events, data = module.create_data_from_frame('wrong_file_path')
@@ -229,8 +302,15 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_hdf_wrong_file_name(self):
         """Check if IOError is raised if file does not exist
         """
-        module = PulseDataModule('pulse_key', None, None, 'float32')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'InIceDSTPulses',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float32',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
 
         with self.assertRaises(IOError) as context:
             num_events, data = module.get_data_from_hdf('wrong_file_path')
@@ -239,8 +319,15 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_hdf(self):
         """Test if loaded data is correct
         """
-        module = PulseDataModule('InIceDSTPulses', None, None, 'float32')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'InIceDSTPulses',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float64',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
 
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
@@ -275,9 +362,15 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_hdf_with_dom_exclusions_and_float64(self):
         """Test if loaded data is correct
         """
-        module = PulseDataModule('InIceDSTPulses', 'BrightDOMs', None,
-                                 'float64')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'InIceDSTPulses',
+            'dom_exclusions_key': 'BrightDOMs',
+            'time_exclusions_key': None,
+            'float_precision': 'float64',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
 
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
@@ -314,9 +407,15 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_hdf_not_implemented_time_exlcusions(self):
         """Test if not implemented error is thrown if time exlcusions are used
         """
-        module = PulseDataModule('InIceDSTPulses', 'BrightDOMs', 'BrightDOMs',
-                                 'float64')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'InIceDSTPulses',
+            'dom_exclusions_key': 'BrightDOMs',
+            'time_exclusions_key': 'BrightDOMs',
+            'float_precision': 'float64',
+        }
+        module = PulseDataModule()
+        module.configure(**config)
 
         with self.assertRaises(NotImplementedError) as context:
             num_events, data = module.get_data_from_hdf(self.file_path)

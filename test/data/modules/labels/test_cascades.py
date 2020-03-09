@@ -55,6 +55,16 @@ class TestCascadeLabelsModule(unittest.TestCase):
         """Check whether passed tensor list in confguration is checked and
         found to be wrong.
         """
+        # config = {
+        #     'config_data': 'file_path_string',
+        #     'shift_cascade_vertex': True,
+        #     'trafo_log': trafo_log,
+        #     'float_precision': 'float64',
+        #     'label_key': 'labels'
+        # }
+        # module = CascadeGeneratorLabelModule()
+        # module.configure(**config)
+
         module = CascadeGeneratorLabelModule(True, False, label_key='labels')
 
         # check if error is correctly raised when wrong data type is passed
@@ -69,8 +79,16 @@ class TestCascadeLabelsModule(unittest.TestCase):
         """Check if the module correctly creates the tensors
         """
         for trafo_log in [True, False, None]:
-            module = CascadeGeneratorLabelModule(True, trafo_log)
-            tensors = module.configure(config_data='file_path_string')
+            config = {
+                'config_data': 'file_path_string',
+                'shift_cascade_vertex': True,
+                'trafo_log': trafo_log,
+                'float_precision': 'float64',
+                'label_key': 'labels'
+            }
+            module = CascadeGeneratorLabelModule()
+            module.configure(**config)
+
             tensors_true = DataTensorList([DataTensor(
                                         name='cascade_labels',
                                         shape=[None, 7],
@@ -78,16 +96,31 @@ class TestCascadeLabelsModule(unittest.TestCase):
                                         dtype='float32',
                                         trafo=True,
                                         trafo_log=trafo_log)])
-            self.assertTrue(tensors == tensors_true)
+            self.assertTrue(module.data['label_tensors'] == tensors_true)
 
             # make sure the internal check also works
-            module = CascadeGeneratorLabelModule(True, trafo_log)
-            tensors = module.configure(config_data=tensors_true)
+            config = {
+                'config_data': tensors_true,
+                'shift_cascade_vertex': True,
+                'trafo_log': trafo_log,
+                'float_precision': 'float64',
+                'label_key': 'labels'
+            }
+            module = CascadeGeneratorLabelModule()
+            module.configure(**config)
 
     def test_shift_to_maximum(self):
         """Check if cascade shift works correctly
         """
-        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
+        config = {
+            'config_data': 'dummy_data',
+            'shift_cascade_vertex': True,
+            'trafo_log': False,
+            'float_precision': 'float64',
+            'label_key': 'labels'
+        }
+        module = CascadeGeneratorLabelModule()
+        module.configure(**config)
 
         # create cascades (x, y, z, zenith, azimuth, energy)
         cascades = np.array([
@@ -137,7 +170,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
     def test_get_data_from_hdf_check_configured(self):
         """Check if error is raised when not configured
         """
-        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
+        module = CascadeGeneratorLabelModule()
 
         with self.assertRaises(ValueError) as context:
             num_events, data = module.get_data_from_hdf('wrong_file_path')
@@ -146,8 +179,15 @@ class TestCascadeLabelsModule(unittest.TestCase):
     def test_get_data_from_hdf_skip_file(self):
         """Check if file is skipped correctly if a label does not exist.
         """
-        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'shift_cascade_vertex': True,
+            'trafo_log': False,
+            'float_precision': 'float64',
+            'label_key': 'labels'
+        }
+        module = CascadeGeneratorLabelModule()
+        module.configure(**config)
 
         num_events, data = module.get_data_from_hdf(self.file_path)
 
@@ -157,8 +197,15 @@ class TestCascadeLabelsModule(unittest.TestCase):
     def test_get_data_from_hdf_wrong_file_name(self):
         """Check if IOError is raised if file does not exist
         """
-        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'shift_cascade_vertex': True,
+            'trafo_log': False,
+            'float_precision': 'float64',
+            'label_key': 'labels'
+        }
+        module = CascadeGeneratorLabelModule()
+        module.configure(**config)
 
         with self.assertRaises(IOError) as context:
             num_events, data = module.get_data_from_hdf('wrong_file_path')
@@ -167,8 +214,14 @@ class TestCascadeLabelsModule(unittest.TestCase):
     def test_get_data_from_hdf(self):
         """Test if loaded data is correct
         """
-        module = CascadeGeneratorLabelModule(False, False)
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'shift_cascade_vertex': False,
+            'trafo_log': False,
+            'float_precision': 'float64',
+        }
+        module = CascadeGeneratorLabelModule()
+        module.configure(**config)
 
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
@@ -177,8 +230,14 @@ class TestCascadeLabelsModule(unittest.TestCase):
     def test_get_data_from_hdf_with_shifted_vertex(self):
         """Test if loaded data is correct
         """
-        module = CascadeGeneratorLabelModule(True, False)
-        module.configure('dummy_data')
+        config = {
+            'config_data': 'dummy_data',
+            'shift_cascade_vertex': True,
+            'trafo_log': False,
+            'float_precision': 'float64',
+        }
+        module = CascadeGeneratorLabelModule()
+        module.configure(**config)
 
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)

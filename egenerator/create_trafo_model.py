@@ -41,7 +41,7 @@ def main(config_files):
     DataHandlerClass = misc.load_class('egenerator.data.handler.{}'.format(
                             config['data_handler_settings']['data_handler']))
     data_handler = DataHandlerClass()
-    data_handler.setup(config['data_handler_settings'])
+    data_handler.configure(config=config['data_handler_settings'])
 
     trafo_data_generator = data_handler.get_batch_generator(
         **config['data_iterator_settings']['trafo'])

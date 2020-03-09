@@ -1,30 +1,14 @@
 from __future__ import division, print_function
 
-from egenerator.data.modules.base import BaseModule
+from egenerator import misc
+from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList
 
 
-class DummyWeightModule(BaseModule):
+class DummyWeightModule(BaseComponent):
 
     """This is a dummy weight module that does not load any weight data.
     """
-
-    def _initialize(self, *args, **kwargs):
-        """Initialize Module class.
-        This is an abstract method and must be implemented by derived class.
-
-        If there are skip_check_keys, e.g. config keys that do not have to
-        match, they must be defined here.
-        Any settings used within the module must be saved to 'self.settings'.
-
-        Parameters
-        ----------
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-        """
-        pass
 
     def _configure(self, config_data):
         """Configure Module Class
@@ -38,15 +22,43 @@ class DummyWeightModule(BaseModule):
 
         Returns
         -------
-        DataTensorList
-            The tensors of type 'weight' that will be loaded.
+        Configuration object
+            The configuration object of the newly configured component.
+            This does not need to include configurations of sub components
+            as these are automatically gathered.The dependent_sub_components
+            may also be left empty. This is later filled by the base class
+            from the returned sub components dict.
+            Settings that need to be defined are:
+                class_string:
+                    misc.get_full_class_string_of_object(self)
+                settings: dict
+                    The settings of the component.
+                mutable_settings: dict, default={}
+                    The mutable settings of the component.
+                check_values: dict, default={}
+                    Additional check values.
+        dict
+            The data of the component. Contains:
+                'weight_tensors': DataTensorList
+                    The tensors of type 'weight' that will be loaded.
+        dict
+            A dictionary of dependent sub components. This is a dictionary
+            of sub components that need to be saved and loaded recursively
+            when the component is saved and loaded.
+            Return None if no dependent sub components exist.
         """
 
         if not isinstance(config_data, (type(None), str, DataTensorList)):
             raise ValueError('Unknown type: {!r}'.format(type(config_data)))
 
-        self._tensors = DataTensorList([])
-        return self.tensors
+        data = {
+            'weight_tensors': DataTensorList([])
+        }
+
+        configuration = Configuration(
+            class_string=misc.get_full_class_string_of_object(self),
+            settings={'config_data': config_data})
+        return configuration, data, {}
 
     def get_data_from_hdf(self, file):
         """Get weight data from hdf file.

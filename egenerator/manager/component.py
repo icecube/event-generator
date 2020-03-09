@@ -5,6 +5,7 @@ import ruamel.yaml as yaml
 import pickle
 import logging
 import inspect
+from getclass import getclass
 from copy import deepcopy
 
 from egenerator import misc
@@ -277,15 +278,51 @@ class BaseComponent(object):
             alternatively it can be created via a 'Configuration' object.
 
         - load(file_path)
-            This loads the component with all its settings and member varialbes
-            from file.
+            This loads the component with all its settings and member variables
+            from file. Specified sub components are loaded recursively.
 
     Once either of these methods is called, the component is configured.
     Attempting to re-configure it will result in an exception.
-    The component provides a method to check compatibility with a given
-    configuration (self.check_configuration(configuration)), as well as a
+    The component provides a method to check compatibility with a second
+    component (self.is_compatible(component)), as well as a
     method to save the component to file (self.save(file_path)).
+    Again, defined dependent sub components are saved recursively to file.
 
+    The BaseComponent class is an abstract class with a pure virtual method
+    self._configure(). A derived class must at least implement and overrride
+    this method. A call to self._configure() must return the following:
+
+        Configuration object
+            The configuration object of the newly configured component.
+            This does not need to include configurations of sub components
+            as these are automatically gathered.
+        dict
+            The data of the component.
+            Return None if the component has no data.
+        dict
+            A dictionary of dependent sub components. This is a dictionary
+            of sub components that need to be saved and loaded recursively
+            when the component is saved and loaded.
+            Return None if no dependent sub components exist.
+
+    Attributes
+    ----------
+    configuration : Configuration object
+        A configuration object that describes the configuration of this class.
+    data : dict
+        A dictionary with data of the component. This data will be saved to
+        file in a self.save() call and will subsequently be loaded in a
+        self.load() call.
+    is_configured : boolt
+        Indicates whether the component is configured.
+    sub_components : dict
+        This is a dict with sub components this component relies on.
+        Sub components are components that will be recursively saved and loaded
+        when this component gets saved or loaded.
+    untracked_data : dict
+        This is a dictionary of data that is not tracked and will not be saved
+        to file. Any derived class that needs to store data which is not to be
+        saved to file, must store it in this dict.
     """
 
     @property
@@ -295,7 +332,7 @@ class BaseComponent(object):
         Returns
         -------
         bool
-            Indicates whether the module is configured.
+            Indicates whether the component is configured.
         """
         return self._is_configured
 
@@ -315,7 +352,7 @@ class BaseComponent(object):
         """Dependent sub components
 
         These are sub components that will be recursively saved and loaded
-        whtn this component gets saved or loaded.
+        when this component gets saved or loaded.
 
         Returns
         -------
@@ -372,8 +409,9 @@ class BaseComponent(object):
             A list of untracked attributes
 
         """
-        attributes = inspect.getmembers(self,
-                                        lambda a: not(inspect.isroutine(a)))
+        attributes = inspect.getmembers(
+            self, lambda a: not inspect.isroutine(a))
+
         filtered_attributes = [a[0] for a in attributes if not
                                (a[0].startswith('__') and a[0].endswith('__'))]
 
@@ -385,7 +423,17 @@ class BaseComponent(object):
                               'sub_components']
         untracked_attributes = [a for a in filtered_attributes if a not in
                                 tracked_attributes]
-        return untracked_attributes
+
+        # remove properties:
+        object_class = getclass(self)
+        untracked_attributes_without_properties = []
+        for a in untracked_attributes:
+            if not hasattr(object_class, a):
+                untracked_attributes_without_properties.append(a)
+            elif not isinstance(getattr(object_class, a), property):
+                untracked_attributes_without_properties.append(a)
+
+        return untracked_attributes_without_properties
 
     def _check_member_attributes(self):
         """Check if class instance has any attributes it should not after
@@ -416,6 +464,10 @@ class BaseComponent(object):
         if self.is_configured:
             raise ValueError('Component is already configured!')
 
+        # Get the dictionary format of the passed Configuration object
+        if isinstance(kwargs, Configuration):
+            kwargs = kwargs.dict
+
         # check if it already has attributes other than the allowed ones
         # This indicates an incorrect usage of the BaseComponent class.
         self._check_member_attributes()
@@ -440,6 +492,11 @@ class BaseComponent(object):
 
         if self._sub_components is None:
             self._sub_components = {}
+
+        if not isinstance(self._sub_components, dict):
+            msg = 'Sub components must be provided as a dictionary, '
+            msg += 'but are: {!r}'
+            raise TypeError(msg.format(type(self._sub_components)))
 
         # add sub component configurations to this configuration
         self._configuration.add_sub_components(parameter_sub_components)
@@ -487,7 +544,19 @@ class BaseComponent(object):
         Configuration object
             The configuration object of the newly configured component.
             This does not need to include configurations of sub components
-            as these are automatically gathered.
+            which are passed as parameters into the configure method,
+            as these are automatically gathered. The dependent_sub_components
+            may also be left empty for these passed sub components.
+            Sum components created within a component must be added.
+            Settings that need to be defined are:
+                class_string:
+                    misc.get_full_class_string_of_object(self)
+                settings: dict
+                    The settings of the component.
+                mutable_settings: dict, default={}
+                    The mutable settings of the component.
+                check_values: dict, default={}
+                    Additional check values.
         dict
             The data of the component.
             Return None if the component has no data.
@@ -512,6 +581,11 @@ class BaseComponent(object):
         bool
             True if both components are compatible
         """
+
+        # check if both instances are of the same class
+        if getclass(self) != getclass(other):
+            return False
+
         return self.configuration.is_compatible(other.configuration)
 
     def save(self, dir_path, overwrite=False,
@@ -610,6 +684,15 @@ class BaseComponent(object):
 
         # get configuration of self:
         self._configuration = Configuration(**config_dict)
+
+        # check if this is the correct class
+        if self.configuration.class_string != \
+                misc.get_full_class_string_of_object(self):
+            msg = "The object's class {!r} does not match the saved "
+            msg += 'class string {!r}'
+            raise TypeError(msg.format(
+                misc.get_full_class_string_of_object(self),
+                self.configuration.class_string))
 
         # get data and check if it has correct type
         self._data = data
