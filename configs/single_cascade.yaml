@@ -141,7 +141,7 @@ data_trafo_settings: {
 data_handler_settings: {
 
     # The data handler class to use
-    'data_handler': 'modular.ModuleDataHandler'
+    'data_handler': 'modular.ModuleDataHandler',
 
     # -------------------
     # DataModule Settings

@@ -13,7 +13,8 @@ class DummyDataHandler(BaseDataHandler):
 
     def _configure(self, data, new_subcomponent=None, **kwargs):
         kwargs['data'] = data
-        class_string = os.path.splitext(__file__)[0].replace('/', '.') + \
+        class_string = os.path.splitext(
+            __file__.split('event-generator/')[-1])[0].replace('/', '.') + \
             '.DummyDataHandler'
         configuration = Configuration(class_string, kwargs)
         if new_subcomponent is None:
