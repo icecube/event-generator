@@ -490,6 +490,9 @@ class BaseComponent(object):
         self._configuration, self._data, self._sub_components = \
             self._configure(**kwargs)
 
+        if self._data is None:
+            self._data = {}
+
         if self._sub_components is None:
             self._sub_components = {}
 

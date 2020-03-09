@@ -2,6 +2,7 @@
 
 import unittest
 import numpy as np
+from copy import deepcopy
 import os
 
 from egenerator.data.modules.labels.cascades import CascadeGeneratorLabelModule
@@ -26,54 +27,45 @@ class TestCascadeLabelsModule(unittest.TestCase):
 
     """Test cascade label module.
     """
-    def test_class_initialization_parameters(self):
-        """Check that initializer only tak
-        """
-        with self.assertRaises(TypeError) as context:
-            CascadeGeneratorLabelModule(config_data=4)
-
-        with self.assertRaises(TypeError) as context:
-            CascadeGeneratorLabelModule(4, label_key='labels')
-
-        with self.assertRaises(ValueError) as context:
-            CascadeGeneratorLabelModule(4, True)
-        self.assertTrue('is not a boolean value!' in str(context.exception))
-
-        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
-        module = CascadeGeneratorLabelModule(True, [True, True],)
-
     def test_member_variables(self):
         """Test if member variables have correct values.
         """
-        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
-        self.assertEqual(module.skip_check_keys, [])
-        self.assertEqual(module.settings['shift_cascade_vertex'], True)
-        self.assertEqual(module.settings['trafo_log'], False)
-        self.assertEqual(module.settings['label_key'], 'labels')
+        config = {
+            'config_data': 'file_path_string',
+            'shift_cascade_vertex': True,
+            'trafo_log': False,
+            'float_precision': 'float64',
+            'label_key': 'labels'
+        }
+        module = CascadeGeneratorLabelModule()
+        module.configure(**config)
+        settings = module.configuration.settings
+        self.assertEqual(settings['shift_cascade_vertex'], True)
+        self.assertEqual(settings['trafo_log'], False)
+        self.assertEqual(settings['label_key'], 'labels')
+        self.assertEqual(settings['float_precision'], 'float64')
 
     def test_configuration_check(self):
         """Check whether passed tensor list in confguration is checked and
         found to be wrong.
         """
-        # config = {
-        #     'config_data': 'file_path_string',
-        #     'shift_cascade_vertex': True,
-        #     'trafo_log': trafo_log,
-        #     'float_precision': 'float64',
-        #     'label_key': 'labels'
-        # }
-        # module = CascadeGeneratorLabelModule()
-        # module.configure(**config)
-
-        module = CascadeGeneratorLabelModule(True, False, label_key='labels')
+        config = {
+            'config_data': DataTensorList([]),
+            'shift_cascade_vertex': True,
+            'trafo_log': False,
+            'float_precision': 'float64',
+            'label_key': 'labels'
+        }
+        module = CascadeGeneratorLabelModule()
 
         # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(ValueError) as context:
-            module.configure(config_data=DataTensorList([]))
+            module.configure(**config)
         self.assertTrue(' != ' in str(context.exception))
 
         # pasing a file path should be fine
-        module.configure(config_data='file_path_string')
+        config['config_data'] = 'file_path_string'
+        module.configure(**config)
 
     def test_correct_configuration(self):
         """Check if the module correctly creates the tensors

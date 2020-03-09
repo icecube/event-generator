@@ -133,15 +133,13 @@ class TestCreateTrafoModel(unittest.TestCase):
 
         # check if created trafo model seems correct
         data_handler = ModuleDataHandler()
-        data_handler.configure(self.config['data_handler_settings'])
+        data_handler.configure(config=self.config['data_handler_settings'])
         data_trafo = DataTransformer(data_handler)
 
-        data_trafo.load_trafo_model(
-            self.config['data_trafo_settings']['model_path'])
+        data_trafo.load(self.config['data_trafo_settings']['model_path'])
 
-        self.assertTrue(np.allclose(
-            data_trafo.trafo_model['cascade_labels_mean'],
-            np.mean(self.cascades_true, axis=0)))
+        self.assertTrue(np.allclose(data_trafo.data['cascade_labels_mean'],
+                                    np.mean(self.cascades_true, axis=0)))
 
 
 if __name__ == '__main__':

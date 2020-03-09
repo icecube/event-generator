@@ -8,7 +8,8 @@ from tqdm import tqdm
 from datetime import datetime
 import tensorflow as tf
 
-from egenerator.manager.component import BaseComponent
+from egenerator import misc
+from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
@@ -32,7 +33,7 @@ class DataTransformer(BaseComponent):
         self._logger = logger or logging.getLogger(__name__)
         super(DataTransformer, self).__init__(logger=self._logger)
 
-    def _configure(self, data_handler, data_iterator, num_batches,
+    def _configure(self, data_handler, data_iterator_settings, num_batches,
                    float_precision='float64',
                    norm_constant=1e-6):
         """Configure DataTransformer object.
@@ -44,9 +45,9 @@ class DataTransformer(BaseComponent):
         ----------
         data_handler : DataHandler
             A data handler object.
-        data_iterator : generator object
-            A python generator object which generates batches of
-            dom_responses and cascade_parameters.
+        data_iterator_settings : dict
+            The settings for the data iterator that will be created from the
+            data handler.
         num_batches : int
             How many batches to use to create the transformation model.
         float_precision : str, optional
@@ -56,6 +57,33 @@ class DataTransformer(BaseComponent):
             A small constant that is added to the denominator during
             normalization to ensure finite values.
 
+        Returns
+        -------
+        Configuration object
+            The configuration object of the newly configured component.
+            This does not need to include configurations of sub components
+            which are passed as parameters into the configure method,
+            as these are automatically gathered. The dependent_sub_components
+            may also be left empty for these passed sub components.
+            Sum components created within a component must be added.
+            Settings that need to be defined are:
+                class_string:
+                    misc.get_full_class_string_of_object(self)
+                settings: dict
+                    The settings of the component.
+                mutable_settings: dict, default={}
+                    The mutable settings of the component.
+                check_values: dict, default={}
+                    Additional check values.
+        dict
+            The data of the component.
+            Return None if the component has no data.
+        dict
+            A dictionary of dependent sub components. This is a dictionary
+            of sub components that need to be saved and loaded recursively
+            when the component is saved and loaded.
+            Return None if no dependent sub components exist.
+
         Raises
         ------
         ValueError
@@ -64,15 +92,17 @@ class DataTransformer(BaseComponent):
         if self.is_configured:
             raise ValueError('Trafo model is already setup!')
 
-        self._data['tensors'] = data_handler.tensors
+        # create data iterator
+        data_iterator = data_handler.get_batch_generator(
+                                                **data_iterator_settings)
+
+        data = {}
+        data['tensors'] = data_handler.tensors
 
         # set precision and norm constant
-        self._data['float_precision'] = float_precision
-        self._data['norm_constant'] = norm_constant
-        self._data['np_float_dtype'] = \
-            getattr(np, self.data['float_precision'])
-        self._data['tf_float_dtype'] = \
-            getattr(tf, self.data['float_precision'])
+        data['norm_constant'] = norm_constant
+        data['np_float_dtype'] = getattr(np, float_precision)
+        data['tf_float_dtype'] = getattr(tf, float_precision)
 
         # create empty onlince variance variables
         var_dict = {}
@@ -93,7 +123,7 @@ class DataTransformer(BaseComponent):
 
         for i in tqdm(range(num_batches)):
 
-            data = next(data_iterator)
+            data_batch = next(data_iterator)
 
             # loop through tensors and update online variance calculation
             for tensor in data_handler.tensors.list:
@@ -101,10 +131,11 @@ class DataTransformer(BaseComponent):
                     index = data_handler.tensors.get_index(tensor.name)
                     n, mean, m2 = self._perform_update_step(
                                     trafo_log=tensor.trafo_log,
-                                    data_batch=data[index],
+                                    data_batch=data_batch[index],
                                     n=var_dict[tensor.name]['n'],
                                     mean=var_dict[tensor.name]['mean'],
-                                    M2=var_dict[tensor.name]['M2'])
+                                    M2=var_dict[tensor.name]['M2'],
+                                    dtype=data['np_float_dtype'])
                     var_dict[tensor.name]['n'] = n
                     var_dict[tensor.name]['mean'] = mean
                     var_dict[tensor.name]['M2'] = m2
@@ -117,23 +148,32 @@ class DataTransformer(BaseComponent):
 
                 # combine mean and std. dev. values over specified
                 # reduction axes
-                self._data[tensor.name+'_std'] = np.mean(
+                data[tensor.name+'_std'] = np.mean(
                     std_dev, axis=tensor.trafo_reduce_axes, keepdims=True)
 
-                self._data[tensor.name+'_mean'] = np.mean(
+                data[tensor.name+'_mean'] = np.mean(
                     var_dict[tensor.name]['mean'],
                     axis=tensor.trafo_reduce_axes, keepdims=True)
 
                 # set constant parameters to have a std dev of 1
                 # instead of zero
-                mask = self._data[tensor.name+'_std'] == 0
-                self._data[tensor.name+'_std'][mask] = 1.
+                mask = data[tensor.name+'_std'] == 0
+                data[tensor.name+'_std'][mask] = 1.
 
         # create an identifer for the trafo model
         now = datetime.now()
         dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+        data['creation_time'] = dt_string
 
-        self._data['creation_time'] = dt_string
+        # create configuration object
+        configuration = Configuration(
+            class_string=misc.get_full_class_string_of_object(self),
+            settings=dict(data_iterator_settings=data_iterator_settings,
+                          num_batches=num_batches,
+                          float_precision=float_precision,
+                          norm_constant=norm_constant))
+
+        return configuration, data, {}
 
     def _update_online_variance_vars(self, data_batch, n, mean, M2):
         """Update online variance variables.
@@ -167,7 +207,7 @@ class DataTransformer(BaseComponent):
             M2 += delta*delta2
         return n, mean, M2
 
-    def _perform_update_step(self, trafo_log, data_batch, n, mean, M2):
+    def _perform_update_step(self, trafo_log, data_batch, n, mean, M2, dtype):
         """Update online variance variables.
 
         This can be used to iteratively calculate the mean and variance of
@@ -187,6 +227,8 @@ class DataTransformer(BaseComponent):
             Mean of dataset.
         M2 : numpy ndarray
             Variance * size of dataset
+        dtype : numpy.dtype
+            The data type to use.
 
         Returns
         -------
@@ -194,7 +236,7 @@ class DataTransformer(BaseComponent):
             n, mean, M2
             Returns the updated online variance variables
         """
-        data_batch = np.array(data_batch, dtype=self.data['np_float_dtype'])
+        data_batch = np.array(data_batch, dtype=dtype)
 
         # perform logarithm on bins
         if trafo_log is not None:

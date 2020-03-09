@@ -43,20 +43,18 @@ def main(config_files):
     data_handler = DataHandlerClass()
     data_handler.configure(config=config['data_handler_settings'])
 
-    trafo_data_generator = data_handler.get_batch_generator(
-        **config['data_iterator_settings']['trafo'])
-
     # create TrafoModel
-    data_transformer = DataTransformer(data_handler=data_handler)
+    data_transformer = DataTransformer()
 
-    data_transformer.create_trafo_model_iteratively(
-        data_iterator=trafo_data_generator,
+    data_transformer.configure(
+        data_handler=data_handler,
+        data_iterator_settings=config['data_iterator_settings']['trafo'],
         num_batches=config['data_trafo_settings']['num_batches'],
         float_precision=config['data_trafo_settings']['float_precision'],
         norm_constant=config['data_trafo_settings']['norm_constant'])
 
     # save trafo model to file
-    data_transformer.save_trafo_model(
+    data_transformer.save(
         config['data_trafo_settings']['model_path'], overwrite=True)
 
     # kill multiprocessing queues and workers
