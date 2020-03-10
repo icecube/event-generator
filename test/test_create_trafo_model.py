@@ -2,6 +2,7 @@
 
 import unittest
 import os
+import shutil
 import numpy as np
 import ruamel.yaml as yaml
 
@@ -89,7 +90,7 @@ class TestCreateTrafoModel(unittest.TestCase):
             'num_batches': 20,
             'model_path': os.path.join(
                 os.path.dirname(__file__),
-                '../data/temp_test_files/trafo_model.npy'),
+                '../data/temp_test_files/test_create_trafo_model'),
         }
 
         data_iterator_settings = {
@@ -117,7 +118,7 @@ class TestCreateTrafoModel(unittest.TestCase):
         # create temp yaml config
         self.yaml_file_path = os.path.join(
             os.path.dirname(__file__),
-            '../data/temp_test_files/unittest_create_trafo_model_config.yaml')
+            '../data/temp_test_files/unittest_created_trafo_model_config.yaml')
 
         with open(self.yaml_file_path, 'w') as yaml_file:
             yaml.dump(self.config, yaml_file)
@@ -125,9 +126,10 @@ class TestCreateTrafoModel(unittest.TestCase):
     def test_create_trafo_model(self):
         """Call create trafo model script
         """
+
         # remove trafo file if it already exists
         if os.path.exists(self.config['data_trafo_settings']['model_path']):
-            os.remove(self.config['data_trafo_settings']['model_path'])
+            shutil.rmtree(self.config['data_trafo_settings']['model_path'])
 
         create_trafo_model.main.callback([self.yaml_file_path])
 

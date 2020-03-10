@@ -61,11 +61,49 @@ class TestCascadeLabelsModule(unittest.TestCase):
         # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(ValueError) as context:
             module.configure(**config)
-        self.assertTrue(' != ' in str(context.exception))
+        self.assertTrue('Tensors are wrong:' in str(context.exception))
 
-        # pasing a file path should be fine
-        config['config_data'] = 'file_path_string'
+        # pasing the correct data tensors should work
+        data_tensor_list = DataTensorList([DataTensor(name='cascade_labels',
+                                                      shape=[None, 7],
+                                                      tensor_type='label',
+                                                      dtype='float32',
+                                                      trafo=True,
+                                                      trafo_log=False)])
+        config['config_data'] = data_tensor_list
         module.configure(**config)
+
+    def test_configuration_check(self):
+        """Shift cascade vertex must be a bool. A TypeError should be raised
+        if the label component is being attempted to set up with a wrong type.
+        """
+        config = {
+            'config_data': 'file_path_string',
+            'shift_cascade_vertex': None,
+            'trafo_log': False,
+            'float_precision': 'float64',
+            'label_key': 'labels'
+        }
+        module = CascadeGeneratorLabelModule()
+
+        # check if error is correctly raised when wrong data type is passed
+        with self.assertRaises(TypeError) as context:
+            module.configure(**config)
+        self.assertTrue('is not a boolean value!' in str(context.exception))
+
+        config = {
+            'config_data': 'file_path_string',
+            'shift_cascade_vertex': DataTensorList([]),
+            'trafo_log': False,
+            'float_precision': 'float64',
+            'label_key': 'labels'
+        }
+        module = CascadeGeneratorLabelModule()
+
+        # check if error is correctly raised when wrong data type is passed
+        with self.assertRaises(TypeError) as context:
+            module.configure(**config)
+        self.assertTrue('is not a boolean value!' in str(context.exception))
 
     def test_correct_configuration(self):
         """Check if the module correctly creates the tensors

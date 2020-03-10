@@ -39,7 +39,7 @@ class DataTransformer(BaseComponent):
         """Configure DataTransformer object.
 
         Iteratively create a transformation model for a given data_handler and
-        data_iterator.
+        data iterator settings.
 
         Parameters
         ----------
@@ -96,6 +96,7 @@ class DataTransformer(BaseComponent):
         data_iterator = data_handler.get_batch_generator(
                                                 **data_iterator_settings)
 
+        check_values = {}
         data = {}
         data['tensors'] = data_handler.tensors
 
@@ -160,6 +161,13 @@ class DataTransformer(BaseComponent):
                 mask = data[tensor.name+'_std'] == 0
                 data[tensor.name+'_std'][mask] = 1.
 
+                # create check values for a simplified test to see if the data
+                # matches. This is only a simple hash (mean of tensor values)
+                # and does not guarantee that two models are identical
+                for suffix in ['_std', '_mean']:
+                    check_values[tensor.name + suffix] = \
+                        float(np.mean(data[tensor.name + suffix]))
+
         # create an identifer for the trafo model
         now = datetime.now()
         dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -171,7 +179,8 @@ class DataTransformer(BaseComponent):
             settings=dict(data_iterator_settings=data_iterator_settings,
                           num_batches=num_batches,
                           float_precision=float_precision,
-                          norm_constant=norm_constant))
+                          norm_constant=norm_constant),
+            check_values=check_values)
 
         return configuration, data, {}
 
@@ -251,77 +260,6 @@ class DataTransformer(BaseComponent):
         # calculate onlince variance and mean for DOM responses
         return self._update_online_variance_vars(data_batch=data_batch, n=n,
                                                  mean=mean, M2=M2)
-
-    # def load_trafo_model(self, model_path):
-    #     """Load a transformation model from file.
-
-    #     Parameters
-    #     ----------
-    #     model_path : str
-    #         Path to trafo model file.
-
-    #     Raises
-    #     ------
-    #     ValueError
-    #         If settings in loaded transformation model do not match specified
-    #         settings.
-    #         If not all specified settings are defined in the loaded
-    #         transformation model.
-    #     """
-    #     if self.is_configured:
-    #         raise ValueError('Trafo model is already setup!')
-
-    #     # load trafo model from file
-    #     with open(model_path, 'rb') as handle:
-    #         trafo_model = pickle.load(handle)
-
-    #     # make sure that settings match
-    #     for key in self.data:
-    #         if key not in trafo_model:
-    #             raise KeyError('Key {!r} does not exist in {!r}'.format(
-    #                 key, model_path))
-
-    #         mismatch = self.data[key] != trafo_model[key]
-    #         error_msg = 'Setting {!r} does not match!'.format(key)
-    #         if isinstance(mismatch, bool):
-    #             if mismatch:
-    #                 raise ValueError(error_msg)
-    #         elif mismatch.any():
-    #             raise ValueError(error_msg)
-
-    #     # update trafo model
-    #     self._data = trafo_model
-    #     self.data['np_float_dtype'] = getattr(np, self.data['float_precision'])
-    #     self.data['tf_float_dtype'] = getattr(tf, self.data['float_precision'])
-
-    #     self.is_configured = True
-
-    # def save_trafo_model(self, model_path, overwrite=False):
-    #     """Saves transformation model to file.
-
-    #     Parameters
-    #     ----------
-    #     model_path : str
-    #         Path to trafo model file.
-    #     overwrite : bool, optional
-    #         If True, potential existing files will be overwritten.
-    #         If False, an error will be raised.
-    #     """
-    #     if os.path.exists(model_path):
-    #         if overwrite:
-    #             self._logger.info('Overwriting existing file at: {}'.format(
-    #                                                             model_path))
-    #         else:
-    #             raise IOError('File already exists!')
-
-    #     directory = os.path.dirname(model_path)
-    #     if not os.path.isdir(directory):
-    #         os.makedirs(directory)
-    #         self._logger.info('Creating directory: {}'.format(directory))
-
-    #     with open(model_path, 'wb') as handle:
-    #         pickle.dump(self.data, handle,
-    #                     protocol=pickle.HIGHEST_PROTOCOL)
 
     def _check_settings(self, data, tensor_name):
         """Check settings and return necessary parameters for trafo and inverse

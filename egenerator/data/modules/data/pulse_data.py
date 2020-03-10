@@ -37,46 +37,6 @@ class PulseDataModule(BaseComponent):
         logger = logger or logging.getLogger(__name__)
         super(PulseDataModule, self).__init__(logger=logger)
 
-    # def _initialize(self, pulse_key, dom_exclusions_key, time_exclusions_key,
-    #                 float_precision, *args, **kwargs):
-    #     """Initialize Module class.
-    #     This is an abstract method and must be implemented by derived class.
-
-    #     If there are skip_check_keys, e.g. config keys that do not have to
-    #     match, they must be defined here.
-    #     Any settings used within the module must be saved to 'self.settings'.
-
-    #     Parameters
-    #     ----------
-    #     pulse_key : str, optional
-    #         The key in which the pulse series are saved to.
-    #     dom_exclusions_key : str, optional
-    #         The key in which the dom exclusions are saved to.
-    #     time_exclusions_key : str, optional
-    #         The key in which the time window exclusions are saved to.
-    #     float_precision : str
-    #         The float precision as a str.
-    #     *args
-    #         Variable length argument list.
-    #     **kwargs
-    #         Arbitrary keyword arguments.
-    #     """
-    #     self._logger = logging.getLogger(__name__)
-    #     self._skip_check_keys.extend(['pulse_key', 'dom_exclusions_key',
-    #                                   'time_exclusions_key'])
-
-    #     self._settings['pulse_key'] = pulse_key
-    #     self._settings['dom_exclusions_key'] = dom_exclusions_key
-    #     self._settings['time_exclusions_key'] = time_exclusions_key
-    #     self._settings['float_precision'] = float_precision
-
-    #     self.np_float_precision = getattr(np, self.settings['float_precision'])
-    #     self.data['time_exclusions_exist'] = \
-    #         self.settings['time_exclusions_key'] is not None
-
-    #     self.data['dom_exclusions_exist'] = \
-    #         self.settings['dom_exclusions_key'] is not None
-
     def _configure(self, config_data, pulse_key, dom_exclusions_key,
                    time_exclusions_key, float_precision):
         """Configure Module Class

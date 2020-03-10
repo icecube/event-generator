@@ -103,8 +103,11 @@ class SetupManager:
             else:
                 config_name += '__' + file_base_name
 
-            config_update = yaml.round_trip_load(open(config_file),
-                                                 preserve_quotes=True)
+            # config_update = yaml.round_trip_load(open(config_file),
+            #                                      preserve_quotes=True)
+            yaml_loader = yaml.YAML(typ='safe')
+            config_update = yaml_loader.load(open(config_file))
+            # config_update = yaml.load(open(config_file), loader=yaml.Loader())
             duplicates = set(new_config.keys()).intersection(
                                                     set(config_update.keys()))
 

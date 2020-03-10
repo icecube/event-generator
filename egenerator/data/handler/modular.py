@@ -98,74 +98,10 @@ class ModuleDataHandler(BaseDataHandler):
         logger : logging.logger, optional
             A logging instance.
         """
-        # self.data['data_module'] = None
-        # self._label_module = None
-        # self._weight_module = None
-        # self._misc_module = None
-        # self._filter_module = None
-
-        # self.data['data_tensors'] = None
-        # self.data['label_tensors'] = None
-        # self.data['misc_tensors'] = None
-        # self.data['weight_tensors'] = None
-
         logger = logger or logging.getLogger(__name__)
         super(ModuleDataHandler, self).__init__(logger=logger)
 
         self._untracked_data['modules_are_loaded'] = False
-
-    # def _assign_settings_of_derived_class(self, tensors, config,
-    #                                       skip_check_keys):
-    #     """Perform operations to setup and configure the derived class.
-    #     This is only necessary when the data handler is loaded
-    #     from file. In this case the setup methods '_setup' and 'setup' have
-    #     not run.
-
-    #     Parameters
-    #     ----------
-    #     tensors : DataTensorList
-    #         A list of DataTensor objects. These are the tensors the data
-    #         handler will create and load. They must always be in the same order
-    #         and have the described settings.
-    #     config : dict
-    #         Configuration of the DataHandler.
-    #     skip_check_keys : list
-    #         List of keys in the config that do not need to be checked, e.g.
-    #         that may change.
-    #     """
-
-    #     self.data['data_tensors'] = DataTensorList([l for l in tensors.list
-    #                                         if l.type == 'data'])
-    #     self.data['label_tensors'] = DataTensorList([l for l in tensors.list
-    #                                          if l.type == 'label'])
-    #     self.data['weight_tensors'] = DataTensorList([l for l in tensors.list
-    #                                           if l.type == 'weight'])
-    #     self.data['misc_tensors'] = DataTensorList([l for l in tensors.list
-    #                                         if l.type == 'misc'])
-
-    #     # load modules
-    #     self._load_modules(config)
-
-    #     # configure modules if this has not happened yet
-    #     data_tensors = self.data_module.configure(self.data_tensors)
-    #     label_tensors = self.label_module.configure(self.label_tensors)
-    #     weight_tensors = self.weight_module.configure(self.weight_tensors)
-    #     misc_tensors = self.misc_module.configure(self.misc_tensors)
-    #     self._filter_module.configure()
-
-    #     # check if tensors match
-    #     for t1, t2 in ((data_tensors, self.data_tensors),
-    #                    (label_tensors, self.label_tensors),
-    #                    (weight_tensors, self.weight_tensors),
-    #                    (misc_tensors, self.misc_tensors)):
-    #         if not t1 == t2:
-    #             raise ValueError('{!r} != {!r}'.format(t1, t2))
-
-    #     # check if skip_check_keys match
-    #     skip_check_keys = self.get_skip_check_keys()
-    #     if self.skip_check_keys != skip_check_keys:
-    #         raise ValueError('{!r} != {!r}'.format(self.skip_check_keys,
-    #                                                skip_check_keys))
 
     def _load_modules(self, config):
         """Load modules
@@ -265,16 +201,6 @@ class ModuleDataHandler(BaseDataHandler):
 
             data.update(sub_components[name+'_module'].data)
 
-        # data['data_tensors'] = \
-        #     sub_components['data_module'].configure(config_data)
-        # data['label_tensors'] = \
-        #     sub_components['label_module'].configure(config_data)
-        # data['weight_tensors'] = \
-        #     sub_components['weight_module'].configure(config_data)
-        # data['misc_tensors'] = \
-        #     sub_components['misc_module'].configure(config_data)
-        # _, filter_data, _ = sub_components['filter_module'].configure()
-
         # combine tensors
         data['tensors'] = DataTensorList(
             data['data_tensors'].list + data['label_tensors'].list +
@@ -289,24 +215,6 @@ class ModuleDataHandler(BaseDataHandler):
         configuration.add_sub_components(sub_components)
 
         return configuration, data, sub_components
-
-    # def get_skip_check_keys(self):
-    #     """Get a list of config keys which do not have to match
-
-    #     Returns
-    #     -------
-    #     list of str
-    #         A list of config keys which do not have to match.
-    #     """
-    #     if not self.modules_are_loaded:
-    #         raise ValueError('Modules must first be loaded!')
-
-    #     keys = self.data_module.get_skip_check_keys() + \
-    #         self._label_module.get_skip_check_keys() +\
-    #         self._weight_module.get_skip_check_keys() +\
-    #         self._misc_module.get_skip_check_keys() +\
-    #         self._filter_module.get_skip_check_keys()
-    #     return sorted(keys)
 
     def _get_data_from_hdf(self, file, *args, **kwargs):
         """Get data from hdf file.
@@ -353,7 +261,7 @@ class ModuleDataHandler(BaseDataHandler):
                 and weights is None:
             found_problem = True
         if found_problem:
-            self.logger.warning('Found missing values, skipping {!r}'.format(
+            self._logger.warning('Found missing values, skipping {!r}'.format(
                 file))
             return None, None
 

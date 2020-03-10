@@ -5,7 +5,6 @@ import multiprocessing
 import numpy as np
 import glob
 import resource
-import ruamel.yaml as yaml
 from copy import deepcopy
 import logging
 
@@ -53,80 +52,9 @@ class BaseDataHandler(BaseComponent):
         self._logger = logger or logging.getLogger(__name__)
         super(BaseDataHandler, self).__init__(logger=self._logger)
 
-        # # create empty member variables
-        # self.tensors = None
-        # self._config = None
-        # self._skip_check_keys = None
-
         # keep track of multiprocessing processes and managers
         self._untracked_data['mp_processes'] = []
         self._untracked_data['mp_managers'] = []
-
-        # self._is_setup = False
-
-    # def _assign_settings(self, tensors, config, skip_check_keys,
-    #                      submodules_need_to_be_configured):
-    #     """Assign the configuration settings of the data handler.
-
-    #     Parameters
-    #     ----------
-    #     tensors : DataTensorList
-    #         A list of DataTensor objects. These are the tensors the data
-    #         handler will create and load. They must always be in the same order
-    #         and have the described settings.
-    #     config : dict
-    #         Configuration of the DataHandler.
-    #     skip_check_keys : list
-    #         List of keys in the config that do not need to be checked, e.g.
-    #         that may change.
-    #     submodules_need_to_be_configured : bool
-    #         Indicates whether the sub modules need to be configured. This
-    #         is the case, if the data handler configuration is being loaded
-    #         from file. If instead the data handler was configured via setup,
-    #         the sub modules have already been run via _setup and must not
-    #         be setup again.
-
-    #     Raises
-    #     ------
-    #     ValueError
-    #         if data handler is already set up or if wrong data type is passed.
-    #     """
-    #     if self.is_configured:
-    #         raise ValueError('The data handler is already set up!')
-
-    #     # define data tensors
-    #     if not isinstance(tensors, DataTensorList):
-    #         raise ValueError(
-    #             'Unsupported type: {!r}'.format(type(tensors)))
-
-    #     self.tensors = tensors
-    #     self._config = dict(deepcopy(config))
-    #     self._skip_check_keys = list(deepcopy(skip_check_keys))
-    #     if submodules_need_to_be_configured:
-    #         self._assign_settings_of_derived_class(
-    #             self.tensors, self._config, self._skip_check_keys)
-    #     self._is_setup = True
-
-    # def _assign_settings_of_derived_class(self, tensors, config,
-    #                                       skip_check_keys):
-    #     """Perform operations to setup and configure the derived class.
-    #     This is only necessary when the data handler is loaded
-    #     from file. In this case the setup methods '_setup' and 'setup' have
-    #     not run.
-
-    #     Parameters
-    #     ----------
-    #     tensors : DataTensorList
-    #         A list of DataTensor objects. These are the tensors the data
-    #         handler will create and load. They must always be in the same order
-    #         and have the described settings.
-    #     config : dict
-    #         Configuration of the DataHandler.
-    #     skip_check_keys : list
-    #         List of keys in the config that do not need to be checked, e.g.
-    #         that may change.
-    #     """
-    #     raise NotImplementedError
 
     def check_if_configured(self):
         """Checks if the data handler is setup.
@@ -139,7 +67,7 @@ class BaseDataHandler(BaseComponent):
         if not self.is_configured:
             raise ValueError('Data handler needs to be set up first!')
 
-    def _configure(self, config, config_data=None, check_config=True):
+    def _configure(self, config, config_data=None):
         """Configure the BaseDataHandler component instance.
 
         Parameters
@@ -150,10 +78,6 @@ class BaseDataHandler(BaseComponent):
             File name pattern or list of file patterns which define the paths
             to input data files. The first of the specified files will be
             read in to obtain meta data.
-        check_config : bool, optional
-            If True, the config passed in to this function and the one obtained
-            from the setup data handler will be checked to see if they are
-            equal.
 
         Returns
         -------
@@ -185,8 +109,15 @@ class BaseDataHandler(BaseComponent):
 
         Raises
         ------
+        KeyError
+            If the component's data dictionary does not contain a 'tensors'
+            entry.
+        TypeError
+            If the component's data dictionary 'tensors' entry is not a
+            DataTensorList object.
         ValueError
-            If check_config is True and configs do not match.
+            If component is already configured.
+
         """
         if self.is_configured:
             raise ValueError('The data handler is already set up!')
@@ -212,12 +143,6 @@ class BaseDataHandler(BaseComponent):
                 type(component_data['tensors'])))
 
         return configuration, component_data, sub_components
-        # # # check if settings match
-        # # if check_config and config != config_new:
-        # #     raise ValueError('{!r} != {!r}'.format(config, config_new))
-
-        # self._assign_settings(tensors, config_new, skip_check_keys,
-        #                       submodules_need_to_be_configured=False)
 
     def _configure_derived_class(self, config, config_data=None):
         """Setup the data handler with a test input file.
@@ -260,58 +185,6 @@ class BaseDataHandler(BaseComponent):
             Return None if no dependent sub components exist.
         """
         raise NotImplementedError()
-
-    # def load(self, file):
-    #     """Load the data handler configuration from file.
-
-    #     Parameters
-    #     ----------
-    #     file : str
-    #         The file path from which the data handler configuration will be
-    #         loaded.
-    #     """
-    #     with open(file, 'r') as stream:
-    #         data_dict = yaml.load(stream, Loader=yaml.Loader)
-
-    #     # deserialize tensors
-    #     data_dict['tensors'] = DataTensorList(data_dict['tensors'])
-
-    #     self._assign_settings(submodules_need_to_be_configured=True,
-    #                           **data_dict)
-
-    # def save(self, output_file, overwrite=False):
-    #     """Save the data handler configuration to the specified output_file.
-    #     A new data handler can be set up with this exported configuration by
-    #     calling load(output_file)
-
-    #     Parameters
-    #     ----------
-    #     output_file : str
-    #         The file path to the output file to which the settings will be
-    #         saved.
-    #     overwrite : bool, optional
-    #         If true, overwrite files if they exist, otherwise raise an error.
-    #     """
-    #     self.check_if_configured()
-
-    #     output_dir = os.path.dirname(output_file)
-    #     if not os.path.isdir(output_dir):
-    #         self._logger.info('Creating directory {!r}'.format(output_dir))
-    #         os.makedirs(output_dir)
-
-    #     if os.path.exists(output_file):
-    #         if overwrite:
-    #             self._logger.info('Overwriting file {!r}'.format(output_file))
-    #         else:
-    #             raise IOError('File {!r} already exists!'.format(output_file))
-
-    #     data_dict = {}
-    #     data_dict['skip_check_keys'] = self._skip_check_keys
-    #     data_dict['config'] = self._config
-    #     data_dict['tensors'] = self.tensors.serialize()
-
-    #     with open(output_file, 'w') as yaml_file:
-    #         yaml.dump(data_dict, yaml_file)
 
     def _check_data_structure(self, data, check_vector_tensors=False):
         """Check data structure.

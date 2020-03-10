@@ -27,42 +27,6 @@ class CascadeGeneratorLabelModule(BaseComponent):
         logger = logger or logging.getLogger(__name__)
         super(CascadeGeneratorLabelModule, self).__init__(logger=logger)
 
-    # def _initialize(self, shift_cascade_vertex, trafo_log,
-    #                 label_key='LabelsDeepLearning', *args, **kwargs):
-    #     """Initialize Module class.
-    #     This is an abstract method and must be implemented by derived class.
-
-    #     If there are skip_check_keys, e.g. config keys that do not have to
-    #     match, they must be defined here.
-    #     Any settings used within the module must be saved to 'self.settings'.
-
-    #     Parameters
-    #     ----------
-    #     shift_cascade_vertex : bool
-    #         Shift cascade vertex to shower maximum instead of interaction
-    #         point.
-    #     trafo_log : None or bool or list of bool
-    #         Whether or not to apply logarithm on cascade parameters.
-    #         If a single bool is given, this applies to all labels. Otherwise
-    #         a list of bools corresponds to the labels in the order:
-    #             x, y, z, zenith, azimuth, energy, time
-    #     label_key : str, optional
-    #         The name of the key under which the labels are saved.
-    #     *args
-    #         Variable length argument list.
-    #     **kwargs
-    #         Arbitrary keyword arguments.
-    #     """
-    #     self._logger = logging.getLogger(__name__)
-    #     self._settings['shift_cascade_vertex'] = shift_cascade_vertex
-    #     self._settings['trafo_log'] = trafo_log
-    #     self._settings['label_key'] = label_key
-
-    #     # sanity checks:
-    #     if not isinstance(self.settings['shift_cascade_vertex'], bool):
-    #         raise ValueError('{!r} is not a boolean value!'.format(
-    #             self.settings['shift_cascade_vertex']))
-
     def _configure(self, config_data, shift_cascade_vertex, trafo_log,
                    float_precision, label_key='LabelsDeepLearning'):
         """Configure Module Class
@@ -121,7 +85,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
 
         # sanity checks:
         if not isinstance(shift_cascade_vertex, bool):
-            raise ValueError('{!r} is not a boolean value!'.format(
+            raise TypeError('{!r} is not a boolean value!'.format(
                 shift_cascade_vertex))
 
         data = {}
@@ -134,9 +98,10 @@ class CascadeGeneratorLabelModule(BaseComponent):
                                         trafo_log=trafo_log)])
 
         if isinstance(config_data, DataTensorList):
-            if not config_data == data['label_tensors']:
-                raise ValueError('{!r} != {!r}'.format(config_data,
-                                                       data['label_tensors']))
+            if config_data != data['label_tensors']:
+                msg = 'Tensors are wrong: {!r} != {!r}'
+                raise ValueError(msg.format(config_data,
+                                            data['label_tensors']))
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config_data=config_data,
