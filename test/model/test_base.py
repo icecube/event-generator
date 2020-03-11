@@ -342,8 +342,8 @@ class TestModel(unittest.TestCase):
                             directory, 'model_checkpoint_00*.index'))))
 
         # check changing max_keep
-        self.model.save_weights(directory, max_keep='5')
-        self.model.save_weights(directory, max_keep='5')
+        self.model.save_weights(directory, max_keep=5)
+        self.model.save_weights(directory, max_keep=5)
         self.assertEqual(0, len(glob.glob(os.path.join(
                             directory, 'model_checkpoint_00*01.index'))))
         self.assertEqual(5, len(glob.glob(os.path.join(
