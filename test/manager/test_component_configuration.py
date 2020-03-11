@@ -40,7 +40,6 @@ class TestConfiguration(unittest.TestCase):
             # was configured to check if the correct version is saved.
             short_sha, sha, origin, changes = version_control.get_git_infos()
             config_dict['event_generator_version'] = egenerator.__version__
-            config_dict['event_generator_git_short_sha'] = short_sha
             config_dict['event_generator_git_sha'] = sha
             config_dict['event_generator_origin'] = origin
             config_dict['event_generator_uncommitted_changes'] = changes
@@ -111,7 +110,6 @@ class TestConfiguration(unittest.TestCase):
         short_sha, sha, origin, changes = version_control.get_git_infos()
         true_dict = {
                 'event_generator_version': egenerator.__version__,
-                'event_generator_git_short_sha': short_sha,
                 'event_generator_git_sha': sha,
                 'event_generator_origin': origin,
                 'event_generator_uncommitted_changes': changes,
@@ -123,7 +121,6 @@ class TestConfiguration(unittest.TestCase):
                 'sub_component_configurations': {
                     'new_component': {
                         'event_generator_version': egenerator.__version__,
-                        'event_generator_git_short_sha': short_sha,
                         'event_generator_git_sha': sha,
                         'event_generator_origin': origin,
                         'event_generator_uncommitted_changes': changes,

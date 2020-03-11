@@ -159,7 +159,6 @@ class Configuration(object):
         self._logger = logger or logging.getLogger(__name__)
         self._dict = {
             'event_generator_version': egenerator.__version__,
-            'event_generator_git_short_sha': event_generator_git_short_sha,
             'event_generator_git_sha': event_generator_git_sha,
             'event_generator_origin': event_generator_origin,
             'event_generator_uncommitted_changes':
@@ -515,7 +514,6 @@ class BaseComponent(object):
         if isinstance(kwargs, Configuration):
             kwargs = kwargs.dict
             kwargs.pop('event_generator_version')
-            kwargs.pop('event_generator_git_short_sha')
             kwargs.pop('event_generator_git_sha')
             kwargs.pop('event_generator_origin')
             kwargs.pop('event_generator_uncommitted_changes')
