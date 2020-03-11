@@ -21,6 +21,8 @@ before_install:
   - pip install -U pip
   - pip install -U -r test_requirements.txt
   - pip install -U -r requirements.txt
+  - py_version=$(python -c "import platform; print(platform.python_version())")
+  - if [[ $py_version == "2."* ]]; then pip install tables==3.4.4; fi
 
 install:
   - pip install ".[test]" . # install package + test dependencies
