@@ -462,13 +462,17 @@ class BaseComponent(object):
         # if this is a tf.Module derived class instance, then we need to
         # also remove the following variables:
         if issubclass(type(self), tf.Module):
-            tf_module_vars = ['_TF_MODULE_IGNORED_PROPERTIES', '_name',
-                              '_scope_name', '_setattr_tracking',
-                              '_tf_api_names', '_tf_api_names_v1', 'name',
-                              'name_scope', 'submodules',
-                              'trainable_variables', 'variables']
-            untracked_attributes = [a for a in filtered_attributes if a
-                                    not in untracked_attributes]
+            tf_module_vars = [
+                '_TF_MODULE_IGNORED_PROPERTIES', '_name', '_scope_name',
+                '_setattr_tracking', '_tf_api_names', '_tf_api_names_v1',
+                'name', 'name_scope', 'submodules', 'trainable_variables',
+                'variables', '_name_scope', '_self_name_based_restores',
+                '_self_setattr_tracking',
+                '_self_unconditional_checkpoint_dependencies',
+                '_self_unconditional_deferred_dependencies',
+                '_self_unconditional_dependency_names', '_self_update_uid']
+            untracked_attributes = [a for a in untracked_attributes if a
+                                    not in tf_module_vars]
 
         # remove properties:
         object_class = getclass(self)
@@ -482,8 +486,7 @@ class BaseComponent(object):
         return untracked_attributes_without_properties
 
     def _check_member_attributes(self):
-        """Check if class instance has any attributes it should not after
-        instantiation and before configuration.
+        """Check if class instance has any attributes it should not have.
 
         Raises
         ------

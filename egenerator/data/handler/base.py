@@ -87,7 +87,8 @@ class BaseDataHandler(BaseComponent):
             which are passed as parameters into the configure method,
             as these are automatically gathered. The dependent_sub_components
             may also be left empty for these passed sub components.
-            Sum components created within a component must be added.
+            Sub components created within (and not passed to) this component
+            must be added.
             Settings that need to be defined are:
                 class_string:
                     misc.get_full_class_string_of_object(self)
