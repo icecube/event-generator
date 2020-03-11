@@ -5,6 +5,8 @@ import os
 import numpy as np
 from copy import deepcopy
 
+import egenerator
+from egenerator.settings import version_control
 from egenerator.manager.component import Configuration, BaseComponent
 
 
@@ -33,6 +35,16 @@ class TestConfiguration(unittest.TestCase):
 
         for config_dict in config_dicts:
             configuration = Configuration(**config_dict)
+
+            # add event-generator version and git info after the Configuration
+            # was configured to check if the correct version is saved.
+            short_sha, sha, origin, changes = version_control.get_git_infos()
+            config_dict['event_generator_version'] = egenerator.__version__
+            config_dict['event_generator_git_short_sha'] = short_sha
+            config_dict['event_generator_git_sha'] = sha
+            config_dict['event_generator_origin'] = origin
+            config_dict['event_generator_uncommitted_changes'] = changes
+
             self.assertEqual(configuration.settings, config_dict['settings'])
             self.assertEqual(configuration.mutable_settings,
                              config_dict['mutable_settings'])
@@ -96,7 +108,13 @@ class TestConfiguration(unittest.TestCase):
                         'is not configured!' in str(context.exception))
 
     def test_add_sub_components(self):
+        short_sha, sha, origin, changes = version_control.get_git_infos()
         true_dict = {
+                'event_generator_version': egenerator.__version__,
+                'event_generator_git_short_sha': short_sha,
+                'event_generator_git_sha': sha,
+                'event_generator_origin': origin,
+                'event_generator_uncommitted_changes': changes,
                 'class_string': 'dummy_class_string',
                 'settings': {'setting1': 1337},
                 'mutable_settings': {},
@@ -104,6 +122,11 @@ class TestConfiguration(unittest.TestCase):
                 'dependent_sub_components': [],
                 'sub_component_configurations': {
                     'new_component': {
+                        'event_generator_version': egenerator.__version__,
+                        'event_generator_git_short_sha': short_sha,
+                        'event_generator_git_sha': sha,
+                        'event_generator_origin': origin,
+                        'event_generator_uncommitted_changes': changes,
                         'class_string': 'nested_class_string',
                         'settings': {'nested': 42},
                         'mutable_settings': {},

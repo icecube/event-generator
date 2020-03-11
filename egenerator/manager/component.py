@@ -7,8 +7,11 @@ import logging
 import inspect
 from getclass import getclass
 from copy import deepcopy
+import tensorflow as tf
 
+import egenerator
 from egenerator import misc
+from egenerator.settings import version_control
 
 
 class Configuration(object):
@@ -79,7 +82,7 @@ class Configuration(object):
 
     @property
     def dict(self):
-        return self._dict
+        return dict(deepcopy(self._dict))
 
     @property
     def config(self):
@@ -94,7 +97,13 @@ class Configuration(object):
 
     def __init__(self, class_string, settings, mutable_settings={},
                  check_values={}, dependent_sub_components=[],
-                 sub_component_configurations={}, logger=None):
+                 sub_component_configurations={},
+                 event_generator_version=egenerator.__version__,
+                 event_generator_git_short_sha=None,
+                 event_generator_git_sha=None,
+                 event_generator_origin=None,
+                 event_generator_uncommitted_changes=None,
+                 logger=None):
         """Create a configuration object.
 
         Parameters
@@ -123,11 +132,38 @@ class Configuration(object):
             A dictionary of sub component configurations.
             Additional sub components may be added after instatiation via
             the 'add_sub_components' method.
+        event_generator_version : str, optional
+            The version string of the Event-Generator package.
+        event_generator_git_short_sha : str, optional
+            Event-Generator GitHub repository short sha.
+        event_generator_git_sha : str, optional
+            Event-Generator GitHub repository sha.
+        event_generator_origin : str, optional
+            Event-Generator GitHub repository origin.
+        event_generator_uncommitted_changes : bool, optional
+            If true, there are uncomitted changes in the repository.
         logger : logging.logger, optional
             The logger to use.
         """
+        short_sha, sha, origin, uncommitted_changes = \
+            version_control.get_git_infos()
+        if event_generator_git_short_sha is None:
+            event_generator_git_short_sha = short_sha
+        if event_generator_git_sha is None:
+            event_generator_git_sha = sha
+        if event_generator_origin is None:
+            event_generator_origin = origin
+        if event_generator_uncommitted_changes is None:
+            event_generator_uncommitted_changes = uncommitted_changes
+
         self._logger = logger or logging.getLogger(__name__)
         self._dict = {
+            'event_generator_version': egenerator.__version__,
+            'event_generator_git_short_sha': event_generator_git_short_sha,
+            'event_generator_git_sha': event_generator_git_sha,
+            'event_generator_origin': event_generator_origin,
+            'event_generator_uncommitted_changes':
+                event_generator_uncommitted_changes,
             'class_string': class_string,
             'check_values': dict(deepcopy(check_values)),
             'settings': dict(deepcopy(settings)),
@@ -424,6 +460,17 @@ class BaseComponent(object):
         untracked_attributes = [a for a in filtered_attributes if a not in
                                 tracked_attributes]
 
+        # if this is a tf.Module derived class instance, then we need to
+        # also remove the following variables:
+        if issubclass(type(self), tf.Module):
+            tf_module_vars = ['_TF_MODULE_IGNORED_PROPERTIES', '_name',
+                              '_scope_name', '_setattr_tracking',
+                              '_tf_api_names', '_tf_api_names_v1', 'name',
+                              'name_scope', 'submodules',
+                              'trainable_variables', 'variables']
+            untracked_attributes = [a for a in filtered_attributes if a
+                                    not in untracked_attributes]
+
         # remove properties:
         object_class = getclass(self)
         untracked_attributes_without_properties = []
@@ -467,6 +514,11 @@ class BaseComponent(object):
         # Get the dictionary format of the passed Configuration object
         if isinstance(kwargs, Configuration):
             kwargs = kwargs.dict
+            kwargs.pop('event_generator_version')
+            kwargs.pop('event_generator_git_short_sha')
+            kwargs.pop('event_generator_git_sha')
+            kwargs.pop('event_generator_origin')
+            kwargs.pop('event_generator_uncommitted_changes')
 
         # check if it already has attributes other than the allowed ones
         # This indicates an incorrect usage of the BaseComponent class.
@@ -592,7 +644,8 @@ class BaseComponent(object):
         return self.configuration.is_compatible(other.configuration)
 
     def save(self, dir_path, overwrite=False,
-             allow_untracked_attributes=False):
+             allow_untracked_attributes=False,
+             **kwargs):
         """Save component to file.
 
         Parameters
@@ -607,6 +660,19 @@ class BaseComponent(object):
         allow_untracked_attributes : bool, optional
             If False, an error is raised if there are object attributes
             which are untracked and would not be saved to file.
+        **kwargs
+            Additional keyword arguments that will be passed on to the
+            virtual _save() method, that derived classes my overwrite.
+
+        Raises
+        ------
+        AttributeError
+            If allow_untracked_attributes is False and the component contains
+            any unallowed, untracked attributes.
+        IOError
+            If overwrite is False, but a file already exits.
+        ValueError
+            If the component is not configured yet.
         """
         if not self.is_configured:
             raise ValueError('Component is not configured!')
@@ -655,9 +721,9 @@ class BaseComponent(object):
                 allow_untracked_attributes=allow_untracked_attributes)
 
         # call additional tasks of derived class via virtual method
-        self._save(dir_path)
+        self._save(dir_path, **kwargs)
 
-    def load(self, dir_path):
+    def load(self, dir_path, **kwargs):
         """Load component from file.
 
         Parameters
@@ -665,6 +731,18 @@ class BaseComponent(object):
         dir_path : str
             The path to the input directory from which the component will be
             loaded.
+        **kwargs
+            Additional keyword arguments that will be passed on to the
+            virtual _load() method, that derived classes my overwrite.
+
+        Raises
+        ------
+        TypeError
+            If the component's class does not match the class of the component
+            that is to be loaded.
+        ValueError
+            If the component is already configured.
+
         """
         if self.is_configured:
             raise ValueError('Component is already configured!')
@@ -687,6 +765,13 @@ class BaseComponent(object):
 
         # get configuration of self:
         self._configuration = Configuration(**config_dict)
+
+        # check if the version is correct
+        if config_dict['event_generator_version'] != egenerator.__version__:
+            msg = 'Event-Generator versions do not match. '
+            msg += 'Saved component was created with version {!r}, but this is'
+            msg += ' version {!r}.'
+            self.logger.warning(msg.format())
 
         # check if this is the correct class
         if self.configuration.class_string != \
@@ -720,7 +805,7 @@ class BaseComponent(object):
 
         self._is_configured = True
 
-    def _save(self, dir_path):
+    def _save(self, dir_path, **kwargs):
         """Virtual method for additional save tasks by derived class
 
         This is a virtual method that may be overwritten by derived class
@@ -732,10 +817,13 @@ class BaseComponent(object):
         dir_path : str
             The path to the output directory to which the component will be
             saved.
+        **kwargs
+            Additional keyword arguments that may be used by the derived
+            class.
         """
         pass
 
-    def _load(self, dir_path):
+    def _load(self, dir_path, **kwargs):
         """Virtual method for additional load tasks by derived class
 
         This is a virtual method that may be overwritten by derived class
@@ -747,5 +835,8 @@ class BaseComponent(object):
         dir_path : str
             The path to the input directory from which the component will be
             loaded.
+        **kwargs
+            Additional keyword arguments that may be used by the derived
+            class.
         """
         pass
