@@ -6,4 +6,3 @@ gitpython
 tqdm
 tables
 getclass
-git
