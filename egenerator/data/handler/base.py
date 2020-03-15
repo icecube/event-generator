@@ -84,11 +84,15 @@ class BaseDataHandler(BaseComponent):
         Configuration object
             The configuration object of the newly configured component.
             This does not need to include configurations of sub components
-            which are passed as parameters into the configure method,
-            as these are automatically gathered. The dependent_sub_components
-            may also be left empty for these passed sub components.
-            Sub components created within (and not passed to) this component
-            must be added.
+            which are passed directly as parameters into the configure method,
+            as these are automatically gathered. Components passed as lists,
+            tuples, and dicts are also collected, unless they are nested
+            deeper (list of list of components will not be detected).
+            The dependent_sub_components may also be left empty for these
+            passed and detected sub components.
+            Deeply nested sub components or sub components created within
+            (and not directly passed as an argument to) this component
+            must be added manually.
             Settings that need to be defined are:
                 class_string:
                     misc.get_full_class_string_of_object(self)
@@ -163,9 +167,15 @@ class BaseDataHandler(BaseComponent):
         Configuration object
             The configuration object of the newly configured component.
             This does not need to include configurations of sub components
-            as these are automatically gathered.The dependent_sub_components
-            may also be left empty. This is later filled by the base class
-            from the returned sub components dict.
+            which are passed directly as parameters into the configure method,
+            as these are automatically gathered. Components passed as lists,
+            tuples, and dicts are also collected, unless they are nested
+            deeper (list of list of components will not be detected).
+            The dependent_sub_components may also be left empty for these
+            passed and detected sub components.
+            Deeply nested sub components or sub components created within
+            (and not directly passed as an argument to) this component
+            must be added manually.
             Settings that need to be defined are:
                 class_string:
                     misc.get_full_class_string_of_object(self)

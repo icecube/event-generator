@@ -149,11 +149,13 @@ class TestModel(unittest.TestCase):
         self.assertEqual(self.model.data, {})
         self.assertTrue(self.model.configuration.is_compatible(
                                                         self.configuration))
-        self.assertDictEqual(self.model._untracked_data,
-                             {'checkpoint': self.model.checkpoint,
-                              'variables': self.model.variables,
-                              'var': self.model._untracked_data['var'],
-                              })
+
+        untracked_data = {'checkpoint': self.model.checkpoint,
+                          'variables': self.model.variables,
+                          'step': self.model._untracked_data['step'],
+                          'var': self.model._untracked_data['var'],
+                          }
+        self.assertDictEqual(self.model._untracked_data, untracked_data)
         self.assertEqual(self.model._sub_components, {})
 
     def test_method_assert_configured(self):

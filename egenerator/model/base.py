@@ -73,7 +73,9 @@ class Model(tf.Module, BaseComponent):
             which are passed as parameters into the configure method,
             as these are automatically gathered. The dependent_sub_components
             may also be left empty for these passed sub components.
-            Sum components created within a component must be added.
+            Nested sub components or sub components created within
+            (and not directly passed as an argument to) this component
+            must be added manually.
             Settings that need to be defined are:
                 class_string:
                     misc.get_full_class_string_of_object(self)
@@ -99,9 +101,18 @@ class Model(tf.Module, BaseComponent):
             self._configure_derived_class(**kwargs)
 
         # create a tensorflow checkpoint object and keep track of variables
+        self._untracked_data['step'] = tf.Variable(1)
         self._untracked_data['checkpoint'] = tf.train.Checkpoint(
-            step=tf.Variable(1), model=self)
-        self._untracked_data['variables'] = self.variables
+            step=self._untracked_data['step'], model=self)
+        self._untracked_data['variables'] = list(self.variables)
+
+        # collect any variables from sub_components as well
+        for name, sub_component in sub_components.items():
+            if issubclass(type(sub_component), tf.Module):
+                self._untracked_data['variables'].extend(
+                    sub_component.variables)
+        self._untracked_data['variables'] = \
+            tuple(self._untracked_data['variables'])
 
         return configuration, component_data, sub_components
 
@@ -123,11 +134,15 @@ class Model(tf.Module, BaseComponent):
         Configuration object
             The configuration object of the newly configured component.
             This does not need to include configurations of sub components
-            which are passed as parameters into the configure method,
-            as these are automatically gathered. The dependent_sub_components
-            may also be left empty for these passed sub components.
-            Sub components created within (and not passed to) this component
-            must be added.
+            which are passed directly as parameters into the configure method,
+            as these are automatically gathered. Components passed as lists,
+            tuples, and dicts are also collected, unless they are nested
+            deeper (list of list of components will not be detected).
+            The dependent_sub_components may also be left empty for these
+            passed and detected sub components.
+            Deeply nested sub components or sub components created within
+            (and not directly passed as an argument to) this component
+            must be added manually.
             Settings that need to be defined are:
                 class_string:
                     misc.get_full_class_string_of_object(self)
@@ -231,7 +246,10 @@ class Model(tf.Module, BaseComponent):
         """
         # make sure that there weren't any additional changes to the model
         # after its configure() call.
-        if self.variables != self._untracked_data['variables']:
+        variable_names = [t.name for t in self.variables]
+        saved_variable_names = [t.name for t
+                                in self._untracked_data['variables']]
+        if sorted(variable_names) != sorted(saved_variable_names):
             msg = 'Model has changed since configuration call: {!r} != {!r}'
             raise ValueError(msg.format(self.variables,
                                         self._untracked_data['variables']))
@@ -363,7 +381,9 @@ class Model(tf.Module, BaseComponent):
             sub_components = dict(self.sub_components)
 
             # rebuild graph
-            self._configure(**self.configuration.dict)
+            config_dict = self.configuration.config
+            config_dict.update(self._sub_components)
+            self._configure(**config_dict)
 
             # make sure that no additional class attributes are created
             # apart from untracked ones

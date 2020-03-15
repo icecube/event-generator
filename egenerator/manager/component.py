@@ -23,7 +23,7 @@ class Configuration(object):
     Note: a component may require additional components or parameters to
     configure itself. These are *not* stored within the configuration.
 
-    A configuration is made up of four types of dictionaries:
+    A configuration is made up of four core types of dictionaries:
 
         - settings:
             These are inmutable settings that may be used to check the
@@ -93,7 +93,7 @@ class Configuration(object):
         dict
             Combined 'settings' and 'mutable_settings'
         """
-        return self._config
+        return dict(deepcopy(self._config))
 
     def __init__(self, class_string, settings, mutable_settings={},
                  check_values={}, dependent_sub_components=[],
@@ -502,8 +502,12 @@ class BaseComponent(object):
     def configure(self, **kwargs):
         """Configure the BaseComponent instance.
 
-        If additional components are passed via the kwargs argument, these
-        will be automatically collected and their configurations accumulated.
+        If additional components are directly passed via the kwargs argument,
+        these will be automatically collected and their configurations
+        accumulated.
+        Note: this will not detect and collect all nested components. Nested
+        components other than dictionaries, lists, or tuples must be added
+        manually.
 
         Parameters
         ----------
@@ -516,10 +520,6 @@ class BaseComponent(object):
         # Get the dictionary format of the passed Configuration object
         if isinstance(kwargs, Configuration):
             kwargs = kwargs.dict
-            kwargs.pop('event_generator_version')
-            kwargs.pop('event_generator_git_sha')
-            kwargs.pop('event_generator_origin')
-            kwargs.pop('event_generator_uncommitted_changes')
 
         # check if it already has attributes other than the allowed ones
         # This indicates an incorrect usage of the BaseComponent class.
@@ -538,6 +538,46 @@ class BaseComponent(object):
                 if not value.is_configured:
                     msg = 'Component {!r} is not configured!'
                     raise ValueError(msg.format(key))
+
+            # check if this is a dict of Components
+            elif isinstance(value, dict):
+
+                all_components = True
+                for name, comp in value.items():
+                    if issubclass(type(comp), BaseComponent):
+                        # found another component, keep track of it
+                        parameter_sub_components[name] = comp
+
+                        # make sure the component is configured
+                        if not comp.is_configured:
+                            msg = 'Component {!r} is not configured!'
+                            raise ValueError(msg.format(name))
+                    else:
+                        all_components = False
+
+                if not all_components:
+                    missing_settings[key] = value
+
+            # check if this is a list or tuple of Components
+            elif isinstance(value, (list, tuple)):
+
+                all_components = True
+                for i, comp in enumerate(value):
+                    name = key + '_{:04d}'.format(i)
+                    if issubclass(type(comp), BaseComponent):
+                        # found another component, keep track of it
+                        parameter_sub_components[name] = comp
+
+                        # make sure the component is configured
+                        if not comp.is_configured:
+                            msg = 'Component {!r} is not configured!'
+                            raise ValueError(msg.format(name))
+                    else:
+                        all_components = False
+
+                if not all_components:
+                    missing_settings[key] = value
+
             else:
                 missing_settings[key] = value
         self._configuration, self._data, self._sub_components = \
@@ -569,7 +609,8 @@ class BaseComponent(object):
 
         # check if passed settings are all defined in configuration
         # and if they are set to the correct values. A component may have
-        # more settings than these.
+        # more settings than these, but they must be arguments to the
+        # _configure method.
         for key, value in missing_settings.items():
 
             # setting is missing
@@ -600,10 +641,15 @@ class BaseComponent(object):
         Configuration object
             The configuration object of the newly configured component.
             This does not need to include configurations of sub components
-            which are passed as parameters into the configure method,
-            as these are automatically gathered. The dependent_sub_components
-            may also be left empty for these passed sub components.
-            Sum components created within a component must be added.
+            which are passed directly as parameters into the configure method,
+            as these are automatically gathered. Components passed as lists,
+            tuples, and dicts are also collected, unless they are nested
+            deeper (list of list of components will not be detected).
+            The dependent_sub_components may also be left empty for these
+            passed and detected sub components.
+            Deeply nested sub components or sub components created within
+            (and not directly passed as an argument to) this component
+            must be added manually.
             Settings that need to be defined are:
                 class_string:
                     misc.get_full_class_string_of_object(self)
@@ -719,7 +765,8 @@ class BaseComponent(object):
             sub_component_dir_path = os.path.join(dir_path, name)
             sub_component.save(
                 sub_component_dir_path, overwrite=overwrite,
-                allow_untracked_attributes=allow_untracked_attributes)
+                allow_untracked_attributes=allow_untracked_attributes,
+                **kwargs)
 
         # call additional tasks of derived class via virtual method
         self._save(dir_path, **kwargs)
@@ -798,11 +845,11 @@ class BaseComponent(object):
 
             sub_class = misc.load_class(sub_configuration['class_string'])
             sub_component = sub_class()
-            sub_component.load(sub_component_dir_path)
+            sub_component.load(sub_component_dir_path, **kwargs)
             self._sub_components[name] = sub_component
 
         # call additional tasks of derived class via virtual method
-        self._load(dir_path)
+        self._load(dir_path, **kwargs)
 
         self._is_configured = True
 
