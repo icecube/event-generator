@@ -102,9 +102,7 @@ class MultiSource(Source):
         Returns
         -------
         list of str
-            A list of parameters of the MultiSource object.
-        dict
-            A mapping of
+            A list of parameter names of the MultiSource object.
         """
         raise NotImplementedError()
 
@@ -336,7 +334,7 @@ class MultiSource(Source):
         return result_tensors
 
     def save_weights(self, dir_path, max_keep=3, protected=False,
-                     description=None):
+                     description=None, num_training_steps=None):
         """Save the model weights.
 
         Metadata on the checkpoints is stored in a model_checkpoints.yaml
@@ -377,6 +375,11 @@ class MultiSource(Source):
         description : str, optional
             An optional description string that describes the checkpoint.
             This will be saved in the checkpoints meta data.
+        num_training_steps : int, optional
+            The number of training steps with the current training settings.
+            This will be used to update the training_steps.yaml file to
+            account for the correct number of training steps for the most
+            recent training step.
 
         Raises
         ------
@@ -397,7 +400,8 @@ class MultiSource(Source):
                 # save weights of Model sub component
                 sub_component.save_weights(
                     dir_path=sub_dir_path, max_keep=max_keep,
-                    protected=protected, description=description)
+                    protected=protected, description=description,
+                    num_training_steps=num_training_steps)
 
     def load_weights(self, dir_path, checkpoint_number=None):
         """Load the model weights.

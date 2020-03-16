@@ -7,6 +7,7 @@ import glob
 import resource
 from copy import deepcopy
 import logging
+import tensorflow as tf
 
 from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList
@@ -901,6 +902,105 @@ class BaseDataHandler(BaseComponent):
         self._untracked_data['mp_processes'].append(process)
 
         return batch_iterator()
+
+    def get_tf_dataset(self, input_data, batch_size,
+                       sample_randomly=True,
+                       pick_random_files_forever=True,
+                       file_capacity=1,
+                       batch_capacity=5,
+                       num_jobs=1,
+                       num_add_files=0,
+                       num_repetitions=1,
+                       num_splits=None,
+                       verbose=False,
+                       biased_selection_module=None,
+                       *args, **kwargs):
+        """Wrapper around get_batch_generator to obtain a tf.Dataset
+
+        Parameters
+        ----------
+        input_data : str or list of str
+            File name pattern or list of file patterns which define the paths
+            to input data files.
+        batch_size : int
+            Number of events per batch.
+        sample_randomly : bool, optional
+            If True, random files and events will be sampled.
+            If False, file list and events will not be shuffled.
+                Although the order will most likely stay the same, this
+                can not be guaranteed, since batches are queued as soon as the
+                workers finish loading and processing the files.
+        pick_random_files_forever : bool, optional
+            If True, random files are sampled from the file list in an infinite
+                loop.
+            If False, all files will only be loaded once. The 'num_repetitions'
+                key defines how many times the events of a file will be used.
+        file_capacity : int, optional
+            Defines the maximum size of the queue which holds the loaded and
+            processed events of a whole file.
+        batch_capacity : int, optional
+            Defines the maximum size of the batch queue which holds the batches
+            of size 'batch_size'. This queue is what is used to obtain the
+            final batches, which the generator yields.
+        num_jobs : int, optional
+            Number of jobs to run in parrallel to load and process input files.
+        num_add_files : int, optional
+            Defines how many files are additionaly loaded at once.
+            Batches will be generated among events of these
+            (1 + num_add_files) files
+        num_repetitions : int, optional
+            Number of times the events in a loaded file are to be used, before
+            new files are loaded.
+        num_splits : int, optional
+            If num_splits is given, the loaded file will be divided into
+            num_splits chunks of about equal size. This can be useful when
+            the input files contain a lot of events, since the multiprocessing
+            queue can not handle elements of arbitrary size.
+        verbose : bool, optional
+            If True, verbose output with additional information on queues.
+        biased_selection_module : object, optional
+            A biased selection object that implements a 'select(data)'
+            method which applies the biased selection to the data and returns
+            the selected (biased) data.
+        *args
+            Variable length argument list that are passed on to class method
+            get_data_from_hdf.
+        **kwargs
+            Arbitrary keyword arguments that are passed on to class method
+            get_data_from_hdf.
+
+        Returns
+        -------
+        tf.Dataset
+            A tensorflow dataset.
+        """
+        def get_generator():
+            get_batch_generator(
+                    input_data=input_data,
+                    batch_size=batch_size,
+                    sample_randomly=sample_randomly,
+                    pick_random_files_forever=pick_random_files_forever,
+                    file_capacity=file_capacity,
+                    batch_capacity=batch_capacity,
+                    num_jobs=num_jobs,
+                    num_add_files=num_add_files,
+                    num_repetitions=num_repetitions,
+                    num_splits=num_splits,
+                    verbose=verbose,
+                    biased_selection_module=biased_selection_module,
+                    *args, **kwargs)
+
+        # collect output types and shapes
+        output_types = []
+        output_shapes = []
+        for tensor in self.tensors.list:
+            output_types.apend(getattr(tf, tensor.dtype))
+            output_shapes.apend(tensor.shape)
+
+        return tf.data.Dataset.from_generator(
+                                    generator=get_generator,
+                                    output_types=output_types,
+                                    output_shapes=output_shapes)
 
     def kill(self):
         """Kill Multiprocessing queues and workers

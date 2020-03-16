@@ -192,7 +192,7 @@ class Model(tf.Module, BaseComponent):
                 raise ValueError('Model is already set up!')
 
     def save_weights(self, dir_path, max_keep=3, protected=False,
-                     description=None):
+                     description=None, num_training_steps=None):
         """Save the model weights.
 
         Metadata on the checkpoints is stored in a model_checkpoints.yaml
@@ -233,6 +233,11 @@ class Model(tf.Module, BaseComponent):
         description : str, optional
             An optional description string that describes the checkpoint.
             This will be saved in the checkpoints meta data.
+        num_training_steps : int, optional
+            The number of training steps with the current training settings.
+            This will be used to update the training_steps.yaml file to
+            account for the correct number of training steps for the most
+            recent training step.
 
         Raises
         ------
@@ -285,6 +290,11 @@ class Model(tf.Module, BaseComponent):
             msg = 'Checkpoint index {!r} already exists in meta data: {!r}!'
             raise KeyError(msg.format(checkpoint_index, meta_data))
 
+        # update number of training steps
+        if num_training_steps is not None:
+            self.update_num_training_steps(
+                dir_path=dir_path, num_training_steps=num_training_steps)
+
         # update latest checkpoint index
         meta_data['latest_checkpoint'] += 1
 
@@ -331,7 +341,118 @@ class Model(tf.Module, BaseComponent):
         with open(yaml_file, 'w') as stream:
             yaml.dump(meta_data, stream)
 
-    def _save(self, dir_path, max_keep=3, protected=False, description=None):
+    def update_num_training_steps(self, dir_path, num_training_steps):
+        """Update the number of training iterations for current training step.
+
+        Parameters
+        ----------
+        dir_path : str
+            Path to the output directory.
+        num_training_steps : TYPE
+            Description
+        """
+        training_dir = os.path.join(dir_path, 'training')
+        yaml_file = os.path.join(training_dir, 'training_steps.yaml')
+
+        # Load the training_steps.yaml file if it exists.
+        yaml_file = os.path.join(training_dir, 'training_steps.yaml')
+        if os.path.exists(yaml_file):
+
+            # load training meta data
+            with open(yaml_file, 'r') as stream:
+                meta_data = yaml.safe_load(stream)
+        else:
+            msg = 'Could not find the training steps meta file: {!r}'
+            raise IOError(msg.format(yaml_file))
+
+        # update training steps for current training step
+        current_step = meta_data['latest_step']
+        meta_data['training_steps'][current_step]['num_training_steps'] = \
+            num_training_steps
+
+        # save new meta data
+        with open(yaml_file, 'w') as stream:
+            yaml.dump(meta_data, stream)
+
+    def save_training_settings(self, dir_path, new_training_settings):
+        """Save a new training step with its components and settings.
+
+        Parameters
+        ----------
+        dir_path : str
+            Path to the output directory.
+        new_training_settings : dict, optional
+            If provided, a training step will be created.
+            A dictionary containing the settings of the new training step.
+            This dictionary must contain the following keys:
+
+                config: dict
+                    The configuration settings used to train.
+                components: dict
+                    The components used during training. These typically
+                    include the Loss and Evaluation components.
+        """
+        training_dir = os.path.join(dir_path, 'training')
+
+        # Load the training_steps.yaml file if it exists.
+        yaml_file = os.path.join(training_dir, 'training_steps.yaml')
+        if os.path.exists(yaml_file):
+
+            # load training meta data
+            with open(yaml_file, 'r') as stream:
+                meta_data = yaml.safe_load(stream)
+        else:
+            # create new training meta data
+            meta_data = {
+                'latest_step': 0,
+                'training_steps': {},
+            }
+
+        training_index = meta_data['latest_step'] + 1
+        training_step_dir = os.path.join(training_dir,
+                                         'step_{:04d}'.format(training_index))
+
+        # check if file already exists
+        if os.path.exists(training_step_dir):
+            raise IOError('Training dicrectory {!r} already exists!'.format(
+                training_step_dir))
+
+        # check if meta data already exists
+        if training_index in meta_data['training_steps']:
+            msg = 'Training index {!r} already exists in meta data: {!r}!'
+            raise KeyError(msg.format(training_index, meta_data))
+
+        # update latest training step
+        meta_data['latest_step'] += 1
+
+        # add entry to meta data
+        now = datetime.now()
+        dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+
+        training_meta_data = {
+            'creation_date': dt_string,
+            'time_stamp': time.time(),
+            'num_training_steps': 0,
+        }
+        meta_data['training_steps'][training_index] = training_meta_data
+
+        # save training config
+        training_step_config_file = os.path.join(training_step_dir,
+                                                 'training_config.yaml')
+        with open(training_step_config_file, 'w') as stream:
+            yaml.dump(new_training_settings['config'], stream)
+
+        # save components
+        for name, component in new_training_settings['components'].items():
+            component_dir = os.path.join(training_step_dir, name)
+            component.save(component_dir)
+
+        # save new meta data
+        with open(yaml_file, 'w') as stream:
+            yaml.dump(meta_data, stream)
+
+    def _save(self, dir_path, max_keep=3, protected=False, description=None,
+              new_training_settings=None, num_training_steps=None):
         """Save the model weights.
 
         Parameters
@@ -348,9 +469,28 @@ class Model(tf.Module, BaseComponent):
         description : str, optional
             An optional description string that describes the checkpoint.
             This will be saved in the checkpoints meta data.
+        new_training_settings : dict, optional
+            If provided, a training step will be created.
+            A dictionary containing the settings of the new training step.
+            This dictionary must contain the following keys:
+
+                config: dict
+                    The configuration settings used to train.
+                components: dict
+                    The components used during training. These typically
+                    include the Loss and Evaluation components.
+        num_training_steps : int, optional
+            The number of training steps with the current training settings.
+            This will be used to update the training_steps.yaml file to
+            account for the correct number of training steps for the most
+            recent training step.
         """
+        if new_training_settings is not None:
+            self.save_training_settings(
+                dir_path=dir_path, new_training_settings=new_training_settings)
         self.save_weights(dir_path=dir_path, max_keep=max_keep,
-                          protected=protected, description=description)
+                          protected=protected, description=description,
+                          num_training_steps=num_training_steps)
 
     def load_weights(self, dir_path, checkpoint_number=None):
         """Load the model weights.

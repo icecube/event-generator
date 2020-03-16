@@ -4,7 +4,12 @@ import tensorflow as tf
 from egenerator.model.multi_source.base import MultiSource
 
 
-class DefaultMultiCascadeModel(MultiSource):
+class IndependentMultiSource(MultiSource):
+
+    """This is a MultiSource that assumes that the parameters of each of its
+    sources are independent, e.g. there are no constraints on the source
+    paramters.
+    """
 
     def __init__(self, logger=None):
         """Instantiate Source class
@@ -15,7 +20,7 @@ class DefaultMultiCascadeModel(MultiSource):
             The logger to use.
         """
         self._logger = logger or logging.getLogger(__name__)
-        super(DefaultMultiCascadeModel, self).__init__(logger=self._logger)
+        super(IndependentMultiSource, self).__init__(logger=self._logger)
 
     def get_parameters(self, config, base_sources, sources):
         """Get parameter names and their ordering.
@@ -48,15 +53,9 @@ class DefaultMultiCascadeModel(MultiSource):
             A list of parameter names of the MultiSource object.
 
         """
-        for name, base in sources.items():
-            if base != 'cascade':
-                msg = 'Expected only cascade base, but got {!r}'
-                raise ValueError(msg.format(base))
-
         parameters = []
-        variables = ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time']
         for cascade in sorted(sources.keys()):
-            for variable in variables:
+            for variable in sorted(base_sources[cascade].parameter_names):
                 parameters.append(cascade + '_' + variable)
         return parameters
 
@@ -78,12 +77,13 @@ class DefaultMultiCascadeModel(MultiSource):
             for the input parameters of this Source.
 
         """
-        variables = ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time']
-
         source_parameter_dict = {}
-        for cascade in self.configuration.settings['sources'].keys():
-            source_parameter_dict[cascade] = tf.stack([
-                parameters.params[cascade + '_' + variable]
-                for variable in variables], axis=1)
+        counter = 0
+        for cascade in sorted(sources.keys()):
+            num = base_sources[cascade].num_parameters
+            source_parameter_dict[cascade] = \
+                parameters[:, counter:counter + num]
+            counter += num
 
         return source_parameter_dict
+
