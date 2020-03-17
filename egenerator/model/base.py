@@ -37,6 +37,14 @@ class Model(tf.Module, BaseComponent):
         else:
             return None
 
+    @property
+    def step(self):
+        if self.untracked_data is not None and \
+                'step' in self.untracked_data:
+            return self.untracked_data['step']
+        else:
+            return None
+
     def __init__(self, name=None, logger=None):
         """Initializes Model object.
 

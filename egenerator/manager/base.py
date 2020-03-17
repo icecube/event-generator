@@ -173,6 +173,35 @@ class BaseModelManager(Model):
                     protected=protected, description=description,
                     num_training_steps=num_training_steps)
 
+    def save_training_settings(self, dir_path, new_training_settings):
+        """Save a new training step with its components and settings.
+
+        Parameters
+        ----------
+        dir_path : str
+            Path to the output directory.
+        new_training_settings : dict, optional
+            If provided, a training step will be created.
+            A dictionary containing the settings of the new training step.
+            This dictionary must contain the following keys:
+
+                config: dict
+                    The configuration settings used to train.
+                components: dict
+                    The components used during training. These typically
+                    include the Loss and Evaluation components.
+        """
+        for name, sub_component in self.sub_components.items():
+
+            # get directory of sub component
+            sub_dir_path = os.path.join(dir_path, name)
+
+            if issubclass(type(sub_component), Model):
+                # save weights of Model sub component
+                sub_component.save_training_settings(
+                    dir_path=sub_dir_path,
+                    new_training_settings=new_training_settings)
+
     def load_weights(self, dir_path, checkpoint_number=None):
         """Load the model weights.
 
@@ -281,7 +310,8 @@ class BaseModelManager(Model):
             A tuple of tensors. This is the batch received from the tf.Dataset.
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
-            must provide a loss_module.get_loss(data_batch, result_tensors)
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
             method.
         opt_config : config
             The optimization config defining the settings.
@@ -295,10 +325,13 @@ class BaseModelManager(Model):
         tf.Tensor
             The scalar loss.
         """
-        result_tensors = self.model.get_tensors(
-            parameters=parameters, pulses=pulses, pulses_ids=pulses_ids)
+        data_batch_dict = {}
+        for i, name in enumerate(self.data_handler.tensors.names):
+            data_batch_dict[name] = data_batch[i]
 
-        loss_value = loss_module.get_loss(data_batch, result_tensors)
+        result_tensors = self.model.get_tensors(data_batch_dict)
+
+        loss_value = loss_module.get_loss(data_batch_dict, result_tensors)
 
         reg_loss = self.regularization_loss(
             variables=self.model.trainable_variables,
@@ -327,7 +360,8 @@ class BaseModelManager(Model):
             A tuple of tensors. This is the batch received from the tf.Dataset.
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
-            must provide a loss_module.get_loss(data_batch, result_tensors)
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
             method.
         opt_config : config
             The optimization config defining the settings.
@@ -390,14 +424,14 @@ class BaseModelManager(Model):
         loss_module : LossComponent
             A loss component that defines the loss function. The loss component
             must provide the method
-                loss_module.get_loss(data_batch, result_tensors)
+                loss_module.get_loss(data_batch_dict, result_tensors)
         num_training_iterations : int
             Number of training iterations to perform.
         evaluation_module : EvaluationComponent, optional
             An evaluation component that can be used to calculate and log
             evaluation metrics on validation batches. The evaluation module
             must implement a method
-                evaluation_module.evaluate(data_batch, result_tensors)
+                evaluation_module.evaluate(data_batch, result_tensors, tensors)
         """
         self.assert_configured(True)
 
@@ -408,19 +442,29 @@ class BaseModelManager(Model):
                                 )
         self._untracked_data['optimizer'] = optimizer
 
-        # save training step to model (and manager?)
-        # save loss_module and evaluation module as well
-        raise NotImplementedError()
+        # save new training step to model
+        training_components = {'loss_module': loss_module}
+        if evaluation_module is not None:
+            training_components['evaluation_module'] = evaluation_module
+
+        new_training_settings = {
+            'config': config,
+            'components': training_components,
+        }
+        self.save(dir_path=config['manager_dir'],
+                  description='Starting Training',
+                  new_training_settings=new_training_settings,
+                  num_training_steps=None)
 
         # create writers
         training_writer = tf.summary.create_file_writer("fasdfatmp/mylogs")
         validation_writer = tf.summary.create_file_writer("fasdfatmp/mylogs")
         evaluation_writer = tf.summary.create_file_writer("fasdfatmp/mylogs")
 
-        train_dataset = \
-            self.data_handler.get_tf_dataset(train_iterator_settings)
-        validation_dataset = \
-            self.data_handler.get_tf_dataset(validation_iterator_settings)
+        train_dataset = iter(
+            self.data_handler.get_tf_dataset(train_iterator_settings))
+        validation_dataset = iter(
+            self.data_handler.get_tf_dataset(validation_iterator_settings))
 
         # start loop over training batches
         #   every n batches:
@@ -434,23 +478,31 @@ class BaseModelManager(Model):
             # --------------------------
             # perform one training step
             # --------------------------
-            self.perform_training_step(data_batch=data_batch,
+
+            # increment step counter
+            self.model.step.assign_add(1)
+
+            # get new batch of training data
+            training_data_batch = next(train_dataset)
+
+            # perform one training iteration
+            self.perform_training_step(data_batch=training_data_batch,
                                        loss_module=loss_module,
                                        opt_config=opt_config)
 
             # --------------------------
             # evaluate on validation set
             # --------------------------
-            if step % validation_frequency == 0:
+            if step % config['validation_frequency'] == 0:
                 new_validation_time = timeit.default_timer()
                 time_diff = new_validation_time - validation_time
                 validation_time = new_validation_time
 
                 # get new batch of training data
-                raise NotImplementedError()
+                training_data_batch = next(train_dataset)
 
                 # compute loss on training data
-                loss_training = self.get_loss(data_batch=data_batch,
+                loss_training = self.get_loss(data_batch=training_data_batch,
                                               loss_module=loss_module,
                                               opt_config=opt_config,
                                               step=step,
@@ -458,10 +510,10 @@ class BaseModelManager(Model):
                                               )
 
                 # get new batch of validation data
-                raise NotImplementedError()
+                val_data_batch = next(train_dataset)
 
                 # compute loss on validation data
-                loss_validation = self.get_loss(data_batch=data_batch,
+                loss_validation = self.get_loss(data_batch=val_data_batch,
                                                 loss_module=loss_module,
                                                 opt_config=opt_config,
                                                 step=step,
@@ -475,27 +527,27 @@ class BaseModelManager(Model):
                 # print out loss to console
                 msg = 'Step: {:08d}, Runtime: {:2.2f}s, Time/Step: {:3.3f}s'
                 print(msg.format(step, validation_time - start_time,
-                                 time_diff / validation_frequency))
+                                 time_diff / config['validation_frequency']))
                 print('\t[Train]      {:3.3f}'.format(loss_training))
                 print('\t[Validation] {:3.3f}'.format(loss_validation))
 
             # ------------------------------------------------
             # Perform additional evaluations on validation set
             # ------------------------------------------------
-            if step % evaluation_frequency == 0:
+            if step % config['evaluation_frequency'] == 0:
 
                 # call evaluation component if it exists
                 if evaluation_module is not None:
 
                     # get new batch of validation data
-                    raise NotImplementedError()
+                    val_data_batch = next(train_dataset)
 
-                    evaluation_module.evaluate(data_batch=data_batch,
-                                               loss_module=loss_module,
-                                               step=step,
-                                               writer=evaluation_writer)
-
-                    raise NotImplementedError()
+                    evaluation_module.evaluate(
+                        data_batch=val_data_batch,
+                        loss_module=loss_module,
+                        tensors=self.data_handler.tensors,
+                        step=step,
+                        writer=evaluation_writer)
 
                     # write to file
                     evaluation_writer.flush()
@@ -503,8 +555,12 @@ class BaseModelManager(Model):
             # ----------
             # save model
             # ----------
-            if step % save_frequency == 0:
-                raise NotImplementedError()
+            if step % config['save_frequency'] == 0:
+                self.save_weights(dir_path=config['manager_dir'],
+                                  num_training_steps=step)
 
         # save model
-        raise NotImplementedError()
+        self.save_weights(dir_path=config['manager_dir'],
+                          num_training_steps=step,
+                          description='End of training step',
+                          protected=True)

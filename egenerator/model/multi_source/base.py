@@ -238,7 +238,7 @@ class MultiSource(Source):
 
         return configuration, {}, sub_components
 
-    def get_tensors(self, parameters, pulses, pulses_ids):
+    def get_tensors(self, data_batch_dict):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -248,18 +248,19 @@ class MultiSource(Source):
 
         Parameters
         ----------
-        parameters : tf.Tensor
-            A tensor which describes the input parameters of the source.
-            This fully defines the source hypothesis. The tensor is of shape
-            [-1, n_params] and the last dimension must match the order of
-            the parameter names (self.parameter_names),
-        pulses : tf.Tensor
-            The input pulses (charge, time) of all events in a batch.
-            Shape: [-1, 2]
-        pulses_ids : tf.Tensor
-            The pulse indices (batch_index, string, dom) of all pulses in the
-            batch of events.
-            Shape: [-1, 3]
+        data_batch_dict: dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
 
         Raises
         ------
@@ -282,6 +283,10 @@ class MultiSource(Source):
         # check if get_source_parameters correctly fills in all source params
         self.check_source_parameter_creation()
 
+        parameters = data_batch_dict['x_parameters']
+        pulses = data_batch_dict['x_pulses']
+        pulses_ids = data_batch_dict['x_pulses_ids']
+
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
 
@@ -297,12 +302,16 @@ class MultiSource(Source):
             parameters_i = sub_component.add_parameter_indexing(parameters_i)
 
             # Get expected DOM charge and Likelihood evaluations for source i
-            result_tensors_i = sub_component.get_tensors(parameters_i, pulses,
-                                                         pulses_ids)
+            data_batch_dict_i = {
+                'x_parameters': parameters_i,
+                'x_pulses': pulses,
+                'x_pulses_ids': parameters_i,
+            }
+            result_tensors_i = sub_component.get_tensors(data_batch_dict_i)
             dom_charges_i = result_tensors_i['dom_charges']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 
-            if dom_charges_i.shape[1:] != [86, 60]:
+            if dom_charges_i.shape[1:] != [86, 60, 1]:
                 msg = 'DOM charges of source {!r} ({!r}) have an unexpected '
                 msg += 'shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
@@ -316,14 +325,16 @@ class MultiSource(Source):
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
-            pulse_weight_i = tf.gather_nd(dom_charges_i, pulses_ids)
+            pulse_weight_i = tf.gather_nd(tf.squeeze(dom_charges_i, axis=3),
+                                          pulses_ids)
             if pulse_pdf is None:
                 pulse_pdf = pulse_pdf_i * pulse_weight_i
             else:
                 pulse_pdf += pulse_pdf_i * pulse_weight_i
 
         # normalize pulse_pdf values: divide by total charge at DOM
-        pulse_weight_total = tf.gather_nd(dom_charges, pulses_ids)
+        pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
+                                          pulses_ids)
         pulse_pdf /= pulse_weight_total
 
         result_tensors = {

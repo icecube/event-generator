@@ -49,7 +49,7 @@ class DefaultCascadeModel(Source):
 
         return parameter_names
 
-    def get_tensors(self, parameters, pulses, pulses_ids):
+    def get_tensors(self, data_batch_dict):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -59,18 +59,19 @@ class DefaultCascadeModel(Source):
 
         Parameters
         ----------
-        parameters : tf.Tensor
-            A tensor which describes the input parameters of the source.
-            This fully defines the source hypothesis. The tensor is of shape
-            [-1, n_params] and the last dimension must match the order of
-            the parameter names (self.parameter_names),
-        pulses : tf.Tensor
-            The input pulses (charge, time) of all events in a batch.
-            Shape: [-1, 2]
-        pulses_ids : tf.Tensor
-            The pulse indices (batch_index, string, dom) of all pulses in the
-            batch of events.
-            Shape: [-1, 3]
+        data_batch_dict: dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
 
         Raises
         ------
@@ -84,16 +85,20 @@ class DefaultCascadeModel(Source):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         """
         self.assert_configured(True)
 
+        parameters = data_batch_dict['x_parameters']
+        pulses = data_batch_dict['x_pulses']
+        pulses_ids = data_batch_dict['x_pulses_ids']
+
         temp_var = parameters * self._untracked_data['dummy_var']
         temp_var_reshaped = tf.reshape(tf.reduce_sum(parameters, axis=1),
-                                       [-1, 1, 1])
-        dom_charges = tf.ones([1, 86, 60]) * temp_var_reshaped
+                                       [-1, 1, 1, 1])
+        dom_charges = tf.ones([1, 86, 60, 1]) * temp_var_reshaped
         pulse_pdf = tf.reduce_sum(pulses, axis=1)
 
         tensor_dict = {

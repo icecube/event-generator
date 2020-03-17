@@ -38,7 +38,10 @@ class Source(Model):
         builds architecture and creates all model weights
         returns parameter_names
 
-    get_tensors(self, parameters, pulses, pulses_ids):
+    get_tensors(self, data_batch_dict):
+        The data_batch_dict is a dictionary of named inputs. This dictionary
+        must contain at least the following keys:
+            parameters, pulses, pulses_ids
         Parameters are the hypothesis tensor of the source with
         shape [-1, n_params]. The get_tensors method must compute all tensors
         that are to be used in later steps. It returns these as a dictionary
@@ -287,7 +290,7 @@ class Source(Model):
         self.assert_configured(False)
         raise NotImplementedError()
 
-    def get_tensors(self, parameters, pulses, pulses_ids):
+    def get_tensors(self, data_batch_dict):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -297,18 +300,19 @@ class Source(Model):
 
         Parameters
         ----------
-        parameters : tf.Tensor
-            A tensor which describes the input parameters of the source.
-            This fully defines the source hypothesis. The tensor is of shape
-            [-1, n_params] and the last dimension must match the order of
-            the parameter names (self.parameter_names),
-        pulses : tf.Tensor
-            The input pulses (charge, time) of all events in a batch.
-            Shape: [-1, 2]
-        pulses_ids : tf.Tensor
-            The pulse indices (batch_index, string, dom) of all pulses in the
-            batch of events.
-            Shape: [-1, 3]
+        data_batch_dict: dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
 
         Raises
         ------
