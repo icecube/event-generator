@@ -1012,14 +1012,6 @@ class BaseDataHandler(BaseComponent):
 
         output_types = tuple(output_types)
         output_shapes = tuple(output_shapes)
-        print('output_types', output_types)
-        print('output_shapes', output_shapes)
-        # def _fixup_shape(images, labels, weights):
-        #     images.set_shape([None, None, None, 3])
-        #     labels.set_shape([None, 19]) # I have 19 classes
-        #     weights.set_shape([None])
-        #     return images, labels, weights
-        # dataset = dataset.map(_fixup_shape)
 
         return tf.data.Dataset.from_generator(
                         generator=get_generator,

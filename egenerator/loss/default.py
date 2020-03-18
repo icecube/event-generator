@@ -177,6 +177,8 @@ class DefaultLossModule(BaseComponent):
         NotImplementedError
             Description
         """
+        dtype = getattr(
+            tf, self.configuration.config['config']['float_precision'])
 
         # shape: [n_pulses]
         pulse_charges = data_batch_dict['x_pulses'][:, 0]
@@ -184,7 +186,7 @@ class DefaultLossModule(BaseComponent):
         pulse_pdf_values = result_tensors['pulse_pdf']
 
         # shape: [n_batch, 86, 60, 1]
-        hits_true = data_batch_dict['x_dom_charge'][:, 0]
+        hits_true = data_batch_dict['x_dom_charge']
 
         # shape: [n_batch, 86, 60]
         dom_charges_true = tf.squeeze(hits_true, axis=-1)
@@ -193,25 +195,25 @@ class DefaultLossModule(BaseComponent):
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if 'x_time_exclusions' in tensors.names and \
-                tensors.list[tensors.get_index('x_time_exclusions')].exists:
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
             raise NotImplementedError(
                 'Time exclusions are currently not implemented!')
 
         # mask out dom exclusions
-        if 'x_dom_exclusions' in tensors.names and \
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists:
+        if ('x_dom_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
             mask_valid = tf.cast(
                 tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
-                dtype=getattr(self.config['float_precision'], tf))
+                dtype=dtype)
             dom_charges_true = dom_charges_true * mask_valid
             dom_charges_pred = dom_charges_pred * mask_valid
 
         # prevent log(zeros) issues
         eps = 1e-7
-        pulse_log_pdf_values = tf.log(pulse_pdf_values + eps)
+        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
         # pulse_log_pdf_values = tf.where(hits_true > 0,
-        #                                 tf.log(pulse_pdf_values + eps),
+        #                                 tf.math.log(pulse_pdf_values + eps),
         #                                 tf.zeros_like(pulse_pdf_values))
 
         # compute unbinned negative likelihood over pulse times with given
@@ -219,13 +221,13 @@ class DefaultLossModule(BaseComponent):
         time_log_likelihood = -pulse_charges * pulse_log_pdf_values
 
         # get poisson likelihood over total charge at a DOM for extendended LLH
-        llh_poisson = dom_charges_pred - \
-            dom_charges_true * tf.log(dom_charges_pred + eps)
+        llh_poisson = (dom_charges_pred -
+                       dom_charges_true * tf.math.log(dom_charges_pred + eps))
 
         # Poisson loss over total event charge
         event_charges_true = tf.reduce_sum(dom_charges_true, axis=[1, 2])
         event_charges_pred = tf.reduce_sum(dom_charges_pred, axis=[1, 2])
-        llh_event = event_charges_pred - event_charges_true * tf.log(
+        llh_event = event_charges_pred - event_charges_true * tf.math.log(
                                                     event_charges_pred + eps)
 
         # calculate sum over a whole batch of events
@@ -234,8 +236,7 @@ class DefaultLossModule(BaseComponent):
         total_llh_event = tf.reduce_sum(llh_event)
 
         # average loss over events, such that it does not depend on batch size
-        batch_size = tf.cast(tf.shape(llh_event)[0],
-                             dtype=getattr(self.config['float_precision'], tf))
+        batch_size = tf.cast(tf.shape(llh_event)[0], dtype=dtype)
         average_event_loss = (total_llh_poisson + total_time_log_likelihood
                               + total_llh_event) / batch_size
         return average_event_loss

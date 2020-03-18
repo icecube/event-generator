@@ -109,7 +109,7 @@ class Model(tf.Module, BaseComponent):
             self._configure_derived_class(**kwargs)
 
         # create a tensorflow checkpoint object and keep track of variables
-        self._untracked_data['step'] = tf.Variable(1)
+        self._untracked_data['step'] = tf.Variable(1, trainable=False)
         self._untracked_data['checkpoint'] = tf.train.Checkpoint(
             step=self._untracked_data['step'], model=self)
         self._untracked_data['variables'] = list(self.variables)

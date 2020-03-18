@@ -301,8 +301,7 @@ class BaseModelManager(Model):
         return reg_loss
 
     @tf.function
-    def get_loss(self, data_batch, loss_module, opt_config,
-                 step=None, writer=None):
+    def get_loss(self, data_batch, loss_module, opt_config, step=None):
         """Get the scalar loss for a batch of data and a given loss component.
 
         Parameters
@@ -318,8 +317,6 @@ class BaseModelManager(Model):
             The optimization config defining the settings.
         step : int, optional
             The current training step.
-        writer : tf.summary.FileWriter, optional
-            The summary file writer to use.
 
         Returns
         -------
@@ -336,19 +333,17 @@ class BaseModelManager(Model):
                                           self.data_handler.tensors)
 
         reg_loss = self.regularization_loss(
-            variables=self.model.trainable_variables,
-            opt_config=opt_config,
-            step=step)
+                                    variables=self.model.trainable_variables,
+                                    opt_config=opt_config)
 
         combined_loss = loss_value + reg_loss
 
         # create summaries if a writer is provided
-        if writer is not None:
-            with writer.as_default():
-                tf.summary.scalar('loss', loss_value, step=step)
-                if opt_config['l1_regularization'] > 0. or \
-                        opt_config['l2_regularization'] > 0.:
-                    tf.summary.scalar('reg_loss', reg_loss)
+        if step is not None:
+            tf.summary.scalar('loss', loss_value, step=step)
+            if (opt_config['l1_regularization'] > 0. or
+                    opt_config['l2_regularization'] > 0.):
+                tf.summary.scalar('reg_loss', reg_loss)
 
         return combined_loss
 
@@ -376,7 +371,8 @@ class BaseModelManager(Model):
         with tf.GradientTape() as tape:
             combined_loss = self.get_loss(data_batch, loss_module, opt_config)
 
-        gvs = tape.gradient(loss_value, self.model.trainable_variables)
+        variables = self.model.trainable_variables
+        gradients = tape.gradient(combined_loss, variables)
 
         # remove nans in gradients and replace these with zeros
         if 'remove_nan_gradients' in opt_config:
@@ -384,22 +380,20 @@ class BaseModelManager(Model):
         else:
             remove_nan_gradients = False
         if remove_nan_gradients:
-            gvs = [(tf.where(tf.is_nan(grad), tf.zeros_like(grad), grad),
-                    var) for grad, var in gvs if grad is not None]
+            gradients = [tf.where(tf.is_nan(grad), tf.zeros_like(grad), grad)
+                         for grad in gradients if grad is not None]
 
         if 'clip_gradients_value' in opt_config:
             clip_gradients_value = opt_config['clip_gradients_value']
         else:
             clip_gradients_value = None
         if clip_gradients_value is not None:
-            gradients, variables = zip(*gvs)
-            gradients, _ = tf.clip_by_global_norm(gradients,
-                                                  clip_gradients_value)
-            capped_gvs = zip(gradients, variables)
+            capped_gradients, _ = tf.clip_by_global_norm(gradients,
+                                                         clip_gradients_value)
         else:
-            capped_gvs = gvs
+            capped_gradients = gradients
 
-        self.optimizer.apply_gradients(zip(capped_gvs, variables))
+        self.optimizer.apply_gradients(zip(capped_gradients, variables))
 
         return combined_loss
 
@@ -482,7 +476,7 @@ class BaseModelManager(Model):
         start_time = timeit.default_timer()
         validation_time = start_time
         for step in range(num_training_iterations):
-
+            tf_step = tf.convert_to_tensor(step, dtype=tf.int64)
             # --------------------------
             # perform one training step
             # --------------------------
@@ -501,7 +495,7 @@ class BaseModelManager(Model):
             # --------------------------
             # evaluate on validation set
             # --------------------------
-            if step % config['validation_frequency'] == 0:
+            if step % opt_config['validation_frequency'] == 0:
                 new_validation_time = timeit.default_timer()
                 time_diff = new_validation_time - validation_time
                 validation_time = new_validation_time
@@ -510,23 +504,23 @@ class BaseModelManager(Model):
                 training_data_batch = next(train_dataset)
 
                 # compute loss on training data
-                loss_training = self.get_loss(data_batch=training_data_batch,
-                                              loss_module=loss_module,
-                                              opt_config=opt_config,
-                                              step=step,
-                                              writer=training_writer,
-                                              )
+                with training_writer.as_default():
+                    loss_training = self.get_loss(data_batch=training_data_batch,
+                                                  loss_module=loss_module,
+                                                  opt_config=opt_config,
+                                                  step=tf_step,
+                                                  )
 
                 # get new batch of validation data
                 val_data_batch = next(train_dataset)
 
                 # compute loss on validation data
-                loss_validation = self.get_loss(data_batch=val_data_batch,
-                                                loss_module=loss_module,
-                                                opt_config=opt_config,
-                                                step=step,
-                                                writer=validation_writer,
-                                                )
+                with validation_writer.as_default():
+                    loss_validation = self.get_loss(data_batch=val_data_batch,
+                                                    loss_module=loss_module,
+                                                    opt_config=opt_config,
+                                                    step=tf_step,
+                                                    )
 
                 # write to file
                 training_writer.flush()
@@ -535,14 +529,14 @@ class BaseModelManager(Model):
                 # print out loss to console
                 msg = 'Step: {:08d}, Runtime: {:2.2f}s, Time/Step: {:3.3f}s'
                 print(msg.format(step, validation_time - start_time,
-                                 time_diff / config['validation_frequency']))
+                                 time_diff / opt_config['validation_frequency']))
                 print('\t[Train]      {:3.3f}'.format(loss_training))
                 print('\t[Validation] {:3.3f}'.format(loss_validation))
 
             # ------------------------------------------------
             # Perform additional evaluations on validation set
             # ------------------------------------------------
-            if step % config['evaluation_frequency'] == 0:
+            if step % opt_config['evaluation_frequency'] == 0:
 
                 # call evaluation component if it exists
                 if evaluation_module is not None:
@@ -554,7 +548,7 @@ class BaseModelManager(Model):
                         data_batch=val_data_batch,
                         loss_module=loss_module,
                         tensors=self.data_handler.tensors,
-                        step=step,
+                        step=tf_step,
                         writer=evaluation_writer)
 
                     # write to file
@@ -563,7 +557,7 @@ class BaseModelManager(Model):
             # ----------
             # save model
             # ----------
-            if step % config['save_frequency'] == 0:
+            if step % opt_config['save_frequency'] == 0:
                 self.save_weights(dir_path=save_dir,
                                   num_training_steps=step)
 

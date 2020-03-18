@@ -99,7 +99,8 @@ class DefaultCascadeModel(Source):
         temp_var_reshaped = tf.reshape(tf.reduce_sum(parameters, axis=1),
                                        [-1, 1, 1, 1])
         dom_charges = tf.ones([1, 86, 60, 1]) * temp_var_reshaped
-        pulse_pdf = tf.reduce_sum(pulses, axis=1)
+        pulse_pdf = (tf.reduce_sum(pulses, axis=1)
+                     * self._untracked_data['dummy_var'])
 
         tensor_dict = {
             'dom_charges': dom_charges,
