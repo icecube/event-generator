@@ -309,8 +309,12 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
         num_events, data = self.data_handler.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
         self.assertEqual(len(data), 7)
-        self.assertEqual(data[5], None)
-        self.assertEqual(data[6], None)
+        self.assertEqual(
+            data[self.data_handler.tensors.get_index('x_time_exclusions')],
+            None)
+        self.assertEqual(
+            data[self.data_handler.tensors.get_index('x_time_exclusions_ids')],
+            None)
 
         # check specific values for pulse times
         self.assertListEqual(list(data[3][618:628, 1]),
@@ -321,18 +325,22 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
                              self.charges_618_to_627)
 
         # check total event charge
-        event_sum = np.sum(data[1], axis=(1, 2, 3))
+        event_sum = np.sum(
+            data[self.data_handler.tensors.get_index('x_dom_charge')],
+            axis=(1, 2, 3))
         self.assertTrue(np.allclose(self.total_event_charge, event_sum))
 
         # collect all pulses of an event and accumulate charge
-        pulses = data[3]
-        pulses_ids = data[4]
+        pulses = data[self.data_handler.tensors.get_index('x_pulses')]
+        pulses_ids = data[self.data_handler.tensors.get_index('x_pulses_ids')]
         total_charge = [np.sum(pulses[pulses_ids[:, 0] == 0][:, 0]),
                         np.sum(pulses[pulses_ids[:, 0] == 1][:, 0])]
         self.assertTrue(np.allclose(self.total_event_charge, total_charge))
 
         # check dom exclusions
-        self.assertTrue((data[2] == self.dom_exclusions).all())
+        self.assertTrue(
+            (data[self.data_handler.tensors.get_index('x_dom_exclusions')]
+             == self.dom_exclusions).all())
 
     def test_get_data_from_hdf_missing_label_key(self):
         """Test if module properly skips a file if there is an error, such as
@@ -357,9 +365,11 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
                                             num_jobs=1,
                                             num_add_files=0,
                                             num_repetitions=1)
+
+        index = self.data_handler.tensors.get_index('x_parameters')
         for i, data_batch in enumerate(iterator):
             self.assertEqual(len(data_batch[0]), 1)
-            self.assertTrue((self.cascades_true[i] == data_batch[0]).all())
+            self.assertTrue((self.cascades_true[i] == data_batch[index]).all())
 
         self.data_handler.kill()
 
@@ -377,12 +387,13 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
                                             num_jobs=1,
                                             num_add_files=2,
                                             num_repetitions=3)
+        param_index = self.data_handler.tensors.get_index('x_parameters')
         for i in range(10):
             data_batch = next(iterator)
             self.assertEqual(len(data_batch[0]), batch_size)
             self.assertTrue(
-                (self.cascades_true[0] == data_batch[0][0]).all() or
-                (self.cascades_true[1] == data_batch[0][0]).all())
+                (self.cascades_true[0] == data_batch[param_index][0]).all() or
+                (self.cascades_true[1] == data_batch[param_index][0]).all())
 
         self.data_handler.kill()
 

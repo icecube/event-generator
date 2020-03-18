@@ -1,5 +1,6 @@
 from __future__ import division, print_function
 import logging
+import tensorflow as tf
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
@@ -10,7 +11,8 @@ class DefaultLossModule(BaseComponent):
     """Default loss module that implements some standard loss functions.
 
     A loss component that is used to compute the loss. The component
-    must provide a loss_module.get_loss(data_batch_dict, result_tensors)
+    must provide a
+    loss_module.get_loss(data_batch_dict, result_tensors, tensors)
     method.
     """
 
@@ -91,12 +93,12 @@ class DefaultLossModule(BaseComponent):
 
         return configuration, {}, {}
 
-    def get_loss(self, data_batch_dict, result_tensors):
+    def get_loss(self, data_batch_dict, result_tensors, tensors):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
         ----------
-        data_batch_dict: dict of tf.Tensor
+        data_batch_dict : dict of tf.Tensor
             parameters : tf.Tensor
                 A tensor which describes the input parameters of the source.
                 This fully defines the source hypothesis. The tensor is of
@@ -117,6 +119,8 @@ class DefaultLossModule(BaseComponent):
                                Shape: [-1, 86, 60, 1]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
+        tensors : DataTensorList
+            The data tensor list describing the input data
 
         Returns
         -------
@@ -125,9 +129,11 @@ class DefaultLossModule(BaseComponent):
             Shape: []
         """
         return self.loss_function(data_batch_dict=data_batch_dict,
-                                  result_tensors=result_tensors)
+                                  result_tensors=result_tensors,
+                                  tensors=tensors)
 
-    def unbinned_extended_pulse_llh(data_batch_dict, result_tensors):
+    def unbinned_extended_pulse_llh(self, data_batch_dict, result_tensors,
+                                    tensors):
         """Unbinned extended poisson likelhood for data pulses.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -136,7 +142,7 @@ class DefaultLossModule(BaseComponent):
 
         Parameters
         ----------
-        data_batch_dict: dict of tf.Tensor
+        data_batch_dict : dict of tf.Tensor
             parameters : tf.Tensor
                 A tensor which describes the input parameters of the source.
                 This fully defines the source hypothesis. The tensor is of
@@ -157,11 +163,19 @@ class DefaultLossModule(BaseComponent):
                                Shape: [-1, 86, 60, 1]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
+        tensors : DataTensorList
+            The data tensor list describing the input data
+
         Returns
         -------
         tf.tensor
             Poisson Likelihood.
             Shape: []
+
+        Raises
+        ------
+        NotImplementedError
+            Description
         """
 
         # shape: [n_pulses]
@@ -179,14 +193,14 @@ class DefaultLossModule(BaseComponent):
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if 'x_time_exclusions' in data_batch_dict and \
-                data_batch_dict['x_time_exclusions'] is not None:
+        if 'x_time_exclusions' in tensors.names and \
+                tensors.list[tensors.get_index('x_time_exclusions')].exists:
             raise NotImplementedError(
                 'Time exclusions are currently not implemented!')
 
         # mask out dom exclusions
-        if 'x_dom_exclusions' in data_batch_dict and \
-                data_batch_dict['x_dom_exclusions'] is not None:
+        if 'x_dom_exclusions' in tensors.names and \
+                tensors.list[tensors.get_index('x_dom_exclusions')].exists:
             mask_valid = tf.cast(
                 tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
                 dtype=getattr(self.config['float_precision'], tf))

@@ -9,6 +9,28 @@
 # Provide a unique name for the model
 unique_name: 'single_cascade'
 
+
+#-----------------------
+# Training settings
+#-----------------------
+training_settings: {
+    'optimizer_name': 'Adam',
+    'optimizer_settings': {
+        'learning_rate': 0.001,
+    },
+    'l1_regularization': 0.,
+    'l2_regularization': 0.,
+    'clip_gradients_value': ,
+    'remove_nan_gradients': False,
+
+    'validation_frequency': 100,
+    'evaluation_frequency': 100,
+    'save_frequency': 500,
+
+    # Number of training iterations to train the model for
+    'num_training_iterations': 1000000,
+}
+
 #-----------------------
 # Model Manager settings
 #-----------------------
@@ -22,27 +44,11 @@ model_manager_settings: {
     # restore model if True, otherwise start from scratch
     'restore_model' : True,
 
-    # Number of training iterations to train the model for
-    'num_training_iterations': 1000000,
-
+    # These settings are used to configure the model manager and may not change
     config: {
 
         # Path to where the manager will be saved to and loaded from
         'manager_dir': '../data/training/{unique_name}/manager',
-
-        optimization_config: {
-            'optimizer_name': 'AdamOptimizer',
-            'optimizer_settings': {
-                'learning_rate': 0.001,
-            },
-            'l1_regularization': 0.,
-            'l2_regularization': 0.,
-            'clip_gradients_value': ,
-            'remove_nan_gradients': False,
-        },
-        'validation_frequency': 100,
-        'evaluation_frequency': 100,
-        'save_frequency': 500,
     },
 }
 

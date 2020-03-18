@@ -819,7 +819,8 @@ class BaseDataHandler(BaseComponent):
                                     indices[:, 0] = size
                                     batch[i].append(indices)
                             else:
-                                batch[i].append(None)
+                                batch[i].append(getattr(np, tensor.dtype)())
+                                # batch[i].append(None)
                         size += 1
 
                         # check if we have enough for a complete batch
@@ -829,13 +830,18 @@ class BaseDataHandler(BaseComponent):
                             for i, tensor in enumerate(self.tensors.list):
                                 if exists[i]:
                                     if tensor.vector_info is None:
-                                        batch[i] = np.asarray(batch[i])
+                                        batch[i] = np.asarray(
+                                            batch[i],
+                                            dtype=getattr(np, tensor.dtype))
 
                                     else:
-                                        batch[i] = np.concatenate(batch[i],
-                                                                  axis=0)
+                                        batch[i] = np.concatenate(
+                                                batch[i], axis=0).astype(
+                                                    getattr(np, tensor.dtype))
                                 else:
-                                    batch[i] = np.asarray(batch[i])
+                                    batch[i] = np.asarray(
+                                            batch[i],
+                                            dtype=getattr(np, tensor.dtype))
 
                             if verbose:
                                 usage = resource.getrusage(
@@ -848,7 +854,7 @@ class BaseDataHandler(BaseComponent):
                                     file_list_queue.qsize(),
                                     data_batch_queue.qsize(),
                                     final_batch_queue.qsize()))
-                            final_batch_queue.put(batch)
+                            final_batch_queue.put(tuple(batch))
 
                             # reset event batch
                             size = 0
@@ -872,7 +878,7 @@ class BaseDataHandler(BaseComponent):
                             batch[i] = np.concatenate(batch[i], axis=0)
                     else:
                         batch[i] = np.asarray(batch[i])
-                final_batch_queue.put(batch)
+                final_batch_queue.put(tuple(batch))
 
         def batch_iterator():
             """Create batch generator
@@ -908,6 +914,7 @@ class BaseDataHandler(BaseComponent):
                        pick_random_files_forever=True,
                        file_capacity=1,
                        batch_capacity=5,
+                       dataset_capacity=2,
                        num_jobs=1,
                        num_add_files=0,
                        num_repetitions=1,
@@ -942,6 +949,9 @@ class BaseDataHandler(BaseComponent):
             Defines the maximum size of the batch queue which holds the batches
             of size 'batch_size'. This queue is what is used to obtain the
             final batches, which the generator yields.
+        dataset_capacity : int, optional
+            Defines the tensorflow prefetch argument for the tf.Dataset.
+            This controlls how many batches are prefetched.
         num_jobs : int, optional
             Number of jobs to run in parrallel to load and process input files.
         num_add_files : int, optional
@@ -975,7 +985,7 @@ class BaseDataHandler(BaseComponent):
             A tensorflow dataset.
         """
         def get_generator():
-            get_batch_generator(
+            return self.get_batch_generator(
                     input_data=input_data,
                     batch_size=batch_size,
                     sample_randomly=sample_randomly,
@@ -994,13 +1004,28 @@ class BaseDataHandler(BaseComponent):
         output_types = []
         output_shapes = []
         for tensor in self.tensors.list:
-            output_types.apend(getattr(tf, tensor.dtype))
-            output_shapes.apend(tensor.shape)
+            output_types.append(getattr(tf, tensor.dtype))
+            if tensor.exists:
+                output_shapes.append(tf.TensorShape(tensor.shape))
+            else:
+                output_shapes.append(tf.TensorShape(None))
+
+        output_types = tuple(output_types)
+        output_shapes = tuple(output_shapes)
+        print('output_types', output_types)
+        print('output_shapes', output_shapes)
+        # def _fixup_shape(images, labels, weights):
+        #     images.set_shape([None, None, None, 3])
+        #     labels.set_shape([None, 19]) # I have 19 classes
+        #     weights.set_shape([None])
+        #     return images, labels, weights
+        # dataset = dataset.map(_fixup_shape)
 
         return tf.data.Dataset.from_generator(
-                                    generator=get_generator,
-                                    output_types=output_types,
-                                    output_shapes=output_shapes)
+                        generator=get_generator,
+                        output_types=output_types,
+                        output_shapes=output_shapes
+                        ).prefetch(dataset_capacity)
 
     def kill(self):
         """Kill Multiprocessing queues and workers

@@ -6,6 +6,7 @@ import shutil
 import logging
 import click
 import ruamel.yaml as yaml
+import tensorflow as tf
 
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
@@ -22,6 +23,11 @@ def main(config_files):
     config_files : list of strings
         List of yaml config files.
     """
+
+    # limit GPU usage
+    gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+    for device in gpu_devices:
+        tf.config.experimental.set_memory_growth(device, True)
 
     # read in and combine config files and set up
     setup_manager = SetupManager(config_files)
@@ -68,7 +74,7 @@ def main(config_files):
     manager_config = config['model_manager_settings']
     manager_dir = manager_config['config']['manager_dir']
 
-    if manager_config['model_restore']:
+    if manager_config['restore_model']:
         if os.path.exists(os.path.join(manager_dir, 'configuration.yaml')):
             restore = True
 
@@ -109,8 +115,7 @@ def main(config_files):
         # create and load TrafoModel
         # --------------------------
         data_transformer = DataTransformer()
-        data_transformer.load_trafo_model(
-            config['data_trafo_settings']['model_path'])
+        data_transformer.load(config['data_trafo_settings']['model_path'])
 
         # -----------------------
         # create and Model object
@@ -130,7 +135,8 @@ def main(config_files):
     # --------------
     # start training
     # --------------
-    num_training_iterations = manager_config['num_training_iterations']
+    num_training_iterations = \
+        config['training_settings']['num_training_iterations']
     manager.train(config=config,
                   loss_module=loss_module,
                   num_training_iterations=num_training_iterations,

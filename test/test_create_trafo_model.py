@@ -140,7 +140,7 @@ class TestCreateTrafoModel(unittest.TestCase):
 
         data_trafo.load(self.config['data_trafo_settings']['model_path'])
 
-        self.assertTrue(np.allclose(data_trafo.data['cascade_labels_mean'],
+        self.assertTrue(np.allclose(data_trafo.data['x_parameters_mean'],
                                     np.mean(self.cascades_true, axis=0)))
 
 

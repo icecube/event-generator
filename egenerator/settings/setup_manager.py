@@ -140,11 +140,33 @@ class SetupManager:
         # expand all strings with variables
         # ----------------------------------
         config['config_name'] = str(config_name)
-        for key in config:
-            if isinstance(config[key], str):
-                config[key] = config[key].format(**config)
+        config['egenerator_dir'] = os.path.join(os.path.dirname(__file__),
+                                                '../..')
+        config = self.expand_strings(config, config)
 
         self.config = config
+
+    def expand_strings(self, config, expand_config):
+        """Recursively expands all strings of dictionary or nested dictionaries
+
+        Parameters
+        ----------
+        config : dict
+            A dictionary of settings
+        expand_config : dict
+            The definitions of strings which are to be expanded.
+
+        Returns
+        -------
+        dict
+            The dictionary with expanded strings.
+        """
+        for key, value in config.items():
+            if isinstance(value, str):
+                config[key] = value.format(**expand_config)
+            elif isinstance(value, dict):
+                config[key] = self.expand_strings(value, expand_config)
+        return config
 
     def get_config(self):
         """Returns config

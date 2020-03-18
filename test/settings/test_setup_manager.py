@@ -79,6 +79,7 @@ class TestSetupManager(unittest.TestCase):
             'git_uncommited_changes',
             'pip_installed_packages',
             'config_name',
+            'egenerator_dir',
         ]
         keys = set(keys)
 

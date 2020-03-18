@@ -96,7 +96,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
 
         data = {}
         data['label_tensors'] = DataTensorList([DataTensor(
-                                        name='cascade_labels',
+                                        name='x_parameters',
                                         shape=[None, 7],
                                         tensor_type='label',
                                         dtype='float32',

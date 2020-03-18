@@ -1,4 +1,5 @@
 from __future__ import division, print_function
+import os
 import logging
 import tensorflow as tf
 import numpy as np
@@ -44,7 +45,7 @@ class BaseModelManager(Model):
             A logging instance.
         """
         self._logger = logger or logging.getLogger(__name__)
-        super(BaseDataHandler, self).__init__(logger=self._logger)
+        super(BaseModelManager, self).__init__(logger=self._logger)
 
     def _configure(self, config, data_handler, model):
         """Configure the ModelManager component instance.
@@ -331,7 +332,8 @@ class BaseModelManager(Model):
 
         result_tensors = self.model.get_tensors(data_batch_dict)
 
-        loss_value = loss_module.get_loss(data_batch_dict, result_tensors)
+        loss_value = loss_module.get_loss(data_batch_dict, result_tensors,
+                                          self.data_handler.tensors)
 
         reg_loss = self.regularization_loss(
             variables=self.model.trainable_variables,
@@ -361,7 +363,7 @@ class BaseModelManager(Model):
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
             must provide a
-            loss_module.get_loss(data_batch_dict, result_tensors)
+            loss_module.get_loss(data_batch_dict, result_tensors, tensors)
             method.
         opt_config : config
             The optimization config defining the settings.
@@ -417,7 +419,7 @@ class BaseModelManager(Model):
             validation_iterator_settings : dict
                 The settings for the validation data iterator that will be
                 created from the data handler.
-            optimization_config : dict
+            training_settings : dict
                 Optimization configuration with settings for the optimizer
                 and regularization.
 
@@ -435,9 +437,15 @@ class BaseModelManager(Model):
         """
         self.assert_configured(True)
 
+        # deine directories
+        save_dir = self.configuration.config['config']['manager_dir']
+        train_log_dir = os.path.join(save_dir, 'logs/training')
+        val_log_dir = os.path.join(save_dir, 'logs/validation')
+        eval_log_dir = os.path.join(save_dir, 'logs/evaluation')
+
         # create optimizer from config
-        opt_config = config['optimization_config']
-        optimizer = getattr(tf.train, opt_config['optimizer_name'])(
+        opt_config = config['training_settings']
+        optimizer = getattr(tf.optimizers, opt_config['optimizer_name'])(
                                 **opt_config['optimizer_settings']
                                 )
         self._untracked_data['optimizer'] = optimizer
@@ -451,20 +459,20 @@ class BaseModelManager(Model):
             'config': config,
             'components': training_components,
         }
-        self.save(dir_path=config['manager_dir'],
+        self.save(dir_path=save_dir,
                   description='Starting Training',
                   new_training_settings=new_training_settings,
                   num_training_steps=None)
 
         # create writers
-        training_writer = tf.summary.create_file_writer("fasdfatmp/mylogs")
-        validation_writer = tf.summary.create_file_writer("fasdfatmp/mylogs")
-        evaluation_writer = tf.summary.create_file_writer("fasdfatmp/mylogs")
+        training_writer = tf.summary.create_file_writer(train_log_dir)
+        validation_writer = tf.summary.create_file_writer(val_log_dir)
+        evaluation_writer = tf.summary.create_file_writer(eval_log_dir)
 
-        train_dataset = iter(
-            self.data_handler.get_tf_dataset(train_iterator_settings))
-        validation_dataset = iter(
-            self.data_handler.get_tf_dataset(validation_iterator_settings))
+        train_dataset = iter(self.data_handler.get_tf_dataset(
+            **config['data_iterator_settings']['training']))
+        validation_dataset = iter(self.data_handler.get_tf_dataset(
+            **config['data_iterator_settings']['validation']))
 
         # start loop over training batches
         #   every n batches:
@@ -556,11 +564,11 @@ class BaseModelManager(Model):
             # save model
             # ----------
             if step % config['save_frequency'] == 0:
-                self.save_weights(dir_path=config['manager_dir'],
+                self.save_weights(dir_path=save_dir,
                                   num_training_steps=step)
 
         # save model
-        self.save_weights(dir_path=config['manager_dir'],
+        self.save_weights(dir_path=save_dir,
                           num_training_steps=step,
                           description='End of training step',
                           protected=True)

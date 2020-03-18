@@ -424,6 +424,10 @@ class Model(tf.Module, BaseComponent):
         if os.path.exists(training_step_dir):
             raise IOError('Training dicrectory {!r} already exists!'.format(
                 training_step_dir))
+        else:
+            os.makedirs(training_step_dir)
+            msg = 'Creating directory: {!r}'
+            self._logger.info(msg.format(training_step_dir))
 
         # check if meta data already exists
         if training_index in meta_data['training_steps']:

@@ -64,7 +64,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
         self.assertTrue('Tensors are wrong:' in str(context.exception))
 
         # pasing the correct data tensors should work
-        data_tensor_list = DataTensorList([DataTensor(name='cascade_labels',
+        data_tensor_list = DataTensorList([DataTensor(name='x_parameters',
                                                       shape=[None, 7],
                                                       tensor_type='label',
                                                       dtype='float32',
@@ -120,7 +120,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
             module.configure(**config)
 
             tensors_true = DataTensorList([DataTensor(
-                                        name='cascade_labels',
+                                        name='x_parameters',
                                         shape=[None, 7],
                                         tensor_type='label',
                                         dtype='float32',
