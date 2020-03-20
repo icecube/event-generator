@@ -150,7 +150,7 @@ data_iterator_settings: {
 
     # The test data iterator
     'test': {
-        'batch_size': 32,
+        'batch_size': 1,
         'num_splits': ,
         'file_capacity': 1,
         'batch_capacity': 3,

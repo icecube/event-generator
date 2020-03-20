@@ -148,6 +148,7 @@ class DefaultCascadeModel(Source):
 
         print('pulse_times', pulse_times)
         print('pulses_ids', pulses_ids)
+        print('parameters', parameters)
 
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(
