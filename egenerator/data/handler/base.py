@@ -241,7 +241,7 @@ class BaseDataHandler(BaseComponent):
 
             if tensor.vector_info is not None:
                 # vector tensors: todo write check for this
-                self._logger.warning('Not checking vector tensor {!r}'.format(
+                self._logger.info('Not checking vector tensor {!r}'.format(
                     tensor.name))
 
     def get_data_from_hdf(self, file, *args, **kwargs):

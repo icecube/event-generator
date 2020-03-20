@@ -405,6 +405,30 @@ class BaseModelManager(Model):
 
         return combined_loss
 
+    def get_concrete_function(self, function, input_signature,
+                              **fixed_objects):
+        """Get a concrete tensorflow function with a fixed input signature
+
+        Parameters
+        ----------
+        function : function
+            The function for which to obtain a concrete version.
+        input_signature : tf.TensorSpec or nested tf.TensorSpec
+            The input signature for tensors.
+        **fixed_objects
+            These are python objects which are held constant.
+
+        Returns
+        -------
+        tf.function
+            A concrete tensorflow function with a fixed input_signature.
+        """
+        @tf.function(input_signature=input_signature)
+        def concrete_function(data_batch):
+            return function(data_batch, **fixed_objects)
+
+        return concrete_function
+
     def train(self, config, loss_module, num_training_iterations,
               evaluation_module=None):
         """Train the model.
@@ -477,7 +501,26 @@ class BaseModelManager(Model):
         validation_dataset = iter(self.data_handler.get_tf_dataset(
             **config['data_iterator_settings']['validation']))
 
+        # -------------------------------------------------------
+        # get concrete functions for training and loss evaluation
+        # -------------------------------------------------------
+        perform_training_step = self.get_concrete_function(
+            function=self.perform_training_step,
+            input_signature=(train_dataset.element_spec,),
+            loss_module=loss_module,
+            opt_config=opt_config)
+
+        get_loss = self.get_concrete_function(
+            function=self.get_loss,
+            input_signature=(train_dataset.element_spec,),
+            loss_module=loss_module,
+            opt_config=opt_config,
+            is_training=False,
+            step=tf.convert_to_tensor(1, dtype=tf.int64))
+
+        # --------------------------------
         # start loop over training batches
+        # --------------------------------
         #   every n batches:
         #       - calculate loss on validation
         #       - run evaluation module
@@ -497,9 +540,7 @@ class BaseModelManager(Model):
             training_data_batch = next(train_dataset)
 
             # perform one training iteration
-            self.perform_training_step(data_batch=training_data_batch,
-                                       loss_module=loss_module,
-                                       opt_config=opt_config)
+            perform_training_step(data_batch=training_data_batch)
 
             # --------------------------
             # evaluate on validation set
@@ -514,24 +555,14 @@ class BaseModelManager(Model):
 
                 # compute loss on training data
                 with training_writer.as_default():
-                    loss_training = self.get_loss(data_batch=training_data_batch,
-                                                  loss_module=loss_module,
-                                                  opt_config=opt_config,
-                                                  is_training=False,
-                                                  step=tf_step,
-                                                  )
+                    loss_training = get_loss(data_batch=training_data_batch)
 
                 # get new batch of validation data
                 val_data_batch = next(train_dataset)
 
                 # compute loss on validation data
                 with validation_writer.as_default():
-                    loss_validation = self.get_loss(data_batch=val_data_batch,
-                                                    loss_module=loss_module,
-                                                    opt_config=opt_config,
-                                                    is_training=False,
-                                                    step=tf_step,
-                                                    )
+                    loss_validation = get_loss(data_batch=val_data_batch)
 
                 # write to file
                 training_writer.flush()
