@@ -18,8 +18,8 @@ class DefaultLossModule(BaseComponent):
 
     @property
     def loss_function(self):
-        if self.untracked_data is not None and \
-                'loss_function' in self.untracked_data:
+        if (self.untracked_data is not None and
+                'loss_function' in self.untracked_data):
             return self.untracked_data['loss_function']
         else:
             return None
@@ -83,8 +83,8 @@ class DefaultLossModule(BaseComponent):
         """
 
         # choose loss function
-        self.untracked_data['loss_function'] = \
-            getattr(self, config['loss_function_name'])
+        self.untracked_data['loss_function'] = getattr(
+                                        self, config['loss_function_name'])
 
         # create configuration object
         configuration = Configuration(

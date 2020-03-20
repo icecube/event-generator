@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
+import numpy as np
 
 from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
@@ -52,7 +53,7 @@ class DefaultCascadeModel(Source):
         parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
                            'energy', 'time']
         num_features = 7
-        num_inputs = num_features + 11
+        num_inputs = 11
 
         if config['add_opening_angle']:
             num_inputs += 1
@@ -136,7 +137,7 @@ class DefaultCascadeModel(Source):
 
         tensor_dict = {}
 
-        config = self.configuration.config
+        config = self.configuration.config['config']
         parameters = data_batch_dict['x_parameters']
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
@@ -145,9 +146,12 @@ class DefaultCascadeModel(Source):
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
 
+        print('pulse_times', pulse_times)
+        print('pulses_ids', pulses_ids)
+
         # get transformed parameters
-        parameters_trafo = self.trafo.transform(parameters,
-                                                tensor_name='x_parameters')
+        parameters_trafo = self.data_trafo.transform(
+                                        parameters, tensor_name='x_parameters')
 
         num_features = parameters.get_shape().as_list()[-1]
 
@@ -257,11 +261,6 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         # Get expected charge at DOM
         # -------------------------------------------
-
-        # check if correct trafo model is used (no log on bins)
-        if np.any(self.data_trafo.tensors['x_dom_charge']['trafo_log']):
-            raise ValueError('Expecting dom charges not to be logarithmic!')
-
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
 
@@ -334,10 +333,10 @@ class DefaultCascadeModel(Source):
         tensor_dict['latent_var_scale'] = latent_scale
 
         # get latent vars for each pulse
-        pulse_latent_mu = tf.gather_nd(latent_mu, pulse_ids)
-        pulse_latent_sigma = tf.gather_nd(latent_sigma, pulse_ids)
-        pulse_latent_r = tf.gather_nd(latent_r, pulse_ids)
-        pulse_latent_scale = tf.gather_nd(latent_scale, pulse_ids)
+        pulse_latent_mu = tf.gather_nd(latent_mu, pulses_ids)
+        pulse_latent_sigma = tf.gather_nd(latent_sigma, pulses_ids)
+        pulse_latent_r = tf.gather_nd(latent_r, pulses_ids)
+        pulse_latent_scale = tf.gather_nd(latent_scale, pulses_ids)
 
         # ensure shapes
         pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])

@@ -170,8 +170,8 @@ class DataTransformer(BaseComponent):
                 # matches. This is only a simple hash (mean of tensor values)
                 # and does not guarantee that two models are identical
                 for suffix in ['_std', '_mean']:
-                    check_values[tensor.name + suffix] = \
-                        float(np.mean(data[tensor.name + suffix]))
+                    check_values[tensor.name + suffix] = float(
+                                        np.mean(data[tensor.name + suffix]))
 
         # create an identifer for the trafo model
         now = datetime.now()
@@ -259,8 +259,8 @@ class DataTransformer(BaseComponent):
             else:
                 for bin_i, log_bin in enumerate(trafo_log):
                     if log_bin:
-                        data_batch[..., bin_i] = \
-                            np.log(1.0 + data_batch[..., bin_i])
+                        data_batch[..., bin_i] = np.log(
+                                                1.0 + data_batch[..., bin_i])
 
         # calculate onlince variance and mean for DOM responses
         return self._update_online_variance_vars(data_batch=data_batch, n=n,
@@ -352,8 +352,8 @@ class DataTransformer(BaseComponent):
         type(data)
             The transformed data.
         """
-        data, log_func, exp_func, is_tf, dtype, tensor = \
-            self._check_settings(data, tensor_name)
+        data, log_func, exp_func, is_tf, dtype, tensor = self._check_settings(
+                                                            data, tensor_name)
 
         # perform logarithm on bins
         if bias_correction and tensor.trafo_log is not None:
@@ -417,8 +417,8 @@ class DataTransformer(BaseComponent):
             Returns the inverse transformed DOM respones and
             cascade_parameters.
         """
-        data, log_func, exp_func, is_tf, dtype, tensor = \
-            self._check_settings(data, tensor_name)
+        data, log_func, exp_func, is_tf, dtype, tensor = self._check_settings(
+                                                            data, tensor_name)
 
         # de-normalize data
         data *= (self.data['norm_constant'] +
@@ -444,8 +444,8 @@ class DataTransformer(BaseComponent):
                     data_list = tf.unstack(data, axis=-1)
                     for bin_i, do_log in enumerate(tensor.trafo_log):
                         if do_log:
-                            data_list[bin_i] = \
-                                tf.clip_by_value(data_list[bin_i], -60., 60.)
+                            data_list[bin_i] = tf.clip_by_value(
+                                                data_list[bin_i], -60., 60.)
                             data_list[bin_i] = exp_func(data_list[bin_i]) - 1.0
                     data = tf.stack(data_list, axis=-1)
                 else:
