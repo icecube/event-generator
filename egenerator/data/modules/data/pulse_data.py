@@ -112,21 +112,31 @@ class PulseDataModule(BaseComponent):
         x_pulses = DataTensor(name='x_pulses',
                               shape=[None, 2],
                               tensor_type='data',
+                              vector_info={'type': 'value',
+                                           'reference': 'x_pulses_ids'},
                               dtype=float_precision)
         x_pulses_ids = DataTensor(name='x_pulses_ids',
                                   shape=[None, 3],
                                   tensor_type='data',
+                                  vector_info={'type': 'index',
+                                               'reference': 'x_pulses'},
                                   dtype='int32')
-        x_time_exclusions = DataTensor(name='x_time_exclusions',
-                                       shape=[None, 2],
-                                       tensor_type='data',
-                                       dtype=float_precision,
-                                       exists=time_exclusions_exist)
-        x_time_exclusions_ids = DataTensor(name='x_time_exclusions_ids',
-                                           shape=[None, 3],
-                                           tensor_type='data',
-                                           dtype='int32',
-                                           exists=time_exclusions_exist)
+        x_time_exclusions = DataTensor(
+                            name='x_time_exclusions',
+                            shape=[None, 2],
+                            tensor_type='data',
+                            vector_info={'type': 'value',
+                                         'reference': 'x_time_exclusions_ids'},
+                            dtype=float_precision,
+                            exists=time_exclusions_exist)
+        x_time_exclusions_ids = DataTensor(
+                            name='x_time_exclusions_ids',
+                            shape=[None, 3],
+                            tensor_type='data',
+                            vector_info={'type': 'index',
+                                         'reference': 'x_time_exclusions'},
+                            dtype='int32',
+                            exists=time_exclusions_exist)
 
         data = {}
         data['data_tensors'] = DataTensorList([

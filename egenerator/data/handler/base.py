@@ -718,7 +718,7 @@ class BaseDataHandler(BaseComponent):
                         values = data_batch[value_index]
                         indices = data_batch[i]
 
-                        if values or indices is None:
+                        if values is None or indices is None:
                             assert values == indices, '{!r} != {!r}'.format(
                                 values, indices)
                             event_list[value_index].append(None)
