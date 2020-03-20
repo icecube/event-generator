@@ -10,9 +10,9 @@
 unique_name: 'single_cascade'
 
 
-#-----------------------
+#------------------
 # Training settings
-#-----------------------
+#------------------
 training_settings: {
     'optimizer_name': 'Adam',
     'optimizer_settings': {
@@ -29,6 +29,16 @@ training_settings: {
 
     # Number of training iterations to train the model for
     'num_training_iterations': 1000000,
+}
+
+#----------------.-------
+# Reconstruction settings
+#------------------------
+reconstruction_settings: {
+    'scipy_optimizer_settings': {
+        'method': 'L-BFGS-B',
+    },
+    'output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
 }
 
 #-----------------------

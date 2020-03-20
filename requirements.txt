@@ -1,4 +1,5 @@
 numpy
+scipy
 ruamel.yaml
 pandas
 click

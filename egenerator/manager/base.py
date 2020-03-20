@@ -571,7 +571,8 @@ class BaseModelManager(Model):
                 # print out loss to console
                 msg = 'Step: {:08d}, Runtime: {:2.2f}s, Time/Step: {:3.3f}s'
                 print(msg.format(step, validation_time - start_time,
-                                 time_diff / opt_config['validation_frequency']))
+                                 time_diff /
+                                 opt_config['validation_frequency']))
                 print('\t[Train]      {:3.3f}'.format(loss_training))
                 print('\t[Validation] {:3.3f}'.format(loss_validation))
 
@@ -608,3 +609,140 @@ class BaseModelManager(Model):
                           num_training_steps=step,
                           description='End of training step',
                           protected=True)
+
+    def get_loss_and_gradients_function(self, data_batch, loss_module):
+        """Get a function that returns the loss and gradients wrt parameters.
+
+        Parameters
+        ----------
+        data_batch : tuple of tf.Tensor
+            A tuple of tensors. This is the batch received from the tf.Dataset.
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+
+        Returns
+        -------
+        tf.function
+            A tensorflow function: f(parameters) -> loss, gradient
+            that returns the loss and the gradients of the loss with
+            respect to the model parameters.
+        """
+        data_batch_dict = {}
+        for i, name in enumerate(self.data_handler.tensors.names):
+            data_batch_dict[name] = data_batch[i]
+
+        @tf.function()
+        def loss_and_gradients_function(parameters):
+            data_batch_dict['x_parameters'] = parameters
+
+            with tf.GradientTape() as tape:
+                tape.watch(parameters)
+
+                result_tensors = self.model.get_tensors(data_batch_dict,
+                                                        is_training=False)
+
+                loss = loss_module.get_loss(data_batch_dict,
+                                            result_tensors,
+                                            self.data_handler.tensors)
+            grad = tape.gradient(loss, parameters)
+            return loss, grad
+
+        return loss_and_gradients_function
+
+    def reconstruct_events(self, data_batch, loss_module,
+                           seed='x_parameters', jac=True, method='L-BFGS-B',
+                           **kwargs):
+        """Reconstruct events.
+
+        Parameters
+        ----------
+        data_batch : tuple of tf.Tensor
+            A tuple of tensors. This is the batch received from the tf.Dataset.
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        seed : str, optional
+            Name of seed tensor
+        jac : bool, optional
+            Passed on to scipy.optimize.minimize
+        method : str, optional
+            Passed on to scipy.optimize.minimize
+        **kwargs
+            Keyword arguments that will be passed on to scipy.optimize.minimize
+
+        Returns
+        -------
+        scipy.optimize.minimize results
+            The results of the minimization
+        """
+        from scipy import optimize
+
+        # get loss and gradients function
+        loss_and_gradients_function = self.get_loss_and_gradients_function(
+                                                    data_batch, loss_module)
+
+        # define helper function
+        def func(x):
+            return [vv.numpy().astype(np.float64) for vv in
+                    loss_and_gradients_function(tf.convert_to_tensor(
+                                                    x, dtype=parameter_dtype))]
+
+        # get seed parameters
+        x0 = data_batch[self.data_handler.tensors.get_index(seed)]
+        result = optimize.minimize(fun=func, x0=x0, jac=jac, method=method,
+                                   **kwargs)
+        return result
+
+    def reconstruct_testdata(self, config, loss_module):
+        """Reconstruct test data events.
+
+        Parameters
+        ----------
+        config: dict
+            A config describing all of the settings for the training script.
+            Amongst others, this config must contain:
+
+            train_iterator_settings : dict
+                The settings for the training data iterator that will be
+                created from the data handler.
+            validation_iterator_settings : dict
+                The settings for the validation data iterator that will be
+                created from the data handler.
+            training_settings : dict
+                Optimization configuration with settings for the optimizer
+                and regularization.
+
+        loss_module : LossComponent
+            A loss component that defines the loss function. The loss component
+            must provide the method
+                loss_module.get_loss(data_batch_dict, result_tensors)
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
+
+        self.assert_configured(True)
+
+        # create optimizer from config
+        reco_config = config['reconstruction_settings']
+
+        test_dataset = iter(self.data_handler.get_tf_dataset(
+            **config['data_iterator_settings']['test']))
+
+        parameter_dtype = getattr(
+            tf, self.data_handler.tensors['x_parameters'].dtype)
+
+        for data_batch in test_dataset:
+
+            result = self.reconstruct_events(
+                data_batch, loss_module,
+                **reco_config['scipy_optimizer_settings'])
+
+            print("info:\n", result)
