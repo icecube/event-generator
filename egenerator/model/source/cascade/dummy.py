@@ -49,7 +49,7 @@ class DummyCascadeModel(Source):
 
         return parameter_names
 
-    def get_tensors(self, data_batch_dict):
+    def get_tensors(self, data_batch_dict, is_training):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -59,7 +59,7 @@ class DummyCascadeModel(Source):
 
         Parameters
         ----------
-        data_batch_dict: dict of tf.Tensor
+        data_batch_dict : dict of tf.Tensor
             parameters : tf.Tensor
                 A tensor which describes the input parameters of the source.
                 This fully defines the source hypothesis. The tensor is of
@@ -72,11 +72,11 @@ class DummyCascadeModel(Source):
                 The pulse indices (batch_index, string, dom) of all pulses in
                 the batch of events.
                 Shape: [-1, 3]
-
-        Raises
-        ------
-        NotImplementedError
-            Description
+        is_training : bool, optional
+            Indicates whether currently in training or inference mode.
+            Must be provided if batch normalisation is used.
+            True: in training mode
+            False: inference mode.
 
         Returns
         -------

@@ -38,7 +38,7 @@ class Source(Model):
         builds architecture and creates all model weights
         returns parameter_names
 
-    get_tensors(self, data_batch_dict):
+    get_tensors(self, data_batch_dict, is_training):
         The data_batch_dict is a dictionary of named inputs. This dictionary
         must contain at least the following keys:
             parameters, pulses, pulses_ids
@@ -290,7 +290,7 @@ class Source(Model):
         self.assert_configured(False)
         raise NotImplementedError()
 
-    def get_tensors(self, data_batch_dict):
+    def get_tensors(self, data_batch_dict, is_training):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -313,6 +313,11 @@ class Source(Model):
                 The pulse indices (batch_index, string, dom) of all pulses in
                 the batch of events.
                 Shape: [-1, 3]
+        is_training : bool, optional
+            Indicates whether currently in training or inference mode.
+            Must be provided if batch normalisation is used.
+            True: in training mode
+            False: inference mode.
 
         Raises
         ------

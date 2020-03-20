@@ -301,7 +301,8 @@ class BaseModelManager(Model):
         return reg_loss
 
     @tf.function
-    def get_loss(self, data_batch, loss_module, opt_config, step=None):
+    def get_loss(self, data_batch, loss_module, opt_config, is_training,
+                 step=None):
         """Get the scalar loss for a batch of data and a given loss component.
 
         Parameters
@@ -315,6 +316,11 @@ class BaseModelManager(Model):
             method.
         opt_config : config
             The optimization config defining the settings.
+        is_training : bool, optional
+            Indicates whether currently in training or inference mode.
+            Must be provided if batch normalisation is used.
+            True: in training mode
+            False: inference mode.
         step : int, optional
             The current training step.
 
@@ -327,7 +333,8 @@ class BaseModelManager(Model):
         for i, name in enumerate(self.data_handler.tensors.names):
             data_batch_dict[name] = data_batch[i]
 
-        result_tensors = self.model.get_tensors(data_batch_dict)
+        result_tensors = self.model.get_tensors(data_batch_dict,
+                                                is_training=is_training)
 
         loss_value = loss_module.get_loss(data_batch_dict, result_tensors,
                                           self.data_handler.tensors)
@@ -369,7 +376,8 @@ class BaseModelManager(Model):
             The scalar loss.
         """
         with tf.GradientTape() as tape:
-            combined_loss = self.get_loss(data_batch, loss_module, opt_config)
+            combined_loss = self.get_loss(data_batch, loss_module, opt_config,
+                                          is_training=True)
 
         variables = self.model.trainable_variables
         gradients = tape.gradient(combined_loss, variables)
@@ -509,6 +517,7 @@ class BaseModelManager(Model):
                     loss_training = self.get_loss(data_batch=training_data_batch,
                                                   loss_module=loss_module,
                                                   opt_config=opt_config,
+                                                  is_training=False,
                                                   step=tf_step,
                                                   )
 
@@ -520,6 +529,7 @@ class BaseModelManager(Model):
                     loss_validation = self.get_loss(data_batch=val_data_batch,
                                                     loss_module=loss_module,
                                                     opt_config=opt_config,
+                                                    is_training=False,
                                                     step=tf_step,
                                                     )
 

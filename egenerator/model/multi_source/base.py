@@ -238,7 +238,7 @@ class MultiSource(Source):
 
         return configuration, {}, sub_components
 
-    def get_tensors(self, data_batch_dict):
+    def get_tensors(self, data_batch_dict, is_training):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -261,6 +261,11 @@ class MultiSource(Source):
                 The pulse indices (batch_index, string, dom) of all pulses in
                 the batch of events.
                 Shape: [-1, 3]
+        is_training : bool, optional
+            Indicates whether currently in training or inference mode.
+            Must be provided if batch normalisation is used.
+            True: in training mode
+            False: inference mode.
 
         Raises
         ------
@@ -307,7 +312,8 @@ class MultiSource(Source):
                 'x_pulses': pulses,
                 'x_pulses_ids': parameters_i,
             }
-            result_tensors_i = sub_component.get_tensors(data_batch_dict_i)
+            result_tensors_i = sub_component.get_tensors(
+                                    data_batch_dict_i, is_training=is_training)
             dom_charges_i = result_tensors_i['dom_charges']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 

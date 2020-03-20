@@ -206,8 +206,8 @@ class DefaultCascadeModel(Source):
         norm_const = self.data_trafo.data['norm_constant']
 
         distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
-        opening_angle_traf = (opening_angle - params_mean[3]) / \
-            (norm_const + params_std[3])
+        opening_angle_traf = ((opening_angle - params_mean[3]) /
+                              (norm_const + params_std[3]))
         print('opening_angle_traf', opening_angle_traf)
 
         x_parameters_expanded = tf.unstack(tf.reshape(
