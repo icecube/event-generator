@@ -286,7 +286,24 @@ model_settings: {
     'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
     config: {
+        'keep_prob':,
+        'add_opening_angle': True,
+        'num_local_vars': 0,
+        'scale_charge': True,
+        'num_latent_models': 5,
 
+        # First convolutions
+        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                                    ]
+        'num_filters_list' : [20, 500, 500, 500, 21],
+        'method_list' : ['locally_connected',
+                         'convolution', 'convolution', 'convolution',
+                         'convolution',
+                         ],
+        'use_dropout_list' : False,
+        'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
+        'use_batch_norm_list' : False,
+        'use_residual_list' : True,
     },
 }
 

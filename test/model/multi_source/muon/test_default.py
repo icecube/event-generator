@@ -16,7 +16,7 @@ from egenerator.data.trafo import DataTransformer
 from egenerator.manager.component import Configuration, BaseComponent
 from egenerator.model.multi_source.base import MultiSource
 from egenerator.model.multi_source.muon.default import DefaultMultiCascadeModel
-from egenerator.model.source.cascade.default import DefaultCascadeModel
+from egenerator.model.source.cascade.dummy import DummyCascadeModel
 
 
 class DummyDataTrafo(BaseComponent):
@@ -77,7 +77,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
         return model
 
     def get_cascade_source(self, **kwargs):
-        model = DefaultCascadeModel()
+        model = DummyCascadeModel()
         model.configure(**kwargs)
         return model
 

@@ -182,7 +182,6 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_pulses]
         pulse_charges = data_batch_dict['x_pulses'][:, 0]
-        pulse_charges = result_tensors['pulse_pdf']
         pulse_pdf_values = result_tensors['pulse_pdf']
 
         # shape: [n_batch, 86, 60, 1]

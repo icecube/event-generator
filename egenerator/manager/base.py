@@ -456,7 +456,8 @@ class BaseModelManager(Model):
         self.save(dir_path=save_dir,
                   description='Starting Training',
                   new_training_settings=new_training_settings,
-                  num_training_steps=None)
+                  num_training_steps=None,
+                  overwrite=True)
 
         # create writers
         training_writer = tf.summary.create_file_writer(train_log_dir)
