@@ -599,7 +599,7 @@ class BaseModelManager(Model):
             # ----------
             # save model
             # ----------
-            if step % opt_config['save_frequency'] == 0:
+            if step % opt_config['save_frequency'] == 0 and step != 0:
                 self.save_weights(dir_path=save_dir,
                                   num_training_steps=step)
 
