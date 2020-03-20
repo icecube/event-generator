@@ -438,7 +438,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
     def test_method_get_tensors_not_configured_error(self):
         source = MultiSource()
         with self.assertRaises(ValueError) as context:
-            source.get_tensors(None)
+            source.get_tensors(None, True)
         self.assertTrue('Model needs to be set up first!'
                         in str(context.exception))
 
@@ -458,7 +458,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
             'x_pulses': tf.ones([7, 2]),
             'x_pulses_ids': tf.zeros([7, 3], dtype=tf.int32),
         }
-        result_tensors = self.source.get_tensors(data_batch_dict)
+        result_tensors = self.source.get_tensors(data_batch_dict, True)
         self.assertTrue(result_tensors['dom_charges'].shape == [1, 86, 60, 1])
         self.assertTrue(result_tensors['pulse_pdf'].shape == [7])
 

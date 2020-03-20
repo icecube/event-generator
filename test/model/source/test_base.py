@@ -475,13 +475,13 @@ class TestSourceBase(unittest.TestCase):
     def test_method_get_tensors_not_implemented_error(self):
         source = Source()
         with self.assertRaises(ValueError) as context:
-            source.get_tensors(None)
+            source.get_tensors(None, True)
         self.assertTrue('Model needs to be set up first!'
                         in str(context.exception))
 
         with self.assertRaises(NotImplementedError) as context:
             source._is_configured = True
-            source.get_tensors(None)
+            source.get_tensors(None, True)
 
     def test_parameter_indexing(self):
         tensor = tf.constant(self.parameter_names)
