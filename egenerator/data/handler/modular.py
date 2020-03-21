@@ -181,6 +181,10 @@ class ModuleDataHandler(BaseDataHandler):
                     The mutable settings of the component.
                 check_values: dict, default={}
                     Additional check values.
+                mutable_sub_components: list, default=[]
+                    A list of mutable sub components.
+                    Warning: use this with caution as these sub components
+                             will not be checked for compatibility!
 
         dict
             The data of the component.
@@ -216,7 +220,9 @@ class ModuleDataHandler(BaseDataHandler):
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings={},
-            mutable_settings={'config': config})
+            mutable_settings={'config': config},
+            mutable_sub_components=['weight_module', 'misc_module',
+                                    'filter_module'])
 
         # add sub component configurations to this configuration
         configuration.add_sub_components(sub_components)

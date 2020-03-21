@@ -49,6 +49,21 @@ class Configuration(object):
             The name of the component class. This is necessar in order to
             load the component from file.
 
+    as well as:
+
+        - dependent_sub_components : list, optional
+            A list of dependent sub component names. These are a subset of
+            the defined sub components in the sub_component_configurations.
+            A dependent sub component is a sub component that must also be
+            saved and loaded when the component is being saved or loaded.
+
+        - mutable_sub_components : list, optional
+            A list of mutable sub component names. These are a subset of
+            the defined sub components in the sub_component_configurations.
+            A mutable sub component is a sub component that may change
+            completely. When checking compatibility of a Configuration,
+            mutable sub components are *not* checked for compatibility.
+
     The settings and mutable_settings completely define the settings needed
     to configure a component. The attribute check_values is used to apply
     additional checks for compatibility.
@@ -81,6 +96,10 @@ class Configuration(object):
         return self._dict['dependent_sub_components']
 
     @property
+    def mutable_sub_components(self):
+        return self._dict['mutable_sub_components']
+
+    @property
     def dict(self):
         return dict(deepcopy(self._dict))
 
@@ -97,6 +116,7 @@ class Configuration(object):
 
     def __init__(self, class_string, settings, mutable_settings={},
                  check_values={}, dependent_sub_components=[],
+                 mutable_sub_components=[],
                  sub_component_configurations={},
                  event_generator_version=egenerator.__version__,
                  event_generator_git_short_sha=None,
@@ -128,6 +148,12 @@ class Configuration(object):
             the defined sub components in the sub_component_configurations.
             A dependent sub component is a sub component that must also be
             saved and loaded when the component is being saved or loaded.
+        mutable_sub_components : list, optional
+            A list of mutable sub component names. These are a subset of
+            the defined sub components in the sub_component_configurations.
+            A mutable sub component is a sub component that may change
+            completely. When checking compatibility of a Configuration,
+            mutable sub components are *not* checked for compatibility.
         sub_component_configurations : dict, optional
             A dictionary of sub component configurations.
             Additional sub components may be added after instatiation via
@@ -171,10 +197,13 @@ class Configuration(object):
                 dict(deepcopy(sub_component_configurations)),
             'dependent_sub_components':
                 list(deepcopy(dependent_sub_components)),
+            'mutable_sub_components':
+                list(deepcopy(mutable_sub_components)),
         }
 
         # make sure defined dependen sub components exist in the configuration
         self._check_dependent_names(self.dependent_sub_components)
+        self._check_dependent_names(self.mutable_sub_components)
         self._config = self._combine_settings()
 
     def _check_dependent_names(self, dependent_sub_components):
@@ -300,7 +329,11 @@ class Configuration(object):
 
             if not this_sub_configuration.is_compatible(
                     other_sub_configuration):
-                return False
+
+                # only now check if module is mutable in order to
+                # log warnings of modified settings
+                if name not in self.mutable_sub_components:
+                    return False
 
         # provide information on mutable settings that changed
         # Note: this can be done more efficiently
@@ -683,6 +716,10 @@ class BaseComponent(object):
                     The mutable settings of the component.
                 check_values: dict, default={}
                     Additional check values.
+                mutable_sub_components: list, default=[]
+                    A list of mutable sub components.
+                    Warning: use this with caution as these sub components
+                             will not be checked for compatibility!
         dict
             The data of the component.
             Return None if the component has no data.
@@ -907,9 +944,10 @@ class BaseComponent(object):
                     raise ValueError(msg.format(name))
 
                 # check if compatible
-                if not sub_component.is_compatible(modified_sub_component):
-                    msg = 'Subcomponent {!r} is not compatible.'
-                    raise ValueError(msg.format(name))
+                if name not in self.configuration.mutable_sub_components:
+                    if not sub_component.is_compatible(modified_sub_component):
+                        msg = 'Subcomponent {!r} is not compatible.'
+                        raise ValueError(msg.format(name))
 
                 # replace sub component and its configuration
                 self._sub_components[name] = modified_sub_component
