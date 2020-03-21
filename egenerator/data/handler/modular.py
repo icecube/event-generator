@@ -211,14 +211,64 @@ class ModuleDataHandler(BaseDataHandler):
             data['weight_tensors'].list + data['misc_tensors'].list)
 
         # define configuration
+        # set config to mutable_settings:
+        #   sub components are checked recursively and may specify non-mutable
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings={'config': config})
+            settings={},
+            mutable_settings={'config': config})
 
         # add sub component configurations to this configuration
         configuration.add_sub_components(sub_components)
 
         return configuration, data, sub_components
+
+    def _update_sub_component(self, name):
+        """Update settings which are based on the modified sub component.
+
+        During loading of a component, sub components may be changed with a
+        new and modified (but compatible) version. This allows the alteration
+        of mutable settings.
+        Some settings or data of a component may depend on mutable settings
+        of a sub component. If these are not saved and retrieved directly from
+        the sub component, they will not be automatically updated.
+        This method is triggered when a sub component with the name 'name'
+        is updated. It allows to update settings and data that depend on the
+        modified sub component.
+
+        Enforcing a derived class to implement this method (even if it is a
+        simple 'pass' in the case of no dependent settings and data)
+        will ensure that the user is aware of the issue.
+
+        A good starting point to obtain an overview of which settings may need
+        to be modified, is to check the _configure method. Any settings and
+        data set there might need to be updated.
+
+        Parameters
+        ----------
+        name : str
+            The name of the sub component that was modified.
+        """
+
+        # check if the updated component is allowed to be updated
+        if name not in ['data_module', 'label_module', 'weight_module',
+                        'misc_module', 'filter_module']:
+            msg = 'Can not update {!r} since it does not exist'
+            raise ValueError(msg.format(name))
+
+        # update data
+        self._data.update(sub_components[name].data)
+
+        # update mutable settings
+        self.config[name.replace('module', 'settings')] = \
+            self.sub_components[name].configuration.config
+
+        # update tensors list
+        self._data['tensors'] = DataTensorList(
+            self._data['data_tensors'].list +
+            self._data['label_tensors'].list +
+            self._data['weight_tensors'].list +
+            self._data['misc_tensors'].list)
 
     def _get_data_from_hdf(self, file, *args, **kwargs):
         """Get data from hdf file.

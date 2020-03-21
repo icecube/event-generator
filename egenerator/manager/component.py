@@ -244,6 +244,30 @@ class Configuration(object):
             self.sub_component_configurations[name] = \
                 component.configuration.dict
 
+    def replace_sub_components(self, new_sub_components):
+        """Replace sub components with new sub components.
+
+        Parameters
+        ----------
+        new_sub_components : dict of BaseComponent objects
+            A dict of sub components for which to save the configurations.
+            The dict key is the name of the sub component and the value is
+            the sub component itself.
+        """
+        for name, component in sub_components.items():
+            if not issubclass(type(component), BaseComponent):
+                raise TypeError('Incorrect type: {!r}'.format(type(component)))
+            if name not in self.sub_component_configurations:
+                msg = 'Sub component {!r} cannot be replaced because it '
+                msg += 'does not exists!'
+                raise KeyError(msg.format(name))
+            if not component.is_configured:
+                raise ValueError('Component {!r} is not configured!'.format(
+                                                                        name))
+            # replace sub component's configuration
+            self.sub_component_configurations[name] = \
+                component.configuration.dict
+
     def is_compatible(self, other):
         """Check compatibility between two configuration objects.
 
@@ -392,7 +416,7 @@ class BaseComponent(object):
         Returns
         -------
         dict
-            A dictionary with dependent sub components..
+            A dictionary with dependent sub components.
         """
         return self._sub_components
 
@@ -519,7 +543,7 @@ class BaseComponent(object):
 
         # Get the dictionary format of the passed Configuration object
         if isinstance(kwargs, Configuration):
-            kwargs = kwargs.dict
+            kwargs = kwargs.config
 
         # check if it already has attributes other than the allowed ones
         # This indicates an incorrect usage of the BaseComponent class.
@@ -771,7 +795,7 @@ class BaseComponent(object):
         # call additional tasks of derived class via virtual method
         self._save(dir_path, **kwargs)
 
-    def load(self, dir_path, **kwargs):
+    def load(self, dir_path, modified_sub_components={}, **kwargs):
         """Load component from file.
 
         Parameters
@@ -779,6 +803,18 @@ class BaseComponent(object):
         dir_path : str
             The path to the input directory from which the component will be
             loaded.
+        modified_sub_components : dict of Components (and nested), optional
+            A dictionary of modified sub components with key-value pairs of the
+            structure: (subcomponent_name: subcomponent).
+            The modified_sub_components may also be a nested dictionary of
+            sub components. In this case, the nested dictionary is passed
+            on to the load method of the sub component.
+            If modifided sub components are provided, these will be used
+            instead of loading the previously saved subcomponent.
+            A check for compatibility of the old and new subcomponent is
+            performed. If sub components are compatible, the component's
+            configuration.sub_component_configurations will be updated for the
+            modified subcomponent.
         **kwargs
             Additional keyword arguments that will be passed on to the
             virtual _load() method, that derived classes my overwrite.
@@ -839,19 +875,89 @@ class BaseComponent(object):
 
         # walk through dependent sub components and load these as well
         for name in self.configuration.dependent_sub_components:
+
+            # check if there is a nested modified_sub_components dictionary
+            update_required = False
+            if (name in modified_sub_components and
+                    isinstance(modified_sub_components[name], dict)):
+                nested_dict = modified_sub_components.pop(name)
+                update_required = True
+            else:
+                nested_dict = {}
+
             sub_configuration = \
                 self.configuration.sub_component_configurations[name]
             sub_component_dir_path = os.path.join(dir_path, name)
 
             sub_class = misc.load_class(sub_configuration['class_string'])
             sub_component = sub_class()
-            sub_component.load(sub_component_dir_path, **kwargs)
+            sub_component.load(sub_component_dir_path,
+                               modified_sub_components=nested_dict,
+                               **kwargs)
             self._sub_components[name] = sub_component
+
+            # check if this sub component is to be replaced with a new
+            # (and compatible) version
+            if name in modified_sub_components:
+                modified_sub_component = modified_sub_components.pop(name)
+
+                # check if configured
+                if not modified_sub_component.is_configured:
+                    msg = 'Subcomponent {!r} is not configured.'
+                    raise ValueError(msg.format(name))
+
+                # check if compatible
+                if not sub_component.is_compatible(modified_sub_component):
+                    msg = 'Subcomponent {!r} is not compatible.'
+                    raise ValueError(msg.format(name))
+
+                # replace sub component and its configuration
+                self._sub_components[name] = modified_sub_component
+                self.configuration.replace_sub_components(
+                    {name: modified_sub_component})
+                update_required = True
+
+            if update_required:
+                # update component such that settings which are dependent on
+                # the modified sub component may be updated
+                self._update_sub_component(name)
+
+        if modified_sub_components != {}:
+            msg = 'The following modified sub components were unused: {!r}'
+            raise ValueError(msg.format(modified_sub_components.keys()))
 
         # call additional tasks of derived class via virtual method
         self._load(dir_path, **kwargs)
 
         self._is_configured = True
+
+    def _update_sub_component(self, name):
+        """Update settings which are based on the modified sub component.
+
+        During loading of a component, sub components may be changed with a
+        new and modified (but compatible) version. This allows the alteration
+        of mutable settings.
+        Some settings or data of a component may depend on mutable settings
+        of a sub component. If these are not saved and retrieved directly from
+        the sub component, they will not be automatically updated.
+        This method is triggered when a sub component with the name 'name'
+        is updated. It allows to update settings and data that depend on the
+        modified sub component.
+
+        Enforcing a derived class to implement this method (even if it is a
+        simple 'pass' in the case of no dependent settings and data)
+        will ensure that the user is aware of the issue.
+
+        A good starting point to obtain an overview of which settings may need
+        to be modified, is to check the _configure method. Any settings and
+        data set there might need to be updated.
+
+        Parameters
+        ----------
+        name : str
+            The name of the sub component that was modified.
+        """
+        raise NotImplementedError()
 
     def _save(self, dir_path, **kwargs):
         """Virtual method for additional save tasks by derived class
