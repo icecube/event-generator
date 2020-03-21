@@ -64,7 +64,7 @@ def main(config_files):
                                  loss_module=loss_module)
 
     # kill multiprocessing queues and workers
-    data_handler.kill()
+    manager.data_handler.kill()
 
 
 if __name__ == '__main__':

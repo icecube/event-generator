@@ -35,10 +35,11 @@ training_settings: {
 # Reconstruction settings
 #------------------------
 reconstruction_settings: {
+    'seed': 'x_parameters',
     'scipy_optimizer_settings': {
         'method': 'L-BFGS-B',
     },
-    'output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
+    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
 }
 
 #-----------------------

@@ -2,6 +2,7 @@ from __future__ import division, print_function
 import os
 import logging
 import tensorflow as tf
+import numpy as np
 import ruamel.yaml as yaml
 import glob
 from datetime import datetime
@@ -44,6 +45,10 @@ class Model(tf.Module, BaseComponent):
             return self.untracked_data['step']
         else:
             return None
+
+    @property
+    def num_variables(self):
+        return self._count_number_of_variables()
 
     def __init__(self, name=None, logger=None):
         """Initializes Model object.
@@ -122,6 +127,12 @@ class Model(tf.Module, BaseComponent):
         self._untracked_data['variables'] = \
             tuple(self._untracked_data['variables'])
 
+        num_vars, num_total_vars = self._count_number_of_variables()
+        msg = '\nNumber of Model Variables:\n'
+        msg = '\tFree: {}\n'
+        msg += '\tTotal: {}'
+        self._logger.info(msg.format(num_vars, num_total_vars))
+
         return configuration, component_data, sub_components
 
     def _configure_derived_class(self, **kwargs):
@@ -170,6 +181,23 @@ class Model(tf.Module, BaseComponent):
             Return None if no dependent sub components exist.
         """
         raise NotImplementedError()
+
+    def _count_number_of_variables(self):
+        """Counts number of model variables
+
+        Returns
+        -------
+        int
+            The number of trainable variables of the model.
+        int
+            The total number of variables of the model.
+            This includes the non-trainable ones.
+        """
+        num_trainable = np.sum([np.prod(x.get_shape().as_list())
+                                for x in self.trainable_variables])
+        num_total = np.sum([np.prod(x.get_shape().as_list())
+                            for x in self.variables])
+        return num_trainable, num_total
 
     def assert_configured(self, configuration_state):
         """Checks the model's configuration state.

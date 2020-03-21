@@ -736,14 +736,28 @@ class BaseModelManager(Model):
 
         self.assert_configured(True)
 
-        # create optimizer from config
+        # print out number of model variables
+        num_vars, num_total_vars = self.model.num_vars
+        msg = '\nNumber of Model Variables:\n'
+        msg = '\tFree: {}\n'
+        msg += '\tTotal: {}'
+        print(msg.format(num_vars, num_total_vars))
+
+        # get reconstruction config
         reco_config = config['reconstruction_settings']
+
+        # create directory if needed
+        directory = os.path.dirname(reco_config['reco_output_file'])
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            self._logger.info('Creating directory: {!r}'.format(directory))
 
         test_dataset = iter(self.data_handler.get_tf_dataset(
             **config['data_iterator_settings']['test']))
 
         # parameter input signature
         param_index = self.data_handler.tensors.get_index('x_parameters')
+        seed_index = self.data_handler.tensors.get_index(reco_config['seed'])
         param_signature = test_dataset.element_spec[param_index]
 
         # --------------------------------------------------
@@ -759,15 +773,29 @@ class BaseModelManager(Model):
             input_signature=(param_signature, test_dataset.element_spec),
             loss_module=loss_module)
 
+        # create empty lists
+        cascade_parameters_true = []
+        cascade_parameters_reco = []
+        cascade_parameters_seed = []
+        loss_true_list = []
+        loss_reco_list = []
+        loss_seed_list = []
+
         for event_counter, data_batch in enumerate(test_dataset):
 
             result = self.reconstruct_events(
                 data_batch, loss_module,
                 loss_and_gradients_function=loss_and_gradients_function,
+                seed=reco_config['seed'],
                 **reco_config['scipy_optimizer_settings'])
 
-            loss_true = get_loss(data_batch).numpy()
             cascade_true = data_batch[param_index].numpy()[0]
+            cascade_seed = data_batch[seed_index].numpy()[0]
+
+            data_batch_seed = list(data_batch)
+            data_batch_seed[seed_index] = tf.reshape(
+                                cascade_seed, [-1, param_signature.shape[1]])
+            data_batch_seed = tuple(data_batch_seed)
 
             data_batch_reco = list(data_batch)
             data_batch_reco[param_index] = tf.reshape(tf.convert_to_tensor(
@@ -775,12 +803,52 @@ class BaseModelManager(Model):
                             [-1, param_signature.shape[1]])
             data_batch_reco = tuple(data_batch_reco)
 
+            loss_true = get_loss(data_batch).numpy()
+            loss_seed = get_loss(data_batch_seed).numpy()
             loss_reco = get_loss(data_batch_reco).numpy()
 
             print('At event {}'.format(event_counter))
             msg = ' {:3.2f}\t{:3.2f}\t{:3.2f}\t{:2.2f}\t{:2.2f}\t{:2.2f}'
             msg += '\t{:2.2f}'
             print('\t Loss at True Minimum:', loss_true)
+            print('\t Loss at Seed Minimum:', loss_seed)
             print('\t Loss at Reco Minimum:', loss_reco)
             print('\t True:' + msg.format(*cascade_true))
+            print('\t Seed:' + msg.format(*cascade_seed))
             print('\t Reco:' + msg.format(*result.x))
+
+            cascade_parameters_true.append(cascade_true)
+            cascade_parameters_seed.append(cascade_seed)
+            cascade_parameters_reco.append(result.x)
+
+            loss_true_list.append(loss_true)
+            loss_seed_list.append(loss_seed)
+            loss_reco_list.append(loss_reco)
+
+        cascade_parameters_true = np.stack(cascade_parameters_true, axis=0)
+        cascade_parameters_seed = np.stack(cascade_parameters_seed, axis=0)
+        cascade_parameters_reco = np.stack(cascade_parameters_reco, axis=0)
+
+        # ----------------
+        # create dataframe
+        # ----------------
+        import pandas as pd
+        df_reco = pd.DataFrame()
+        for name, params in (['', cascade_parameters_true],
+                             ['_reco', cascade_parameters_reco],
+                             ['_seed', cascade_parameters_seed]):
+            df_reco['cascade_x' + name] = params[:, 0]
+            df_reco['cascade_y' + name] = params[:, 1]
+            df_reco['cascade_z' + name] = params[:, 2]
+            df_reco['cascade_zenith' + name] = params[:, 3]
+            df_reco['cascade_azimuth' + name] = params[:, 4]
+            df_reco['cascade_energy' + name] = params[:, 5]
+            df_reco['cascade_t' + name] = params[:, 6]
+
+        df_reco['loss_true'] = loss_true_list
+        df_reco['loss_reco'] = loss_reco_list
+        df_reco['loss_seed'] = loss_seed_list
+
+        df_reco.to_hdf(reco_config['reco_output_file'],
+                       key='Variables', mode='w', format='t',
+                       data_columns=True)

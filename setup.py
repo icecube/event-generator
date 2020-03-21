@@ -18,7 +18,7 @@ setup(
         'egenerator',
     ],
     install_requires=[
-        'numpy', 'scipy',
+        'numpy', 'scipy', 'pandas',
     ],
     include_package_data=True,
     author=about['__author__'],
