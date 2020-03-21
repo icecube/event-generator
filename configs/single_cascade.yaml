@@ -35,11 +35,24 @@ training_settings: {
 # Reconstruction settings
 #------------------------
 reconstruction_settings: {
+    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
     'seed': 'x_parameters',
     'scipy_optimizer_settings': {
         'method': 'L-BFGS-B',
     },
-    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
+
+    # Specify which parameters to fit.
+    # If True, the parameter is minimized doing reconstruction, otherwise it
+    # is held constant.
+    # Set default value which will apply to all parameters, except if stated
+    # otherwise in the 'minimize_parameter_dict'
+    'minimize_parameter_default_value': True,
+    # Settings defined here overwrite the default value
+    # Entries must have the form: {parameter_name: value}
+    'minimize_parameter_dict': {
+
+    },
+
 }
 
 #-----------------------

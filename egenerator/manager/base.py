@@ -610,7 +610,8 @@ class BaseModelManager(Model):
                           description='End of training step',
                           protected=True)
 
-    def get_loss_and_gradients_function(self, loss_module, input_signature):
+    def get_loss_and_gradients_function(self, loss_module, input_signature,
+                                        fit_paramater_list, seed=None):
         """Get a function that returns the loss and gradients wrt parameters.
 
         Parameters
@@ -620,6 +621,17 @@ class BaseModelManager(Model):
             must provide a
             loss_module.get_loss(data_batch_dict, result_tensors)
             method.
+        input_signature : tf.TensorSpec or nested tf.TensorSpec
+            The input signature of the parameters and data_batch arguments
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        seed : str, optional
+            If a fit_paramater_list is provided with at least one 'False'
+            entry, the seed name must also be provided.
+            The seed is the name of the data tensor by which the reconstruction
+            is seeded.
 
         Returns
         -------
@@ -635,10 +647,29 @@ class BaseModelManager(Model):
             data_batch_dict = {}
             for i, name in enumerate(self.data_handler.tensors.names):
                 data_batch_dict[name] = data_batch[i]
-            data_batch_dict['x_parameters'] = parameters
 
-            with tf.GradientTape() as tape:
+            seed_index = self.data_handler.tensors.get_index(seed)
+
+            with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(parameters)
+
+                # gather a list of parameters that are to be fitted
+                if np.all(fit_paramater_list):
+                    data_batch_dict['x_parameters'] = parameters
+                else:
+                    unstacked_params = tf.unstack(parameters, axis=1)
+                    unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+                    all_params = []
+                    counter = 0
+                    for i, fit in enumerate(fit_paramater_list):
+                        if fit:
+                            all_params.append(unstacked_params[counter])
+                            counter += 1
+                        else:
+                            all_params.append(unstacked_seed[i])
+
+                    data_batch_dict['x_parameters'] = tf.stack(all_params,
+                                                               axis=1)
 
                 result_tensors = self.model.get_tensors(data_batch_dict,
                                                         is_training=False)
@@ -653,6 +684,7 @@ class BaseModelManager(Model):
 
     def reconstruct_events(self, data_batch, loss_module,
                            loss_and_gradients_function,
+                           fit_paramater_list,
                            seed='x_parameters', jac=True, method='L-BFGS-B',
                            **kwargs):
         """Reconstruct events.
@@ -666,6 +698,13 @@ class BaseModelManager(Model):
             must provide a
             loss_module.get_loss(data_batch_dict, result_tensors)
             method.
+        loss_and_gradients_function : tf.function
+            The tensorflow function:
+                f(parameters, data_batch) -> loss, gradients
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
         seed : str, optional
             Name of seed tensor
         jac : bool, optional
@@ -685,10 +724,12 @@ class BaseModelManager(Model):
         parameter_dtype = getattr(
             tf, self.data_handler.tensors['x_parameters'].dtype)
         param_shape = [-1, self.data_handler.tensors['x_parameters'].shape[1]]
+        param_shape = [-1, np.sum(fit_paramater_list, dtype=int)]
 
-        # # get loss and gradients function
-        # loss_and_gradients_function = self.get_loss_and_gradients_function(
-        #                                             data_batch, loss_module)
+        if (len(fit_paramater_list) !=
+                self.data_handler.tensors['x_parameters'].shape[1]):
+            raise ValueError('Wrong length of fit_paramater_list: {!r}'.format(
+                len(fit_paramater_list)))
 
         # define helper function
         def func(x, data_batch):
@@ -699,7 +740,16 @@ class BaseModelManager(Model):
                     loss_and_gradients_function(x, data_batch)]
 
         # get seed parameters
-        x0 = data_batch[self.data_handler.tensors.get_index(seed)]
+        seed_index = self.data_handler.tensors.get_index(seed)
+        if np.all(fit_paramater_list):
+            x0 = data_batch[seed_index]
+        else:
+            # get seed parameters
+            unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+            tracked_params = [p for p, fit in
+                              zip(unstacked_seed, fit_paramater_list) if fit]
+            x0 = tf.stack(tracked_params, axis=1)
+
         result = optimize.minimize(fun=func, x0=x0, jac=jac, method=method,
                                    args=(data_batch,), **kwargs)
         return result
@@ -736,8 +786,11 @@ class BaseModelManager(Model):
 
         self.assert_configured(True)
 
+        if config['data_iterator_settings']['test']['batch_size'] != 1:
+            raise NotImplementedError('Only supports batch size of 1.')
+
         # print out number of model variables
-        num_vars, num_total_vars = self.model.num_vars
+        num_vars, num_total_vars = self.model.num_variables
         msg = '\nNumber of Model Variables:\n'
         msg = '\tFree: {}\n'
         msg += '\tTotal: {}'
@@ -745,6 +798,12 @@ class BaseModelManager(Model):
 
         # get reconstruction config
         reco_config = config['reconstruction_settings']
+
+        # get a list of parameters to fit
+        fit_paramater_list = [reco_config['minimize_parameter_default_value']
+                              for i in range(self.model.num_parameters)]
+        for name, value in reco_config['minimize_parameter_dict'].items():
+            fit_paramater_list[self.model.get_index(name)] = value
 
         # create directory if needed
         directory = os.path.dirname(reco_config['reco_output_file'])
@@ -758,7 +817,10 @@ class BaseModelManager(Model):
         # parameter input signature
         param_index = self.data_handler.tensors.get_index('x_parameters')
         seed_index = self.data_handler.tensors.get_index(reco_config['seed'])
-        param_signature = test_dataset.element_spec[param_index]
+        param_dtype = test_dataset.element_spec[param_index].dtype
+        param_signature = tf.TensorSpec(
+            shape=[None, np.sum(fit_paramater_list, dtype=int)],
+            dtype=param_dtype)
 
         # --------------------------------------------------
         # get concrete functions for reconstruction and loss
@@ -771,7 +833,9 @@ class BaseModelManager(Model):
             is_training=False)
         loss_and_gradients_function = self.get_loss_and_gradients_function(
             input_signature=(param_signature, test_dataset.element_spec),
-            loss_module=loss_module)
+            loss_module=loss_module,
+            fit_paramater_list=fit_paramater_list,
+            seed=reco_config['seed'])
 
         # create empty lists
         cascade_parameters_true = []
@@ -786,40 +850,63 @@ class BaseModelManager(Model):
             result = self.reconstruct_events(
                 data_batch, loss_module,
                 loss_and_gradients_function=loss_and_gradients_function,
+                fit_paramater_list=fit_paramater_list,
                 seed=reco_config['seed'],
                 **reco_config['scipy_optimizer_settings'])
 
             cascade_true = data_batch[param_index].numpy()[0]
             cascade_seed = data_batch[seed_index].numpy()[0]
 
+            # get reco cascade
+            if np.all(fit_paramater_list):
+                cascade_reco = result.x
+            else:
+                # get seed parameters
+                cascade_reco = []
+                result_counter = 0
+                for i, fit in enumerate(fit_paramater_list):
+                    if fit:
+                        cascade_reco.append(result.x[result_counter])
+                        result_counter += 1
+                    else:
+                        cascade_reco.append(cascade_seed[i])
+
             data_batch_seed = list(data_batch)
             data_batch_seed[seed_index] = tf.reshape(
-                                cascade_seed, [-1, param_signature.shape[1]])
+                                cascade_seed, [-1, self.model.num_parameters])
             data_batch_seed = tuple(data_batch_seed)
 
             data_batch_reco = list(data_batch)
             data_batch_reco[param_index] = tf.reshape(tf.convert_to_tensor(
-                                result.x, dtype=param_signature.dtype),
-                            [-1, param_signature.shape[1]])
+                                cascade_reco, dtype=param_signature.dtype),
+                            [-1, self.model.num_parameters])
             data_batch_reco = tuple(data_batch_reco)
 
             loss_true = get_loss(data_batch).numpy()
             loss_seed = get_loss(data_batch_seed).numpy()
             loss_reco = get_loss(data_batch_reco).numpy()
 
+            # Print result to console
+            msg = '\t{:6s} {:>10s} {:>10s} {:>10s} {:>10s}'.format(
+                'Fitted', 'True', 'Seed', 'Reco', 'Diff')
+            pattern = '\n\t{:6s} {:10.2f} {:10.2f} {:10.2f} {:10.2f} [{}]'
+            msg += pattern.format('', loss_true, loss_seed, loss_reco,
+                                  loss_true - loss_reco, 'Loss')
+            for index, (name, fit) in enumerate(zip(self.model.parameter_names,
+                                                    fit_paramater_list)):
+                msg += pattern.format(str(fit),
+                                      cascade_true[index],
+                                      cascade_seed[index],
+                                      cascade_reco[index],
+                                      cascade_true[index]-cascade_reco[index],
+                                      name)
             print('At event {}'.format(event_counter))
-            msg = ' {:3.2f}\t{:3.2f}\t{:3.2f}\t{:2.2f}\t{:2.2f}\t{:2.2f}'
-            msg += '\t{:2.2f}'
-            print('\t Loss at True Minimum:', loss_true)
-            print('\t Loss at Seed Minimum:', loss_seed)
-            print('\t Loss at Reco Minimum:', loss_reco)
-            print('\t True:' + msg.format(*cascade_true))
-            print('\t Seed:' + msg.format(*cascade_seed))
-            print('\t Reco:' + msg.format(*result.x))
+            print(msg)
 
+            # keep track of results
             cascade_parameters_true.append(cascade_true)
             cascade_parameters_seed.append(cascade_seed)
-            cascade_parameters_reco.append(result.x)
+            cascade_parameters_reco.append(cascade_reco)
 
             loss_true_list.append(loss_true)
             loss_seed_list.append(loss_seed)
@@ -834,16 +921,11 @@ class BaseModelManager(Model):
         # ----------------
         import pandas as pd
         df_reco = pd.DataFrame()
-        for name, params in (['', cascade_parameters_true],
-                             ['_reco', cascade_parameters_reco],
-                             ['_seed', cascade_parameters_seed]):
-            df_reco['cascade_x' + name] = params[:, 0]
-            df_reco['cascade_y' + name] = params[:, 1]
-            df_reco['cascade_z' + name] = params[:, 2]
-            df_reco['cascade_zenith' + name] = params[:, 3]
-            df_reco['cascade_azimuth' + name] = params[:, 4]
-            df_reco['cascade_energy' + name] = params[:, 5]
-            df_reco['cascade_t' + name] = params[:, 6]
+        for index, param_name in enumerate(self.model.parameter_names):
+            for name, params in (['', cascade_parameters_true],
+                                 ['_reco', cascade_parameters_reco],
+                                 ['_seed', cascade_parameters_seed]):
+                df_reco[param_name + name] = params[:, index]
 
         df_reco['loss_true'] = loss_true_list
         df_reco['loss_reco'] = loss_reco_list

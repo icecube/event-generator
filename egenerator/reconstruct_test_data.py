@@ -63,9 +63,6 @@ def main(config_files):
     manager.reconstruct_testdata(config=config,
                                  loss_module=loss_module)
 
-    # kill multiprocessing queues and workers
-    manager.data_handler.kill()
-
 
 if __name__ == '__main__':
     main()
