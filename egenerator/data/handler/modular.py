@@ -266,8 +266,16 @@ class ModuleDataHandler(BaseDataHandler):
             self._data.update(self.sub_components[name].data)
 
             # update mutable settings
-            self.configuration.config[name.replace('module', 'settings')] = \
+            new_config = self.configuration.mutable_settings
+            new_config['config'][name] = misc.get_full_class_string_of_object(
+                self.sub_components[name])
+            new_config['config'][name.replace('module', 'settings')] = \
                 self.sub_components[name].configuration.config
+            self.configuration.update_mutable_settings(new_config)
+
+            # replace sub components configuration
+            self.configuration.replace_sub_components(
+                    {name: self.sub_components[name]})
 
         # update tensors list
         self._data['tensors'] = DataTensorList(

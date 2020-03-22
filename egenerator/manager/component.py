@@ -73,23 +73,23 @@ class Configuration(object):
 
     @property
     def class_string(self):
-        return self._dict['class_string']
+        return deepcopy(self._dict['class_string'])
 
     @property
     def check_values(self):
-        return self._dict['check_values']
+        return dict(deepcopy(self._dict['check_values']))
 
     @property
     def mutable_settings(self):
-        return self._dict['mutable_settings']
+        return dict(deepcopy(self._dict['mutable_settings']))
 
     @property
     def settings(self):
-        return self._dict['settings']
+        return dict(deepcopy(self._dict['settings']))
 
     @property
     def sub_component_configurations(self):
-        return self._dict['sub_component_configurations']
+        return dict(deepcopy(self._dict['sub_component_configurations']))
 
     @property
     def dependent_sub_components(self):
@@ -206,6 +206,24 @@ class Configuration(object):
         # self._check_dependent_names(self.mutable_sub_components)
         self._config = self._combine_settings()
 
+    def update_mutable_settings(self, new_settings):
+        """Update mutable settings
+
+        Parameters
+        ----------
+        new_settings : dict
+            The dictionary with the key-value pairs of the mutable settings
+            that should be updated.
+        """
+        for key, value in new_settings.items():
+            if key not in self._dict['mutable_settings']:
+                raise KeyError('Mutable setting: {!r} does not exist'.format(
+                    key))
+            self._dict['mutable_settings'][key] = value
+
+        # update config
+        self._config = self._combine_settings()
+
     def _check_dependent_names(self, dependent_sub_components):
         """Make sure defined dependent sub components exist in the
         configuration
@@ -222,9 +240,9 @@ class Configuration(object):
                 raise KeyError(msg.format(
                     name, self.sub_component_configurations.keys()))
 
-    def add_dependent_sub_components(self, dependet_components):
-        self._check_dependent_names(dependet_components)
-        self._dict['dependent_sub_components'].extend(dependet_components)
+    def add_dependent_sub_components(self, dependent_components):
+        self._check_dependent_names(dependent_components)
+        self._dict['dependent_sub_components'].extend(dependent_components)
 
     def add_mutable_sub_components(self, mutable_sub_components):
         self._check_dependent_names(mutable_sub_components)
@@ -274,7 +292,7 @@ class Configuration(object):
             if not component.is_configured:
                 raise ValueError('Component {!r} is not configured!'.format(
                                                                         name))
-            self.sub_component_configurations[name] = \
+            self._dict['sub_component_configurations'][name] = \
                 component.configuration.dict
 
     def replace_sub_components(self, new_sub_components):
@@ -298,7 +316,7 @@ class Configuration(object):
                 raise ValueError('Component {!r} is not configured!'.format(
                                                                         name))
             # replace sub component's configuration
-            self.sub_component_configurations[name] = \
+            self._dict['sub_component_configurations'][name] = \
                 component.configuration.dict
 
     def is_compatible(self, other):
