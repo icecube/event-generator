@@ -203,7 +203,7 @@ class Configuration(object):
 
         # make sure defined dependen sub components exist in the configuration
         self._check_dependent_names(self.dependent_sub_components)
-        self._check_dependent_names(self.mutable_sub_components)
+        # self._check_dependent_names(self.mutable_sub_components)
         self._config = self._combine_settings()
 
     def _check_dependent_names(self, dependent_sub_components):
@@ -225,6 +225,10 @@ class Configuration(object):
     def add_dependent_sub_components(self, dependet_components):
         self._check_dependent_names(dependet_components)
         self._dict['dependent_sub_components'].extend(dependet_components)
+
+    def add_mutable_sub_components(self, mutable_sub_components):
+        self._check_dependent_names(mutable_sub_components)
+        self._dict['mutable_sub_components'].extend(mutable_sub_components)
 
     def _combine_settings(self):
         """Combine the constant and mutable settings in a single config.
@@ -657,6 +661,10 @@ class BaseComponent(object):
         # add dependent sub components to this configuration
         self._configuration.add_dependent_sub_components(
             [component for component in self._sub_components.keys()])
+
+        # check if specified mutable sub components exist in configuration
+        self._configuration._check_dependent_names(
+            self._configuration.mutable_sub_components)
 
         # check if data has correct type
         if self._data is not None:

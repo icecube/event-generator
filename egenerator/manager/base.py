@@ -611,7 +611,9 @@ class BaseModelManager(Model):
                           protected=True)
 
     def get_loss_and_gradients_function(self, loss_module, input_signature,
-                                        fit_paramater_list, seed=None):
+                                        fit_paramater_list,
+                                        minimize_in_trafo_space=True,
+                                        seed=None):
         """Get a function that returns the loss and gradients wrt parameters.
 
         Parameters
@@ -627,6 +629,11 @@ class BaseModelManager(Model):
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
         seed : str, optional
             If a fit_paramater_list is provided with at least one 'False'
             entry, the seed name must also be provided.
@@ -642,7 +649,7 @@ class BaseModelManager(Model):
         """
 
         @tf.function(input_signature=input_signature)
-        def loss_and_gradients_function(parameters, data_batch):
+        def loss_and_gradients_function(parameters_trafo, data_batch):
 
             data_batch_dict = {}
             for i, name in enumerate(self.data_handler.tensors.names):
@@ -651,13 +658,11 @@ class BaseModelManager(Model):
             seed_index = self.data_handler.tensors.get_index(seed)
 
             with tf.GradientTape(watch_accessed_variables=False) as tape:
-                tape.watch(parameters)
+                tape.watch(parameters_trafo)
 
                 # gather a list of parameters that are to be fitted
-                if np.all(fit_paramater_list):
-                    data_batch_dict['x_parameters'] = parameters
-                else:
-                    unstacked_params = tf.unstack(parameters, axis=1)
+                if not np.all(fit_paramater_list):
+                    unstacked_params = tf.unstack(parameters_trafo, axis=1)
                     unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
                     all_params = []
                     counter = 0
@@ -668,8 +673,16 @@ class BaseModelManager(Model):
                         else:
                             all_params.append(unstacked_seed[i])
 
-                    data_batch_dict['x_parameters'] = tf.stack(all_params,
-                                                               axis=1)
+                    parameters_trafo = tf.stack(all_params, axis=1)
+
+                # unnormalize if minimization is perfomed in trafo space
+                if minimize_in_trafo_space:
+                    parameters = self.model.data_trafo.inverse_transform(
+                        data=parameters_trafo, tensor_name='x_parameters')
+                else:
+                    parameters = parameters_trafo
+
+                data_batch_dict['x_parameters'] = parameters
 
                 result_tensors = self.model.get_tensors(data_batch_dict,
                                                         is_training=False)
@@ -835,6 +848,7 @@ class BaseModelManager(Model):
             input_signature=(param_signature, test_dataset.element_spec),
             loss_module=loss_module,
             fit_paramater_list=fit_paramater_list,
+            minimize_in_trafo_space=reco_config['minimize_in_trafo_space'],
             seed=reco_config['seed'])
 
         # create empty lists
@@ -870,6 +884,12 @@ class BaseModelManager(Model):
                         result_counter += 1
                     else:
                         cascade_reco.append(cascade_seed[i])
+
+            # transform back if minimization was performed in trafo space
+            if reco_config['minimize_in_trafo_space']:
+                cascade_reco = self.model.trafo_model.inverse_transform(
+                    data=np.expand_dims(cascade_reco, axis=0),
+                    name='x_parameters').numpy()[0]
 
             data_batch_seed = list(data_batch)
             data_batch_seed[seed_index] = tf.reshape(

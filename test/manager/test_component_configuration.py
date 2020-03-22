@@ -19,6 +19,7 @@ class TestConfiguration(unittest.TestCase):
                 'class_string': 'dummy_class_string',
                 'settings': {'setting1': 1337},
                 'mutable_settings': {},
+                'mutable_sub_components': [],
                 'check_values': {},
                 'sub_component_configurations': {},
                 'dependent_sub_components': [],
@@ -27,6 +28,7 @@ class TestConfiguration(unittest.TestCase):
                 'class_string': 'dummy_class_string',
                 'settings': {'setting4': 1337},
                 'mutable_settings': {},
+                'mutable_sub_components': [],
                 'check_values': {'check_values': 42},
                 'sub_component_configurations': {},
                 'dependent_sub_components': [],
@@ -47,6 +49,8 @@ class TestConfiguration(unittest.TestCase):
             self.assertEqual(configuration.settings, config_dict['settings'])
             self.assertEqual(configuration.mutable_settings,
                              config_dict['mutable_settings'])
+            self.assertEqual(configuration.mutable_sub_components,
+                             config_dict['mutable_sub_components'])
             self.assertEqual(configuration.check_values,
                              config_dict['check_values'])
             self.assertEqual(configuration.sub_component_configurations,
@@ -116,6 +120,7 @@ class TestConfiguration(unittest.TestCase):
                 'class_string': 'dummy_class_string',
                 'settings': {'setting1': 1337},
                 'mutable_settings': {},
+                'mutable_sub_components': [],
                 'check_values': {},
                 'dependent_sub_components': [],
                 'sub_component_configurations': {
@@ -127,6 +132,7 @@ class TestConfiguration(unittest.TestCase):
                         'class_string': 'nested_class_string',
                         'settings': {'nested': 42},
                         'mutable_settings': {},
+                        'mutable_sub_components': [],
                         'check_values': {},
                         'sub_component_configurations': {},
                         'dependent_sub_components': [],
