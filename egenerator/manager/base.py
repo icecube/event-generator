@@ -97,12 +97,51 @@ class BaseModelManager(Model):
             'model': model,
         }
 
+        # check for compatibilities of sub components
+        self._check_sub_component_compatibility(sub_components)
+
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config=config))
 
         return configuration, {}, sub_components
+
+    def _check_sub_component_compatibility(self, sub_components):
+        print('\n\n\n\nchecking compatiblity of ', sub_components)
+
+    def _update_sub_components(self, names):
+        """Update settings which are based on the modified sub component.
+
+        During loading of a component, sub components may be changed with a
+        new and modified (but compatible) version. This allows the alteration
+        of mutable settings.
+        Some settings or data of a component may depend on mutable settings
+        of a sub component. If these are not saved and retrieved directly from
+        the sub component, they will not be automatically updated.
+        This method is triggered when a sub component with the name 'name'
+        is updated. It allows to update settings and data that depend on the
+        modified sub component.
+
+        Enforcing a derived class to implement this method (even if it is a
+        simple 'pass' in the case of no dependent settings and data)
+        will ensure that the user is aware of the issue.
+
+        A good starting point to obtain an overview of which settings may need
+        to be modified, is to check the _configure method. Any settings and
+        data set there might need to be updated.
+
+        Parameters
+        ----------
+        names : list of str
+            The names of the sub components that were modified.
+        """
+        for name in names:
+            if name not in ['data_handler']:
+                msg = 'Can not update {!r}.'
+                raise ValueError(msg.format(name))
+
+        self._check_sub_component_compatibility(self.sub_components)
 
     def save_weights(self, dir_path, max_keep=3, protected=False,
                      description=None, num_training_steps=None):

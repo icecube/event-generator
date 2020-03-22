@@ -55,7 +55,7 @@ def main(config_files):
         misc_module.configure(
             config_data=None,
             seed_names=[reco_config['seed']],
-            parameter_names=reco_config['seed_parameter_names'],
+            seed_parameter_names=reco_config['seed_parameter_names'],
             float_precision=reco_config['seed_float_precision'],
             )
 

@@ -287,7 +287,7 @@ class Configuration(object):
             The dict key is the name of the sub component and the value is
             the sub component itself.
         """
-        for name, component in sub_components.items():
+        for name, component in new_sub_components.items():
             if not issubclass(type(component), BaseComponent):
                 raise TypeError('Incorrect type: {!r}'.format(type(component)))
             if name not in self.sub_component_configurations:
@@ -919,14 +919,14 @@ class BaseComponent(object):
                     type(self._data)))
 
         # walk through dependent sub components and load these as well
+        updated_sub_components = []
         for name in self.configuration.dependent_sub_components:
 
             # check if there is a nested modified_sub_components dictionary
-            update_required = False
             if (name in modified_sub_components and
                     isinstance(modified_sub_components[name], dict)):
                 nested_dict = modified_sub_components.pop(name)
-                update_required = True
+                updated_sub_components.append(name)
             else:
                 nested_dict = {}
 
@@ -961,12 +961,12 @@ class BaseComponent(object):
                 self._sub_components[name] = modified_sub_component
                 self.configuration.replace_sub_components(
                     {name: modified_sub_component})
-                update_required = True
+                updated_sub_components.append(name)
 
-            if update_required:
-                # update component such that settings which are dependent on
-                # the modified sub component may be updated
-                self._update_sub_component(name)
+        if updated_sub_components != []:
+            # update components such that settings which are dependent on
+            # the modified sub components may be updated
+            self._update_sub_components(updated_sub_components)
 
         if modified_sub_components != {}:
             msg = 'The following modified sub components were unused: {!r}'
@@ -977,7 +977,7 @@ class BaseComponent(object):
 
         self._is_configured = True
 
-    def _update_sub_component(self, name):
+    def _update_sub_components(self, names):
         """Update settings which are based on the modified sub component.
 
         During loading of a component, sub components may be changed with a
@@ -1000,8 +1000,8 @@ class BaseComponent(object):
 
         Parameters
         ----------
-        name : str
-            The name of the sub component that was modified.
+        names : list of str
+            The names of the sub components that were modified.
         """
         raise NotImplementedError()
 

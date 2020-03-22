@@ -229,7 +229,7 @@ class ModuleDataHandler(BaseDataHandler):
 
         return configuration, data, sub_components
 
-    def _update_sub_component(self, name):
+    def _update_sub_components(self, names):
         """Update settings which are based on the modified sub component.
 
         During loading of a component, sub components may be changed with a
@@ -252,22 +252,22 @@ class ModuleDataHandler(BaseDataHandler):
 
         Parameters
         ----------
-        name : str
-            The name of the sub component that was modified.
+        names : list of str
+            The names of the sub components that were modified.
         """
+        for name in names:
+            # check if the updated component is allowed to be updated
+            if name not in ['data_module', 'label_module', 'weight_module',
+                            'misc_module', 'filter_module']:
+                msg = 'Can not update {!r} since it does not exist'
+                raise ValueError(msg.format(name))
 
-        # check if the updated component is allowed to be updated
-        if name not in ['data_module', 'label_module', 'weight_module',
-                        'misc_module', 'filter_module']:
-            msg = 'Can not update {!r} since it does not exist'
-            raise ValueError(msg.format(name))
+            # update data
+            self._data.update(self.sub_components[name].data)
 
-        # update data
-        self._data.update(sub_components[name].data)
-
-        # update mutable settings
-        self.config[name.replace('module', 'settings')] = \
-            self.sub_components[name].configuration.config
+            # update mutable settings
+            self.configuration.config[name.replace('module', 'settings')] = \
+                self.sub_components[name].configuration.config
 
         # update tensors list
         self._data['tensors'] = DataTensorList(
