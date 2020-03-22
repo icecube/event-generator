@@ -24,24 +24,7 @@ class SetupManager:
             An automatically created config name.
             Base names of yaml config files are concatenated with '__'.
             This can be used to create subdirectories for logging and
-            checkpoints.
-
-    General settings
-
-        test_data_file : str
-            Path to test data file.
-
-
-    General Training settings
-
-        num_training_iterations : int
-            Number of training iterations to perform.
-
-
-    Trafo settings
-
-        trafo_model_path : str
-            Path to trafo model file.
+            checkpoints..
 
     Attributes
     ----------
