@@ -698,7 +698,10 @@ class BaseModelManager(Model):
     def reconstruct_events(self, data_batch, loss_module,
                            loss_and_gradients_function,
                            fit_paramater_list,
-                           seed='x_parameters', jac=True, method='L-BFGS-B',
+                           minimize_in_trafo_space=True,
+                           seed='x_parameters',
+                           jac=True,
+                           method='L-BFGS-B',
                            **kwargs):
         """Reconstruct events.
 
@@ -718,6 +721,11 @@ class BaseModelManager(Model):
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
         seed : str, optional
             Name of seed tensor
         jac : bool, optional
@@ -731,6 +739,11 @@ class BaseModelManager(Model):
         -------
         scipy.optimize.minimize results
             The results of the minimization
+
+        Raises
+        ------
+        ValueError
+            Description
         """
         from scipy import optimize
 
@@ -763,6 +776,11 @@ class BaseModelManager(Model):
                               zip(unstacked_seed, fit_paramater_list) if fit]
             x0 = tf.stack(tracked_params, axis=1)
 
+        # transform seed if minimization is performed in trafo space
+        if minimize_in_trafo_space:
+            x0 = self.model.data_trafo.transform(data=x0,
+                                                 tensor_name='x_parameters')[0]
+
         result = optimize.minimize(fun=func, x0=x0, jac=jac, method=method,
                                    args=(data_batch,), **kwargs)
         return result
@@ -790,11 +808,6 @@ class BaseModelManager(Model):
             A loss component that defines the loss function. The loss component
             must provide the method
                 loss_module.get_loss(data_batch_dict, result_tensors)
-
-        Returns
-        -------
-        TYPE
-            Description
         """
 
         self.assert_configured(True)
@@ -865,6 +878,7 @@ class BaseModelManager(Model):
                 data_batch, loss_module,
                 loss_and_gradients_function=loss_and_gradients_function,
                 fit_paramater_list=fit_paramater_list,
+                minimize_in_trafo_space=reco_config['minimize_in_trafo_space'],
                 seed=reco_config['seed'],
                 **reco_config['scipy_optimizer_settings'])
 
@@ -887,9 +901,9 @@ class BaseModelManager(Model):
 
             # transform back if minimization was performed in trafo space
             if reco_config['minimize_in_trafo_space']:
-                cascade_reco = self.model.trafo_model.inverse_transform(
+                cascade_reco = self.model.data_trafo.inverse_transform(
                     data=np.expand_dims(cascade_reco, axis=0),
-                    name='x_parameters').numpy()[0]
+                    tensor_name='x_parameters')[0]
 
             data_batch_seed = list(data_batch)
             data_batch_seed[seed_index] = tf.reshape(
