@@ -940,6 +940,9 @@ class BaseComponent(object):
                                modified_sub_components=nested_dict,
                                **kwargs)
             self._sub_components[name] = sub_component
+            if name in updated_sub_components:
+                self.configuration.replace_sub_components(
+                    {name: sub_component})
 
             # check if this sub component is to be replaced with a new
             # (and compatible) version
