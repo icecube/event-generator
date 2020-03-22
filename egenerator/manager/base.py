@@ -139,6 +139,10 @@ class BaseModelManager(Model):
               data_handler_config)
         print('checking', sub_components['data_handler'].configuration.config,
               data_handler_config.config)
+        print('\n\n\n\n\n')
+        print(sub_components['data_handler'].config)
+        print(data_handler_config['settings'])
+        print(data_handler_config['mutable_settings'])
         if not sub_components['data_handler'].configuration.is_compatible(
                 data_handler_config):
             msg = 'Model and data handler are not compatible: {}, {}'

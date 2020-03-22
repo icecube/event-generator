@@ -123,7 +123,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
                                         name='x_parameters',
                                         shape=[None, 7],
                                         tensor_type='label',
-                                        dtype='float32',
+                                        dtype=config['float_precision'],
                                         trafo=True,
                                         trafo_log=trafo_log)])
             self.assertTrue(module.data['label_tensors'] == tensors_true)

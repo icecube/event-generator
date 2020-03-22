@@ -88,7 +88,7 @@ class TestCreateTrafoModel(unittest.TestCase):
             'float_precision': 'float64',
             'norm_constant': 1e-6,
             'num_batches': 20,
-            'model_path': os.path.join(
+            'model_dir': os.path.join(
                 os.path.dirname(__file__),
                 '../data/temp_test_files/test_create_trafo_model'),
         }
@@ -128,8 +128,8 @@ class TestCreateTrafoModel(unittest.TestCase):
         """
 
         # remove trafo file if it already exists
-        if os.path.exists(self.config['data_trafo_settings']['model_path']):
-            shutil.rmtree(self.config['data_trafo_settings']['model_path'])
+        if os.path.exists(self.config['data_trafo_settings']['model_dir']):
+            shutil.rmtree(self.config['data_trafo_settings']['model_dir'])
 
         create_trafo_model.main.callback([self.yaml_file_path])
 
@@ -138,7 +138,7 @@ class TestCreateTrafoModel(unittest.TestCase):
         data_handler.configure(config=self.config['data_handler_settings'])
         data_trafo = DataTransformer(data_handler)
 
-        data_trafo.load(self.config['data_trafo_settings']['model_path'])
+        data_trafo.load(self.config['data_trafo_settings']['model_dir'])
 
         self.assertTrue(np.allclose(data_trafo.data['x_parameters_mean'],
                                     np.mean(self.cascades_true, axis=0)))
