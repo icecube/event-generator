@@ -342,7 +342,9 @@ class BaseModelManager(Model):
             Additional keyword arguments that may be used by the derived
             class.
         """
-        pass
+
+        # check for compatibilities of sub components
+        self._check_sub_component_compatibility(self.sub_components)
 
     def regularization_loss(self, variables, opt_config):
         """Get L1 and L2 regularization terms.

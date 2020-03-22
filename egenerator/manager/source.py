@@ -175,7 +175,7 @@ class SourceManager(BaseModelManager):
             # reshape and convert to tensor
             x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
                            param_shape)
-            return [vv.numpy().astype(np.float64) for vv in
+            return [vv.numpy().astype('float64') for vv in
                     loss_and_gradients_function(x, data_batch)]
 
         # get seed parameters
