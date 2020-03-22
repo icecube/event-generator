@@ -105,7 +105,7 @@ class SourceManager(BaseModelManager):
                 loss = loss_module.get_loss(data_batch_dict,
                                             result_tensors,
                                             self.data_handler.tensors)
-            grad = tape.gradient(loss, parameters)
+            grad = tape.gradient(loss, parameters_trafo)
             return loss, grad
 
         return loss_and_gradients_function
@@ -175,8 +175,11 @@ class SourceManager(BaseModelManager):
             # reshape and convert to tensor
             x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
                            param_shape)
-            return [vv.numpy().astype('float64') for vv in
-                    loss_and_gradients_function(x, data_batch)]
+            loss, grad = loss_and_gradients_function(x, data_batch)
+            loss = loss.numpy().astype('float64')
+            grad = grad.numpy().astype('float64')
+            assert len(grad) == 1
+            return loss, grad[0]
 
         # get seed parameters
         seed_index = self.data_handler.tensors.get_index(seed)

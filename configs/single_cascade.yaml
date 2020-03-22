@@ -47,6 +47,10 @@ reconstruction_settings: {
 
     'scipy_optimizer_settings': {
         'method': 'L-BFGS-B',
+        # 'method': 'BFGS',
+        'options': {
+            'ftol': !!float 1e-7,
+        }
     },
 
     # Perform minimization in transformed and normalized parameter space
