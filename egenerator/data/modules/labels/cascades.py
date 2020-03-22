@@ -99,7 +99,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
                                         name='x_parameters',
                                         shape=[None, 7],
                                         tensor_type='label',
-                                        dtype='float32',
+                                        dtype=float_precision,
                                         trafo=True,
                                         trafo_log=trafo_log)])
 

@@ -11,6 +11,7 @@ import tensorflow as tf
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.data.trafo import DataTransformer
+from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
 @click.command()
@@ -41,6 +42,29 @@ def main(config_files):
     loss_module = LossModuleClass()
     loss_module.configure(config=config['loss_module_settings']['config'])
 
+    # ------------------
+    # Create misc module
+    # ------------------
+    reco_config = config['reconstruction_settings']
+    if reco_config['seed'] == 'x_parameters':
+        # The parameter labels are being used as a seed, so we do not need
+        # to create a modified misc module
+        modified_sub_components = {}
+    else:
+        misc_module = SeedLoaderMiscModule()
+        misc_module.configure(
+            config_data=None,
+            seed_names=[reco_config['seed']],
+            parameter_names=reco_config['seed_parameter_names'],
+            float_precision=reco_config['seed_float_precision'],
+            )
+
+        # create nested dictionary of modified sub components in order to
+        # swap out the loaded misc_module of the data_handler sub component
+        modified_sub_components = {'data_handler': {
+            'misc_module': misc_module,
+        }}
+
     # -----------------------------
     # Create and load Model Manager
     # -----------------------------
@@ -55,7 +79,7 @@ def main(config_files):
         msg = 'Could not find a saved model at {!r}!'
         raise ValueError(msg.format(manager_dir))
 
-    manager.load(manager_dir)
+    manager.load(manager_dir, modified_sub_components=modified_sub_components)
 
     # --------------------
     # start reconstruction

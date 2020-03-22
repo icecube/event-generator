@@ -36,7 +36,15 @@ training_settings: {
 #------------------------
 reconstruction_settings: {
     'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
-    'seed': 'x_parameters',
+
+    # define seed (to seed from MC truth choose: 'x_parameters')
+    'seed': 'MonopodFit4_PartialExclusion',
+    # these are only relevant for the SeedLoaderMiscModule. This specifies
+    # from which column names in the data table the parameters will be loaded
+    'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
+                             'energy', 'time'],
+    'seed_float_precision': 'float32',
+
     'scipy_optimizer_settings': {
         'method': 'L-BFGS-B',
     },
