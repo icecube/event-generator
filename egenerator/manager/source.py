@@ -2,6 +2,7 @@ from __future__ import division, print_function
 import os
 import logging
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 import pandas as pd
 import timeit
@@ -118,7 +119,7 @@ class SourceManager(BaseModelManager):
                            jac=True,
                            method='L-BFGS-B',
                            **kwargs):
-        """Reconstruct events.
+        """Reconstruct events with scipy.optimize.minimize interface.
 
         Parameters
         ----------
@@ -199,7 +200,92 @@ class SourceManager(BaseModelManager):
 
         result = optimize.minimize(fun=func, x0=x0, jac=jac, method=method,
                                    args=(data_batch,), **kwargs)
-        return result
+        return result.x, result
+
+    def tf_reconstruct_events(self, data_batch, loss_module,
+                              loss_and_gradients_function,
+                              fit_paramater_list,
+                              minimize_in_trafo_space=True,
+                              seed='x_parameters',
+                              method='bfgs_minimize',
+                              **kwargs):
+        """Reconstruct events with tensorflow probability interface.
+
+        Parameters
+        ----------
+        data_batch : tuple of tf.Tensor
+            A tuple of tensors. This is the batch received from the tf.Dataset.
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        loss_and_gradients_function : tf.function
+            The tensorflow function:
+                f(parameters, data_batch) -> loss, gradients
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str, optional
+            Name of seed tensor
+        method : str, optional
+            The tensorflow probability optimizer. Must be part of tfp.optimizer
+        **kwargs
+            Keyword arguments that will be passed on to the tensorflow
+            probability optimizer.
+
+        Returns
+        -------
+        tfp optimizer_results
+            The results of the minimization
+
+        Raises
+        ------
+        ValueError
+            Description
+        """
+        parameter_dtype = getattr(
+            tf, self.data_handler.tensors['x_parameters'].dtype)
+        param_shape = [-1, self.data_handler.tensors['x_parameters'].shape[1]]
+        param_shape = [-1, np.sum(fit_paramater_list, dtype=int)]
+
+        if (len(fit_paramater_list) !=
+                self.data_handler.tensors['x_parameters'].shape[1]):
+            raise ValueError('Wrong length of fit_paramater_list: {!r}'.format(
+                len(fit_paramater_list)))
+
+        # get seed parameters
+        seed_index = self.data_handler.tensors.get_index(seed)
+        if np.all(fit_paramater_list):
+            x0 = data_batch[seed_index]
+        else:
+            # get seed parameters
+            unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+            tracked_params = [p for p, fit in
+                              zip(unstacked_seed, fit_paramater_list) if fit]
+            x0 = tf.stack(tracked_params, axis=1)
+
+        # transform seed if minimization is performed in trafo space
+        if minimize_in_trafo_space:
+            x0 = self.model.data_trafo.transform(data=x0,
+                                                 tensor_name='x_parameters')
+
+        def const_loss_and_gradients_function(x):
+            loss, grad = loss_and_gradients_function(x, data_batch)
+            loss = tf.reshape(loss, [1])
+            return loss, grad
+
+        optimizer = getattr(tfp.optimizer, method)
+        otpim_results = optimizer(
+            value_and_gradients_function=const_loss_and_gradients_function,
+            initial_position=x0)
+        return otpim_results.position[0], otpim_results
 
     def reconstruct_testdata(self, config, loss_module):
         """Reconstruct test data events.
@@ -240,6 +326,7 @@ class SourceManager(BaseModelManager):
 
         # get reconstruction config
         reco_config = config['reconstruction_settings']
+        minimize_in_trafo_space = reco_config['minimize_in_trafo_space']
 
         # get a list of parameters to fit
         fit_paramater_list = [reco_config['minimize_parameter_default_value']
@@ -277,8 +364,34 @@ class SourceManager(BaseModelManager):
             input_signature=(param_signature, test_dataset.element_spec),
             loss_module=loss_module,
             fit_paramater_list=fit_paramater_list,
-            minimize_in_trafo_space=reco_config['minimize_in_trafo_space'],
+            minimize_in_trafo_space=minimize_in_trafo_space,
             seed=reco_config['seed'])
+
+        # choose reconstruction method depending on the optimizer interface
+        if reco_config['reco_optimizer_interface'].lower() == 'scipy':
+            def reconstruction_method(data_batch):
+                return self.reconstruct_events(
+                    data_batch, loss_module,
+                    loss_and_gradients_function=loss_and_gradients_function,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=reco_config['seed'],
+                    **reco_config['scipy_optimizer_settings'])
+
+        elif reco_config['reco_optimizer_interface'].lower() == 'tfp':
+            # @tf.function(input_signature=(test_dataset.element_spec,))
+            def reconstruction_method(data_batch):
+                return self.tf_reconstruct_events(
+                    data_batch, loss_module,
+                    loss_and_gradients_function=loss_and_gradients_function,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=reco_config['seed'],
+                    **reco_config['tf_optimizer_settings'])
+        else:
+            msg = 'Unknown interface {!r}. Options are {!r}'
+            raise ValueError(msg.format(
+                reco_config['reco_optimizer_interface'], ['scipy', 'tfp']))
 
         # create empty lists
         cascade_parameters_true = []
@@ -290,27 +403,22 @@ class SourceManager(BaseModelManager):
 
         for event_counter, data_batch in enumerate(test_dataset):
 
-            result = self.reconstruct_events(
-                data_batch, loss_module,
-                loss_and_gradients_function=loss_and_gradients_function,
-                fit_paramater_list=fit_paramater_list,
-                minimize_in_trafo_space=reco_config['minimize_in_trafo_space'],
-                seed=reco_config['seed'],
-                **reco_config['scipy_optimizer_settings'])
+            # reconstruct event
+            result, result_obj = reconstruction_method(data_batch)
 
             cascade_true = data_batch[param_index].numpy()[0]
             cascade_seed = data_batch[seed_index].numpy()[0]
 
             # get reco cascade
             if np.all(fit_paramater_list):
-                cascade_reco = result.x
+                cascade_reco = result
             else:
                 # get seed parameters
                 cascade_reco = []
                 result_counter = 0
                 for i, fit in enumerate(fit_paramater_list):
                     if fit:
-                        cascade_reco.append(result.x[result_counter])
+                        cascade_reco.append(result[result_counter])
                         result_counter += 1
                     else:
                         cascade_reco.append(cascade_seed[i])
