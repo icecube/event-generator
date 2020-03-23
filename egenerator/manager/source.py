@@ -26,6 +26,134 @@ class SourceManager(BaseModelManager):
         self._logger = logger or logging.getLogger(__name__)
         super(SourceManager, self).__init__(logger=self._logger)
 
+    def parameter_loss_function(self, parameters_trafo, data_batch,
+                                loss_module, fit_paramater_list,
+                                minimize_in_trafo_space=True,
+                                seed=None):
+        """Compute loss for a chosen set of parameters.
+
+        Parameters
+        ----------
+        parameters_trafo : tf.Tensor
+            The tensor describing the parameters.
+            Shape: [-1, num_params]
+        data_batch : tuple of tf.Tensor
+            The tf.data.Dataset batch.
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str, optional
+            If a fit_paramater_list is provided with at least one 'False'
+            entry, the seed name must also be provided.
+            The seed is the name of the data tensor by which the reconstruction
+            is seeded.
+
+        Returns
+        -------
+        tf.scalar
+            The loss for the given data_batch and chosen set of parameters.
+        """
+        data_batch_dict = {}
+        for i, name in enumerate(self.data_handler.tensors.names):
+            data_batch_dict[name] = data_batch[i]
+
+        seed_index = self.data_handler.tensors.get_index(seed)
+
+        # gather a list of parameters that are to be fitted
+        if not np.all(fit_paramater_list):
+            unstacked_params = tf.unstack(parameters_trafo, axis=1)
+            unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+            all_params = []
+            counter = 0
+            for i, fit in enumerate(fit_paramater_list):
+                if fit:
+                    all_params.append(unstacked_params[counter])
+                    counter += 1
+                else:
+                    all_params.append(unstacked_seed[i])
+
+            parameters_trafo = tf.stack(all_params, axis=1)
+
+        # unnormalize if minimization is perfomed in trafo space
+        if minimize_in_trafo_space:
+            parameters = self.model.data_trafo.inverse_transform(
+                data=parameters_trafo, tensor_name='x_parameters')
+        else:
+            parameters = parameters_trafo
+
+        data_batch_dict['x_parameters'] = parameters
+
+        result_tensors = self.model.get_tensors(data_batch_dict,
+                                                is_training=False)
+
+        loss = loss_module.get_loss(data_batch_dict,
+                                    result_tensors,
+                                    self.data_handler.tensors)
+        return loss
+
+    def get_parameter_loss_function(self, loss_module, input_signature,
+                                    fit_paramater_list,
+                                    minimize_in_trafo_space=True,
+                                    seed=None):
+        """Get a function that returns the loss for a chosen set of parameters.
+
+        Parameters
+        ----------
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        input_signature : tf.TensorSpec or nested tf.TensorSpec
+            The input signature of the parameters and data_batch arguments
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str, optional
+            If a fit_paramater_list is provided with at least one 'False'
+            entry, the seed name must also be provided.
+            The seed is the name of the data tensor by which the reconstruction
+            is seeded.
+
+        Returns
+        -------
+        tf.function
+            A tensorflow function: f(parameters, data_batch) -> loss
+            that returns the loss for the given data_batch and the chosen
+            set of parameters.
+        """
+
+        @tf.function(input_signature=input_signature)
+        def parameter_loss_function(parameters_trafo, data_batch):
+
+            loss = self.parameter_loss_function(
+                    parameters_trafo=parameters_trafo,
+                    data_batch=data_batch,
+                    loss_module=loss_module,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=seed)
+            return loss
+
+        return parameter_loss_function
+
     def get_loss_and_gradients_function(self, loss_module, input_signature,
                                         fit_paramater_list,
                                         minimize_in_trafo_space=True,
@@ -59,7 +187,7 @@ class SourceManager(BaseModelManager):
         Returns
         -------
         tf.function
-            A tensorflow function: f(parameters) -> loss, gradient
+            A tensorflow function: f(parameters, data_batch) -> loss, gradient
             that returns the loss and the gradients of the loss with
             respect to the model parameters.
         """
@@ -67,45 +195,17 @@ class SourceManager(BaseModelManager):
         @tf.function(input_signature=input_signature)
         def loss_and_gradients_function(parameters_trafo, data_batch):
 
-            data_batch_dict = {}
-            for i, name in enumerate(self.data_handler.tensors.names):
-                data_batch_dict[name] = data_batch[i]
-
-            seed_index = self.data_handler.tensors.get_index(seed)
-
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(parameters_trafo)
 
-                # gather a list of parameters that are to be fitted
-                if not np.all(fit_paramater_list):
-                    unstacked_params = tf.unstack(parameters_trafo, axis=1)
-                    unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
-                    all_params = []
-                    counter = 0
-                    for i, fit in enumerate(fit_paramater_list):
-                        if fit:
-                            all_params.append(unstacked_params[counter])
-                            counter += 1
-                        else:
-                            all_params.append(unstacked_seed[i])
+                loss = self.parameter_loss_function(
+                    parameters_trafo=parameters_trafo,
+                    data_batch=data_batch,
+                    loss_module=loss_module,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=seed)
 
-                    parameters_trafo = tf.stack(all_params, axis=1)
-
-                # unnormalize if minimization is perfomed in trafo space
-                if minimize_in_trafo_space:
-                    parameters = self.model.data_trafo.inverse_transform(
-                        data=parameters_trafo, tensor_name='x_parameters')
-                else:
-                    parameters = parameters_trafo
-
-                data_batch_dict['x_parameters'] = parameters
-
-                result_tensors = self.model.get_tensors(data_batch_dict,
-                                                        is_training=False)
-
-                loss = loss_module.get_loss(data_batch_dict,
-                                            result_tensors,
-                                            self.data_handler.tensors)
             grad = tape.gradient(loss, parameters_trafo)
             return loss, grad
 
@@ -287,6 +387,147 @@ class SourceManager(BaseModelManager):
             initial_position=x0)
         return otpim_results.position[0], otpim_results
 
+    def run_mcmc_on_events(self, initial_position, data_batch, loss_module,
+                           parameter_loss_function,
+                           fit_paramater_list,
+                           minimize_in_trafo_space=True,
+                           num_chains=1,
+                           seed=None):
+            """Reconstruct events with tensorflow probability interface.
+
+            Parameters
+            ----------
+            initial_position : tf.Tensor
+                The tensor describing the parameters.
+            data_batch : tuple of tf.Tensor
+                A tuple of tensors. This is the batch received from the tf.Dataset.
+            loss_module : LossComponent
+                A loss component that is used to compute the loss. The component
+                must provide a
+                loss_module.get_loss(data_batch_dict, result_tensors)
+                method.
+            parameter_loss_function : tf.function
+                The tensorflow function:
+                    f(parameters, data_batch) -> loss
+            fit_paramater_list : bool or list of bool, optional
+                Indicates whether a parameter is to be minimized.
+                The ith element in the list specifies if the ith parameter
+                is minimized.
+            minimize_in_trafo_space : bool, optional
+                If True, minimization is performed in transformed and normalized
+                parameter space. This is usually desired, because the scales of
+                the parameters will all be normalized which should facilitate
+                minimization.
+            num_chains : int, optional
+                Number of chains to run
+            seed : str, optional
+                Name of seed tensor
+            Shape: [-1, num_params]
+
+            Returns
+            -------
+            tfp optimizer_results
+                The results of the minimization
+
+            Raises
+            ------
+            NotImplementedError
+                Description
+            """
+
+            num_params = initial_position.shape[1]
+            initial_position = tf.ensure_shape(initial_position,
+                                               [num_chains, num_params])
+
+            def unnormalized_log_prob(x):
+                """This needs to be the *positive* log(prob).
+                Since our loss is negative llh, we need to subtract this
+                """
+                # unstack chains
+                x = tf.reshape(x, [num_chains, 1, num_params])
+                log_prob_list = []
+                for i in range(num_chains):
+                    log_prob_list.append(-parameter_loss_function(
+                        x[i], data_batch))
+                return tf.stack(log_prob_list, axis=0)
+
+            # Initialize the HMC transition kernel.
+            num_results = int(1e2)
+            num_burnin_steps = int(1e2)
+            # step sizes for x, y, z, zenith, azimuth, energy, time
+            step_size = np.array([[.1, .1, .1, 0.001, 0.001, 10., 1.]])
+
+            param_tensor = self.data_handler.tensors['x_parameters']
+            parameter_dtype = getattr(tf, param_tensor.dtype)
+
+            if minimize_in_trafo_space:
+                for i, trafo in enumerate(param_tensor.trafo_log):
+                    if trafo:
+                        if i != 5:
+                            raise NotImplementedError()
+                        step_size[0][i] = 0.01
+                step_size /= self.model.data_trafo.data['x_parameters_std']
+
+            step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
+            step_size = tf.reshape(step_size, [1, len(fit_paramater_list)])
+
+            # # get seed parameters
+            # seed_index = self.data_handler.tensors.get_index(seed)
+            # if np.all(fit_paramater_list):
+            #     x0 = data_batch[seed_index]
+            # else:
+            #     # get seed parameters
+            #     unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+            #     tracked_params = [p for p, fit in
+            #                       zip(unstacked_seed, fit_paramater_list)
+            #                       if fit]
+            #     x0 = tf.stack(tracked_params, axis=1)
+
+            # # transform seed if minimization is performed in trafo space
+            # if minimize_in_trafo_space:
+            #     x0 = self.model.data_trafo.transform(
+            #         data=x0, tensor_name='x_parameters')
+
+            adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
+                tfp.mcmc.HamiltonianMonteCarlo(
+                    target_log_prob_fn=unnormalized_log_prob,
+                    num_leapfrog_steps=3,
+                    step_size=step_size),
+                # tfp.mcmc.NoUTurnSampler(
+                #     target_log_prob_fn=unnormalized_log_prob,
+                #     step_size=step_size,
+                # ),
+                num_adaptation_steps=int(num_burnin_steps * 0.8))
+
+            def trace_fn(states, previous_kernel_results):
+                pkr = previous_kernel_results
+                return (pkr.inner_results.is_accepted,
+                        pkr.inner_results.accepted_results.target_log_prob,
+                        pkr.inner_results.accepted_results.step_size)
+
+            # Run the chain (with burn-in).
+            @tf.function
+            def run_chain():
+                # Run the chain (with burn-in).
+                samples, trace = tfp.mcmc.sample_chain(
+                    num_results=num_results,
+                    num_burnin_steps=num_burnin_steps,
+                    current_state=initial_position,
+                    kernel=adaptive_hmc,
+                    trace_fn=trace_fn)
+                samples = tf.reshape(samples,
+                                     [num_chains*num_results, num_params])
+                if minimize_in_trafo_space:
+                    samples = self.model.data_trafo.inverse_transform(
+                        data=samples, tensor_name='x_parameters')
+
+                samples = tf.reshape(samples,
+                                     [num_results, num_chains, num_params])
+
+                return samples, trace
+            return run_chain()
+        # ------------------
+
     def reconstruct_testdata(self, config, loss_module):
         """Reconstruct test data events.
 
@@ -393,6 +634,35 @@ class SourceManager(BaseModelManager):
             raise ValueError(msg.format(
                 reco_config['reco_optimizer_interface'], ['scipy', 'tfp']))
 
+        # ------------------
+        # Build MCMC Sampler
+        # ------------------
+        run_mcmc = False
+        if run_mcmc:
+            reco_config['mcmc_num_chains'] = 5
+
+            parameter_loss_function = self.get_parameter_loss_function(
+                    input_signature=(param_signature,
+                                     test_dataset.element_spec),
+                    loss_module=loss_module,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=reco_config['seed'])
+
+            @tf.function(input_signature=(param_signature,
+                                          test_dataset.element_spec))
+            def run_mcmc_on_events(initial_position, data_batch):
+                return self.run_mcmc_on_events(
+                    initial_position=initial_position,
+                    data_batch=data_batch,
+                    loss_module=loss_module,
+                    parameter_loss_function=parameter_loss_function,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    num_chains=reco_config['mcmc_num_chains'],
+                    seed=reco_config['seed'])
+        # ------------------
+
         # create empty lists
         cascade_parameters_true = []
         cascade_parameters_reco = []
@@ -408,6 +678,81 @@ class SourceManager(BaseModelManager):
 
             cascade_true = data_batch[param_index].numpy()[0]
             cascade_seed = data_batch[seed_index].numpy()[0]
+
+            # -------------
+            # run mcmc test
+            # -------------
+            if run_mcmc:
+                num_params = len(fit_paramater_list)
+
+                if minimize_in_trafo_space:
+                    result_inv = self.model.data_trafo.inverse_transform(
+                            data=np.expand_dims(result, axis=0),
+                            tensor_name='x_parameters')[0]
+                else:
+                    result_inv = result
+
+                # 0, 1, 2,      3,       4,      5,    6
+                # x, y, z, zenith, azimuth, energy, time
+                scale = np.array([5., 5., 2., 0.1, 0.1, 0., 10.])
+                low = result_inv - scale
+                high = result_inv + scale
+                # low[3] = 0.0
+                # low[4] = 0.0
+                # high[3] = np.pi
+                # high[4] = 2*np.pi
+                low[5] *= 0.5
+                high[5] *= 2.0
+                initial_position = np.random.uniform(
+                    low=low, high=high,
+                    size=[reco_config['mcmc_num_chains'], num_params])
+                initial_position = tf.convert_to_tensor(initial_position,
+                                                        dtype=param_dtype)
+
+                if minimize_in_trafo_space:
+                    initial_position = self.model.data_trafo.transform(
+                            data=initial_position, tensor_name='x_parameters')
+
+                # initial_position = tf.reshape(
+                #     tf.convert_to_tensor(result, dtype=param_dtype),
+                #     [1, len(fit_paramater_list)])
+                # print('initial_position', initial_position)
+                # print('initial_position.shape', initial_position.shape)
+                samples, trace = run_mcmc_on_events(initial_position,
+                                                    data_batch)
+                samples = samples.numpy()
+                accepted = trace[0].numpy()
+                log_prob_values = trace[1].numpy()
+                steps = trace[2].numpy()
+
+                num_accepted = np.sum(accepted)
+                num_samples = np.prod(samples.shape)
+                samples = samples[accepted]
+                log_prob_values = log_prob_values[accepted]
+                print('Acceptance Ratio', float(num_accepted) / num_samples)
+
+                if num_accepted > 0:
+                    index_max = np.argmax(log_prob_values)
+                    print('Best Sample:', samples[index_max])
+                    print('min loss_values', -max(log_prob_values))
+                    sorted_indices = np.argsort(log_prob_values)
+
+                    central_50p = samples[sorted_indices[
+                                                    int(num_accepted*0.5):]]
+                    central_90p = samples[sorted_indices[
+                                                    int(num_accepted*0.1):]]
+
+                    for i, name in enumerate(self.model.parameter_names):
+                        min_val_90 = min(central_90p[:, i])
+                        max_val_90 = max(central_90p[:, i])
+                        min_val_50 = min(central_50p[:, i])
+                        max_val_50 = max(central_50p[:, i])
+
+                        msg = '\t{:8.2f}: {:8.2f} {:8.2f} {:8.2f} {:8.2f} [{}]'
+                        print(msg.format(cascade_true[i], min_val_90,
+                                         min_val_50, max_val_50, max_val_90,
+                                         name))
+            # -------------
 
             # get reco cascade
             if np.all(fit_paramater_list):

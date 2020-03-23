@@ -53,7 +53,7 @@ reconstruction_settings: {
         'method': 'L-BFGS-B',
         # 'method': 'BFGS',
         'options': {
-            'ftol': !!float 1e-7,
+            # 'ftol': !!float 1e-7,
         }
     },
 
