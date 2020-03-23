@@ -45,9 +45,9 @@ reconstruction_settings: {
                              'energy', 'time'],
     'seed_float_precision': 'float32',
 
-    # choose the minimization iterface:
+    # choose the otpimizer iterface:
     #   'scipy' or 'tfp' (tensorflow_probability)
-    'reco_minimization_interface': 'scipy',
+    'reco_optimizer_interface': 'scipy',
 
     'scipy_optimizer_settings': {
         'method': 'L-BFGS-B',

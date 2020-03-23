@@ -18,7 +18,7 @@ setup(
         'egenerator',
     ],
     install_requires=[
-        'numpy', 'scipy', 'pandas',
+        'numpy', 'scipy', 'pandas', 'tensorflow_probability',
     ],
     include_package_data=True,
     author=about['__author__'],
