@@ -19,8 +19,8 @@ class MultiSource(Source):
 
     A derived class must implement
     ------------------------------
-    get_parameters(self, config, sources):
-        Get parameter names and their ordering.
+    get_parameters_and_mapping(self, config, sources):
+        Get parameter names and their ordering as well as source mapping.
 
         This is a pure virtual method that must be implemented by
         derived class.
@@ -29,13 +29,25 @@ class MultiSource(Source):
         ----------
         config : dict
             A dictionary of settings.
-        sources : dict of Sources
-            A dict of Source objects.
+        base_sources : dict of Source objects
+            A dictionary of sources. These sources are used as a basis for
+            the MultiSource object. The event hypothesis can be made up of
+            multiple sources which may be created from one or more
+            base source objects.
 
         Returns
         -------
         list of str
             A list of parameters of the MultiSource object.
+        dict
+            This describes the sources which compose the event hypothesis.
+            The dictionary is a mapping from source_name (str) to
+            base_source (str). This mapping allows the reuse of a single
+            source component instance. For instance, a muon can be build up of
+            multiple cascades. However, all cascades should use the same
+            underlying model. Hence, in this case only one base_source is
+            required: the cascade source. The mapping will then map all
+            cascades in the hypothesis to this one base cascade source.
 
     get_source_parameters(self, parameters):
         Get the input parameters for the individual sources.
@@ -74,8 +86,8 @@ class MultiSource(Source):
         self._logger = logger or logging.getLogger(__name__)
         super(MultiSource, self).__init__(logger=self._logger)
 
-    def get_parameters(self, config, base_sources, sources):
-        """Get parameter names and their ordering.
+    def get_parameters_and_mapping(self, config, base_sources):
+        """Get parameter names and their ordering as well as source mapping.
 
         This is a pure virtual method that must be implemented by
         derived class.
@@ -84,12 +96,17 @@ class MultiSource(Source):
         ----------
         config : dict
             A dictionary of settings.
-         base_sources : dict of Source objects
+        base_sources : dict of Source objects
             A dictionary of sources. These sources are used as a basis for
             the MultiSource object. The event hypothesis can be made up of
             multiple sources which may be created from one or more
             base source objects.
-        sources : dict
+
+        Returns
+        -------
+        list of str
+            A list of parameter names of the MultiSource object.
+        dict
             This describes the sources which compose the event hypothesis.
             The dictionary is a mapping from source_name (str) to
             base_source (str). This mapping allows the reuse of a single
@@ -98,11 +115,6 @@ class MultiSource(Source):
             underlying model. Hence, in this case only one base_source is
             required: the cascade source. The mapping will then map all
             cascades in the hypothesis to this one base cascade source.
-
-        Returns
-        -------
-        list of str
-            A list of parameter names of the MultiSource object.
         """
         raise NotImplementedError()
 
@@ -126,7 +138,7 @@ class MultiSource(Source):
         """
         raise NotImplementedError()
 
-    def _configure_derived_class(self, base_sources, sources, config,
+    def _configure_derived_class(self, base_sources, config,
                                  data_trafo=None,
                                  name=None):
         """Setup and configure the Source's architecture.
@@ -141,16 +153,6 @@ class MultiSource(Source):
             the MultiSource object. The event hypothesis can be made up of
             multiple sources which may be created from one or more
             base source objects.
-        sources : dict
-            This describes the sources which compose the event hypothesis.
-            The dictionary is a mapping from source_name (str) to
-            base_source (str). This mapping allows the reuse of a single
-            source component instance. For instance, a muon can be build up of
-            multiple cascades. However, all cascades should use the same
-            underlying model. Hence, in this case only one base_source is
-            required: the cascade source. The mapping will then map all
-            cascades in the hypothesis to this one base cascade source.
-
         config : dict
             A dictionary of settings which is used to set up the model
             architecture and weights.
@@ -206,7 +208,8 @@ class MultiSource(Source):
 
         # build architecture: create and save model weights
         # returns parameter_names
-        parameter_names = self.get_parameters(config, base_sources, sources)
+        parameter_names, sources = self.get_parameters_and_mapping(
+            config, base_sources)
 
         sub_components = base_sources
         if data_trafo is not None:
@@ -222,6 +225,7 @@ class MultiSource(Source):
 
         # get names of parameters
         self._untracked_data['name'] = name
+        self._untracked_data['sources'] = sources
         self._untracked_data['num_parameters'] = len(parameter_names)
         self._untracked_data['parameter_names'] = parameter_names
         self._untracked_data['parameter_name_dict'] = \
@@ -232,8 +236,7 @@ class MultiSource(Source):
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config=config,
-                          sources=sources),
+            settings=dict(config=config),
             mutable_settings=dict(name=name))
 
         return configuration, {}, sub_components
@@ -297,7 +300,7 @@ class MultiSource(Source):
 
         dom_charges = None
         pulse_pdf = None
-        for name, base in self.configuration.settings['sources'].items():
+        for name, base in self._untracked_data['sources'].items():
 
             # get the base source
             sub_component = self.sub_components[base]
@@ -510,7 +513,7 @@ class MultiSource(Source):
 
         # check if each specified source has the correct amount of input
         # parameters and if these are only based on the MultiSourceInput
-        for name, base in self.configuration.settings['sources'].items():
+        for name, base in self._untracked_data['sources'].items():
 
             # get base component
             sub_component = self.sub_components[base]

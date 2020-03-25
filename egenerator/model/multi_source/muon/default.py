@@ -17,8 +17,8 @@ class DefaultMultiCascadeModel(MultiSource):
         self._logger = logger or logging.getLogger(__name__)
         super(DefaultMultiCascadeModel, self).__init__(logger=self._logger)
 
-    def get_parameters(self, config, base_sources, sources):
-        """Get parameter names and their ordering.
+    def get_parameters_and_mapping(self, config, base_sources):
+        """Get parameter names and their ordering as well as source mapping.
 
         This is a pure virtual method that must be implemented by
         derived class.
@@ -32,7 +32,12 @@ class DefaultMultiCascadeModel(MultiSource):
             the MultiSource object. The event hypothesis can be made up of
             multiple sources which may be created from one or more
             base source objects.
-        sources : dict
+
+        Returns
+        -------
+        list of str
+            A list of parameter names of the MultiSource object.
+        dict
             This describes the sources which compose the event hypothesis.
             The dictionary is a mapping from source_name (str) to
             base_source (str). This mapping allows the reuse of a single
@@ -41,13 +46,9 @@ class DefaultMultiCascadeModel(MultiSource):
             underlying model. Hence, in this case only one base_source is
             required: the cascade source. The mapping will then map all
             cascades in the hypothesis to this one base cascade source.
-
-        Returns
-        -------
-        list of str
-            A list of parameter names of the MultiSource object.
-
         """
+        sources = config['sources']
+
         for name, base in sources.items():
             if base != 'cascade':
                 msg = 'Expected only cascade base, but got {!r}'
@@ -58,7 +59,7 @@ class DefaultMultiCascadeModel(MultiSource):
         for cascade in sorted(sources.keys()):
             for variable in variables:
                 parameters.append(cascade + '_' + variable)
-        return parameters
+        return parameters, sources
 
     def get_source_parameters(self, parameters):
         """Get the input parameters for the individual sources.
@@ -81,7 +82,7 @@ class DefaultMultiCascadeModel(MultiSource):
         variables = ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time']
 
         source_parameter_dict = {}
-        for cascade in self.configuration.settings['sources'].keys():
+        for cascade in self._untracked_data['sources'].keys():
             source_parameter_dict[cascade] = tf.stack([
                 parameters.params[cascade + '_' + variable]
                 for variable in variables], axis=1)

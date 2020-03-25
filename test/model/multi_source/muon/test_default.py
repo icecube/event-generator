@@ -54,16 +54,16 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
             'cascade_00001': 'cascade',
             'cascade_00002': 'cascade',
         }
+        self.config['sources'] = self.sources
         self.sub_components = {'cascade': self.base_sources['cascade']}
         self.source = self.get_muon(config=self.config,
-                                    base_sources=self.base_sources,
-                                    sources=self.sources)
+                                    base_sources=self.base_sources)
 
         class_string = 'egenerator.model.multi_source.muon.default.'
         class_string += 'DefaultMultiCascadeModel'
         self.configuration = Configuration(
             class_string=class_string,
-            settings=dict(config=self.config, sources=self.sources),
+            settings=dict(config=self.config),
             mutable_settings=dict(name='egenerator.model.multi_source.base'))
         self.configuration.add_sub_components(self.sub_components)
 
@@ -150,8 +150,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
 
         with self.assertRaises(NotImplementedError) as context:
             model.configure(config=self.config,
-                            base_sources=self.base_sources,
-                            sources=self.sources)
+                            base_sources=self.base_sources)
 
     def test_correct_configuration_name(self):
         """Test if the name passed in to the configuration is properly saved
@@ -159,7 +158,6 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
         model = DefaultMultiCascadeModel()
         model.configure(config=self.config,
                         base_sources=self.base_sources,
-                        sources=self.sources,
                         name='dummy')
         self.assertEqual(model.name, 'dummy')
 
@@ -203,6 +201,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
              'parameter_name_dict':
                 self.source._untracked_data['parameter_name_dict'],
              'parameter_names': self.parameter_names,
+             'sources': self.sources,
              })
         self.assertEqual(self.source._sub_components, self.sub_components)
 
