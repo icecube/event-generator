@@ -56,7 +56,8 @@ class IndependentMultiSource(MultiSource):
 
         parameters = []
         for cascade in sorted(sources.keys()):
-            for variable in sorted(base_sources[cascade].parameter_names):
+            base = sources[cascade]
+            for variable in sorted(base_sources[base].parameter_names):
                 parameters.append(cascade + '_' + variable)
         return parameters, sources
 
@@ -80,11 +81,11 @@ class IndependentMultiSource(MultiSource):
         """
         source_parameter_dict = {}
         counter = 0
-        for cascade in sorted(sources.keys()):
-            num = base_sources[cascade].num_parameters
+        for cascade in sorted(self._untracked_data['sources'].keys()):
+            base = self._untracked_data['sources'][cascade]
+            num = self.sub_components[base].num_parameters
             source_parameter_dict[cascade] = \
                 parameters[:, counter:counter + num]
             counter += num
 
         return source_parameter_dict
-

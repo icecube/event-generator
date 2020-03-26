@@ -15,7 +15,7 @@ from egenerator import misc
 from egenerator.data.trafo import DataTransformer
 from egenerator.manager.component import Configuration, BaseComponent
 from egenerator.model.multi_source.base import MultiSource
-from egenerator.model.multi_source.muon.default import DefaultMultiCascadeModel
+from egenerator.model.multi_source.independent import IndependentMultiSource
 from egenerator.model.source.cascade.dummy import DummyCascadeModel
 
 
@@ -28,7 +28,7 @@ class DummyDataTrafo(BaseComponent):
         return configuration, {}, {}
 
 
-class TestDefaultMultiCascadeModel(unittest.TestCase):
+class TestIndependentMultiSource(unittest.TestCase):
 
     """Test base class for Models
     """
@@ -37,13 +37,11 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
         self.data_trafo.configure(config_data={'trafo_setting': 42})
 
         self.parameter_names = [
-            'cascade_00001_x', 'cascade_00001_y', 'cascade_00001_z',
-            'cascade_00001_zenith', 'cascade_00001_azimuth',
-            'cascade_00001_energy', 'cascade_00001_time',
-            'cascade_00002_x', 'cascade_00002_y', 'cascade_00002_z',
-            'cascade_00002_zenith', 'cascade_00002_azimuth',
-            'cascade_00002_energy', 'cascade_00002_time',
-            ]
+            'cascade_00001_azimuth', 'cascade_00001_energy',
+            'cascade_00001_time', 'cascade_00001_x', 'cascade_00001_y',
+            'cascade_00001_z', 'cascade_00001_zenith', 'cascade_00002_azimuth',
+            'cascade_00002_energy', 'cascade_00002_time', 'cascade_00002_x',
+            'cascade_00002_y', 'cascade_00002_z', 'cascade_00002_zenith']
         self.config = {'num_cascades': 2}
         self.config_cascade = {'cascade_setting': 1337}
         self.base_sources = {
@@ -59,8 +57,8 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
         self.source = self.get_muon(config=self.config,
                                     base_sources=self.base_sources)
 
-        class_string = 'egenerator.model.multi_source.muon.default.'
-        class_string += 'DefaultMultiCascadeModel'
+        class_string = 'egenerator.model.multi_source.independent.'
+        class_string += 'IndependentMultiSource'
         self.configuration = Configuration(
             class_string=class_string,
             settings=dict(config=self.config),
@@ -72,7 +70,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
             [component for component in self.sub_components.keys()])
 
     def get_muon(self, **kwargs):
-        model = DefaultMultiCascadeModel()
+        model = IndependentMultiSource()
         model.configure(**kwargs)
         return model
 
@@ -131,7 +129,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
         """Check if member variables are correctly set when instantiating
         a Model object.
         """
-        model = DefaultMultiCascadeModel()
+        model = IndependentMultiSource()
         self.assertEqual(model._is_configured, False)
         self.assertEqual(model.data, None)
         self.assertEqual(model.configuration, None)
@@ -155,7 +153,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
     def test_correct_configuration_name(self):
         """Test if the name passed in to the configuration is properly saved
         """
-        model = DefaultMultiCascadeModel()
+        model = IndependentMultiSource()
         model.configure(config=self.config,
                         base_sources=self.base_sources,
                         name='dummy')
@@ -208,7 +206,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
     def test_method_assert_configured(self):
         """Check the method assert_configured()
         """
-        model = DefaultMultiCascadeModel()
+        model = IndependentMultiSource()
         model.assert_configured(False)
         with self.assertRaises(ValueError) as context:
             model.assert_configured(True)
@@ -406,7 +404,7 @@ class TestDefaultMultiCascadeModel(unittest.TestCase):
         self.assertTrue(cascade._untracked_data['dummy_var'].numpy() == 42)
 
         # create a new model from scratch
-        model = DefaultMultiCascadeModel()
+        model = IndependentMultiSource()
         # now load the latest saved model weights which was 37
         model.load(directory)
 
