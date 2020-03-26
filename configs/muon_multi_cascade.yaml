@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'single_cascade'
+unique_name: 'muon_multi_cascade'
 
 
 #------------------
@@ -332,26 +332,44 @@ data_handler_settings: {
 model_settings: {
 
     # The loss module class to use
-    'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
+    'model_class': 'egenerator.model.multi_source.muon.default.DefaultMultiCascadeModel',
 
+    # configuration settings for DefaultMultiCascadeModel object
     config: {
-        'keep_prob':,
-        'add_opening_angle': True,
-        'num_local_vars': 0,
-        'scale_charge': True,
-        'num_latent_models': 5,
 
-        # First convolutions
-        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [20, 500, 500, 500, 21],
-        'method_list' : ['locally_connected',
-                         'convolution', 'convolution', 'convolution',
-                         'convolution',
-                         ],
-        'use_dropout_list' : False,
-        'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
-        'use_batch_norm_list' : False,
-        'use_residual_list' : True,
+    },
+
+    # Base sources used by the multi-source class
+    multi_source_bases: {
+        cascade: {
+
+            # The source model class to use
+            'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
+
+            # The directory from which this base source will be loaded
+            'load_dir':,
+
+            # configuration settings of this base source
+            config: {
+                'keep_prob':,
+                'add_opening_angle': True,
+                'num_local_vars': 0,
+                'scale_charge': True,
+                'num_latent_models': 5,
+
+                # First convolutions
+                'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                'num_filters_list' : [20, 500, 500, 500, 21],
+                'method_list' : ['locally_connected',
+                                 'convolution', 'convolution', 'convolution',
+                                 'convolution',
+                                 ],
+                'use_dropout_list' : False,
+                'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
+                'use_batch_norm_list' : False,
+                'use_residual_list' : True,
+            },
+        },
     },
 }
 

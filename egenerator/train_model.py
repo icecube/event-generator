@@ -10,6 +10,7 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
+from egenerator.utils.build_components import build_manager
 from egenerator.data.trafo import DataTransformer
 
 
@@ -67,10 +68,6 @@ def main(config_files):
     # ---------------------------------------
     # Create and configure/load Model Manager
     # ---------------------------------------
-    ModelManagerClass = misc.load_class(
-        config['model_manager_settings']['model_manager_class'])
-    manager = ModelManagerClass()
-
     manager_config = config['model_manager_settings']
     manager_dir = manager_config['config']['manager_dir']
 
@@ -99,38 +96,9 @@ def main(config_files):
 
         restore = False
 
-    if restore:
-        manager.load(manager_dir)
-
-    else:
-        # --------------------------
-        # Create Data Handler object
-        # --------------------------
-        DataHandlerClass = misc.load_class('egenerator.data.handler.{}'.format(
-                            config['data_handler_settings']['data_handler']))
-        data_handler = DataHandlerClass()
-        data_handler.configure(config=config['data_handler_settings'])
-
-        # --------------------------
-        # create and load TrafoModel
-        # --------------------------
-        data_transformer = DataTransformer()
-        data_transformer.load(config['data_trafo_settings']['model_dir'])
-
-        # -----------------------
-        # create and Model object
-        # -----------------------
-        ModelClass = misc.load_class(config['model_settings']['model_class'])
-        model = ModelClass()
-        model.configure(config=config['model_settings']['config'],
-                        data_trafo=data_transformer)
-
-        # -----------------------
-        # configure model manager
-        # -----------------------
-        manager.configure(config=manager_config['config'],
-                          data_handler=data_handler,
-                          model=model)
+    # build manager object
+    manager, model, data_handler, data_transformer = build_manager(
+                                                    config, restore=restore)
 
     # --------------
     # start training

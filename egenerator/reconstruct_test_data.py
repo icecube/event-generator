@@ -10,6 +10,7 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
+from egenerator.utils.build_components import build_manager
 from egenerator.data.trafo import DataTransformer
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
@@ -68,18 +69,31 @@ def main(config_files):
     # -----------------------------
     # Create and load Model Manager
     # -----------------------------
-    ModelManagerClass = misc.load_class(
-        config['model_manager_settings']['model_manager_class'])
-    manager = ModelManagerClass()
-
     manager_config = config['model_manager_settings']
     manager_dir = manager_config['config']['manager_dir']
 
-    if not os.path.exists(os.path.join(manager_dir, 'configuration.yaml')):
-        msg = 'Could not find a saved model at {!r}!'
-        raise ValueError(msg.format(manager_dir))
+    if manager_config['restore_model']:
+        if not os.path.exists(os.path.join(manager_dir, 'configuration.yaml')):
+            msg = 'Could not find a saved model at {!r}!'
+            raise ValueError(msg.format(manager_dir))
 
-    manager.load(manager_dir, modified_sub_components=modified_sub_components)
+    else:
+        # Model Manager is being built from scratch, so we need to pass
+        # the data handler settings with the modified misc module
+        config['data_handler_settings']['misc_module'] = \
+            'seed_loader.SeedLoaderMiscModule'
+
+        config['data_handler_settings']['misc_settings'] = {
+            'seed_names': [reco_config['seed']],
+            'seed_parameter_names': reco_config['seed_parameter_names'],
+            'float_precision': reco_config['seed_float_precision'],
+        }
+
+    # build manager object
+    manager, model, data_handler, data_transformer = build_manager(
+                            config,
+                            restore=manager_config['restore_model'],
+                            modified_sub_components=modified_sub_components)
 
     # --------------------
     # start reconstruction
