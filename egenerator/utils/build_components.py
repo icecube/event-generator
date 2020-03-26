@@ -50,11 +50,13 @@ def build_manager(config, restore,
         Returns the created or passed data transformer object.
     """
 
+    manager_config = config['model_manager_settings']
+    manager_dir = manager_config['config']['manager_dir']
+
     # ---------------------------------------
     # Create and configure/load Model Manager
     # ---------------------------------------
-    ModelManagerClass = misc.load_class(
-        config['model_manager_settings']['model_manager_class'])
+    ModelManagerClass = misc.load_class(manager_config['model_manager_class'])
     manager = ModelManagerClass()
 
     if restore:
