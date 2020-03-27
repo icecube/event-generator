@@ -49,7 +49,8 @@ class DummyCascadeModel(Source):
 
         return parameter_names
 
-    def get_tensors(self, data_batch_dict, is_training):
+    def get_tensors(self, data_batch_dict, is_training,
+                    parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -77,6 +78,8 @@ class DummyCascadeModel(Source):
             Must be provided if batch normalisation is used.
             True: in training mode
             False: inference mode.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
 
         Returns
         -------
@@ -91,7 +94,7 @@ class DummyCascadeModel(Source):
         """
         self.assert_configured(True)
 
-        parameters = data_batch_dict['x_parameters']
+        parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
 
