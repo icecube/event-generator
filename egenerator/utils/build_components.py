@@ -19,7 +19,8 @@ def build_manager(config, restore,
                   data_handler=None,
                   data_transformer=None,
                   model=None,
-                  modified_sub_components={}):
+                  modified_sub_components={},
+                  allow_rebuild_base_sources=False):
     """Build the Manager Component.
 
     Parameters
@@ -37,6 +38,9 @@ def build_manager(config, restore,
     modified_sub_components : dict, optional
         A dictionary of modified sub-components that will be passed on to
         ModelManager load method.
+    allow_rebuild_base_sources : bool, optional
+        If True, the model is allowed to be rebuild, otherwise it will raise
+        an error if a model is not loaded, but rebuild from scratch.
 
     Returns
     -------
@@ -106,6 +110,12 @@ def build_manager(config, restore,
 
                     # configure model if we are not loading it new
                     else:
+                        if not allow_rebuild_base_sources:
+                            msg = 'Model is not allowed to be rebuild! '
+                            msg += 'To change this setting, set '
+                            msg += "'allow_rebuild_base_sources' to True."
+                            raise ValueError(msg)
+
                         base_source.configure(config=settings['config'],
                                               data_trafo=data_transformer)
 

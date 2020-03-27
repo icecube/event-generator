@@ -96,7 +96,8 @@ def main(config_files):
     manager, model, data_handler, data_transformer = build_manager(
                             config,
                             restore=manager_config['restore_model'],
-                            modified_sub_components=modified_sub_components)
+                            modified_sub_components=modified_sub_components,
+                            allow_rebuild_base_sources=False)
 
     # --------------------
     # start reconstruction
