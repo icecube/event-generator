@@ -56,7 +56,7 @@ reconstruction_settings: {
                              # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
                              # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
                             ],
-    'seed_missing_value': 100,
+    'seed_missing_value': 6.,
     'seed_float_precision': 'float32',
 
     # choose the otpimizer iterface:
@@ -89,7 +89,6 @@ reconstruction_settings: {
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
-
     },
 
 }
@@ -361,7 +360,7 @@ model_settings: {
             'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
             # The directory from which this base source will be loaded
-            'load_dir':,
+            'load_dir': '../data/training/single_cascade/manager/model',
 
             # configuration settings of this base source
             config: {

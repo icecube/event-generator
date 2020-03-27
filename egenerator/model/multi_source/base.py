@@ -292,15 +292,31 @@ class MultiSource(Source):
         """
         self.assert_configured(True)
 
-        # check if get_source_parameters correctly fills in all source params
-        self.check_source_parameter_creation()
-
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
 
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
+
+        # -----------------------------------------------
+        # get concrete functions of base sources.
+        # That way tracing only needs to be applied once.
+        # -----------------------------------------------
+        input_signature = None
+
+        concrete_get_tensors_funcs = {}
+        for base in set(self._untracked_data['sources'].values()):
+            base_source = self.sub_components[base]
+
+            @tf.function(input_signature=input_signature)
+            def concrete_function(data_batch_dict_i):
+                return base_source.get_tensors(
+                                data_batch_dict_i,
+                                is_training=is_training,
+                                parameter_tensor_name='x_parameters')
+            concrete_get_tensors_funcs[base] = concrete_function
+        # -----------------------------------------------
 
         dom_charges = None
         pulse_pdf = None
@@ -319,10 +335,9 @@ class MultiSource(Source):
                 'x_pulses': pulses,
                 'x_pulses_ids': pulses_ids,
             }
-            result_tensors_i = sub_component.get_tensors(
-                                data_batch_dict_i,
-                                is_training=is_training,
-                                parameter_tensor_name='x_parameters')
+            result_tensors_i = concrete_get_tensors_funcs[base](
+                                                            data_batch_dict_i)
+
             dom_charges_i = result_tensors_i['dom_charges']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 
@@ -336,7 +351,7 @@ class MultiSource(Source):
             if dom_charges is None:
                 dom_charges = dom_charges_i
             else:
-                dom_charges += dom_charges
+                dom_charges += dom_charges_i
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)

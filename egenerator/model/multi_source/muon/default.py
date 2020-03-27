@@ -59,7 +59,7 @@ class DefaultMultiCascadeModel(MultiSource):
         parameters = ['x', 'y', 'z', 'zenith', 'azimuth', 'time']
         for index in range(self._untracked_data['num_cascades']):
             cascade_name = 'cascade_{:04d}'.format(index)
-            parameters.append(cascade_name + '_energy')
+            parameters.append(cascade_name + '_log_energy')
             sources[cascade_name] = 'cascade'
 
         return parameters, sources
@@ -84,7 +84,7 @@ class DefaultMultiCascadeModel(MultiSource):
         """
         c = 0.299792458  # meter / ns
         d_thresh = 700  # meter
-        distance = 700  # neter
+        distance = 50  # meter
 
         x = parameters.params['x']
         y = parameters.params['y']
@@ -107,15 +107,18 @@ class DefaultMultiCascadeModel(MultiSource):
         s = dir_x*h_x + dir_y*h_y + dir_z*h_z
 
         # closest approach position
-        closest_x = x + s*dir_x
-        closest_y = y + s*dir_y
-        closest_z = z + s*dir_z
-        closest_time = time + s / c
+        # closest_x = x + s*dir_x
+        # closest_y = y + s*dir_y
+        # closest_z = z + s*dir_z
+        # closest_time = time + s / c
+        closest_x = x
+        closest_y = y
+        closest_z = z
+        closest_time = time
 
-        cascade_distances = np.linspace(-distance, distance,
+        # cascade_distances = np.linspace(-distance, distance,
+        cascade_distances = np.linspace(0., distance,
                                         self._untracked_data['num_cascades'])
-
-        variables = ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time']
 
         source_parameter_dict = {}
         for cascade, dist in zip(self._untracked_data['sources'].keys(),
@@ -126,13 +129,15 @@ class DefaultMultiCascadeModel(MultiSource):
             cascade_y = closest_y + dist * dir_y
             cascade_z = closest_z + dist * dir_z
             cascade_time = closest_time + dist / c
-            cascade_energy = parameters.params[cascade + '_energy']
+            cascade_energy = tf.exp(parameters.params[cascade + '_log_energy'])
 
             # set cascades far out to zero energy
-            if (tf.abs(cascade_x) > d_thresh
-                or tf.abs(cascade_y) > d_thresh
-                    or tf.abs(cascade_z) > d_thresh):
-                cascade_energy = cascade_energy * 0.
+            cascade_energy = tf.where(tf.abs(cascade_x) > d_thresh,
+                                      cascade_energy*0., cascade_energy)
+            cascade_energy = tf.where(tf.abs(cascade_y) > d_thresh,
+                                      cascade_energy*0., cascade_energy)
+            cascade_energy = tf.where(tf.abs(cascade_z) > d_thresh,
+                                      cascade_energy*0., cascade_energy)
 
             source_parameter_dict[cascade] = tf.stack([
                 cascade_x, cascade_y, cascade_z,
