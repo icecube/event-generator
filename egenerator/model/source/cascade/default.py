@@ -88,7 +88,8 @@ class DefaultCascadeModel(Source):
 
         return parameter_names
 
-    def get_tensors(self, data_batch_dict, is_training):
+    def get_tensors(self, data_batch_dict, is_training,
+                    parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -116,6 +117,8 @@ class DefaultCascadeModel(Source):
             Must be provided if batch normalisation is used.
             True: in training mode
             False: inference mode.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
 
         Raises
         ------
@@ -138,7 +141,7 @@ class DefaultCascadeModel(Source):
         tensor_dict = {}
 
         config = self.configuration.config['config']
-        parameters = data_batch_dict['x_parameters']
+        parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
 
@@ -146,13 +149,13 @@ class DefaultCascadeModel(Source):
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
 
-        print('pulse_times', pulse_times)
+        print('pulses', pulses)
         print('pulses_ids', pulses_ids)
         print('parameters', parameters)
 
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(
-                                        parameters, tensor_name='x_parameters')
+                                parameters, tensor_name=parameter_tensor_name)
 
         num_features = parameters.get_shape().as_list()[-1]
 
@@ -193,8 +196,6 @@ class DefaultCascadeModel(Source):
         cascade_dir_z = -tf.cos(cascade_zenith)
 
         # calculate opening angle of displacement vector and cascade direction
-        print('dx_normed', dx_normed)
-        print('cascade_dir_x', cascade_dir_x)
         opening_angle = angles.get_angle(tf.stack([cascade_dir_x,
                                                    cascade_dir_y,
                                                    cascade_dir_z], axis=-1),
@@ -203,17 +204,15 @@ class DefaultCascadeModel(Source):
                                                     dz_normed], axis=-1)
                                          )
         opening_angle = tf.expand_dims(opening_angle, axis=-1)
-        print('opening_angle', opening_angle)
 
         # transform dx, dy, dz, distance, zenith, azimuth to correct scale
-        params_mean = self.data_trafo.data['x_parameters_mean']
-        params_std = self.data_trafo.data['x_parameters_std']
+        params_mean = self.data_trafo.data[parameter_tensor_name+'_mean']
+        params_std = self.data_trafo.data[parameter_tensor_name+'_std']
         norm_const = self.data_trafo.data['norm_constant']
 
         distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
         opening_angle_traf = ((opening_angle - params_mean[3]) /
                               (norm_const + params_std[3]))
-        print('opening_angle_traf', opening_angle_traf)
 
         x_parameters_expanded = tf.unstack(tf.reshape(
                                                 parameters_trafo,
@@ -277,11 +276,8 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
 
         # offset PDF evaluation times with cascade vertex time
-        print('pulse_times', pulse_times)
-        print('gather', tf.gather(parameters[:, 6], indices=pulse_batch_id))
         t_pdf = pulse_times - tf.gather(parameters[:, 6],
                                         indices=pulse_batch_id)
-        print('t_pdf', t_pdf)
         # new shape: [None, 1]
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
         t_pdf = tf.ensure_shape(t_pdf, [None, 1])
@@ -290,7 +286,6 @@ class DefaultCascadeModel(Source):
         t_scale = 0.001  # 1./ns
         average_t_dist = 1000. * t_scale
         t_pdf = t_pdf * t_scale
-        print('t_pdf (expanded)', t_pdf)
 
         # -------------------------------------------
         # Gather latent vars of mixture model
@@ -363,7 +358,6 @@ class DefaultCascadeModel(Source):
                     x=t_pdf, mu=pulse_latent_mu, sigma=pulse_latent_sigma,
                     r=pulse_latent_r) * pulse_latent_scale
 
-        print('before reduce_sum pulse_pdf_values', pulse_pdf_values)
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
         print('pulse_pdf_values', pulse_pdf_values)

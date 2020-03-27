@@ -49,9 +49,9 @@ class DefaultMultiCascadeModel(MultiSource):
             required: the cascade source. The mapping will then map all
             cascades in the hypothesis to this one base cascade source.
         """
-        self._untracked_data['num_cascades'] = 100
+        self._untracked_data['num_cascades'] = config['num_cascades']
 
-        if base_sources.keys() != ['cascade']:
+        if list(base_sources.keys()) != ['cascade']:
             msg = "Expected only 'cascade' base, but got {!r}"
             raise ValueError(msg.format(base_sources.keys()))
 

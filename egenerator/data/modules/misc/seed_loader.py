@@ -27,7 +27,7 @@ class SeedLoaderMiscModule(BaseComponent):
         super(SeedLoaderMiscModule, self).__init__(logger=logger)
 
     def _configure(self, config_data, seed_names, seed_parameter_names,
-                   float_precision):
+                   float_precision, missing_value=None):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -46,6 +46,9 @@ class SeedLoaderMiscModule(BaseComponent):
             as the seed_parameter_names.
         float_precision : str
             The float precision as a str.
+        missing_value : None, optional
+            Optionally, if a parameter does not exist, this value can be
+            assigned to it.
 
         Returns
         -------
@@ -108,7 +111,8 @@ class SeedLoaderMiscModule(BaseComponent):
             settings={'config_data': config_data},
             mutable_settings={'seed_names': seed_names,
                               'seed_parameter_names': seed_parameter_names,
-                              'float_precision': float_precision},
+                              'float_precision': float_precision,
+                              'missing_value': missing_value},
             )
         return configuration, data, {}
 
@@ -134,13 +138,20 @@ class SeedLoaderMiscModule(BaseComponent):
 
         seeds = []
         num_events_list = []
+        missing_value = self.configuration.config['missing_value']
         for seed_name in self.configuration.config['seed_names']:
 
             seed_parameters = []
             try:
                 _labels = f[seed_name]
                 for l in self.configuration.config['seed_parameter_names']:
-                    seed_parameters.append(_labels[l])
+                    if l in _labels:
+                        seed_parameters.append(_labels[l].values)
+                    elif missing_value is not None:
+                        num_events = len(seed_parameters[-1])
+                        seed_parameters.append([missing_value]*num_events)
+                    else:
+                        raise KeyError('Could not find key {!r}'.format(l))
 
             except Exception as e:
                 self._logger.warning(e)

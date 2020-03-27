@@ -374,7 +374,7 @@ class BaseModelManager(Model):
 
     @tf.function
     def get_loss(self, data_batch, loss_module, opt_config, is_training,
-                 step=None):
+                 step=None, parameter_tensor_name='x_parameters'):
         """Get the scalar loss for a batch of data and a given loss component.
 
         Parameters
@@ -395,6 +395,8 @@ class BaseModelManager(Model):
             False: inference mode.
         step : int, optional
             The current training step.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
 
         Returns
         -------
@@ -427,7 +429,8 @@ class BaseModelManager(Model):
         return combined_loss
 
     @tf.function
-    def perform_training_step(self, data_batch, loss_module, opt_config):
+    def perform_training_step(self, data_batch, loss_module, opt_config,
+                              parameter_tensor_name='x_parameters'):
         """Perform one training step
 
         Parameters
@@ -441,6 +444,8 @@ class BaseModelManager(Model):
             method.
         opt_config : config
             The optimization config defining the settings.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
 
         Returns
         -------
@@ -448,8 +453,10 @@ class BaseModelManager(Model):
             The scalar loss.
         """
         with tf.GradientTape() as tape:
-            combined_loss = self.get_loss(data_batch, loss_module, opt_config,
-                                          is_training=True)
+            combined_loss = self.get_loss(
+                                data_batch, loss_module, opt_config,
+                                is_training=True,
+                                parameter_tensor_name=parameter_tensor_name)
 
         variables = self.model.trainable_variables
         gradients = tape.gradient(combined_loss, variables)

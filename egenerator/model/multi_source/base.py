@@ -241,7 +241,8 @@ class MultiSource(Source):
 
         return configuration, {}, sub_components
 
-    def get_tensors(self, data_batch_dict, is_training):
+    def get_tensors(self, data_batch_dict, is_training,
+                    parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -251,7 +252,7 @@ class MultiSource(Source):
 
         Parameters
         ----------
-        data_batch_dict: dict of tf.Tensor
+        data_batch_dict : dict of tf.Tensor
             parameters : tf.Tensor
                 A tensor which describes the input parameters of the source.
                 This fully defines the source hypothesis. The tensor is of
@@ -269,10 +270,12 @@ class MultiSource(Source):
             Must be provided if batch normalisation is used.
             True: in training mode
             False: inference mode.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
 
         Raises
         ------
-        NotImplementedError
+        ValueError
             Description
 
         Returns
@@ -285,13 +288,14 @@ class MultiSource(Source):
                                Shape: [-1, 86, 60, 1]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
+
         """
         self.assert_configured(True)
 
         # check if get_source_parameters correctly fills in all source params
         self.check_source_parameter_creation()
 
-        parameters = data_batch_dict['x_parameters']
+        parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
 
@@ -311,12 +315,14 @@ class MultiSource(Source):
 
             # Get expected DOM charge and Likelihood evaluations for source i
             data_batch_dict_i = {
-                'x_parameters': parameters_i,
+                parameter_tensor_name: parameters_i,
                 'x_pulses': pulses,
-                'x_pulses_ids': parameters_i,
+                'x_pulses_ids': pulses_ids,
             }
             result_tensors_i = sub_component.get_tensors(
-                                    data_batch_dict_i, is_training=is_training)
+                                data_batch_dict_i,
+                                is_training=is_training,
+                                parameter_tensor_name=parameter_tensor_name)
             dom_charges_i = result_tensors_i['dom_charges']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 
@@ -531,21 +537,37 @@ class MultiSource(Source):
 
             # check input tensor dependency of input
             try:
+                # get parent tensor
+                top_nodes = self._find_top_nodes(source_parameters_i,
+                                                 input_tensor.name)
+                if top_nodes == set([input_tensor.name]):
+                    continue
+
                 for i in range(sub_component.num_parameters):
                     tensor_i = source_parameters_i[:, i]
 
                     # get parent tensor
-                    top_nodes = self._find_top_nodes(tensor_i)
+                    top_nodes = self._find_top_nodes(tensor_i,
+                                                     input_tensor.name)
+
+                    if input_tensor.name not in top_nodes:
+                        msg = 'Source {!r} with base component {!r} has '
+                        msg += 'an input tensor component {!r} ({!r}) that '
+                        msg += 'does not depend on MultiSourceInput!'
+                        raise ValueError(msg.format(name, base, i,
+                                                    sub_component.get_name(i)))
 
                     for node in top_nodes:
-                        if node != input_tensor:
+                        if node != input_tensor.name:
                             msg = 'Source {!r} with base component {!r} has '
                             msg += 'an input tensor component {!r} ({!r}) '
                             msg += 'that depends on {!r} instead of the '
-                            msg += 'MultiSourceInput!'
+                            msg += 'MultiSourceInput {!r}!'
                             raise ValueError(msg.format(
                                 name, base, i,
-                                sub_component.get_name(i), node))
+                                sub_component.get_name(i),
+                                node, input_tensor.name),
+                            )
             except AttributeError as e:
                 self._logger.warning(
                     'Can not check inputs since Tensorflow is in eager mode.')
@@ -560,13 +582,16 @@ class MultiSource(Source):
         """
         raise NotImplementedError()
 
-    def _find_top_nodes(self, tensor):
+    def _find_top_nodes(self, tensor, collect_name=None):
         """Find top nodes of a tensor's computation graph.
 
         Parameters
         ----------
         tensor : tf.Tensor
             The tensor for which to return the top nodes.
+        collect_name : str, optional
+            Constant inputs are not collected, unless their names match this
+            string.
 
         Returns
         -------
@@ -575,10 +600,17 @@ class MultiSource(Source):
             computation graph.
         """
         if len(tensor.op.inputs) == 0:
-            return set([tensor])
+
+            # ignore constant inputs unless they match the collect_name
+            if (tensor.op.node_def.op == 'Const' and
+                    tensor.name == collect_name):
+                return set([tensor.name])
+            else:
+                return set()
 
         tensor_list = set()
         for in_tensor in tensor.op.inputs:
-            tensor_list = tensor_list.union(find_top_nodes(in_tensor))
+            tensor_list = tensor_list.union(self._find_top_nodes(
+                in_tensor, collect_name=collect_name))
 
         return tensor_list

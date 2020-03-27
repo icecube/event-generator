@@ -58,6 +58,7 @@ def main(config_files):
             seed_names=[reco_config['seed']],
             seed_parameter_names=reco_config['seed_parameter_names'],
             float_precision=reco_config['seed_float_precision'],
+            missing_value=reco_config['seed_missing_value'],
             )
 
         # create nested dictionary of modified sub components in order to
@@ -78,16 +79,18 @@ def main(config_files):
             raise ValueError(msg.format(manager_dir))
 
     else:
-        # Model Manager is being built from scratch, so we need to pass
-        # the data handler settings with the modified misc module
-        config['data_handler_settings']['misc_module'] = \
-            'seed_loader.SeedLoaderMiscModule'
+        if reco_config['seed'] != 'x_parameters':
+            # Model Manager is being built from scratch, so we need to pass
+            # the data handler settings with the modified misc module
+            config['data_handler_settings']['misc_module'] = \
+                'seed_loader.SeedLoaderMiscModule'
 
-        config['data_handler_settings']['misc_settings'] = {
-            'seed_names': [reco_config['seed']],
-            'seed_parameter_names': reco_config['seed_parameter_names'],
-            'float_precision': reco_config['seed_float_precision'],
-        }
+            config['data_handler_settings']['misc_settings'] = {
+                'seed_names': [reco_config['seed']],
+                'seed_parameter_names': reco_config['seed_parameter_names'],
+                'float_precision': reco_config['seed_float_precision'],
+                'missing_value': reco_config['seed_missing_value'],
+            }
 
     # build manager object
     manager, model, data_handler, data_transformer = build_manager(
