@@ -607,7 +607,7 @@ class SourceManager(BaseModelManager):
             **config['data_iterator_settings']['test']))
 
         # parameter input signature
-        parameter_tensor_name = 'x_parameters'
+        parameter_tensor_name = reco_config['parameter_tensor_name']
         param_index = self.data_handler.tensors.get_index(
                                                         parameter_tensor_name)
         seed_index = self.data_handler.tensors.get_index(reco_config['seed'])

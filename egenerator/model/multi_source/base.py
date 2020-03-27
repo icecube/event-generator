@@ -315,14 +315,14 @@ class MultiSource(Source):
 
             # Get expected DOM charge and Likelihood evaluations for source i
             data_batch_dict_i = {
-                parameter_tensor_name: parameters_i,
+                'x_parameters': parameters_i,
                 'x_pulses': pulses,
                 'x_pulses_ids': pulses_ids,
             }
             result_tensors_i = sub_component.get_tensors(
                                 data_batch_dict_i,
                                 is_training=is_training,
-                                parameter_tensor_name=parameter_tensor_name)
+                                parameter_tensor_name='x_parameters')
             dom_charges_i = result_tensors_i['dom_charges']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 

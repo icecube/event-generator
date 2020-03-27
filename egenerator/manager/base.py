@@ -407,8 +407,10 @@ class BaseModelManager(Model):
         for i, name in enumerate(self.data_handler.tensors.names):
             data_batch_dict[name] = data_batch[i]
 
-        result_tensors = self.model.get_tensors(data_batch_dict,
-                                                is_training=is_training)
+        result_tensors = self.model.get_tensors(
+            data_batch_dict,
+            is_training=is_training,
+            parameter_tensor_name=parameter_tensor_name)
 
         loss_value = loss_module.get_loss(data_batch_dict, result_tensors,
                                           self.data_handler.tensors)
