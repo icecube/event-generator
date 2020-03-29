@@ -239,7 +239,8 @@ class DefaultCascadeModel(Source):
         if config['num_local_vars'] > 0:
 
             # extend to correct shape:
-            local_vars = tf.ones_like(dx_normed) * self.local_vars
+            local_vars = (tf.ones_like(dx_normed) *
+                          self._untracked_data['local_vars'])
             print('local_vars', local_vars)
 
             input_list.append(local_vars)
