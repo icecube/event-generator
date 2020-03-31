@@ -334,7 +334,7 @@ model_settings: {
             ['HoleIceForward_Unified_{:02d}', 2],
             ['IceWavePlusModes_{:02d}', 24],
             ['Scattering', 1],
-        ]
+        ],
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
