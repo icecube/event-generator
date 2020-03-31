@@ -170,7 +170,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             num_params = self.configuration.config['num_snowstorm_params']
             params = _snowstorm_params['item']
             index = _snowstorm_params['vector_index']
-            assert max(index) == num_params
+            assert max(index) == num_params - 1
             assert min(index) == 0
 
             num_events = len(cascade_parameters[0])
