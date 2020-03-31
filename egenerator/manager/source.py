@@ -411,6 +411,8 @@ class SourceManager(BaseModelManager):
                            minimize_in_trafo_space=True,
                            num_chains=1,
                            seed=None,
+                           num_results=100,
+                           num_burnin_steps=100,
                            parameter_tensor_name='x_parameters'):
         """Reconstruct events with tensorflow probability interface.
 
@@ -441,6 +443,10 @@ class SourceManager(BaseModelManager):
             Number of chains to run
         seed : str, optional
             Name of seed tensor
+        num_results : int, optional
+            The number of chain steps to perform after burnin phase.
+        num_burnin_steps : int, optional
+            The number of chain steps to perform for burnin phase.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         Shape: [-1, num_params]
@@ -473,8 +479,6 @@ class SourceManager(BaseModelManager):
             return tf.stack(log_prob_list, axis=0)
 
         # Initialize the HMC transition kernel.
-        num_results = int(1e2)
-        num_burnin_steps = int(1e2)
         # step sizes for x, y, z, zenith, azimuth, energy, time
         step_size = np.array([[.1, .1, .1, 0.001, 0.001, 10., 1.]])
 
@@ -513,7 +517,9 @@ class SourceManager(BaseModelManager):
         adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
             tfp.mcmc.HamiltonianMonteCarlo(
                 target_log_prob_fn=unnormalized_log_prob,
-                num_leapfrog_steps=3,
+                # num_leapfrog_steps=100,
+                num_leapfrog_steps=tf.random.uniform(
+                    shape=(), minval=1, maxval=30, dtype=tf.int32, seed=42),
                 step_size=step_size),
             # tfp.mcmc.NoUTurnSampler(
             #     target_log_prob_fn=unnormalized_log_prob,
@@ -667,7 +673,9 @@ class SourceManager(BaseModelManager):
         # ------------------
         run_mcmc = False
         if run_mcmc:
-            reco_config['mcmc_num_chains'] = 5
+            reco_config['mcmc_num_chains'] = 1
+            reco_config['mcmc_num_results'] = 10000
+            reco_config['mcmc_num_burnin_steps'] = 100
 
             parameter_loss_function = self.get_parameter_loss_function(
                     input_signature=(param_signature,
@@ -690,6 +698,8 @@ class SourceManager(BaseModelManager):
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     num_chains=reco_config['mcmc_num_chains'],
                     seed=reco_config['seed'],
+                    num_results=reco_config['mcmc_num_results'],
+                    num_burnin_steps=reco_config['mcmc_num_burnin_steps'],
                     parameter_tensor_name=parameter_tensor_name)
         # ------------------
 
@@ -702,6 +712,20 @@ class SourceManager(BaseModelManager):
         loss_seed_list = []
 
         for event_counter, data_batch in enumerate(test_dataset):
+
+            # # -------------------
+            # # Hack to modify seed
+            # # -------------------
+            # x0 = data_batch[seed_index]
+            # x0 = np.random.normal(loc=x0.numpy()[0],
+            #                       scale=[300, 300, 300, 0.5, 0.5, 100, 1000],
+            #                       size=[1, 7])
+            # x0[0, 5] = 100
+            # x0 = tf.reshape(tf.convert_to_tensor(x0, param_dtype), [1, 7])
+            # new_batch = [b for b in data_batch]
+            # new_batch[seed_index] = x0
+            # data_batch = tuple(new_batch)
+            # # -------------------
 
             # reconstruct event
             result, result_obj = reconstruction_method(data_batch)
@@ -724,15 +748,15 @@ class SourceManager(BaseModelManager):
 
                 # 0, 1, 2,      3,       4,      5,    6
                 # x, y, z, zenith, azimuth, energy, time
-                scale = np.array([5., 5., 2., 0.1, 0.1, 0., 10.])
+                scale = np.array([1., 1., 1., 0.03, 0.03, 0., 5.])
                 low = result_inv - scale
                 high = result_inv + scale
                 # low[3] = 0.0
                 # low[4] = 0.0
                 # high[3] = np.pi
                 # high[4] = 2*np.pi
-                low[5] *= 0.5
-                high[5] *= 2.0
+                low[5] *= 0.9
+                high[5] *= 1.1
                 initial_position = np.random.uniform(
                     low=low, high=high,
                     size=[reco_config['mcmc_num_chains'], num_params])
@@ -755,23 +779,51 @@ class SourceManager(BaseModelManager):
                 accepted = trace[0].numpy()
                 log_prob_values = trace[1].numpy()
                 steps = trace[2].numpy()
+                step_size = steps[0][0]
+                if minimize_in_trafo_space:
+                    step_size *= self.model.data_trafo.data[
+                                                parameter_tensor_name+'_std']
 
                 num_accepted = np.sum(accepted)
-                num_samples = np.prod(samples.shape)
+                num_samples = samples.shape[0] * samples.shape[1]
                 samples = samples[accepted]
                 log_prob_values = log_prob_values[accepted]
-                print('Acceptance Ratio', float(num_accepted) / num_samples)
+                print('MCMC Results:')
+                print('\tAcceptance Ratio: {:2.1f}%'.format(
+                    (100. * num_accepted) / num_samples))
+                msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
+                print('\tStepsize: ' + msg.format(*step_size))
+                msg = '{:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f}'
 
                 if num_accepted > 0:
                     index_max = np.argmax(log_prob_values)
-                    print('Best Sample:', samples[index_max])
-                    print('min loss_values', -max(log_prob_values))
-                    sorted_indices = np.argsort(log_prob_values)
+                    print('\tBest Sample: ' + msg.format(*samples[index_max]))
+                    print('\tmin loss_values: {:3.2f}'.format(
+                                                        -max(log_prob_values)))
 
-                    central_50p = samples[sorted_indices[
-                                                    int(num_accepted*0.5):]]
-                    central_90p = samples[sorted_indices[
-                                                    int(num_accepted*0.1):]]
+                    sorted_indices = np.argsort(log_prob_values)
+                    sorted_log_prob_values = log_prob_values[sorted_indices]
+                    sorted_samples = samples[sorted_indices]
+
+                    # ---------------------
+                    # write samples to file
+                    # ---------------------
+                    df = pd.DataFrame()
+                    df['log_prob'] = sorted_log_prob_values
+                    for i, name in enumerate(self.model.parameter_names):
+                        df['samples_{}'.format(name)] = sorted_samples[:, i]
+
+                    mcmc_file = '{}_mcmc_{:08d}.hdf5'.format(
+                        os.path.splitext(reco_config['reco_output_file'])[0],
+                        event_counter)
+                    df.to_hdf(mcmc_file, key='Variables', mode='w', format='t',
+                              data_columns=True)
+
+                    # -------------
+                    # Print Results
+                    # -------------
+                    central_50p = sorted_samples[int(num_accepted*0.5):]
+                    central_90p = sorted_samples[int(num_accepted*0.1):]
 
                     for i, name in enumerate(self.model.parameter_names):
                         min_val_90 = min(central_90p[:, i])

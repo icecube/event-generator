@@ -52,8 +52,16 @@ class DefaultCascadeModel(Source):
         # ---------------------------------------------
         parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
                            'energy', 'time']
-        num_features = 7
-        num_inputs = 11
+
+        num_snowstorm_params = 0
+        if 'snowstorm_parameter_names' in config:
+            for param_name, num in config['snowstorm_parameter_names']:
+                num_snowstorm_params += num
+                for i in range(num):
+                    parameter_names.append(param_name.format(i))
+
+        num_features = 7 + num_snowstorm_params
+        num_inputs = 11 + num_snowstorm_params
 
         if config['add_opening_angle']:
             num_inputs += 1
@@ -223,7 +231,8 @@ class DefaultCascadeModel(Source):
                                        + [cascade_dir_x,
                                           cascade_dir_y,
                                           cascade_dir_z]
-                                       + [x_parameters_expanded[5]],
+                                       + [x_parameters_expanded[5]
+                                       + x_parameters_expanded[7:]],
                                        axis=-1)
 
         # put everything together
