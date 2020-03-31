@@ -231,8 +231,8 @@ class DefaultCascadeModel(Source):
                                        + [cascade_dir_x,
                                           cascade_dir_y,
                                           cascade_dir_z]
-                                       + [x_parameters_expanded[5]
-                                       + x_parameters_expanded[7:]],
+                                       + [x_parameters_expanded[5]]
+                                       + x_parameters_expanded[7:],
                                        axis=-1)
 
         # put everything together
