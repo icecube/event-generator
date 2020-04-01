@@ -295,8 +295,9 @@ class SourceManager(BaseModelManager):
             loss, grad = loss_and_gradients_function(x, data_batch)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
-            assert len(grad) == 1
-            return loss, grad[0]
+
+            grad_flat = tf.reshape(grad, [-1])
+            return loss, grad_flat
 
         # get seed parameters
         seed_index = self.data_handler.tensors.get_index(seed)
@@ -312,11 +313,14 @@ class SourceManager(BaseModelManager):
         # transform seed if minimization is performed in trafo space
         if minimize_in_trafo_space:
             x0 = self.model.data_trafo.transform(
-                data=x0, tensor_name=parameter_tensor_name)[0]
+                data=x0, tensor_name=parameter_tensor_name)
 
-        result = optimize.minimize(fun=func, x0=x0, jac=jac, method=method,
+        x0_flat = tf.reshape(x0, [-1])
+        result = optimize.minimize(fun=func, x0=x0_flat, jac=jac, method=method,
                                    args=(data_batch,), **kwargs)
-        return result.x, result
+
+        best_fit = np.reshape(result.x, param_shape)
+        return best_fit, result
 
     def tf_reconstruct_events(self, data_batch, loss_module,
                               loss_and_gradients_function,
@@ -403,7 +407,7 @@ class SourceManager(BaseModelManager):
         otpim_results = optimizer(
             value_and_gradients_function=const_loss_and_gradients_function,
             initial_position=x0)
-        return otpim_results.position[0], otpim_results
+        return otpim_results.position, otpim_results
 
     def run_mcmc_on_events(self, initial_position, data_batch, loss_module,
                            parameter_loss_function,
@@ -413,6 +417,10 @@ class SourceManager(BaseModelManager):
                            seed=None,
                            num_results=100,
                            num_burnin_steps=100,
+                           num_parallel_iterations=1,
+                           num_steps_between_results=0,
+                           method='HamiltonianMonteCarlo',
+                           mcmc_seed=42,
                            parameter_tensor_name='x_parameters'):
         """Reconstruct events with tensorflow probability interface.
 
@@ -420,6 +428,7 @@ class SourceManager(BaseModelManager):
         ----------
         initial_position : tf.Tensor
             The tensor describing the parameters.
+            Shape: [-1, num_params]
         data_batch : tuple of tf.Tensor
             A tuple of tensors. This is the batch received from the tf.Dataset.
         loss_module : LossComponent
@@ -447,9 +456,19 @@ class SourceManager(BaseModelManager):
             The number of chain steps to perform after burnin phase.
         num_burnin_steps : int, optional
             The number of chain steps to perform for burnin phase.
+        num_parallel_iterations : int, optional
+            The number of parallel iterations to perform during MCMC chain.
+            If reproducible results are required, this must be set to 1!
+        num_steps_between_results : int, optional
+            The number of steps between accepted results. This applies
+            thinning to the sampled point and can reduce correlation.
+        method : str, optional
+            The MCMC method to use:
+            'HamiltonianMonteCarlo', 'RandomWalkMetropolis', ...
+        mcmc_seed : int, optional
+            The seed value for the MCMC chain.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
-        Shape: [-1, num_params]
 
         Returns
         -------
@@ -459,6 +478,8 @@ class SourceManager(BaseModelManager):
         Raises
         ------
         NotImplementedError
+            Description
+        ValueError
             Description
         """
 
@@ -497,52 +518,58 @@ class SourceManager(BaseModelManager):
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
         step_size = tf.reshape(step_size, [1, len(fit_paramater_list)])
 
-        # # get seed parameters
-        # seed_index = self.data_handler.tensors.get_index(seed)
-        # if np.all(fit_paramater_list):
-        #     x0 = data_batch[seed_index]
-        # else:
-        #     # get seed parameters
-        #     unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
-        #     tracked_params = [p for p, fit in
-        #                       zip(unstacked_seed, fit_paramater_list)
-        #                       if fit]
-        #     x0 = tf.stack(tracked_params, axis=1)
+        # Define transition kernel
+        if method == 'HamiltonianMonteCarlo':
+            adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
+                tfp.mcmc.HamiltonianMonteCarlo(
+                    target_log_prob_fn=unnormalized_log_prob,
+                    num_leapfrog_steps=3,
+                    # num_leapfrog_steps=tf.random.uniform(
+                    #     shape=(), minval=1, maxval=30,
+                    #     dtype=tf.int32, seed=mcmc_seed),
+                    step_size=step_size),
+                num_adaptation_steps=int(num_burnin_steps * 0.8))
 
-        # # transform seed if minimization is performed in trafo space
-        # if minimize_in_trafo_space:
-        #     x0 = self.model.data_trafo.transform(
-        #         data=x0, tensor_name=parameter_tensor_name)
+        elif method == 'NoUTurnSampler':
+            adaptive_hmc = tfp.mcmc.NoUTurnSampler(
+                    target_log_prob_fn=unnormalized_log_prob,
+                    step_size=step_size)
 
-        adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
-            tfp.mcmc.HamiltonianMonteCarlo(
+        elif method == 'RandomWalkMetropolis':
+            adaptive_hmc = tfp.mcmc.RandomWalkMetropolis(
                 target_log_prob_fn=unnormalized_log_prob,
-                # num_leapfrog_steps=100,
-                num_leapfrog_steps=tf.random.uniform(
-                    shape=(), minval=1, maxval=30, dtype=tf.int32, seed=42),
-                step_size=step_size),
-            # tfp.mcmc.NoUTurnSampler(
-            #     target_log_prob_fn=unnormalized_log_prob,
-            #     step_size=step_size,
-            # ),
-            num_adaptation_steps=int(num_burnin_steps * 0.8))
+                new_state_fn=tfp.mcmc.random_walk_normal_fn(scale=step_size),
+                seed=mcmc_seed)
+        else:
+            raise ValueError('Unknown method: {!r}'.format(method))
 
+        # define trace function, e.g. which kernel results to keep
         def trace_fn(states, previous_kernel_results):
             pkr = previous_kernel_results
-            return (pkr.inner_results.is_accepted,
-                    pkr.inner_results.accepted_results.target_log_prob,
-                    pkr.inner_results.accepted_results.step_size)
+            if method == 'HamiltonianMonteCarlo':
+                return (pkr.inner_results.is_accepted,
+                        pkr.inner_results.accepted_results.target_log_prob,
+                        pkr.inner_results.accepted_results.step_size)
 
-        # Run the chain (with burn-in).
+            elif method == 'NoUTurnSampler':
+                return (pkr.is_accepted,
+                        pkr.target_log_prob)
+
+            elif method == 'RandomWalkMetropolis':
+                return (pkr.is_accepted,
+                        pkr.accepted_results.target_log_prob)
+
         @tf.function
         def run_chain():
             # Run the chain (with burn-in).
             samples, trace = tfp.mcmc.sample_chain(
                 num_results=num_results,
                 num_burnin_steps=num_burnin_steps,
+                num_steps_between_results=num_steps_between_results,
                 current_state=initial_position,
                 kernel=adaptive_hmc,
-                trace_fn=trace_fn)
+                trace_fn=trace_fn,
+                parallel_iterations=num_parallel_iterations)
             samples = tf.reshape(samples,
                                  [num_chains*num_results, num_params])
             if minimize_in_trafo_space:
@@ -582,9 +609,6 @@ class SourceManager(BaseModelManager):
         """
 
         self.assert_configured(True)
-
-        if config['data_iterator_settings']['test']['batch_size'] != 1:
-            raise NotImplementedError('Only supports batch size of 1.')
 
         # print out number of model variables
         num_vars, num_total_vars = self.model.num_variables
@@ -673,9 +697,15 @@ class SourceManager(BaseModelManager):
         # ------------------
         run_mcmc = False
         if run_mcmc:
-            reco_config['mcmc_num_chains'] = 1
-            reco_config['mcmc_num_results'] = 10000
+            reco_config['mcmc_num_chains'] = 10
+            reco_config['mcmc_num_results'] = 1000
             reco_config['mcmc_num_burnin_steps'] = 100
+            reco_config['mcmc_num_steps_between_results'] = 0
+            reco_config['mcmc_num_parallel_iterations'] = 10
+            reco_config['mcmc_method'] = 'RandomWalkMetropolis'
+            # HamiltonianMonteCarlo
+            # RandomWalkMetropolis
+            # NoUTurnSampler
 
             parameter_loss_function = self.get_parameter_loss_function(
                     input_signature=(param_signature,
@@ -698,8 +728,13 @@ class SourceManager(BaseModelManager):
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     num_chains=reco_config['mcmc_num_chains'],
                     seed=reco_config['seed'],
+                    method=reco_config['mcmc_method'],
                     num_results=reco_config['mcmc_num_results'],
                     num_burnin_steps=reco_config['mcmc_num_burnin_steps'],
+                    num_steps_between_results=reco_config[
+                        'mcmc_num_steps_between_results'],
+                    num_parallel_iterations=reco_config[
+                        'mcmc_num_parallel_iterations'],
                     parameter_tensor_name=parameter_tensor_name)
         # ------------------
 
@@ -711,7 +746,8 @@ class SourceManager(BaseModelManager):
         loss_reco_list = []
         loss_seed_list = []
 
-        for event_counter, data_batch in enumerate(test_dataset):
+        event_counter = 0
+        for data_batch in test_dataset:
 
             # # -------------------
             # # Hack to modify seed
@@ -728,10 +764,27 @@ class SourceManager(BaseModelManager):
             # # -------------------
 
             # reconstruct event
+            reco_start_t = timeit.default_timer()
             result, result_obj = reconstruction_method(data_batch)
+            reco_end_t = timeit.default_timer()
 
-            cascade_true = data_batch[param_index].numpy()[0]
-            cascade_seed = data_batch[seed_index].numpy()[0]
+            cascade_true_batch = data_batch[param_index].numpy()
+            cascade_seed_batch = data_batch[seed_index].numpy()
+
+            # # -------------------
+            # # Angular Uncertainty
+            # # -------------------
+            # data_batch_combined = []
+            # n = 64
+            # for tensor in data_batch:
+            #     data_batch_combined.append(tf.concat([tensor]*n, axis=0))
+            # data_batch_combined = tuple(data_batch_combined)
+            # unc_start_t = timeit.default_timer()
+            # result_b, result_obj = reconstruction_method(data_batch_combined)
+            # unc_end_t = timeit.default_timer()
+            # loss_true = get_loss(data_batch).numpy()
+            # print(result_b)
+            # print('Batch reco took: {:3.3f}s'.format(unc_end_t - unc_start_t))
 
             # -------------
             # run mcmc test
@@ -741,10 +794,14 @@ class SourceManager(BaseModelManager):
 
                 if minimize_in_trafo_space:
                     result_inv = self.model.data_trafo.inverse_transform(
-                            data=np.expand_dims(result, axis=0),
-                            tensor_name=parameter_tensor_name)[0]
+                            data=result,
+                            tensor_name=parameter_tensor_name)
                 else:
                     result_inv = result
+
+                assert len(result_inv) == 1
+                result_inv = result_inv[0]
+                cascade_true = cascade_true_batch[0]
 
                 # 0, 1, 2,      3,       4,      5,    6
                 # x, y, z, zenith, azimuth, energy, time
@@ -773,26 +830,32 @@ class SourceManager(BaseModelManager):
                 #     [1, len(fit_paramater_list)])
                 # print('initial_position', initial_position)
                 # print('initial_position.shape', initial_position.shape)
+                mcmc_start_t = timeit.default_timer()
                 samples, trace = run_mcmc_on_events(initial_position,
                                                     data_batch)
+                mcmc_end_t = timeit.default_timer()
+
                 samples = samples.numpy()
                 accepted = trace[0].numpy()
                 log_prob_values = trace[1].numpy()
-                steps = trace[2].numpy()
-                step_size = steps[0][0]
-                if minimize_in_trafo_space:
-                    step_size *= self.model.data_trafo.data[
+                if len(trace) > 2:
+                    steps = trace[2].numpy()
+                    step_size = steps[0][0]
+                    if minimize_in_trafo_space:
+                        step_size *= self.model.data_trafo.data[
                                                 parameter_tensor_name+'_std']
 
                 num_accepted = np.sum(accepted)
                 num_samples = samples.shape[0] * samples.shape[1]
                 samples = samples[accepted]
                 log_prob_values = log_prob_values[accepted]
-                print('MCMC Results:')
+                print('MCMC Results took {:3.3f}s:'.format(
+                    mcmc_end_t - mcmc_start_t))
                 print('\tAcceptance Ratio: {:2.1f}%'.format(
                     (100. * num_accepted) / num_samples))
                 msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
-                print('\tStepsize: ' + msg.format(*step_size))
+                if len(trace) > 2:
+                    print('\tStepsize: ' + msg.format(*step_size))
                 msg = '{:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f}'
 
                 if num_accepted > 0:
@@ -839,64 +902,76 @@ class SourceManager(BaseModelManager):
 
             # get reco cascade
             if np.all(fit_paramater_list):
-                cascade_reco = result
+                cascade_reco_batch = result
             else:
                 # get seed parameters
-                cascade_reco = []
+                cascade_reco_batch = []
                 result_counter = 0
                 for i, fit in enumerate(fit_paramater_list):
                     if fit:
-                        cascade_reco.append(result[result_counter])
+                        cascade_reco_batch.append(result[:, result_counter])
                         result_counter += 1
                     else:
-                        cascade_reco.append(cascade_seed[i])
+                        cascade_reco_batch.append(cascade_seed_batch[:, i])
+                cascade_reco_batch = np.array(cascade_reco_batch)
 
             # transform back if minimization was performed in trafo space
             if reco_config['minimize_in_trafo_space']:
-                cascade_reco = self.model.data_trafo.inverse_transform(
-                    data=np.expand_dims(cascade_reco, axis=0),
-                    tensor_name=parameter_tensor_name)[0]
+                cascade_reco_batch = self.model.data_trafo.inverse_transform(
+                    data=cascade_reco_batch,
+                    tensor_name=parameter_tensor_name)
 
-            data_batch_seed = list(data_batch)
-            data_batch_seed[param_index] = tf.reshape(
+            # Now loop through events in this batch
+            for cascade_reco, cascade_seed, cascade_true in zip(
+                    cascade_reco_batch,
+                    cascade_seed_batch,
+                    cascade_true_batch):
+
+                data_batch_seed = list(data_batch)
+                data_batch_seed[param_index] = tf.reshape(
                                 cascade_seed, [-1, self.model.num_parameters])
-            data_batch_seed = tuple(data_batch_seed)
+                data_batch_seed = tuple(data_batch_seed)
 
-            data_batch_reco = list(data_batch)
-            data_batch_reco[param_index] = tf.reshape(tf.convert_to_tensor(
-                                cascade_reco, dtype=param_signature.dtype),
-                            [-1, self.model.num_parameters])
-            data_batch_reco = tuple(data_batch_reco)
+                data_batch_reco = list(data_batch)
+                data_batch_reco[param_index] = tf.reshape(tf.convert_to_tensor(
+                                    cascade_reco, dtype=param_signature.dtype),
+                                [-1, self.model.num_parameters])
+                data_batch_reco = tuple(data_batch_reco)
 
-            loss_true = get_loss(data_batch).numpy()
-            loss_seed = get_loss(data_batch_seed).numpy()
-            loss_reco = get_loss(data_batch_reco).numpy()
+                loss_true = get_loss(data_batch).numpy()
+                loss_seed = get_loss(data_batch_seed).numpy()
+                loss_reco = get_loss(data_batch_reco).numpy()
 
-            # Print result to console
-            msg = '\t{:6s} {:>10s} {:>10s} {:>10s} {:>10s}'.format(
-                'Fitted', 'True', 'Seed', 'Reco', 'Diff')
-            pattern = '\n\t{:6s} {:10.2f} {:10.2f} {:10.2f} {:10.2f} [{}]'
-            msg += pattern.format('', loss_true, loss_seed, loss_reco,
-                                  loss_true - loss_reco, 'Loss')
-            for index, (name, fit) in enumerate(zip(self.model.parameter_names,
-                                                    fit_paramater_list)):
-                msg += pattern.format(str(fit),
-                                      cascade_true[index],
-                                      cascade_seed[index],
-                                      cascade_reco[index],
-                                      cascade_true[index]-cascade_reco[index],
-                                      name)
-            print('At event {}'.format(event_counter))
-            print(msg)
+                # Print result to console
+                msg = '\t{:6s} {:>10s} {:>10s} {:>10s} {:>10s}'.format(
+                    'Fitted', 'True', 'Seed', 'Reco', 'Diff')
+                pattern = '\n\t{:6s} {:10.2f} {:10.2f} {:10.2f} {:10.2f} [{}]'
+                msg += pattern.format('', loss_true, loss_seed, loss_reco,
+                                      loss_true - loss_reco, 'Loss')
+                for index, (name, fit) in enumerate(zip(
+                            self.model.parameter_names, fit_paramater_list)):
+                    msg += pattern.format(
+                        str(fit),
+                        cascade_true[index],
+                        cascade_seed[index],
+                        cascade_reco[index],
+                        cascade_true[index]-cascade_reco[index],
+                        name)
+                print('At event {} [Reconstruction took {:3.3f}s]'.format(
+                    event_counter, reco_end_t - reco_start_t))
+                print(msg)
 
-            # keep track of results
-            cascade_parameters_true.append(cascade_true)
-            cascade_parameters_seed.append(cascade_seed)
-            cascade_parameters_reco.append(cascade_reco)
+                # keep track of results
+                cascade_parameters_true.append(cascade_true)
+                cascade_parameters_seed.append(cascade_seed)
+                cascade_parameters_reco.append(cascade_reco)
 
-            loss_true_list.append(loss_true)
-            loss_seed_list.append(loss_seed)
-            loss_reco_list.append(loss_reco)
+                loss_true_list.append(loss_true)
+                loss_seed_list.append(loss_seed)
+                loss_reco_list.append(loss_reco)
+
+                # update event counter
+                event_counter += 1
 
         cascade_parameters_true = np.stack(cascade_parameters_true, axis=0)
         cascade_parameters_seed = np.stack(cascade_parameters_seed, axis=0)
