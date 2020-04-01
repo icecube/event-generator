@@ -67,6 +67,22 @@ def main(config_files):
             'misc_module': misc_module,
         }}
 
+    if 'modified_label_module' in reco_config:
+        label_config = reco_config['modified_label_module']
+        LabelModuleClass = misc.load_class(
+            'egenerator.data.handler.labels.{}'.format(
+                        label_config['label_module']))
+        label_module = LabelModuleClass()
+        label_module.configure(config=label_config['label_settings'])
+
+        if 'data_handler' in modified_sub_components:
+            modified_sub_components['data_handler']['label_module'] = \
+                label_module
+        else:
+            modified_sub_components['data_handler'] = {
+                'label_module': label_module
+            }
+
     # -----------------------------
     # Create and load Model Manager
     # -----------------------------
