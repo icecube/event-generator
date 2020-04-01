@@ -296,7 +296,7 @@ class SourceManager(BaseModelManager):
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
 
-            grad_flat = tf.reshape(grad, [-1])
+            grad_flat = np.reshape(grad, [-1])
             return loss, grad_flat
 
         # get seed parameters
@@ -316,7 +316,8 @@ class SourceManager(BaseModelManager):
                 data=x0, tensor_name=parameter_tensor_name)
 
         x0_flat = tf.reshape(x0, [-1])
-        result = optimize.minimize(fun=func, x0=x0_flat, jac=jac, method=method,
+        result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
+                                   method=method,
                                    args=(data_batch,), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
