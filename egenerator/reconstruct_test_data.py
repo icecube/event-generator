@@ -70,7 +70,7 @@ def main(config_files):
     if 'modified_label_module' in reco_config:
         label_config = reco_config['modified_label_module']
         LabelModuleClass = misc.load_class(
-            'egenerator.data.handler.labels.{}'.format(
+            'egenerator.data.modules.labels.{}'.format(
                         label_config['label_module']))
         label_module = LabelModuleClass()
         label_module.configure(config=label_config['label_settings'])
