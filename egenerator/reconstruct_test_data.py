@@ -73,7 +73,7 @@ def main(config_files):
             'egenerator.data.modules.labels.{}'.format(
                         label_config['label_module']))
         label_module = LabelModuleClass()
-        label_module.configure(config=label_config['label_settings'])
+        label_module.configure(config=**label_config['label_settings'])
 
         if 'data_handler' in modified_sub_components:
             modified_sub_components['data_handler']['label_module'] = \
