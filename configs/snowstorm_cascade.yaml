@@ -37,14 +37,18 @@ training_settings: {
 reconstruction_settings: {
     'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_snowstorm_cascade.hdf5',
 
-    # define which tensor to use as parameter_tensor
-    'parameter_tensor_name': 'x_parameters',
+    # define which tensor to use as parameter_tensor (default: x_parameters)
+    'parameter_tensor_name': 'MonopodFit4_PartialExclusion',
     # define seed (to seed from MC truth choose: 'x_parameters')
-    'seed': 'MonopodFit4_PartialExclusion',
+    'seed': 'MonopodFit4_PartialExclusion', #'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
-                             'energy', 'time'],
+                             'energy', 'time',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                         ],
     'seed_missing_value': ,
     'seed_float_precision': 'float32',
 
@@ -184,16 +188,16 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30002_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
-            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30003_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
-            # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30004_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30002_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30003_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30004_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
 
-            # # NuGen -- L5MonopodFit4 vertex
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+            # NuGen -- L5MonopodFit4 vertex
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
         ],
     },
 }
