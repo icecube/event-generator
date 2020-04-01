@@ -222,7 +222,7 @@ class ModuleDataHandler(BaseDataHandler):
             settings={},
             mutable_settings={'config': config},
             mutable_sub_components=['weight_module', 'misc_module',
-                                    'filter_module'])
+                                    'filter_module', 'label_module'])
 
         # add sub component configurations to this configuration
         configuration.add_sub_components(sub_components)
