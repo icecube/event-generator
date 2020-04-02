@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 
 def get_angle(vec1, vec2):
@@ -66,3 +67,122 @@ def get_angle_deviation(azimuth1, zenith1, azimuth2, zenith2):
                 tf.cos(zenith1) * tf.cos(zenith2))
     cos_dist = tf.clip(cos_dist, -1., 1.)
     return tf.acos(cos_dist)
+
+
+def get_delta_psi_vector(zenith, azimuth, delta_psi,
+                         random_service=None,
+                         is_degree=True,
+                         return_angles=True):
+    """Get new angles with an opening angle of delta_psi.
+
+    Parameters
+    ----------
+    zenith : array_like
+        The zenith angle of the input vector for which to compute a random
+        new vector with an opening angle of delta_psi.
+    azimuth : TYPE
+        The azimuth angle of the input vector for which to compute a random
+        new vector with an opening angle of delta_psi.
+    delta_psi : float or array_like
+        The opening angle. If 'is_degree' is True, then the unit is in degree,
+        otherwise it is in radians.
+        If an array is provided, broadcasting will be applied.
+    random_service : None, optional
+        An optional random number service to use for reproducibility.
+    is_degree : bool, optional
+        This specifies the input unit of 'delta_psi'.
+        If True, the input unit of 'delta_psi' is degree.
+        If False, it is radians.
+    return_angles : bool, optional
+        If True, the new random vector will be returned as zenith and azimuth
+        angles: shape:  tuple([..., 1], [..., 1]).
+        If False, it will be returned as a direction vector: shape: [..., 3].
+
+    Returns
+    -------
+    array_like or tuple of array_like
+        If return_angles is True:
+            Return values are (zenith, azimuth)
+            Shape:  tuple([..., 1], [..., 1])
+        If return_angles is False:
+            Return values are the new direction vectors in cartesian
+            coordinates.
+            Shape: [..., 3]
+    """
+    vec = np.array([np.sin(zenith) * np.cos(azimuth),
+                    np.sin(zenith) * np.sin(azimuth),
+                    np.cos(zenith)]).T
+    vec = np.atleast_2d(vec)
+    delta_vec = get_delta_psi_vector_dir(vec,
+                                         delta_psi=delta_psi,
+                                         random_service=random_service,
+                                         is_degree=is_degree)
+    if return_angles:
+        # calculate zenith
+        d_zenith = np.arccos(np.clip(delta_vec[..., 2], -1, 1))
+
+        # calculate azimuth
+        d_azimuth = (np.arctan2(delta_vec[..., 1], delta_vec[..., 0])
+                     + 2 * np.pi) % (2 * np.pi)
+        return d_zenith, d_azimuth
+    else:
+        return delta_vec
+
+
+def get_delta_psi_vector_dir(vec, delta_psi, random_service=None,
+                             is_degree=True):
+    """Get a new direction vector with an opening angle of delta_psi to vec.
+
+    Parameters
+    ----------
+    vec : array_like
+        The vector for which to calculate a new random vector with an opening
+        angle of delta_psi.
+        Shape: [..., 3]
+    delta_psi : float or array_like
+        The opening angle. If 'is_degree' is True, then the unit is in degree,
+        otherwise it is in radians.
+        If an array is provided, broadcasting will be applied.
+    random_service : None, optional
+        An optional random number service to use for reproducibility.
+    is_degree : bool, optional
+        This specifies the input unit of 'delta_psi'.
+        If True, the input unit of 'delta_psi' is degree.
+        If False, it is radians.
+
+    Returns
+    -------
+    array_like
+        The new random vectors with an opening angle of 'delta_psi'.
+        Shape: [..., 3]
+
+    Raises
+    ------
+    ValueError
+        If the specified opening angle is larger or equal to 90 degree.
+        This calculation only supports angles up to 90 degree.
+    """
+    if random_service is None:
+        random_service = np.random
+
+    if is_degree:
+        delta_psi = np.deg2rad(delta_psi)
+
+    # allow broadcasting
+    delta_psi = np.expand_dims(delta_psi, axis=-1)
+
+    # This calculation is only valid if delta_psi < 90 °
+    if np.any(delta_psi >= np.deg2rad(90)):
+        msg = 'Delta Psi angle must be smaller than 90 degrees, but it is {!r}'
+        raise ValueError(msg.format(np.rad2deg(delta_psi)))
+
+    # get a random orthogonal vector
+    temp_vec = random_service.uniform(low=-1, high=1, size=(len(vec), 3))
+
+    vec_orthogonal = np.cross(vec, temp_vec)
+    vec_orthogonal /= np.linalg.norm(vec_orthogonal, axis=-1, keepdims=True)
+
+    # calculate new vector with specified opening angle
+    new_vec = vec + np.tan(delta_psi) * vec_orthogonal
+    new_vec /= np.linalg.norm(new_vec, axis=-1, keepdims=True)
+    return new_vec

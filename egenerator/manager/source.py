@@ -9,6 +9,7 @@ import timeit
 from scipy import optimize
 
 from egenerator import misc
+from egenerator.utils import angles
 from egenerator.manager.component import Configuration
 from egenerator.manager.base import BaseModelManager
 
@@ -37,6 +38,8 @@ class SourceManager(BaseModelManager):
         ----------
         parameters_trafo : tf.Tensor
             The tensor describing the parameters.
+            If minimize_in_trafo_space is True, it is also expected that
+            parameters_trafo are given in transformed data space.
             Shape: [-1, num_params]
         data_batch : tuple of tf.Tensor
             The tf.data.Dataset batch.
@@ -73,18 +76,25 @@ class SourceManager(BaseModelManager):
 
         seed_index = self.data_handler.tensors.get_index(seed)
 
+        # transform seed data if necessary
+        if minimize_in_trafo_space:
+            seed_trafo = self.model.data_trafo.transform(
+                data=data_batch[seed_index], tensor_name=parameter_tensor_name)
+        else:
+            seed_trafo = data_batch[seed_index]
+
         # gather a list of parameters that are to be fitted
         if not np.all(fit_paramater_list):
-            unstacked_params = tf.unstack(parameters_trafo, axis=1)
-            unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+            unstacked_params_trafo = tf.unstack(parameters_trafo, axis=1)
+            unstacked_seed_trafo = tf.unstack(seed_trafo, axis=1)
             all_params = []
             counter = 0
             for i, fit in enumerate(fit_paramater_list):
                 if fit:
-                    all_params.append(unstacked_params[counter])
+                    all_params.append(unstacked_params_trafo[counter])
                     counter += 1
                 else:
-                    all_params.append(unstacked_seed[i])
+                    all_params.append(unstacked_seed_trafo[i])
 
             parameters_trafo = tf.stack(all_params, axis=1)
 
@@ -277,10 +287,10 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
+        num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_handler.tensors[parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
-        param_shape = [-1, param_tensor.shape[1]]
-        param_shape = [-1, np.sum(fit_paramater_list, dtype=int)]
+        param_shape = [-1, num_fit_params]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
             msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
@@ -299,21 +309,22 @@ class SourceManager(BaseModelManager):
             grad_flat = np.reshape(grad, [-1])
             return loss, grad_flat
 
-        # get seed parameters
+        # transform seed if minimization is performed in trafo space
         seed_index = self.data_handler.tensors.get_index(seed)
+        seed_tensor = data_batch[seed_index]
+        if minimize_in_trafo_space:
+            seed_tensor = self.model.data_trafo.transform(
+                data=seed_tensor, tensor_name=parameter_tensor_name)
+
+        # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = data_batch[seed_index]
+            x0 = seed_tensor
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+            unstacked_seed = tf.unstack(seed_tensor, axis=1)
             tracked_params = [p for p, fit in
                               zip(unstacked_seed, fit_paramater_list) if fit]
             x0 = tf.stack(tracked_params, axis=1)
-
-        # transform seed if minimization is performed in trafo space
-        if minimize_in_trafo_space:
-            x0 = self.model.data_trafo.transform(
-                data=x0, tensor_name=parameter_tensor_name)
 
         x0_flat = tf.reshape(x0, [-1])
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
@@ -374,30 +385,31 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
+        num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_handler.tensors[parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
-        param_shape = [-1, param_tensor.shape[1]]
-        param_shape = [-1, np.sum(fit_paramater_list, dtype=int)]
+        param_shape = [-1, num_fit_params]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
             raise ValueError('Wrong length of fit_paramater_list: {!r}'.format(
                 len(fit_paramater_list)))
 
-        # get seed parameters
+        # transform seed if minimization is performed in trafo space
         seed_index = self.data_handler.tensors.get_index(seed)
+        seed_tensor = data_batch[seed_index]
+        if minimize_in_trafo_space:
+            seed_tensor = self.model.data_trafo.transform(
+                data=seed_tensor, tensor_name=parameter_tensor_name)
+
+        # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = data_batch[seed_index]
+            x0 = seed_tensor
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(data_batch[seed_index], axis=1)
+            unstacked_seed = tf.unstack(seed_tensor, axis=1)
             tracked_params = [p for p, fit in
                               zip(unstacked_seed, fit_paramater_list) if fit]
             x0 = tf.stack(tracked_params, axis=1)
-
-        # transform seed if minimization is performed in trafo space
-        if minimize_in_trafo_space:
-            x0 = self.model.data_trafo.transform(
-                data=x0, tensor_name=parameter_tensor_name)
 
         def const_loss_and_gradients_function(x):
             loss, grad = loss_and_gradients_function(x, data_batch)
@@ -584,6 +596,57 @@ class SourceManager(BaseModelManager):
         return run_chain()
         # ------------------
 
+    def get_reco_result_batch(self, result,
+                              fit_paramater_list,
+                              minimize_in_trafo_space,
+                              cascade_seed_batch_trafo=None,
+                              parameter_tensor_name='x_parameters'):
+        """Get the reco result batch.
+
+        This inverts a possible transformation if minimize_in_trafo_space is
+        True and also puts the full hypothesis back together if only parts
+        of it were fitted
+
+        Parameters
+        ----------
+        result : TYPE
+            Description
+        fit_paramater_list : TYPE
+            Description
+        minimize_in_trafo_space : TYPE
+            Description
+        cascade_seed_batch_trafo : TYPE
+            Description
+        parameter_tensor_name : str, optional
+            Description
+
+        Returns
+        -------
+        tf.Tensor
+            The full result batch.
+        """
+        if np.all(fit_paramater_list):
+            cascade_reco_batch = result
+        else:
+            # get seed parameters
+            cascade_reco_batch = []
+            result_counter = 0
+            for i, fit in enumerate(fit_paramater_list):
+                if fit:
+                    cascade_reco_batch.append(result[:, result_counter])
+                    result_counter += 1
+                else:
+                    cascade_reco_batch.append(
+                        cascade_seed_batch_trafo[:, i])
+            cascade_reco_batch = np.array(cascade_reco_batch).T
+
+        # transform back if minimization was performed in trafo space
+        if minimize_in_trafo_space:
+            cascade_reco_batch = self.model.data_trafo.inverse_transform(
+                data=cascade_reco_batch,
+                tensor_name=parameter_tensor_name)
+        return cascade_reco_batch
+
     def reconstruct_testdata(self, config, loss_module):
         """Reconstruct test data events.
 
@@ -657,6 +720,13 @@ class SourceManager(BaseModelManager):
             opt_config={'l1_regularization': 0., 'l2_regularization': 0},
             is_training=False,
             parameter_tensor_name=parameter_tensor_name)
+        loss_function = self.get_parameter_loss_function(
+            input_signature=(param_signature, test_dataset.element_spec),
+            loss_module=loss_module,
+            fit_paramater_list=fit_paramater_list,
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            seed=reco_config['seed'],
+            parameter_tensor_name=parameter_tensor_name)
         loss_and_gradients_function = self.get_loss_and_gradients_function(
             input_signature=(param_signature, test_dataset.element_spec),
             loss_module=loss_module,
@@ -692,6 +762,52 @@ class SourceManager(BaseModelManager):
             msg = 'Unknown interface {!r}. Options are {!r}'
             raise ValueError(msg.format(
                 reco_config['reco_optimizer_interface'], ['scipy', 'tfp']))
+
+        # -----------------------------------
+        # Build Angular Uncertainty Estimator
+        # -----------------------------------
+        estimate_angular_uncertainty = False
+        if estimate_angular_uncertainty:
+
+            unc_fit_paramater_list = list(fit_paramater_list)
+            unc_fit_paramater_list[self.model.get_index('zenith')] = False
+            unc_fit_paramater_list[self.model.get_index('azimuth')] = False
+
+            unc_param_signature = tf.TensorSpec(
+                shape=[None, np.sum(unc_fit_paramater_list, dtype=int)],
+                dtype=param_dtype)
+
+            unc_loss_function = self.get_parameter_loss_function(
+                    input_signature=(unc_param_signature,
+                                     test_dataset.element_spec),
+                    loss_module=loss_module,
+                    fit_paramater_list=unc_fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=reco_config['seed'],
+                    parameter_tensor_name=parameter_tensor_name)
+
+            unc_loss_and_grad_function = \
+                self.get_loss_and_gradients_function(
+                    input_signature=(unc_param_signature,
+                                     test_dataset.element_spec),
+                    loss_module=loss_module,
+                    fit_paramater_list=unc_fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=reco_config['seed'],
+                    parameter_tensor_name=parameter_tensor_name)
+
+            def unc_reconstruction_method(data_batch):
+                return self.reconstruct_events(
+                    data_batch, loss_module,
+                    loss_and_gradients_function=unc_loss_and_grad_function,
+                    fit_paramater_list=unc_fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=reco_config['seed'],
+                    parameter_tensor_name=parameter_tensor_name,
+                    # Scipy optimizer settings:
+                    method='L-BFGS-B',
+                    # method='BFGS',
+                    )
 
         # ------------------
         # Build MCMC Sampler
@@ -772,20 +888,141 @@ class SourceManager(BaseModelManager):
             cascade_true_batch = data_batch[param_index].numpy()
             cascade_seed_batch = data_batch[seed_index].numpy()
 
-            # # -------------------
-            # # Angular Uncertainty
-            # # -------------------
-            # data_batch_combined = []
-            # n = 64
-            # for tensor in data_batch:
-            #     data_batch_combined.append(tf.concat([tensor]*n, axis=0))
-            # data_batch_combined = tuple(data_batch_combined)
-            # unc_start_t = timeit.default_timer()
-            # result_b, result_obj = reconstruction_method(data_batch_combined)
-            # unc_end_t = timeit.default_timer()
-            # loss_true = get_loss(data_batch).numpy()
-            # print(result_b)
-            # print('Batch reco took: {:3.3f}s'.format(unc_end_t - unc_start_t))
+            if reco_config['minimize_in_trafo_space']:
+                cascade_seed_batch_trafo = self.model.data_trafo.transform(
+                            data=data_batch[seed_index],
+                            tensor_name=parameter_tensor_name).numpy()
+            else:
+                cascade_seed_batch_trafo = cascade_seed_batch
+
+            # -------------------
+            # Angular Uncertainty
+            # -------------------
+            if estimate_angular_uncertainty:
+                n = 32
+
+                # The following assumes that result is the full hypothesis
+                assert np.all(fit_paramater_list)
+
+                # specify a random number generator for reproducibility
+                random_service = np.random.RandomState(42)
+
+                zenith_index = self.model.get_index('zenith')
+                azimuth_index = self.model.get_index('azimuth')
+
+                # invert transformation of result if necessary
+                if minimize_in_trafo_space:
+                    result_inv = self.model.data_trafo.inverse_transform(
+                            data=result,
+                            tensor_name=parameter_tensor_name)
+                else:
+                    result_inv = result
+
+                # generate random vectors at different opening angles delta psi
+                delta_psi = random_service.uniform(1, 20, size=n)
+                delta_psi = np.linspace(0, 20, n)
+                result_zenith = result_inv[:, zenith_index]
+                result_azimuth = result_inv[:, azimuth_index]
+                zen, azi = angles.get_delta_psi_vector(
+                    zenith=result_zenith,
+                    azimuth=result_azimuth,
+                    delta_psi=delta_psi,
+                    random_service=random_service)
+
+                # data_batch_combined = []
+                # for i, tensor in enumerate(data_batch):
+                #     if i == seed_index:
+                #         # put together seed tensor
+                #         seed_tensor = np.tile(np.array(result_inv),
+                #                               reps=[n, 1])
+                #         seed_tensor[:, zenith_index] = zen
+                #         seed_tensor[:, azimuth_index] = azi
+                #         data_batch_combined.append(
+                #             tf.convert_to_tensor(seed_tensor, param_dtype))
+                #     else:
+                #         data_batch_combined.append(tf.concat([tensor]*n,
+                #                                              axis=0))
+                # data_batch_combined = tuple(data_batch_combined)
+                # unc_start_t = timeit.default_timer()
+                # result_b, result_obj = unc_reconstruction_method(
+                #     data_batch_combined)
+                # # ang_loss = get_loss(data_batch_combined).numpy()
+                # # ang_loss_best = get_loss(data_batch).numpy()
+                # unc_end_t = timeit.default_timer()
+                # print('result_b', result_b)
+                # # print('ang_loss', ang_loss)
+                # # print('ang_loss_best', ang_loss_best)
+                # print('Batch reco took: {:3.3f}s'.format(
+                #     unc_end_t - unc_start_t))
+
+                # loop through points
+                unc_start_t = timeit.default_timer()
+
+                data_batch_combined = [t for t in data_batch]
+                seed_tensor = np.array(result_inv)
+                cascade_seed_batch
+                unc_results_list = []
+                unc_loss_list = []
+                for event_idx in range(n):
+
+                    # put together seed tensor and new data batch
+                    seed_tensor[:, zenith_index] = zen[event_idx]
+                    seed_tensor[:, azimuth_index] = azi[event_idx]
+                    data_batch_combined[seed_index] = tf.convert_to_tensor(
+                        seed_tensor, param_dtype)
+
+                    # reconstruct (while keeping azimuth and zenith fixed)
+                    unc_result, result_obj = unc_reconstruction_method(
+                        tuple(data_batch_combined))
+
+                    # get loss
+                    unc_loss = unc_loss_function(
+                        parameters_trafo=unc_result,
+                        data_batch=tuple(data_batch_combined)).numpy()
+
+                    # append data
+                    unc_results_list.append(unc_result)
+                    unc_loss_list.append(unc_loss)
+
+                unc_end_t = timeit.default_timer()
+
+                unc_loss_best = loss_function(
+                    parameters_trafo=result,
+                    data_batch=data_batch).numpy()
+
+                # calculate delta_log_prob
+                delta_loss = np.array(unc_loss_list) - unc_loss_best
+
+                unc_results_list = np.concatenate(unc_results_list, axis=0)
+
+                print('delta_loss', delta_loss)
+                print('Uncertainty estimation took: {:3.3f}s'.format(
+                    unc_end_t - unc_start_t))
+
+                # ---------------------
+                # write samples to file
+                # ---------------------
+                df = pd.DataFrame()
+                df['loss'] = unc_loss_list
+                df['delta_loss'] = delta_loss
+                df['delta_psi'] = delta_psi
+
+                param_counter = 0
+                for name in self.model.parameter_names:
+                    if name == 'azimuth':
+                        values = azi
+                    elif name == 'zenith':
+                        values = zen
+                    else:
+                        values = unc_results_list[:, param_counter]
+                        param_counter += 1
+                    df[name] = values
+
+                unc_file = '{}_unc_{:08d}.hdf5'.format(
+                    os.path.splitext(reco_config['reco_output_file'])[0],
+                    event_counter)
+                df.to_hdf(unc_file, key='Variables', mode='w', format='t',
+                          data_columns=True)
 
             # -------------
             # run mcmc test
@@ -902,25 +1139,12 @@ class SourceManager(BaseModelManager):
             # -------------
 
             # get reco cascade
-            if np.all(fit_paramater_list):
-                cascade_reco_batch = result
-            else:
-                # get seed parameters
-                cascade_reco_batch = []
-                result_counter = 0
-                for i, fit in enumerate(fit_paramater_list):
-                    if fit:
-                        cascade_reco_batch.append(result[:, result_counter])
-                        result_counter += 1
-                    else:
-                        cascade_reco_batch.append(cascade_seed_batch[:, i])
-                cascade_reco_batch = np.array(cascade_reco_batch)
-
-            # transform back if minimization was performed in trafo space
-            if reco_config['minimize_in_trafo_space']:
-                cascade_reco_batch = self.model.data_trafo.inverse_transform(
-                    data=cascade_reco_batch,
-                    tensor_name=parameter_tensor_name)
+            cascade_reco_batch = self.get_reco_result_batch(
+                result=result,
+                fit_paramater_list=fit_paramater_list,
+                minimize_in_trafo_space=reco_config['minimize_in_trafo_space'],
+                cascade_seed_batch_trafo=cascade_seed_batch_trafo,
+                parameter_tensor_name=parameter_tensor_name)
 
             # Now loop through events in this batch
             for cascade_reco, cascade_seed, cascade_true in zip(
