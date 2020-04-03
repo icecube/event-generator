@@ -71,6 +71,7 @@ def get_angle_deviation(azimuth1, zenith1, azimuth2, zenith2):
 
 def get_delta_psi_vector(zenith, azimuth, delta_psi,
                          random_service=None,
+                         randomize_for_each_delta_psi=True,
                          is_degree=True,
                          return_angles=True):
     """Get new angles with an opening angle of delta_psi.
@@ -89,6 +90,11 @@ def get_delta_psi_vector(zenith, azimuth, delta_psi,
         If an array is provided, broadcasting will be applied.
     random_service : None, optional
         An optional random number service to use for reproducibility.
+    randomize_for_each_delta_psi : bool, optional
+        If True, a random orthogonal vector is sampled for each specified
+        delta_psi.
+        If False, the direction vectors for the delta_psi opening angles
+        are computed along along the same (random) geodesic.
     is_degree : bool, optional
         This specifies the input unit of 'delta_psi'.
         If True, the input unit of 'delta_psi' is degree.
@@ -113,10 +119,12 @@ def get_delta_psi_vector(zenith, azimuth, delta_psi,
                     np.sin(zenith) * np.sin(azimuth),
                     np.cos(zenith)]).T
     vec = np.atleast_2d(vec)
-    delta_vec = get_delta_psi_vector_dir(vec,
-                                         delta_psi=delta_psi,
-                                         random_service=random_service,
-                                         is_degree=is_degree)
+    delta_vec = get_delta_psi_vector_dir(
+        vec,
+        delta_psi=delta_psi,
+        random_service=random_service,
+        randomize_for_each_delta_psi=randomize_for_each_delta_psi,
+        is_degree=is_degree)
     if return_angles:
         # calculate zenith
         d_zenith = np.arccos(np.clip(delta_vec[..., 2], -1, 1))
@@ -129,7 +137,9 @@ def get_delta_psi_vector(zenith, azimuth, delta_psi,
         return delta_vec
 
 
-def get_delta_psi_vector_dir(vec, delta_psi, random_service=None,
+def get_delta_psi_vector_dir(vec, delta_psi,
+                             randomize_for_each_delta_psi=True,
+                             random_service=None,
                              is_degree=True):
     """Get a new direction vector with an opening angle of delta_psi to vec.
 
@@ -143,6 +153,11 @@ def get_delta_psi_vector_dir(vec, delta_psi, random_service=None,
         The opening angle. If 'is_degree' is True, then the unit is in degree,
         otherwise it is in radians.
         If an array is provided, broadcasting will be applied.
+    randomize_for_each_delta_psi : bool, optional
+        If True, a random orthogonal vector is sampled for each specified
+        delta_psi.
+        If False, the direction vectors for the delta_psi opening angles
+        are computed along along the same (random) geodesic.
     random_service : None, optional
         An optional random number service to use for reproducibility.
     is_degree : bool, optional
@@ -171,13 +186,18 @@ def get_delta_psi_vector_dir(vec, delta_psi, random_service=None,
     # allow broadcasting
     delta_psi = np.expand_dims(delta_psi, axis=-1)
 
-    # This calculation is only valid if delta_psi < 90 °
+    # This calculation is only valid if delta_psi < 90 degree
     if np.any(delta_psi >= np.deg2rad(90)):
         msg = 'Delta Psi angle must be smaller than 90 degrees, but it is {!r}'
         raise ValueError(msg.format(np.rad2deg(delta_psi)))
 
     # get a random orthogonal vector
-    temp_vec = random_service.uniform(low=-1, high=1, size=(len(vec), 3))
+    if randomize_for_each_delta_psi:
+        num_temp_vecs = max(len(vec), len(delta_psi))
+    else:
+        num_temp_vecs = len(vec)
+
+    temp_vec = random_service.uniform(low=-1, high=1, size=(num_temp_vecs, 3))
 
     vec_orthogonal = np.cross(vec, temp_vec)
     vec_orthogonal /= np.linalg.norm(vec_orthogonal, axis=-1, keepdims=True)

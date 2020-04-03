@@ -927,6 +927,7 @@ class SourceManager(BaseModelManager):
                     zenith=result_zenith,
                     azimuth=result_azimuth,
                     delta_psi=delta_psi,
+                    randomize_for_each_delta_psi=True,
                     random_service=random_service)
 
                 # data_batch_combined = []
