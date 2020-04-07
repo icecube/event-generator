@@ -223,6 +223,9 @@ data_iterator_settings: {
              #  # NuGen -- L5MonopodFit4 vertex
              '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
              '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+
+             # Spice Lea Coverage Test
+             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99003/egenerator_99003_step_3_pass2_get_pulses_IC86_pulses/trigger_time/00000-00999/*000.hdf5',
         ],
     },
 }
