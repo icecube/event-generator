@@ -13,6 +13,31 @@ import logging
 
 from egenerator import misc
 from egenerator.data.trafo import DataTransformer
+from egenerator.loss.multi_loss import MultiLossModule
+
+
+def build_loss_module(config):
+    loss_module_settings = config['loss_module_settings']
+
+    # If a dictionary is provided, then this is just a single loss module
+    if isinstance(loss_module_settings, dict):
+        LossModuleClass = misc.load_class(loss_module_settings['loss_module'])
+        loss_module = LossModuleClass()
+        loss_module.configure(config=loss_module_settings['config'])
+
+    # A list of dictrionaries is provided which each define a loss module
+    else:
+        loss_modules = []
+        for settings in loss_module_settings:
+            LossModuleClass = misc.load_class(settings['loss_module'])
+            loss_module_i = LossModuleClass()
+            loss_module_i.configure(config=settings['config'])
+            loss_modules.append(loss_module_i)
+
+        # create a multi loss module from a list of given loss modules
+        loss_module = MultiLossModule(loss_modules)
+
+    return loss_module
 
 
 def build_manager(config, restore,

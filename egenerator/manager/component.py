@@ -868,16 +868,16 @@ class BaseComponent(object):
             loaded.
         modified_sub_components : dict of Components (and nested), optional
             A dictionary of modified sub components with key-value pairs of the
-            structure: (subcomponent_name: subcomponent).
+            structure: (sub_component_name: sub_component).
             The modified_sub_components may also be a nested dictionary of
             sub components. In this case, the nested dictionary is passed
             on to the load method of the sub component.
             If modifided sub components are provided, these will be used
-            instead of loading the previously saved subcomponent.
-            A check for compatibility of the old and new subcomponent is
+            instead of loading the previously saved sub_component.
+            A check for compatibility of the old and new sub_component is
             performed. If sub components are compatible, the component's
             configuration.sub_component_configurations will be updated for the
-            modified subcomponent.
+            modified sub_component.
         **kwargs
             Additional keyword arguments that will be passed on to the
             virtual _load() method, that derived classes my overwrite.
@@ -969,13 +969,13 @@ class BaseComponent(object):
 
                 # check if configured
                 if not modified_sub_component.is_configured:
-                    msg = 'Subcomponent {!r} is not configured.'
+                    msg = 'Sub component {!r} is not configured.'
                     raise ValueError(msg.format(name))
 
                 # check if compatible
                 if name not in self.configuration.mutable_sub_components:
                     if not sub_component.is_compatible(modified_sub_component):
-                        msg = 'Subcomponent {!r} is not compatible.'
+                        msg = 'Sub component {!r} is not compatible.'
                         raise ValueError(msg.format(name))
 
                 # replace sub component and its configuration

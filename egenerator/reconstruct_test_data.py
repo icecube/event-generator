@@ -11,6 +11,7 @@ import tensorflow as tf
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
+from egenerator.utils.build_components import build_loss_module
 from egenerator.data.trafo import DataTransformer
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
@@ -38,10 +39,7 @@ def main(config_files):
     # ------------------
     # Create loss module
     # ------------------
-    LossModuleClass = \
-        misc.load_class(config['loss_module_settings']['loss_module'])
-    loss_module = LossModuleClass()
-    loss_module.configure(config=config['loss_module_settings']['config'])
+    loss_module = build_loss_module(config)
 
     # ------------------
     # Create misc module

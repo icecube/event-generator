@@ -73,8 +73,6 @@ class DefaultLossModule(BaseComponent):
                     Additional check values.
         dict
             The data of the component.
-            This must at least contain the tensor list which must be
-            stored under the key 'tensors'.
         dict
             A dictionary of dependent sub components. This is a dictionary
             of sub components that need to be saved and loaded recursively
