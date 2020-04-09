@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import timeit
 from scipy import optimize
+from scipy.stats import chi2
 
 from egenerator import misc
 from egenerator.utils import angles
@@ -814,9 +815,9 @@ class SourceManager(BaseModelManager):
         # ------------------
         run_mcmc = False
         if run_mcmc:
-            reco_config['mcmc_num_chains'] = 10
-            reco_config['mcmc_num_results'] = 1000
-            reco_config['mcmc_num_burnin_steps'] = 100
+            reco_config['mcmc_num_chains'] = 1
+            reco_config['mcmc_num_results'] = 100  # 10000
+            reco_config['mcmc_num_burnin_steps'] = 100  # 100
             reco_config['mcmc_num_steps_between_results'] = 0
             reco_config['mcmc_num_parallel_iterations'] = 10
             reco_config['mcmc_method'] = 'RandomWalkMetropolis'
@@ -899,7 +900,7 @@ class SourceManager(BaseModelManager):
             # Angular Uncertainty
             # -------------------
             if estimate_angular_uncertainty:
-                n = 32
+                n = 5
 
                 # The following assumes that result is the full hypothesis
                 assert np.all(fit_paramater_list)
@@ -918,83 +919,101 @@ class SourceManager(BaseModelManager):
                 else:
                     result_inv = result
 
-                # generate random vectors at different opening angles delta psi
-                delta_psi = random_service.uniform(1, 20, size=n)
-                delta_psi = np.linspace(0, 20, n)
-                result_zenith = result_inv[:, zenith_index]
-                result_azimuth = result_inv[:, azimuth_index]
-                zen, azi = angles.get_delta_psi_vector(
-                    zenith=result_zenith,
-                    azimuth=result_azimuth,
-                    delta_psi=delta_psi,
-                    randomize_for_each_delta_psi=True,
-                    random_service=random_service)
+                # define reconstruction method
+                def reconstruct_at_angle(zeniths, azimuths):
+                    data_batch_combined = [t for t in data_batch]
+                    seed_tensor = np.array(result_inv)
+                    unc_results_list = []
+                    unc_loss_list = []
+                    for zen, azi in zip(zeniths, azimuths):
 
-                # data_batch_combined = []
-                # for i, tensor in enumerate(data_batch):
-                #     if i == seed_index:
-                #         # put together seed tensor
-                #         seed_tensor = np.tile(np.array(result_inv),
-                #                               reps=[n, 1])
-                #         seed_tensor[:, zenith_index] = zen
-                #         seed_tensor[:, azimuth_index] = azi
-                #         data_batch_combined.append(
-                #             tf.convert_to_tensor(seed_tensor, param_dtype))
-                #     else:
-                #         data_batch_combined.append(tf.concat([tensor]*n,
-                #                                              axis=0))
-                # data_batch_combined = tuple(data_batch_combined)
-                # unc_start_t = timeit.default_timer()
-                # result_b, result_obj = unc_reconstruction_method(
-                #     data_batch_combined)
-                # # ang_loss = get_loss(data_batch_combined).numpy()
-                # # ang_loss_best = get_loss(data_batch).numpy()
-                # unc_end_t = timeit.default_timer()
-                # print('result_b', result_b)
-                # # print('ang_loss', ang_loss)
-                # # print('ang_loss_best', ang_loss_best)
-                # print('Batch reco took: {:3.3f}s'.format(
-                #     unc_end_t - unc_start_t))
+                        # put together seed tensor and new data batch
+                        seed_tensor[:, zenith_index] = zen
+                        seed_tensor[:, azimuth_index] = azi
+                        data_batch_combined[seed_index] = tf.convert_to_tensor(
+                            seed_tensor, param_dtype)
 
-                # loop through points
+                        # reconstruct (while keeping azimuth and zenith fixed)
+                        unc_result, result_obj = unc_reconstruction_method(
+                            tuple(data_batch_combined))
+
+                        # get loss
+                        unc_loss = unc_loss_function(
+                            parameters_trafo=unc_result,
+                            data_batch=tuple(data_batch_combined)).numpy()
+
+                        # append data
+                        unc_results_list.append(unc_result)
+                        unc_loss_list.append(unc_loss)
+
+                    unc_results = np.concatenate(unc_results_list, axis=0)
+                    unc_losses = np.array(unc_loss_list)
+
+                    return unc_results, unc_losses
+
+                # start timer
                 unc_start_t = timeit.default_timer()
 
-                data_batch_combined = [t for t in data_batch]
-                seed_tensor = np.array(result_inv)
-                cascade_seed_batch
-                unc_results_list = []
-                unc_loss_list = []
-                for event_idx in range(n):
-
-                    # put together seed tensor and new data batch
-                    seed_tensor[:, zenith_index] = zen[event_idx]
-                    seed_tensor[:, azimuth_index] = azi[event_idx]
-                    data_batch_combined[seed_index] = tf.convert_to_tensor(
-                        seed_tensor, param_dtype)
-
-                    # reconstruct (while keeping azimuth and zenith fixed)
-                    unc_result, result_obj = unc_reconstruction_method(
-                        tuple(data_batch_combined))
-
-                    # get loss
-                    unc_loss = unc_loss_function(
-                        parameters_trafo=unc_result,
-                        data_batch=tuple(data_batch_combined)).numpy()
-
-                    # append data
-                    unc_results_list.append(unc_result)
-                    unc_loss_list.append(unc_loss)
-
-                unc_end_t = timeit.default_timer()
-
+                # get loss of reco best fit
                 unc_loss_best = loss_function(
                     parameters_trafo=result,
                     data_batch=data_batch).numpy()
 
-                # calculate delta_log_prob
-                delta_loss = np.array(unc_loss_list) - unc_loss_best
+                # define zenith and azimuth of reconstruction result
+                result_zenith = result_inv[:, zenith_index]
+                result_azimuth = result_inv[:, azimuth_index]
 
-                unc_results_list = np.concatenate(unc_results_list, axis=0)
+                # ------------------------
+                # get scale of uncertainty
+                # ------------------------
+                def bisection_step(low, high, target=0.99):
+                    center = low + (high - low) / 2.
+                    zen, azi = angles.get_delta_psi_vector(
+                        zenith=result_zenith,
+                        azimuth=result_azimuth,
+                        delta_psi=[center],
+                        random_service=random_service)
+                    unc_results, unc_losses = reconstruct_at_angle(zen, azi)
+
+                    # calculate cdf value assuming Wilk's Theorem
+                    cdf_value = chi2(7).cdf(2*(unc_losses - unc_loss_best))
+
+                    # pack values together
+                    values = ([center], zen, azi, unc_results,
+                              unc_losses, cdf_value)
+                    if cdf_value > target:
+                        high = center
+                    else:
+                        low = center
+                    return low, high, values
+
+                num_unc_scale_steps = 4
+                lower_bound = 0.
+                upper_bound = 90.
+                for i in range(num_unc_scale_steps):
+                    lower_bound, upper_bound, values = bisection_step(
+                        lower_bound, upper_bound)
+                unc_upper_bound = min(89.9, values[0][0])
+                print('Chosen upper bound:', unc_upper_bound)
+                # ------------------------
+
+                # generate random vectors at different opening angles delta psi
+                delta_psi = random_service.uniform(1, unc_upper_bound, size=n)
+                delta_psi = np.linspace(0, unc_upper_bound, n)
+                zen, azi = angles.get_delta_psi_vector(
+                    zenith=result_zenith,
+                    azimuth=result_azimuth,
+                    delta_psi=delta_psi,
+                    random_service=random_service)
+
+                # reconstruct at chosen angles
+                unc_results, unc_losses = reconstruct_at_angle(zen, azi)
+
+                # calculate delta_log_prob
+                delta_loss = unc_losses - unc_loss_best
+
+                # end timer
+                unc_end_t = timeit.default_timer()
 
                 print('delta_loss', delta_loss)
                 print('Uncertainty estimation took: {:3.3f}s'.format(
@@ -1004,7 +1023,7 @@ class SourceManager(BaseModelManager):
                 # write samples to file
                 # ---------------------
                 df = pd.DataFrame()
-                df['loss'] = unc_loss_list
+                df['loss'] = unc_losses
                 df['delta_loss'] = delta_loss
                 df['delta_psi'] = delta_psi
 
@@ -1015,7 +1034,7 @@ class SourceManager(BaseModelManager):
                     elif name == 'zenith':
                         values = zen
                     else:
-                        values = unc_results_list[:, param_counter]
+                        values = unc_results[:, param_counter]
                         param_counter += 1
                     df[name] = values
 
