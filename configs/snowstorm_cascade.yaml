@@ -366,7 +366,7 @@ model_settings: {
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1],
                               [1, 1], [1, 1]],
-        'num_filters_list' : [500, 500, 500, 500, 300, 100, 21],
+        'num_filters_list' : [100, 300, 300, 300, 300, 300, 21],
         'method_list' : ['convolution',
                          'convolution', 'convolution', 'convolution',
                          'convolution', 'convolution', 'convolution',
