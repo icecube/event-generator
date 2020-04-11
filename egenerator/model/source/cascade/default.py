@@ -245,6 +245,9 @@ class DefaultCascadeModel(Source):
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
 
+        if config['add_dom_coordinates']:
+            input_list.append(detector.x_coords)
+
         if config['num_local_vars'] > 0:
 
             # extend to correct shape:
@@ -278,6 +281,14 @@ class DefaultCascadeModel(Source):
         if config['scale_charge']:
             scale_factor = tf.expand_dims(parameter_list[5], axis=-1) / 10000.0
             dom_charges *= scale_factor
+
+        # scale charges by realtive DOM efficiency
+        if config['scale_charge_by_relative_dom_efficiency']:
+            dom_charges *= detector.rel_dom_eff
+
+        # scale charges by global DOM efficiency
+        if config['scale_charge_by_global_dom_efficiency']:
+            dom_charges *= parameter_list[self.get_index('DOMEfficiency')]
 
         tensor_dict['dom_charges'] = dom_charges
 

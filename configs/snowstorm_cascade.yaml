@@ -346,8 +346,11 @@ model_settings: {
     config: {
         'keep_prob':,
         'add_opening_angle': True,
-        'num_local_vars': 0,
+        'add_dom_coordinates': True,
+        'num_local_vars': 3,
         'scale_charge': True,
+        'scale_charge_by_relative_dom_efficiency': True,
+        'scale_charge_by_global_dom_efficiency': True,
         'num_latent_models': 5,
 
         # This is a list of the orderd snowstorm parameters: (name, number)
@@ -361,9 +364,9 @@ model_settings: {
         ],
 
         # First convolutions
-        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [45, 500, 500, 500, 21],
-        'method_list' : ['locally_connected',
+        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+        'num_filters_list' : [500, 500, 500, 500, 21],
+        'method_list' : ['convolution',
                          'convolution', 'convolution', 'convolution',
                          'convolution',
                          ],
