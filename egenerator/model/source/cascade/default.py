@@ -293,11 +293,12 @@ class DefaultCascadeModel(Source):
 
         # scale charges by realtive DOM efficiency
         if config['scale_charge_by_relative_dom_efficiency']:
-            dom_charges *= tf.expand_dims(detector.rel_dom_eff, axis=0)
+            dom_charges *= tf.expand_dims(detector.rel_dom_eff, axis=-1)
 
         # scale charges by global DOM efficiency
         if config['scale_charge_by_global_dom_efficiency']:
-            dom_charges *= parameter_list[self.get_index('DOMEfficiency')]
+            dom_charges *= tf.expand_dims(
+                parameter_list[self.get_index('DOMEfficiency')], axis=-1)
 
         tensor_dict['dom_charges'] = dom_charges
 
