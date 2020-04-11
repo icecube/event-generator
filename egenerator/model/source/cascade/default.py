@@ -249,7 +249,11 @@ class DefaultCascadeModel(Source):
             input_list.append(opening_angle_traf)
 
         if config['add_dom_coordinates']:
-            input_list.append(detector.x_coords)
+            # extend to correct shape:
+            dom_coords = (tf.ones_like(dx_normed) *
+                          tf.expand_dims(detector.x_coords, axis=0))
+            print('dom_coords', dom_coords)
+            input_list.append(dom_coords)
 
         if config['num_local_vars'] > 0:
 
