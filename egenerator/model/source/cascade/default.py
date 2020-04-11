@@ -251,11 +251,6 @@ class DefaultCascadeModel(Source):
         if config['add_dom_coordinates']:
 
             # extend to correct shape:
-            print('dx', dx)
-            print('dx_normed', dx_normed)
-            print('tf.ones_like(dx_normed)', tf.ones_like(dx_normed))
-            print('coordinates',
-                  tf.expand_dims(detector.x_coords.astype(np.float32), axis=0))
             dom_coords = (tf.ones_like(dx_normed) *
                           tf.expand_dims(detector.x_coords.astype(np.float32),
                                          axis=0))
@@ -298,7 +293,7 @@ class DefaultCascadeModel(Source):
 
         # scale charges by realtive DOM efficiency
         if config['scale_charge_by_relative_dom_efficiency']:
-            dom_charges *= detector.rel_dom_eff
+            dom_charges *= tf.expand_dims(detector.rel_dom_eff, axis=0)
 
         # scale charges by global DOM efficiency
         if config['scale_charge_by_global_dom_efficiency']:
