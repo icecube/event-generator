@@ -251,7 +251,8 @@ class DefaultCascadeModel(Source):
         if config['add_dom_coordinates']:
             # extend to correct shape:
             dom_coords = (tf.ones_like(dx_normed) *
-                          tf.expand_dims(detector.x_coords, axis=0))
+                          tf.expand_dims(detector.x_coords.astype(np.float32),
+                                         axis=0))
             print('dom_coords', dom_coords)
             input_list.append(dom_coords)
 
