@@ -66,6 +66,9 @@ class DefaultCascadeModel(Source):
         if config['add_opening_angle']:
             num_inputs += 1
 
+        if config['add_dom_coordinates']:
+            num_inputs += 3
+
         if config['num_local_vars'] > 0:
             self._untracked_data['local_vars'] = new_weights(
                     shape=[1, 86, 60, config['num_local_vars']],
