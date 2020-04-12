@@ -231,7 +231,7 @@ class SnowstormPriorLossModule(BaseComponent):
                                sigma=fourier_sigmas)
 
         # we will use the negative log likelihood as loss
-        fourier_loss = -tf.log(fourier_pdf)
+        fourier_loss = -tf.math.log(fourier_pdf)
         event_loss += tf.reduce_sum(fourier_loss, axis=1)
 
         # average loss over events, such that it does not depend on batch size
