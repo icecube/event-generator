@@ -69,7 +69,7 @@ class MultiLossModule(BaseComponent):
 
         dependent_sub_components = {}
         for i, module in enumerate(loss_modules):
-            dependent_sub_components['loss_module_{:03d}'.format(i)] = module
+            dependent_sub_components['loss_modules_{:04d}'.format(i)] = module
 
         # create configuration object
         configuration = Configuration(
