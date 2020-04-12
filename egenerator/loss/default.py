@@ -92,7 +92,7 @@ class DefaultLossModule(BaseComponent):
 
         return configuration, {}, {}
 
-    def get_loss(self, data_batch_dict, result_tensors, tensors,
+    def get_loss(self, data_batch_dict, result_tensors, tensors, model,
                  parameter_tensor_name='x_parameters'):
         """Get the scalar loss for a given data batch and result tensors.
 
@@ -103,7 +103,7 @@ class DefaultLossModule(BaseComponent):
                 A tensor which describes the input parameters of the source.
                 This fully defines the source hypothesis. The tensor is of
                 shape [-1, n_params] and the last dimension must match the
-                order of the parameter names (self.parameter_names),
+                order of the parameter names (model.parameter_names),
             pulses : tf.Tensor
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
@@ -121,6 +121,8 @@ class DefaultLossModule(BaseComponent):
                              Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        model : Model
+            The model object used to calculate the result tensors.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
             This option is ignored here and has no effect.

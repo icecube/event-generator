@@ -158,7 +158,7 @@ class SnowstormPriorLossModule(BaseComponent):
                          tf.zeros_like(values))
         return loss
 
-    def get_loss(self, data_batch_dict, result_tensors, tensors,
+    def get_loss(self, data_batch_dict, result_tensors, tensors, model,
                  parameter_tensor_name='x_parameters'):
         """Get the scalar loss for a given data batch and result tensors.
 
@@ -169,7 +169,7 @@ class SnowstormPriorLossModule(BaseComponent):
                 A tensor which describes the input parameters of the source.
                 This fully defines the source hypothesis. The tensor is of
                 shape [-1, n_params] and the last dimension must match the
-                order of the parameter names (self.parameter_names),
+                order of the parameter names (model.parameter_names),
             pulses : tf.Tensor
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
@@ -187,6 +187,8 @@ class SnowstormPriorLossModule(BaseComponent):
                              Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        model : Model
+            The model object used to calculate the result tensors.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
 
@@ -198,24 +200,25 @@ class SnowstormPriorLossModule(BaseComponent):
         """
 
         # get parameters
-        parameters = data_batch_dict[parameter_tensor_name]
+        parameters = model.add_parameter_indexing(
+            data_batch_dict[parameter_tensor_name])
 
         event_loss = None
 
         # compute loss for uniform priors
         for name, bounds in self.untracked_data['uniform_parameters'].items():
-            values = parameters[:, tensors.get_index(name)]
+            values = parameters[name]
             if event_loss is None:
                 event_loss = self.uniform_prior_loss(values, *bounds)
             else:
                 event_loss += self.uniform_prior_loss(values, *bounds)
 
         # compute loss for Fourier modes
-        start_index = tensors.get_index('IceWavePlusModes_00')
-        end_index = tensors.get_index('IceWavePlusModes_23') + 1
+        start_index = model.get_index('IceWavePlusModes_00')
+        end_index = model.get_index('IceWavePlusModes_23') + 1
         assert end_index - start_index == 24
         for i in range(start_index, end_index):
-            assert i == tensors.get_index('IceWavePlusModes_{:02d}'.format(i))
+            assert i == model.get_index('IceWavePlusModes_{:02d}'.format(i))
 
         # shape: [batch, n_fourier]
         fourier_values = parameters[:, start_index:end_index]

@@ -415,6 +415,7 @@ class BaseModelManager(Model):
         loss_value = loss_module.get_loss(
             data_batch_dict, result_tensors,
             self.data_handler.tensors,
+            model=self.model,
             parameter_tensor_name=parameter_tensor_name)
 
         reg_loss = self.regularization_loss(
