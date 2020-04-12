@@ -4,8 +4,7 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
-from egenerator.configuration
-from egenerator.utils.base_functions import tf_gauss
+from egenerator.utils.basis_functions import tf_gauss
 
 
 class SnowstormPriorLossModule(BaseComponent):
