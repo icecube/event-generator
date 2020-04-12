@@ -218,9 +218,9 @@ class SnowstormPriorLossModule(BaseComponent):
         start_index = model.get_index('IceWavePlusModes_00')
         end_index = model.get_index('IceWavePlusModes_23') + 1
         assert end_index - start_index == 24
-        for i, expected_index in enumerate(range(start_index, end_index)):
+        for i, exp_index in enumerate(range(start_index, end_index)):
             index = model.get_index('IceWavePlusModes_{:02d}'.format(i))
-            assert expected_index == index, expected_index, index
+            assert exp_index == index, '{} != {}'.format(exp_index, index)
 
         # shape: [batch, n_fourier]
         fourier_values = parameters[:, start_index:end_index]
