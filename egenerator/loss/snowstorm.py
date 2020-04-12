@@ -1,5 +1,6 @@
 from __future__ import division, print_function
 import logging
+import numpy as np
 import tensorflow as tf
 
 from egenerator import misc
@@ -207,7 +208,7 @@ class SnowstormPriorLossModule(BaseComponent):
 
         # compute loss for uniform priors
         for name, bounds in self.untracked_data['uniform_parameters'].items():
-            values = parameters[name]
+            values = parameters.params[name]
             if event_loss is None:
                 event_loss = self.uniform_prior_loss(values, *bounds)
             else:
@@ -217,8 +218,9 @@ class SnowstormPriorLossModule(BaseComponent):
         start_index = model.get_index('IceWavePlusModes_00')
         end_index = model.get_index('IceWavePlusModes_23') + 1
         assert end_index - start_index == 24
-        for i in range(start_index, end_index):
-            assert i == model.get_index('IceWavePlusModes_{:02d}'.format(i))
+        for i, expected_index in enumerate(range(start_index, end_index)):
+            index = model.get_index('IceWavePlusModes_{:02d}'.format(i))
+            assert expected_index == index, expected_index, index
 
         # shape: [batch, n_fourier]
         fourier_values = parameters[:, start_index:end_index]
