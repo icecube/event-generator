@@ -12,7 +12,8 @@ class DefaultLossModule(BaseComponent):
 
     A loss component that is used to compute the loss. The component
     must provide a
-    loss_module.get_loss(data_batch_dict, result_tensors, tensors)
+    loss_module.get_loss(data_batch_dict, result_tensors, tensors,
+                         parameter_tensor_name='x_parameters')
     method.
     """
 
@@ -91,7 +92,8 @@ class DefaultLossModule(BaseComponent):
 
         return configuration, {}, {}
 
-    def get_loss(self, data_batch_dict, result_tensors, tensors):
+    def get_loss(self, data_batch_dict, result_tensors, tensors,
+                 parameter_tensor_name='x_parameters'):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -119,6 +121,9 @@ class DefaultLossModule(BaseComponent):
                              Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'.
+            This option is ignored here and has no effect.
 
         Returns
         -------

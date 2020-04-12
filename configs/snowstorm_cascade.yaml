@@ -227,19 +227,25 @@ data_iterator_settings: {
 #---------------------
 
 # Settings for the loss module class
-loss_module_settings: {
+loss_module_settings: [
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
 
-    # The loss module class to use
-    'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
 
-    config: {
-        # the float precision to use
-        'float_precision': 'float32',
-
-        # choose the loss function to use
-        'loss_function_name': 'unbinned_extended_pulse_llh',
+            # choose the loss function to use
+            'loss_function_name': 'unbinned_extended_pulse_llh',
+        },
     },
-}
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
+        config: {},
+    },
+]
 
 #---------------------------
 # Evaluation module settings

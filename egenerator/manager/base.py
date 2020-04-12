@@ -412,8 +412,10 @@ class BaseModelManager(Model):
             is_training=is_training,
             parameter_tensor_name=parameter_tensor_name)
 
-        loss_value = loss_module.get_loss(data_batch_dict, result_tensors,
-                                          self.data_handler.tensors)
+        loss_value = loss_module.get_loss(
+            data_batch_dict, result_tensors,
+            self.data_handler.tensors,
+            parameter_tensor_name=parameter_tensor_name)
 
         reg_loss = self.regularization_loss(
                                     variables=self.model.trainable_variables,

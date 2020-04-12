@@ -113,9 +113,11 @@ class SourceManager(BaseModelManager):
                                 is_training=False,
                                 parameter_tensor_name=parameter_tensor_name)
 
-        loss = loss_module.get_loss(data_batch_dict,
-                                    result_tensors,
-                                    self.data_handler.tensors)
+        loss = loss_module.get_loss(
+            data_batch_dict,
+            result_tensors,
+            self.data_handler.tensors,
+            parameter_tensor_name=parameter_tensor_name)
         return loss
 
     def get_parameter_loss_function(self, loss_module, input_signature,
@@ -515,7 +517,9 @@ class SourceManager(BaseModelManager):
 
         # Initialize the HMC transition kernel.
         # step sizes for x, y, z, zenith, azimuth, energy, time
-        step_size = np.array([[.1, .1, .1, 0.001, 0.001, 10., 1.]])
+        step_size = np.array([[.5, .5, .5, 0.02, 0.02, 10., 1.]])
+        if method == 'HamiltonianMonteCarlo':
+            step_size = np.array([[.1, .1, .1, 0.01, 0.02, 10., 1.]])
 
         param_tensor = self.data_handler.tensors[parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
@@ -815,12 +819,12 @@ class SourceManager(BaseModelManager):
         # ------------------
         run_mcmc = False
         if run_mcmc:
-            reco_config['mcmc_num_chains'] = 1
+            reco_config['mcmc_num_chains'] = 10
             reco_config['mcmc_num_results'] = 100  # 10000
-            reco_config['mcmc_num_burnin_steps'] = 100  # 100
+            reco_config['mcmc_num_burnin_steps'] = 30  # 100
             reco_config['mcmc_num_steps_between_results'] = 0
-            reco_config['mcmc_num_parallel_iterations'] = 10
-            reco_config['mcmc_method'] = 'RandomWalkMetropolis'
+            reco_config['mcmc_num_parallel_iterations'] = 100
+            reco_config['mcmc_method'] = 'HamiltonianMonteCarlo'
             # HamiltonianMonteCarlo
             # RandomWalkMetropolis
             # NoUTurnSampler
@@ -900,7 +904,7 @@ class SourceManager(BaseModelManager):
             # Angular Uncertainty
             # -------------------
             if estimate_angular_uncertainty:
-                n = 5
+                n = 10
 
                 # The following assumes that result is the full hypothesis
                 assert np.all(fit_paramater_list)
@@ -918,6 +922,9 @@ class SourceManager(BaseModelManager):
                             tensor_name=parameter_tensor_name)
                 else:
                     result_inv = result
+
+                # calculate delta degrees of freedom
+                ddof = len(result_inv[0]) - 2
 
                 # define reconstruction method
                 def reconstruct_at_angle(zeniths, azimuths):
@@ -966,7 +973,7 @@ class SourceManager(BaseModelManager):
                 # ------------------------
                 # get scale of uncertainty
                 # ------------------------
-                def bisection_step(low, high, target=0.99):
+                def bisection_step(low, high, target=0.99, ddof=5):
                     center = low + (high - low) / 2.
                     zen, azi = angles.get_delta_psi_vector(
                         zenith=result_zenith,
@@ -976,7 +983,7 @@ class SourceManager(BaseModelManager):
                     unc_results, unc_losses = reconstruct_at_angle(zen, azi)
 
                     # calculate cdf value assuming Wilk's Theorem
-                    cdf_value = chi2(7).cdf(2*(unc_losses - unc_loss_best))
+                    cdf_value = chi2(ddof).cdf(2*(unc_losses - unc_loss_best))
 
                     # pack values together
                     values = ([center], zen, azi, unc_results,
@@ -992,9 +999,10 @@ class SourceManager(BaseModelManager):
                 upper_bound = 90.
                 for i in range(num_unc_scale_steps):
                     lower_bound, upper_bound, values = bisection_step(
-                        lower_bound, upper_bound)
+                        lower_bound, upper_bound, ddof=ddof)
                 unc_upper_bound = min(89.9, values[0][0])
-                print('Chosen upper bound:', unc_upper_bound)
+                print('Upper bound: {} | ddof: {}'.format(
+                      unc_upper_bound, ddof))
                 # ------------------------
 
                 # generate random vectors at different opening angles delta psi
@@ -1063,7 +1071,8 @@ class SourceManager(BaseModelManager):
 
                 # 0, 1, 2,      3,       4,      5,    6
                 # x, y, z, zenith, azimuth, energy, time
-                scale = np.array([1., 1., 1., 0.03, 0.03, 0., 5.])
+                scale = np.array([10., 10., 10., 0.2, 0.2, 0., 20.])
+                scale = 0
                 low = result_inv - scale
                 high = result_inv + scale
                 # low[3] = 0.0
