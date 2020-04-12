@@ -211,9 +211,9 @@ data_iterator_settings: {
             # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30012/egenerator_30012_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
             # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
 
             # # NuGen -- L5MonopodFit4 vertex
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
