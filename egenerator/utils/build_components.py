@@ -35,7 +35,8 @@ def build_loss_module(config):
             loss_modules.append(loss_module_i)
 
         # create a multi loss module from a list of given loss modules
-        loss_module = MultiLossModule(loss_modules)
+        loss_module = MultiLossModule()
+        loss_module.configure(loss_modules)
 
     return loss_module
 

@@ -78,7 +78,8 @@ class MultiLossModule(BaseComponent):
 
         return configuration, {}, dependent_sub_components
 
-    def get_loss(self, data_batch_dict, result_tensors, tensors):
+    def get_loss(self, data_batch_dict, result_tensors, tensors,
+                 parameter_tensor_name='x_parameters'):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -106,6 +107,8 @@ class MultiLossModule(BaseComponent):
                              Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'.
 
         Returns
         -------
@@ -120,11 +123,13 @@ class MultiLossModule(BaseComponent):
                     data_batch_dict=data_batch_dict,
                     result_tensors=result_tensors,
                     tensors=tensors,
+                    parameter_tensor_name=parameter_tensor_name,
                 )
             else:
                 loss += loss_module.loss_function(
                     data_batch_dict=data_batch_dict,
                     result_tensors=result_tensors,
                     tensors=tensors,
+                    parameter_tensor_name=parameter_tensor_name,
                 )
         return loss
