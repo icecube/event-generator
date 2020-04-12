@@ -119,14 +119,14 @@ class MultiLossModule(BaseComponent):
         loss = None
         for loss_module in self.sub_components.values():
             if loss is None:
-                loss = loss_module.loss_function(
+                loss = loss_module.get_loss(
                     data_batch_dict=data_batch_dict,
                     result_tensors=result_tensors,
                     tensors=tensors,
                     parameter_tensor_name=parameter_tensor_name,
                 )
             else:
-                loss += loss_module.loss_function(
+                loss += loss_module.get_loss(
                     data_batch_dict=data_batch_dict,
                     result_tensors=result_tensors,
                     tensors=tensors,
