@@ -876,11 +876,18 @@ class SourceManager(BaseModelManager):
             # # Hack to modify seed
             # # -------------------
             # x0 = data_batch[seed_index]
-            # x0 = np.random.normal(loc=x0.numpy()[0],
-            #                       scale=[300, 300, 300, 0.5, 0.5, 100, 1000],
-            #                       size=[1, 7])
-            # x0[0, 5] = 100
-            # x0 = tf.reshape(tf.convert_to_tensor(x0, param_dtype), [1, 7])
+            # seed_shape = x0.numpy().shape
+            # # x0 = np.random.normal(loc=x0.numpy()[0],
+            # #                       scale=[300, 300, 300, 0.5, 0.5, 100, 1000],
+            # #                       size=[1, 7])
+            # # x0[0, 5] = 100
+
+            # # set snowstorm params to expectation
+            # x0[:, 7:10] = 1.0
+            # x0[:, 10] = -0.5
+            # x0[:, 11:36] = 0.
+            # x0[:, 36] = 1.0
+            # x0 = tf.reshape(tf.convert_to_tensor(x0, param_dtype), seed_shape)
             # new_batch = [b for b in data_batch]
             # new_batch[seed_index] = x0
             # data_batch = tuple(new_batch)
