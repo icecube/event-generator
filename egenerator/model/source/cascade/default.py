@@ -156,6 +156,9 @@ class DefaultCascadeModel(Source):
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
 
+        # shape: [n_batch, 86, 60, 1]
+        dom_charges_true = data_batch_dict['x_dom_charge']
+
         pulse_times = pulses[:, 1]
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
@@ -332,9 +335,22 @@ class DefaultCascadeModel(Source):
             # set default value to poisson uncertainty
             dom_charges_sigma = tf.sqrt(dom_charges) * sigma_scale
 
+            # Apply Asymmetric Gaussian Mixture Model
+            # shape: [n_batch, 86, 60, 1]
+            dom_charges_pdf_values = basis_functions.tf_asymmetric_gauss(
+                x=dom_charges_true,
+                mu=dom_charges,
+                sigma=dom_charges_sigma,
+                r=dom_charges_r,
+            )
+
+            print('dom_charges_sigma', dom_charges_sigma)
+            print('dom_charges_pdf_values', dom_charges_pdf_values)
+
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
             tensor_dict['dom_charges_r'] = dom_charges_r
+            tensor_dict['dom_charges_pdf_values'] = dom_charges_pdf_values
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF

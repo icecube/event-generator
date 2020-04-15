@@ -251,7 +251,7 @@ loss_module_settings: {
         'float_precision': 'float32',
 
         # choose the loss function to use
-        'loss_function_name': 'unbinned_extended_pulse_llh',
+        'loss_function_name': 'unbinned_pulse_and_dom_charge_pdf',
     },
 }
 
