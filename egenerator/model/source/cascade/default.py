@@ -329,8 +329,12 @@ class DefaultCascadeModel(Source):
             dom_charges_r_trafo = 0.1 * dom_charges_r_trafo
 
             # force positive and min values
-            sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.001
-            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.001
+            # The uncertainty can't be smaller than Poissonian error.
+            # However, we are approximating the distribution with an
+            # asymmetric Gaussian which might result in slightly different
+            # sigmas at low values. Limit Gaussian sigma to minimium of 10%
+            sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.1
+            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.1
 
             # set default value to poisson uncertainty
             dom_charges_sigma = tf.sqrt(dom_charges) * sigma_scale
