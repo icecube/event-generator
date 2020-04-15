@@ -354,12 +354,12 @@ class DefaultCascadeModel(Source):
             eps = 1e-7
             dom_charges_llh = tf.where(
                 dom_charges_true > 5,
-                basis_functions.tf_asymmetric_gauss(
+                tf.math.log(basis_functions.tf_asymmetric_gauss(
                     x=dom_charges_true,
                     mu=dom_charges,
                     sigma=dom_charges_sigma,
                     r=dom_charges_r,
-                ),
+                ) + eps),
                 dom_charges_true * tf.math.log(dom_charges + eps) - dom_charges
             )
 
