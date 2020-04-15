@@ -297,6 +297,7 @@ class DefaultLossModule(BaseComponent):
         NotImplementedError
             Description
         """
+        eps = 1e-7
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
 
@@ -330,7 +331,6 @@ class DefaultLossModule(BaseComponent):
             llh_charge = llh_charge * mask_valid
 
         # prevent log(zeros) issues
-        eps = 1e-7
         pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
         # pulse_log_pdf_values = tf.where(hits_true > 0,
         #                                 tf.math.log(pulse_pdf_values + eps),
