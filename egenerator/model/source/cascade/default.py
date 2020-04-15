@@ -326,7 +326,7 @@ class DefaultCascadeModel(Source):
 
             # create correct scaling
             sigma_scale_trafo = 0.1 * sigma_scale_trafo
-            dom_charges_r_trafo = 0.01 * dom_charges_r_trafo
+            dom_charges_r_trafo = 0.1 * dom_charges_r_trafo
 
             # force positive and min values
             # The uncertainty can't be smaller than Poissonian error.
