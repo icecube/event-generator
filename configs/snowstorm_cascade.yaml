@@ -357,6 +357,7 @@ model_settings: {
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': True,
+        'estimate_charge_distribution': False,
         'num_latent_models': 5,
 
         # This is a list of the orderd snowstorm parameters: (name, number)

@@ -281,13 +281,18 @@ class DefaultCascadeModel(Source):
                                         x_doms_input, is_training=is_training,
                                         keep_prob=config['keep_prob'])
 
+        # -------------------------------------------
+        # Get expected charge at DOM
+        # -------------------------------------------
+        if config['estimate_charge_distribution']:
+            n_charge = 3
+        else:
+            n_charge = 1
+
         # the result of the convolution layers are the latent variables
         dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
                                            axis=-1)
 
-        # -------------------------------------------
-        # Get expected charge at DOM
-        # -------------------------------------------
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
 
@@ -306,6 +311,30 @@ class DefaultCascadeModel(Source):
                 parameter_list[self.get_index('DOMEfficiency')], axis=-1)
 
         tensor_dict['dom_charges'] = dom_charges
+
+        # -------------------------------------
+        # get charge distribution uncertainties
+        # -------------------------------------
+        if config['estimate_charge_distribution']:
+            sigma_scale_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 1],
+                                               axis=-1)
+            dom_charges_r_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 2],
+                                                 axis=-1)
+
+            # create correct scaling
+            sigma_scale_trafo = 0.1 * sigma_scale_trafo
+            dom_charges_r_trafo = 0.1 * dom_charges_r_trafo
+
+            # force positive and min values
+            sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.001
+            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.001
+
+            # set default value to poisson uncertainty
+            dom_charges_sigma = tf.sqrt(dom_charges) * sigma_scale
+
+            # add tensors to tensor dictionary
+            tensor_dict['dom_charges_sigma'] = dom_charges_sigma
+            tensor_dict['dom_charges_r'] = dom_charges_r
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF
@@ -328,17 +357,20 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
-        if n_models*4 + 1 != config['num_filters_list'][-1]:
+        if n_models*4 + n_charge != config['num_filters_list'][-1]:
             raise ValueError('{!r} != {!r}'.format(
-                n_models*4 + 1, config['num_filters_list'][-1]))
+                n_models*4 + n_charge, config['num_filters_list'][-1]))
         if n_models <= 1:
             raise ValueError('{!r} !> 1'.format(n_models))
 
         out_layer = conv_hex3d_layers[-1]
-        latent_mu = out_layer[..., 1 + 0*n_models: 1 + 1*n_models]
-        latent_sigma = out_layer[..., 1 + 1*n_models: 1 + 2*n_models]
-        latent_r = out_layer[..., 1 + 2*n_models: 1 + 3*n_models]
-        latent_scale = out_layer[..., 1 + 3*n_models: 1 + 4*n_models]
+        latent_mu = out_layer[...,
+                              n_charge + 0*n_models:n_charge + 1*n_models]
+        latent_sigma = out_layer[...,
+                                 n_charge + 1*n_models:n_charge + 2*n_models]
+        latent_r = out_layer[..., n_charge + 2*n_models:n_charge + 3*n_models]
+        latent_scale = out_layer[...,
+                                 n_charge + 3*n_models:n_charge + 4*n_models]
 
         # add reasonable scaling for parameters assuming the latent vars
         # are distributed normally around zero

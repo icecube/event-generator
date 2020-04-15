@@ -38,25 +38,25 @@ reconstruction_settings: {
     'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
 
     # define which tensor to use as parameter_tensor
-    'parameter_tensor_name': 'MonopodFit4_PartialExclusion',
+    'parameter_tensor_name': 'SplineMPE', #'MonopodFit4_PartialExclusion',
     # define seed (to seed from MC truth choose: 'x_parameters')
-    'seed': 'MonopodFit4_PartialExclusion',
+    'seed': 'SplineMPE', #'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
                              'time',
                              'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
-                             # 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
+                             'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
                             ],
-    'seed_missing_value': 6.,
+    'seed_missing_value': 1.,
     'seed_float_precision': 'float32',
 
     # choose the otpimizer iterface:
@@ -221,9 +221,12 @@ data_iterator_settings: {
               # # 1e5 - 1e6 GeV [uniform spread around vertex time, vertex time]
               # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/10003/cgenerator_10003_step_3_pass2_get_pulses_IC86_pulses/*/05000-05999/*0.hdf5',
 
-             #  # NuGen -- L5MonopodFit4 vertex
-             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuMu/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
-             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuMu/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+             # #  # NuGen -- L5MonopodFit4 vertex
+             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuMu/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
+             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuMu/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+
+            # Muon Benchmark Datasets
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/muon_benchmark/reconstruction-benchmarks/MPEQuality/1/*emin_5.0_emax_6*.hdf5',
         ],
     },
 }
@@ -349,7 +352,7 @@ model_settings: {
 
     # configuration settings for DefaultMultiCascadeModel object
     config: {
-        'num_cascades': 10,
+        'num_cascades': 100,
     },
 
     # Base sources used by the multi-source class
@@ -366,8 +369,12 @@ model_settings: {
             config: {
                 'keep_prob':,
                 'add_opening_angle': True,
+                'add_dom_coordinates': True,
                 'num_local_vars': 0,
                 'scale_charge': True,
+                'scale_charge_by_relative_dom_efficiency': True,
+                'scale_charge_by_global_dom_efficiency': True,
+                'estimate_charge_distribution': False,
                 'num_latent_models': 5,
 
                 # First convolutions

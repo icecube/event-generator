@@ -84,7 +84,7 @@ class DefaultMultiCascadeModel(MultiSource):
         """
         c = 0.299792458  # meter / ns
         d_thresh = 700  # meter
-        distance = 50  # meter
+        distance = 500  # meter
 
         x = parameters.params['x']
         y = parameters.params['y']
@@ -107,17 +107,17 @@ class DefaultMultiCascadeModel(MultiSource):
         s = dir_x*h_x + dir_y*h_y + dir_z*h_z
 
         # closest approach position
-        # closest_x = x + s*dir_x
-        # closest_y = y + s*dir_y
-        # closest_z = z + s*dir_z
-        # closest_time = time + s / c
-        closest_x = x
-        closest_y = y
-        closest_z = z
-        closest_time = time
+        closest_x = x + s*dir_x
+        closest_y = y + s*dir_y
+        closest_z = z + s*dir_z
+        closest_time = time + s / c
+        # closest_x = x
+        # closest_y = y
+        # closest_z = z
+        # closest_time = time
 
-        # cascade_distances = np.linspace(-distance, distance,
-        cascade_distances = np.linspace(0., distance,
+        cascade_distances = np.linspace(-distance, distance,
+        # cascade_distances = np.linspace(0., distance,
                                         self._untracked_data['num_cascades'])
 
         source_parameter_dict = {}
