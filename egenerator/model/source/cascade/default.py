@@ -347,7 +347,9 @@ class DefaultCascadeModel(Source):
 
             # set default value to poisson uncertainty
             dom_charges_sigma = tf.sqrt(tf.clip_by_value(
-                dom_charges, 0.0001, float('inf'))) * sigma_scale
+                tf.stop_gradient(dom_charges),
+                0.0001,
+                float('inf'))) * sigma_scale
 
             # Apply Asymmetric Gaussian and/or Poisson Likelihood
             # shape: [n_batch, 86, 60, 1]
