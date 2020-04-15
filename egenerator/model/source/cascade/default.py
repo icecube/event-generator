@@ -341,6 +341,7 @@ class DefaultCascadeModel(Source):
             # Since the normalization is not correct for these likelihoods
             # we need to keep the choice of llh fixed for an event, e.g.
             # base the decision on the true measured charge.
+            # Note: this is not a correct and proper PDF description!
             sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.9
             dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.9
 
@@ -359,9 +360,8 @@ class DefaultCascadeModel(Source):
                     sigma=dom_charges_sigma,
                     r=dom_charges_r,
                 ),
-                dom_charges_true * tf.math.log(
-                    dom_charges_pred + eps) - dom_charges_pred
-                )
+                dom_charges_true * tf.math.log(dom_charges + eps) - dom_charges
+            )
 
             print('dom_charges_sigma', dom_charges_sigma)
             print('dom_charges_llh', dom_charges_llh)
