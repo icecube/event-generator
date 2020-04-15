@@ -300,6 +300,7 @@ data_handler_settings: {
         'dom_exclusions_key': 'BadDomsList',
         'time_exclusions_key': ,
         'float_precision': 'float32',
+        'add_charge_quantiles': False,
     },
 
     # --------------------

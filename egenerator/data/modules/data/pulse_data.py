@@ -38,7 +38,7 @@ class PulseDataModule(BaseComponent):
         super(PulseDataModule, self).__init__(logger=logger)
 
     def _configure(self, config_data, pulse_key, dom_exclusions_key,
-                   time_exclusions_key, float_precision):
+                   time_exclusions_key, float_precision, add_charge_quantiles):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -55,6 +55,13 @@ class PulseDataModule(BaseComponent):
             The key in which the time window exclusions are saved to.
         float_precision : str
             The float precision as a str.
+        add_charge_quantiles : bool
+            If True, the charge quantiles of the data pulses are computed and
+            added to the `x_pulses` data tensor.
+            A pulse then consists of (charge, time, quantile), where quantile
+            is the fraction of cumulative charge collected at the DOM:
+                quantile_i = 1./D * sum_{j=0}^{j=i} charge_j
+            with the DOM's total charge D.
 
         Returns
         -------
@@ -88,6 +95,13 @@ class PulseDataModule(BaseComponent):
             of sub components that need to be saved and loaded recursively
             when the component is saved and loaded.
             Return None if no dependent sub components exist.
+
+        Raises
+        ------
+        TypeError
+            Description
+        ValueError
+            Description
         """
         if not isinstance(pulse_key, str):
             msg = 'Pulse key type: {!r} != str'
@@ -95,6 +109,11 @@ class PulseDataModule(BaseComponent):
 
         time_exclusions_exist = time_exclusions_key is not None
         dom_exclusions_exist = dom_exclusions_key is not None
+
+        if add_charge_quantiles:
+            pulse_dim = 3
+        else:
+            pulse_dim = 2
 
         x_dom_charge = DataTensor(name='x_dom_charge',
                                   shape=[None, 86, 60, 1],
@@ -110,7 +129,7 @@ class PulseDataModule(BaseComponent):
                                       dtype='bool',
                                       exists=dom_exclusions_exist)
         x_pulses = DataTensor(name='x_pulses',
-                              shape=[None, 2],
+                              shape=[None, pulse_dim],
                               tensor_type='data',
                               vector_info={'type': 'value',
                                            'reference': 'x_pulses_ids'},
@@ -155,7 +174,8 @@ class PulseDataModule(BaseComponent):
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config_data=config_data,
-                          float_precision=float_precision),
+                          float_precision=float_precision,
+                          add_charge_quantiles=add_charge_quantiles),
             mutable_settings=dict(pulse_key=pulse_key,
                                   dom_exclusions_key=dom_exclusions_key,
                                   time_exclusions_key=time_exclusions_key),
@@ -232,8 +252,15 @@ class PulseDataModule(BaseComponent):
             x_time_exclusions = None
             x_time_exclusions_ids = None
 
+        add_charge_quantiles = \
+            self.configuration.config['add_charge_quantiles']
+        if add_charge_quantiles:
+            pulse_dim = 3
+        else:
+            pulse_dim = 2
+
         num_pulses = len(pulses['Event'])
-        x_pulses = np.empty((num_pulses, 2),
+        x_pulses = np.empty((num_pulses, pulse_dim),
                             dtype=self.data['np_float_precision'])
         x_pulses_ids = np.empty((num_pulses, 3), dtype=np.int32)
 
@@ -251,11 +278,35 @@ class PulseDataModule(BaseComponent):
             # accumulate charge in DOMs
             x_dom_charge[index, string-1, dom-1, 0] += row[12]
 
-            # gather pulses (charge, time)
-            x_pulses[pulse_index] = [row[12], row[10]]
+            # gather pulses
+            if add_charge_quantiles:
 
-            # gather pulse ids (batch index, string dom)
+                # (charge, time, quantile)
+                cum_charge = x_dom_charge[index, string-1, dom-1, 0]
+                x_pulses[pulse_index] = [row[12], row[10], cum_charge]
+
+            else:
+                # (charge, time)
+                x_pulses[pulse_index] = [row[12], row[10]]
+
+            # gather pulse ids (batch index, string, dom)
             x_pulses_ids[pulse_index] = [index, string-1, dom-1]
+
+        # convert cumulative charge to fraction of total charge, e.g. quantile
+        if add_charge_quantiles:
+
+            # compute flat indices
+            dim1 = x_dom_charge.shape[1]
+            dim2 = x_dom_charge.shape[2]
+            flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
+                            x_pulses_ids[:, 1]*dim2 +  # string
+                            x_pulses_ids[:, 2])  # DOM
+
+            # flatten dom charges
+            flat_charges = x_dom_charge.flatten()
+
+            # calculate quantiles
+            x_pulses[:, 2] /= flat_charges[flat_indices]
 
         # get dom exclusions
         if dom_exclusions is not None:
