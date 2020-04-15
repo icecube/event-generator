@@ -324,38 +324,52 @@ class DefaultCascadeModel(Source):
             dom_charges_r_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 2],
                                                  axis=-1)
 
-            # create correct scaling
-            sigma_scale_trafo = 0.1 * sigma_scale_trafo
-            dom_charges_r_trafo = 0.01 * dom_charges_r_trafo
+            # create correct offset and scaling
+            sigma_scale_trafo = 0.1 * sigma_scale_trafo - 2
+            dom_charges_r_trafo = 0.01 * dom_charges_r_trafo - 2
 
             # force positive and min values
             # The uncertainty can't be smaller than Poissonian error.
             # However, we are approximating the distribution with an
             # asymmetric Gaussian which might result in slightly different
-            # sigmas at low values. Limit Gaussian sigma to minimium of 10%
-            sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.1
-            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 2.0
+            # sigmas at low values.
+            # We will limit Gaussian sigma to a minimum value of 90% ofthe
+            # Poisson expectation.
+            # The Gaussian approximation will not hold for low charge DOMs.
+            # We will use a standard poisson likelihood for DOMs with a true
+            # detected charge of less than 5.
+            # Since the normalization is not correct for these likelihoods
+            # we need to keep the choice of llh fixed for an event, e.g.
+            # base the decision on the true measured charge.
+            sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.9
+            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.9
 
             # set default value to poisson uncertainty
             dom_charges_sigma = tf.sqrt(tf.clip_by_value(
                 dom_charges, 0.0001, float('inf'))) * sigma_scale
 
-            # Apply Asymmetric Gaussian Mixture Model
+            # Apply Asymmetric Gaussian and/or Poisson Likelihood
             # shape: [n_batch, 86, 60, 1]
-            dom_charges_pdf_values = basis_functions.tf_asymmetric_gauss(
-                x=dom_charges_true,
-                mu=dom_charges,
-                sigma=dom_charges_sigma,
-                r=dom_charges_r,
-            )
+            eps = 1e-7
+            dom_charges_llh = tf.where(
+                dom_charges_true > 5,
+                basis_functions.tf_asymmetric_gauss(
+                    x=dom_charges_true,
+                    mu=dom_charges,
+                    sigma=dom_charges_sigma,
+                    r=dom_charges_r,
+                ),
+                dom_charges_true * tf.math.log(
+                    dom_charges_pred + eps) - dom_charges_pred
+                )
 
             print('dom_charges_sigma', dom_charges_sigma)
-            print('dom_charges_pdf_values', dom_charges_pdf_values)
+            print('dom_charges_llh', dom_charges_llh)
 
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
             tensor_dict['dom_charges_r'] = dom_charges_r
-            tensor_dict['dom_charges_pdf_values'] = dom_charges_pdf_values
+            tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF

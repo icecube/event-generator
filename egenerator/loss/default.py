@@ -297,7 +297,6 @@ class DefaultLossModule(BaseComponent):
         NotImplementedError
             Description
         """
-        eps = 1e-7
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
 
@@ -307,12 +306,11 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60, 1]
         hits_true = data_batch_dict['x_dom_charge']
-        dom_charges_pdf_values = result_tensors['dom_charges_pdf_values']
 
         # get charge likelihood over total charge at a DOM for extendended LLH
         # shape: [n_batch, 86, 60]
-        llh_charge = tf.math.log(tf.squeeze(dom_charges_pdf_values, axis=-1)
-                                 + eps)
+        llh_charge = tf.squeeze(result_tensors['dom_charges_log_pdf_values'],
+                                axis=-1)
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -331,6 +329,7 @@ class DefaultLossModule(BaseComponent):
             llh_charge = llh_charge * mask_valid
 
         # prevent log(zeros) issues
+        eps = 1e-7
         pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
         # pulse_log_pdf_values = tf.where(hits_true > 0,
         #                                 tf.math.log(pulse_pdf_values + eps),
