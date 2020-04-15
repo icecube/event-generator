@@ -369,7 +369,7 @@ model_settings: {
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [20, 500, 500, 500, 21],
+        'num_filters_list' : [20, 500, 500, 500, 23],
         'method_list' : ['locally_connected',
                          'convolution', 'convolution', 'convolution',
                          'convolution',
