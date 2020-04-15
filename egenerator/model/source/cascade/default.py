@@ -326,7 +326,7 @@ class DefaultCascadeModel(Source):
 
             # create correct scaling
             sigma_scale_trafo = 0.1 * sigma_scale_trafo
-            dom_charges_r_trafo = 0.1 * dom_charges_r_trafo
+            dom_charges_r_trafo = 0.01 * dom_charges_r_trafo
 
             # force positive and min values
             # The uncertainty can't be smaller than Poissonian error.
@@ -334,11 +334,11 @@ class DefaultCascadeModel(Source):
             # asymmetric Gaussian which might result in slightly different
             # sigmas at low values. Limit Gaussian sigma to minimium of 10%
             sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.1
-            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.1
+            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 2.0
 
             # set default value to poisson uncertainty
             dom_charges_sigma = tf.sqrt(tf.clip_by_value(
-                dom_charges_true, 0.1, float('inf'))) * sigma_scale
+                dom_charges, 0.0001, float('inf'))) * sigma_scale
 
             # Apply Asymmetric Gaussian Mixture Model
             # shape: [n_batch, 86, 60, 1]
