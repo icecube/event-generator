@@ -413,14 +413,14 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            self.logger.warning('Pulses in excluded time windows must have '
-                                'already been removed!')
+            self._logger.warning('Pulses in excluded time windows must have '
+                                 'already been removed!')
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_dom_exclusions')].exists):
-            self.logger.warning('Pulses at excluded must have already been '
-                                'removed!')
+            self._logger.warning('Pulses at excluded DOMs must have already '
+                                 'been removed!')
 
         # prevent log(zeros) issues
         eps = 1e-7

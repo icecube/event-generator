@@ -114,7 +114,7 @@ class ChargeQuantileCascadeModel(Source):
         # ----------------------------------------------------
 
         # minus 1 for charge prediction, plus 2 for q_i, D_i
-        num_fc_inputs = config['filter_size_list'][-1] - 1 + 2
+        num_fc_inputs = config['num_filters_list'][-1] - 1 + 2
         if config['estimate_charge_distribution']:
             num_fc_inputs -= 2
 
@@ -416,14 +416,11 @@ class ChargeQuantileCascadeModel(Source):
         latend_vars = conv_hex3d_layers[-1][..., n_charge:]
 
         # shape: [n_pulses, n_latent]
-        pulse_latent_vars = tf.gather_nd(latent_mu, pulses_ids)
-        print('pulse_latent_vars', pulse_latent_vars)
+        pulse_latent_vars = tf.gather_nd(latend_vars, pulses_ids)
 
         # Total charge D_i of DOM. Shape: [n_pulses, 1]
         pulse_dom_charge_true = tf.gather_nd(dom_charges_true, pulses_ids)
         pulse_dom_charge = tf.gather_nd(dom_charges, pulses_ids)
-        print('pulse_dom_charge_true', pulse_dom_charge_true)
-        print('pulse_dom_charge', pulse_dom_charge)
 
         # expanded pulse_quantile with shape: [n_pulses, 1]
         exp_pulse_quantiles = tf.expand_dims(pulse_quantiles, axis=-1)
@@ -434,7 +431,7 @@ class ChargeQuantileCascadeModel(Source):
 
         # put all information together.
         input_list = [
-            latend_vars,
+            pulse_latent_vars,
             exp_pulse_quantiles,  # quantiles q_i
             pulse_dom_charge_true_trafo,  # total (true) DOM charge D_i
         ]
@@ -527,9 +524,6 @@ class ChargeQuantileCascadeModel(Source):
         pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
         pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
 
-        print('pulse_latent_mu', latent_mu, pulse_latent_mu)
-        print('pulse_latent_scale', latent_scale, pulse_latent_scale)
-
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
@@ -541,7 +535,6 @@ class ChargeQuantileCascadeModel(Source):
 
         # new shape: [n_pulses]
         quantile_pdf_values = tf.reduce_sum(quantile_pdf_values, axis=-1)
-        print('quantile_pdf_values', quantile_pdf_values)
 
         tensor_dict['pulse_quantile_pdf'] = quantile_pdf_values
         # -------------------------------------------
