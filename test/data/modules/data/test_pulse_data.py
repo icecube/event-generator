@@ -35,6 +35,30 @@ class TestPulseDataModule(unittest.TestCase):
         self.times_last_5 = [19050.0, 10525.0, 10784.0, 11563.0, 10585.0]
         self.charges_last_5 = [0.574999988079071, 1.475000023841858, 1.375,
                                0.7749999761581421, 1.0750000476837158]
+
+        # Note: string and DOM ids are zero based here
+        self.charges_dict = {
+            (0, 25, 48): np.array([
+                0.72500002, 1.52499998, 26.92499924, 23.02499962, 4.7249999,
+                0.625, 3.57500005, 1.42499995, 3.42499995, 2.625,
+                2.125, 1.07500005, 1.82500005, 0.32499999, 0.57499999,
+                0.22499999, 3.32500005, 0.22499999, 0.97500002, 0.32499999,
+                1.32500005, 0.57499999, 0.22499999, 1.47500002, 0.92500001,
+                1.125, 1.625, 0.82499999, 0.92500001, 0.82499999]),
+            (0, 85, 39): np.array([0.92500001]),
+            (0, 85, 38): np.array([1.22500002, 1.47500002]),
+            (1, 34, 53): np.array([
+                0.27500001, 1.77499998, 4.9749999, 11.27499962, 3.32500005,
+                1.52499998, 2.07500005, 4.2750001, 2.0250001, 1.875,
+                0.47499999, 1.42499995, 1.875, 1.57500005, 0.77499998,
+                1.125, 1.52499998, 0.175, 0.22499999, 1.02499998,
+                0.22499999, 0.77499998, 1.07500005, 0.32499999, 1.57500005,
+                1.375]),
+            (1, 34, 50): np.array([0.47499999, 0.875]),
+            (1, 34, 45): np.array([0.52499998]),
+
+        }
+
         self.total_event_charge = np.array([1080.0499, 668.4249])
 
         self.dom_exclusions_key = np.ones([2, 86, 60, 1], dtype=bool)
@@ -51,6 +75,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': 'BrightDOMs',
             'time_exclusions_key': None,
             'float_precision': 'float64',
+            'add_charge_quantiles': False,
         }
 
     def test_class_initialization_parameters(self):
@@ -62,6 +87,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
 
         with self.assertRaises(TypeError) as context:
@@ -89,6 +115,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -104,6 +131,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
 
@@ -126,6 +154,7 @@ class TestPulseDataModule(unittest.TestCase):
                     'dom_exclusions_key': dom_exclusions_key,
                     'time_exclusions_key': None,
                     'float_precision': float_precision,
+                    'add_charge_quantiles': False,
                 }
                 module = PulseDataModule()
                 module.configure(**config)
@@ -181,6 +210,7 @@ class TestPulseDataModule(unittest.TestCase):
                     'dom_exclusions_key': dom_exclusions_key,
                     'time_exclusions_key': None,
                     'float_precision': float_precision,
+                    'add_charge_quantiles': False,
                 }
                 module = PulseDataModule()
                 module.configure(**config)
@@ -194,6 +224,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -211,6 +242,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -228,6 +260,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -245,6 +278,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -264,6 +298,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': 'missing_key',
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -317,6 +352,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float32',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -334,6 +370,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': None,
             'time_exclusions_key': None,
             'float_precision': 'float64',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -368,6 +405,89 @@ class TestPulseDataModule(unittest.TestCase):
                         np.sum(pulses[pulses_ids[:, 0] == 1][:, 0])]
         self.assertTrue(np.allclose(self.total_event_charge, total_charge))
 
+    def check_quantiles_of_dom(self, pulses, pulses_ids, event, string, dom):
+        """Helper function to check if the charge quantiles are correct.
+
+        Parameters
+        ----------
+        pulses : array_like
+            The pulses. Shape: [n_pulses, 3]
+        pulses_ids : array_like
+            The pulses ids. Shape: [n_pulses, 3]
+        event : int
+            The (zero-based) event id.
+        string : int
+            The (zero-based) string number.
+        dom : int
+            The (zero-based) dom number.
+        """
+
+        # get true quantiles
+        charges_true = self.charges_dict[(event, string, dom)]
+        quantiles_true = np.cumsum(charges_true) / np.sum(charges_true)
+
+        # get loaded quantiles
+        pulse_mask = np.logical_and(pulses_ids[:, 0] == event,
+                                    pulses_ids[:, 1] == string)
+        pulse_mask = np.logical_and(pulse_mask,
+                                    pulses_ids[:, 2] == dom)
+
+        quantiles = pulses[pulse_mask][:, 2]
+
+        self.assertTrue(np.allclose(quantiles_true, quantiles))
+
+    def test_get_data_from_hdf_with_quantiles(self):
+        """Test if loaded data is correct when loading quantiles as well
+        """
+        config = {
+            'config_data': 'dummy_data',
+            'pulse_key': 'InIceDSTPulses',
+            'dom_exclusions_key': None,
+            'time_exclusions_key': None,
+            'float_precision': 'float64',
+            'add_charge_quantiles': True,
+        }
+        module = PulseDataModule()
+        module.configure(**config)
+
+        num_events, data = module.get_data_from_hdf(self.file_path)
+        self.assertEqual(num_events, 2)
+        self.assertEqual(len(data), 6)
+        self.assertEqual(data[1], None)
+        self.assertEqual(data[4], None)
+        self.assertEqual(data[5], None)
+
+        # check specific values for pulse times
+        self.assertListEqual(list(data[2][0:10, 1]), self.times_0_to_9)
+        self.assertListEqual(list(data[2][618:628, 1]),
+                             self.times_618_to_627)
+        self.assertListEqual(list(data[2][-5:, 1]), self.times_last_5)
+
+        # check specific values for pulse charges
+        self.assertListEqual(list(data[2][0:10, 0]), self.charges_0_to_9)
+        self.assertListEqual(list(data[2][618:628, 0]),
+                             self.charges_618_to_627)
+        self.assertListEqual(list(data[2][-5:, 0]), self.charges_last_5)
+
+        # check total event charge
+        event_sum = np.sum(data[0], axis=(1, 2, 3))
+        self.assertTrue(np.allclose(self.total_event_charge, event_sum))
+
+        # collect all pulses of an event and accumulate charge
+        pulses = data[2]
+        pulses_ids = data[3]
+        total_charge = [np.sum(pulses[pulses_ids[:, 0] == 0][:, 0]),
+                        np.sum(pulses[pulses_ids[:, 0] == 1][:, 0])]
+        self.assertTrue(np.allclose(self.total_event_charge, total_charge))
+
+        # check specific values for pulse charge quantiles
+        for key in self.charges_dict.keys():
+            self.check_quantiles_of_dom(pulses, pulses_ids, *key)
+
+        # no quantile should be zero or less, or greater than 1:
+        self.assertTrue(np.all(pulses[:, 2] > 0.))
+        self.assertTrue(np.all(pulses[:, 2] <= 1.))
+
     def test_get_data_from_hdf_with_dom_exclusions_and_float64(self):
         """Test if loaded data is correct
         """
@@ -377,6 +497,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': 'BrightDOMs',
             'time_exclusions_key': None,
             'float_precision': 'float64',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -422,6 +543,7 @@ class TestPulseDataModule(unittest.TestCase):
             'dom_exclusions_key': 'BrightDOMs',
             'time_exclusions_key': 'BrightDOMs',
             'float_precision': 'float64',
+            'add_charge_quantiles': False,
         }
         module = PulseDataModule()
         module.configure(**config)

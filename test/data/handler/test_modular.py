@@ -31,14 +31,17 @@ class TestModuleDataHandler(unittest.TestCase):
                     'dom_exclusions_key': None,
                     'time_exclusions_key': None,
                     'float_precision': 'float32',
+                    'add_charge_quantiles': False,
                 },
 
                 # settings for the label module
                 'label_module': 'cascades.CascadeGeneratorLabelModule',
                 'label_settings': {
                     'shift_cascade_vertex': False,
-                    # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
-                    'trafo_log': [False, False, False, False, False, True, False],
+                    # logarithm on labels
+                    # (x, y, z, zenith, azimuth, energy, time)?
+                    'trafo_log': [False, False, False, False, False, True,
+                                  False],
                     'label_key': 'LabelsDeepLearning',
                     'float_precision': 'float32',
                 },
@@ -233,6 +236,7 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
                 'dom_exclusions_key': 'BrightDOMs',
                 'time_exclusions_key': None,
                 'float_precision': 'float32',
+                'add_charge_quantiles': False,
             },
 
             # settings for the label module

@@ -60,6 +60,7 @@ class TestCreateTrafoModel(unittest.TestCase):
                 'dom_exclusions_key': 'BrightDOMs',
                 'time_exclusions_key': None,
                 'float_precision': 'float32',
+                'add_charge_quantiles': False,
             },
 
             # settings for the label module
