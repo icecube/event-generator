@@ -251,7 +251,7 @@ loss_module_settings: {
         'float_precision': 'float32',
 
         # choose the loss function to use
-        'loss_function_name': 'unbinned_pulse_and_dom_charge_pdf',
+        'loss_function_name': 'unbinned_charge_quantile_pdf',
     },
 }
 
@@ -300,7 +300,7 @@ data_handler_settings: {
         'dom_exclusions_key': 'BadDomsList',
         'time_exclusions_key': ,
         'float_precision': 'float32',
-        'add_charge_quantiles': False,
+        'add_charge_quantiles': True,
     },
 
     # --------------------
@@ -311,7 +311,7 @@ data_handler_settings: {
 
     # settings for the label module
     'label_settings':{
-        'shift_cascade_vertex': False,
+        'shift_cascade_vertex': True,
         # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
         'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
@@ -354,7 +354,7 @@ data_handler_settings: {
 model_settings: {
 
     # The loss module class to use
-    'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
+    'model_class': 'egenerator.model.source.cascade.charge_quantiles.ChargeQuantileCascadeModel',
 
     config: {
         'keep_prob':,
@@ -365,7 +365,8 @@ model_settings: {
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': False,
         'estimate_charge_distribution': True,
-        'num_latent_models': 5,
+        'num_latent_models': 2,
+        'add_predicted_charge_to_latend_vars': True,
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
@@ -378,6 +379,13 @@ model_settings: {
         'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
         'use_batch_norm_list' : False,
         'use_residual_list' : True,
+
+        # Fully connected layers for p(t| q_i, D_i) calculation
+        'fc_num_filters_list' : [100, 100, 8],
+        'fc_use_dropout_list' : False,
+        'fc_activation_list' : ['elu', 'elu', ''],
+        'fc_use_batch_norm_list' : False,
+        'fc_use_residual_list' : True,
     },
 }
 

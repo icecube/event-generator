@@ -348,3 +348,93 @@ class DefaultLossModule(BaseComponent):
         average_event_loss = (total_charge_loss + total_time_loss
                               ) / batch_size
         return average_event_loss
+
+    def unbinned_charge_quantile_pdf(self, data_batch_dict, result_tensors,
+                                     tensors):
+        """Unbinned Pulse Quantile PDF.
+
+        Pulses must *not* contain any pulses in excluded DOMs or excluded time
+        windows. It is assumed that these pulses are already removed, e.g.
+        the time pdf is calculated for all pulses.
+
+        This loss will compute the likelihood of
+            p(t_i| q_i, D_i)
+            t_i: Time of pulse i
+            q_i: Cumulative fractional DOM charge (charge quantile) of pulse i
+            D_i: Total charge at the DOM at which pulse i was measured
+
+        Note this likelihood does not place any constraints on total measured
+        charge. It is therefore not suited to reconstruct Energy.
+
+        Parameters
+        ----------
+        data_batch_dict : dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
+        result_tensors : dict of tf.Tensor
+            A dictionary of output tensors.
+            This  dictionary must at least contain:
+                'pulse_quantile_pdf':
+                    The likelihood evaluated for each pulse
+                    Shape: [-1]
+        tensors : DataTensorList
+            The data tensor list describing the input data
+
+        Returns
+        -------
+        tf.tensor
+            Poisson Likelihood.
+            Shape: []
+
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
+        dtype = getattr(
+            tf, self.configuration.config['config']['float_precision'])
+
+        # shape: [n_pulses]
+        pulse_charges = data_batch_dict['x_pulses'][:, 0]
+        pulse_pdf_values = result_tensors['pulse_quantile_pdf']
+
+        # throw error if this is being used with time window exclusions
+        # one needs to calculate cumulative pdf from exclusion window and
+        # reduce the predicted charge by this factor
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            self.logger.warning('Pulses in excluded time windows must have '
+                                'already been removed!')
+
+        # mask out dom exclusions
+        if ('x_dom_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+            self.logger.warning('Pulses at excluded must have already been '
+                                'removed!')
+
+        # prevent log(zeros) issues
+        eps = 1e-7
+        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
+
+        # compute unbinned negative likelihood over pulse times with given
+        # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
+        time_loss = -pulse_charges * pulse_log_pdf_values
+
+        # calculate sum over a whole batch of events
+        total_time_loss = tf.reduce_sum(time_loss)
+
+        # average loss over events, such that it does not depend on batch size
+        batch_size = tf.cast(tf.shape(data_batch_dict['x_dom_charge'])[0],
+                             dtype=dtype)
+        average_event_loss = total_time_loss / batch_size
+        return average_event_loss
