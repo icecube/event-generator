@@ -486,8 +486,8 @@ class ChargeQuantileCascadeModel(Source):
         if n_models*4 != config['fc_num_filters_list'][-1]:
             raise ValueError('{!r} != {!r}'.format(
                 n_models*4, config['fc_num_filters_list'][-1]))
-        if n_models <= 1:
-            raise ValueError('{!r} !> 1'.format(n_models))
+        if n_models < 1:
+            raise ValueError('{!r} < 1'.format(n_models))
 
         out_layer = fc_layers[-1]
 
@@ -496,13 +496,6 @@ class ChargeQuantileCascadeModel(Source):
         latent_sigma = out_layer[..., 1*n_models:2*n_models]
         latent_r = out_layer[..., 2*n_models:3*n_models]
         latent_scale = out_layer[..., 3*n_models:4*n_models]
-
-        if n_models == 1:
-            assert len(latent_mu.shape) == 1
-            latent_mu = tf.expand_dims(latent_mu, axis=-1)
-            latent_sigma = tf.expand_dims(latent_sigma, axis=-1)
-            latent_r = tf.expand_dims(latent_r, axis=-1)
-            latent_scale = tf.expand_dims(latent_scale, axis=-1)
 
         # add reasonable scaling for parameters assuming the latent vars
         # are distributed normally around zero
@@ -537,26 +530,6 @@ class ChargeQuantileCascadeModel(Source):
         pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
         pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
 
-        tf.print('pulse_latent_mu',
-                 tf.reduce_min(pulse_latent_mu),
-                 tf.reduce_mean(pulse_latent_mu),
-                 tf.reduce_max(pulse_latent_mu),
-                 )
-        tf.print('pulse_latent_sigma',
-                 tf.reduce_min(pulse_latent_sigma),
-                 tf.reduce_mean(pulse_latent_sigma),
-                 tf.reduce_max(pulse_latent_sigma),
-                 )
-        tf.print('pulse_latent_r',
-                 tf.reduce_min(pulse_latent_r),
-                 tf.reduce_mean(pulse_latent_r),
-                 tf.reduce_max(pulse_latent_r),
-                 )
-        tf.print('pulse_latent_scale',
-                 tf.reduce_min(pulse_latent_scale),
-                 tf.reduce_mean(pulse_latent_scale),
-                 tf.reduce_max(pulse_latent_scale),
-                 )
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
