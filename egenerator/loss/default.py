@@ -434,7 +434,8 @@ class DefaultLossModule(BaseComponent):
         total_time_loss = tf.reduce_sum(time_loss)
 
         # average loss over events, such that it does not depend on batch size
-        batch_size = tf.cast(tf.shape(data_batch_dict['x_dom_charge'])[0],
-                             dtype=dtype)
-        average_event_loss = total_time_loss / batch_size
+        # batch_size = tf.cast(tf.shape(data_batch_dict['x_dom_charge'])[0],
+        #                      dtype=dtype)
+        # average_event_loss = total_time_loss / batch_size
+        average_event_loss = total_time_loss / tf.reduce_sum(pulse_charges)
         return average_event_loss

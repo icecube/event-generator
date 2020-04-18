@@ -229,7 +229,12 @@ class ChargeQuantileCascadeModel(Source):
         dy = tf.expand_dims(dy, axis=-1)
         dz = tf.expand_dims(dz, axis=-1)
 
+        # shape: [-1, 86, 60, 1]
         distance = tf.sqrt(dx**2 + dy**2 + dz**2)
+
+        # calculte time it takes for unscattered light to propagate to DOM
+        c_ice = 0.22103046286329384  # meter / ns
+        light_propagation_time = distance / c_ice
 
         # calculate observation angle
         dx_normed = dx / distance
@@ -461,10 +466,17 @@ class ChargeQuantileCascadeModel(Source):
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
         t_pdf = tf.ensure_shape(t_pdf, [None, 1])
 
+        # get light propagation time of unscattered light for each pulse
+        # shape: [n_pulses, 1]
+        pulse_light_propagation_time = tf.gather_nd(light_propagation_time,
+                                                    pulses_ids)
+        print('pulse_light_propagation_time', pulse_light_propagation_time)
+
         # scale time range down to avoid big numbers:
-        t_scale = 0.001  # 1./ns
+        t_scale = 0.001  # unit: 1./ns
         average_t_dist = 1000. * t_scale
         t_pdf = t_pdf * t_scale
+        pulse_light_propagation_time *= t_scale
 
         # -------------------------------------------
         # Gather latent vars of mixture model
@@ -494,15 +506,16 @@ class ChargeQuantileCascadeModel(Source):
 
         # add reasonable scaling for parameters assuming the latent vars
         # are distributed normally around zero
-        factor_sigma = 1.  # ns
-        factor_mu = 1.  # ns
-        factor_r = 1.
-        factor_scale = 1.
+        factor_sigma = 1.0  # units: t_scale
+        factor_mu = 1.0  # units: t_scale
+        factor_r = 0.1
+        factor_scale = 1.0
 
         # create correct offset and scaling
-        latent_mu = average_t_dist + factor_mu * latent_mu
-        latent_sigma = 2 + factor_sigma * latent_sigma
-        latent_r = 1 + factor_r * latent_r
+        # latent_mu = average_t_dist + factor_mu * latent_mu
+        latent_mu = pulse_light_propagation_time + factor_mu * latent_mu
+        latent_sigma = factor_sigma * latent_sigma
+        latent_r = factor_r * latent_r
         latent_scale = 1 + factor_scale * latent_scale
 
         # force positive and min values
@@ -524,6 +537,26 @@ class ChargeQuantileCascadeModel(Source):
         pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
         pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
 
+        tf.print('pulse_latent_mu',
+                 tf.reduce_min(pulse_latent_mu),
+                 tf.reduce_mean(pulse_latent_mu),
+                 tf.reduce_max(pulse_latent_mu),
+                 )
+        tf.print('pulse_latent_sigma',
+                 tf.reduce_min(pulse_latent_sigma),
+                 tf.reduce_mean(pulse_latent_sigma),
+                 tf.reduce_max(pulse_latent_sigma),
+                 )
+        tf.print('pulse_latent_r',
+                 tf.reduce_min(pulse_latent_r),
+                 tf.reduce_mean(pulse_latent_r),
+                 tf.reduce_max(pulse_latent_r),
+                 )
+        tf.print('pulse_latent_scale',
+                 tf.reduce_min(pulse_latent_scale),
+                 tf.reduce_mean(pulse_latent_scale),
+                 tf.reduce_max(pulse_latent_scale),
+                 )
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
