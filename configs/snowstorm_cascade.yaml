@@ -292,6 +292,7 @@ data_handler_settings: {
         'dom_exclusions_key': 'BadDomsList',
         'time_exclusions_key': ,
         'float_precision': 'float32',
+        'add_charge_quantiles': False,
     },
 
     # --------------------
@@ -309,7 +310,6 @@ data_handler_settings: {
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 30,
         'float_precision': 'float32',
-        'add_charge_quantiles': False,
     },
 
     # ---------------------
@@ -334,10 +334,14 @@ data_handler_settings: {
     # FilterModule Settings
     # -------------------
     # which filter module to use
-    'filter_module': 'dummy.DummyFilterModule',
+    'filter_module': 'general_filter.GeneralFilterModule',
 
     # settings for the filter module
-    'filter_settings':{},
+    'filter_settings':{
+        'constraints': [
+            # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+        ],
+    },
 }
 
 #---------------
@@ -358,7 +362,7 @@ model_settings: {
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': True,
-        'estimate_charge_distribution': False,
+        'estimate_charge_distribution': True,
         'num_latent_models': 5,
 
         # This is a list of the orderd snowstorm parameters: (name, number)

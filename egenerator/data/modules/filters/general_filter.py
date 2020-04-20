@@ -1,14 +1,16 @@
 from __future__ import division, print_function
 
 import logging
+import numpy as np
+import pandas as pd
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
 
 
-class DummyFilterModule(BaseComponent):
+class GeneralFilterModule(BaseComponent):
 
-    """This is a dummy filter module that does not filter any events.
+    """Filter module that enables filtering events based on their labels.
     """
 
     def __init__(self, logger=None):
@@ -21,17 +23,29 @@ class DummyFilterModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(DummyFilterModule, self).__init__(logger=logger)
+        super(GeneralFilterModule, self).__init__(logger=logger)
 
-    def _configure(self, **kwargs):
+    def _configure(self, constraints):
         """Configure Component class instance
 
         This is an abstract method and must be implemented by derived class.
 
         Parameters
         ----------
-        **kwargs
-            Arbitrary keyword arguments.
+        constraints : list of constraints
+            A list of filter constraints where a constraint is a
+            tuple (key, column, op, threshold) with:
+                key: str
+                    Table name in HDF5 file
+                column: str
+                    Column name in HDF5 table.
+                op: str
+                    The comparison operation to use. Must be one of
+                    '<', '>', '==', '<=', '>='
+                threshold: data type of column
+                    The constrain threshold value.
+
+            An event passes the filter, if all constraints evaluate to True.
 
         Returns
         -------
@@ -67,7 +81,8 @@ class DummyFilterModule(BaseComponent):
         """
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=kwargs)
+            settings={'constraints': constraints},
+            )
         return configuration, {}, {}
 
     def get_event_filter_mask(self, file, tensors, num_events, batch,
@@ -96,4 +111,26 @@ class DummyFilterModule(BaseComponent):
             (True) or wheter it is filtered out (False).
             Shape: [num_events]
         """
-        return np.ones(num_events, dtype=bool)
+        filter_mask = np.ones(num_events, dtype=bool)
+
+        constraints = self.configuration.config['constraints']
+        for key, column, op, threshold in constraints:
+            with pd.HDFStore(file, 'r') as f:
+                values = file[key][column]
+
+            if op == '>':
+                constraint_mask = values > threshold
+            elif op == '>=':
+                constraint_mask = values >= threshold
+            elif op == '<=':
+                constraint_mask = values <= threshold
+            elif op == '<':
+                constraint_mask = values < threshold
+            elif op == '==':
+                constraint_mask = values == threshold
+            else:
+                raise ValueError('Unknown operation: {}'.format(op))
+
+            filter_mask = np.logical_and(filter_mask, constraint_mask)
+
+        return filter_mask

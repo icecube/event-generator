@@ -372,10 +372,100 @@ class ModuleDataHandler(BaseDataHandler):
         if num_events is None:
             raise ValueError('Something went wrong!')
 
-        num_events, event_batch = self.filter_module.filter_data(
-                                        self.tensors, num_events, event_batch)
+        # get filter mask for events
+        filter_mask = self.filter_module.get_event_filter_mask(
+            file, self.tensors, num_events, event_batch, *args, **kwargs)
 
+        # filter out events, if there is at least one event that is filtered
+        if not np.all(filter_mask):
+            num_events, event_batch = self._filter_data(filter_mask,
+                                                        num_events,
+                                                        event_batch)
         return num_events, event_batch
+
+    def _filter_data(self, filter_mask, num_events, event_batch):
+        """Filter events according to provided filter mask.
+
+        Parameters
+        ----------
+        filter_mask : array_like
+            An array of bool indicating whether an event passed the filter
+            (True) or wheter it is filtered out (False).
+            Shape: [num_events]
+        num_events : int
+            The number of loaded events.
+        event_batch : tuple of array-like
+            The data that needs to be filtered.
+
+        Returns
+        -------
+        int
+            The number of events left after filtering.
+        tuple of array-like
+            The filtered data.
+        """
+        filter_mask = np.asarray(filter_mask)
+        assert filter_mask.shape == (num_events,)
+
+        filtered_batch = [None for v in self.tensors.names]
+        filtered_num_events = np.sum(filter_mask)
+
+        for i, tensor in enumerate(self.tensors.list):
+
+            # check if data exists
+            if event_batch[i] is None:
+                filtered_batch[i] = None
+
+            if tensor.vector_info is not None:
+                if tensor.vector_info['type'] == 'value':
+                    # we are collecting value tensors together with
+                    # the indices tensors, so skip for now
+                    continue
+                elif tensor.vector_info['type'] == 'index':
+                    # get value tensor
+                    value_index = self.tensors.get_index(
+                        tensor.vector_info['reference'])
+                    values = event_batch[value_index]
+                    indices = event_batch[i]
+
+                    if values is None or indices is None:
+                        assert values == indices, '{!r} != {!r}'.format(
+                            values, indices)
+                        filtered_batch[value_index] = None
+                        filtered_batch[i] = None
+                    else:
+                        # This data input is a vector type and must be
+                        # restructured to event shape, filtered, and
+                        # flattened again
+                        # shape: [n_events, n_per_event, k] (not a tensor!)
+                        values, indices = self.batch_to_event_structure(
+                                            values, indices, num_events)
+
+                        # filtered event values and indices
+                        # shape: [n_filtered, n_per_event. k] (not a tensor!)
+                        event_values_filterd = values[filter_mask]
+                        event_indices_filtered = indices[filter_mask]
+
+                        # set new batch indices
+                        for batch_index in range(filtered_num_events):
+                            event_indices_filtered[batch_index][:, 0] = \
+                                batch_index
+
+                        # shape: [n_pulses, k]
+                        values, indices = self.event_to_batch_structure(
+                            event_values_filterd,
+                            event_indices_filtered,
+                            filtered_num_events,
+                        )
+
+                        filtered_batch[value_index] = values
+                        filtered_batch[i] = indices
+            else:
+                # This data input is already in event structure and
+                # must simply be concatenated along axis 0.
+                filtered_batch[i] = event_batch[i][filter_mask]
+
+        return filtered_num_events, filtered_batch
 
     def _get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame.

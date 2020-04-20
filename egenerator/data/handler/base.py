@@ -439,8 +439,8 @@ class BaseDataHandler(BaseComponent):
         raise NotImplementedError()
 
     def batch_to_event_structure(self, values, indices, num_events):
-        """Restructures values which are provided as a list [-1, ...] over
-        a complete batch, to shape [n_events, n_per_event]
+        """Restructures values and indices which are provided as a
+        list [-1, ...] over a complete batch, to shape [n_events, n_per_event].
         (note: n_per_event is not constant!) according to an indices array.
 
         Parameters
@@ -466,6 +466,42 @@ class BaseDataHandler(BaseComponent):
             mask = indices[:, 0] == i
             values_list.append(values[mask])
             indices_list.append(indices[mask])
+        return values_list, indices_list
+
+    def event_to_batch_structure(self, values, indices, num_events):
+        """Restructures values and indices which are provided as a nested list
+        [n_events, n_per_event, k] to [-1, ...] over a complete batch.
+        (note: n_per_event is not constant!) according to an indices array.
+
+        Parameters
+        ----------
+        values : array_like
+            The array to be restructrured: restructuring is performed along
+            axis 0.
+        indices : array_like
+            Must be the same length as values and the first entry on axis 1
+            must specify the batch id. The batch id must range from 0 to
+            num_events.
+        num_events : int
+            The number of events in the batch.
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
+        assert num_events == len(values)
+        assert num_events == len(indices)
+
+        values_list = []
+        indices_list = []
+        for i in range(num_events):
+
+            # make sure that the batch indices are correct
+            assert np.all(indices[i, :, 0] == i)
+
+            values_list.extend(values[i])
+            indices_list.extend(indices[i])
         return values_list, indices_list
 
     def get_batch_generator(self, input_data, batch_size,
