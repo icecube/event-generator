@@ -530,7 +530,8 @@ class DefaultLossModule(BaseComponent):
         total_event_loss = tf.reduce_sum(-llh_event)
 
         # average loss over events, such that it does not depend on batch size
+        batch_size = tf.cast(tf.shape(llh_charge)[0], dtype=dtype)
         num_doms = tf.reduce_sum(mask_valid)
         average_event_loss = (total_charge_loss + total_event_loss
-                              ) / (num_doms + 1)
+                              ) / (num_doms + batch_size)
         return average_event_loss
