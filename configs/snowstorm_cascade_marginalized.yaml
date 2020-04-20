@@ -151,19 +151,24 @@ data_iterator_settings: {
 
             # Snowstorm datasets
             # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30022/egenerator_30022_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30012/egenerator_30012_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30002_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30022/egenerator_30022_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30012/egenerator_30012_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30002_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
             # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30003_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/02000-02999/*.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30003_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
              # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30024/egenerator_30024_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30004_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30024/egenerator_30024_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30004_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
         ],
     },
@@ -241,19 +246,32 @@ data_iterator_settings: {
 #---------------------
 
 # Settings for the loss module class
-loss_module_settings: {
+loss_module_settings: [
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
 
-    # The loss module class to use
-    'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
 
-    config: {
-        # the float precision to use
-        'float_precision': 'float32',
-
-        # choose the loss function to use
-        'loss_function_name': 'unbinned_charge_quantile_pdf',
+            # choose the loss function to use
+            'loss_function_name': 'unbinned_charge_quantile_pdf',
+        },
     },
-}
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+
+            # choose the loss function to use
+            'loss_function_name': 'unbinned_charge_quantile_pdf',
+        },
+    },
+]
 
 #---------------------------
 # Evaluation module settings

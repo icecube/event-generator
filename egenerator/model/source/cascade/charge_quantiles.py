@@ -386,15 +386,18 @@ class ChargeQuantileCascadeModel(Source):
 
             # set default value to poisson uncertainty
             dom_charges_sigma = tf.sqrt(tf.clip_by_value(
-                tf.stop_gradient(dom_charges),
+                dom_charges,
                 0.0001,
                 float('inf'))) * sigma_scale
+
+            # set threshold under which a Poisson Likelihood is used
+            charge_threshold = 5
 
             # Apply Asymmetric Gaussian and/or Poisson Likelihood
             # shape: [n_batch, 86, 60, 1]
             eps = 1e-7
             dom_charges_llh = tf.where(
-                dom_charges_true > 5,
+                dom_charges_true > charge_threshold,
                 tf.math.log(basis_functions.tf_asymmetric_gauss(
                     x=dom_charges_true,
                     mu=dom_charges,
@@ -404,12 +407,23 @@ class ChargeQuantileCascadeModel(Source):
                 dom_charges_true * tf.math.log(dom_charges + eps) - dom_charges
             )
 
+            # compute (Gaussian) uncertainty on predicted dom charge
+            dom_charges_unc = tf.where(
+                dom_charges_true > charge_threshold,
+                # take mean of left and right side uncertainty
+                # Note: this might not be correct
+                dom_charges_sigma*((1 + dom_charges_r)/2.),
+                tf.math.sqrt(dom_charges + eps)
+            )
+
             print('dom_charges_sigma', dom_charges_sigma)
             print('dom_charges_llh', dom_charges_llh)
+            print('dom_charges_unc', dom_charges_unc)
 
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
             tensor_dict['dom_charges_r'] = dom_charges_r
+            tensor_dict['dom_charges_gaussian_unc'] = dom_charges_unc
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
 
         # ----------------------------------------------------------
@@ -530,6 +544,26 @@ class ChargeQuantileCascadeModel(Source):
         pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
         pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
 
+        tf.print('pulse_latent_mu',
+                 tf.reduce_min(pulse_latent_mu),
+                 tf.reduce_mean(pulse_latent_mu),
+                 tf.reduce_max(pulse_latent_mu),
+                 )
+        tf.print('pulse_latent_sigma',
+                 tf.reduce_min(pulse_latent_sigma),
+                 tf.reduce_mean(pulse_latent_sigma),
+                 tf.reduce_max(pulse_latent_sigma),
+                 )
+        tf.print('pulse_latent_r',
+                 tf.reduce_min(pulse_latent_r),
+                 tf.reduce_mean(pulse_latent_r),
+                 tf.reduce_max(pulse_latent_r),
+                 )
+        tf.print('pulse_latent_scale',
+                 tf.reduce_min(pulse_latent_scale),
+                 tf.reduce_mean(pulse_latent_scale),
+                 tf.reduce_max(pulse_latent_scale),
+                 )
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------

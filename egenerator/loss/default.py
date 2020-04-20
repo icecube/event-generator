@@ -3,6 +3,7 @@ import logging
 import tensorflow as tf
 
 from egenerator import misc
+from egenerator.utils import basis_functions
 from egenerator.manager.component import BaseComponent, Configuration
 
 
@@ -393,13 +394,8 @@ class DefaultLossModule(BaseComponent):
         Returns
         -------
         tf.tensor
-            Poisson Likelihood.
+            Quantile PDF Likelihood.
             Shape: []
-
-        Raises
-        ------
-        NotImplementedError
-            Description
         """
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
@@ -438,4 +434,103 @@ class DefaultLossModule(BaseComponent):
         #                      dtype=dtype)
         # average_event_loss = total_time_loss / batch_size
         average_event_loss = total_time_loss / tf.reduce_sum(pulse_charges)
+        return average_event_loss
+
+    def dom_and_event_charge_pdf(self, data_batch_dict, result_tensors,
+                                 tensors):
+        """Poisson + Asymmetric Gaussian Charge PDF (estimated by Model)
+
+        This is a likelihood over the total event charge in addition to the
+        charge measured at each DOM. Below a threshold of (measured) 5 PE,
+        a Poisson Likelihood will be used for the DOM. Above 5 PE, an
+        asymmetric Gaussian PDF as estimated by the model will be used.
+        The uncertainty on the total event charge is computed by accumulating
+        the uncertainties in quadrature.
+
+        Parameters
+        ----------
+        data_batch_dict : dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
+        result_tensors : dict of tf.Tensor
+            A dictionary of output tensors.
+            This  dictionary must at least contain:
+
+                'dom_charges': the predicted charge at each DOM
+                               Shape: [-1, 86, 60, 1]
+                'dom_charges_log_pdf_values':
+                    The likelihood evaluated for each DOM.
+                    Shape: [-1, 86, 60, 1]
+                'dom_charges_gaussian_unc':
+                    The (Gaussian) uncertainty on the predicted DOM charge
+                    Shape: [-1, 86, 60, 1]
+        tensors : DataTensorList
+            The data tensor list describing the input data
+
+        Returns
+        -------
+        tf.tensor
+            Charge PDF Likelihood.
+            Shape: []
+        """
+        eps = 1e-7
+        dtype = getattr(
+            tf, self.configuration.config['config']['float_precision'])
+
+        # shape: [n_batch, 86, 60, 1]
+        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
+        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+
+        # get charge likelihood over total charge at a DOM for extendended LLH
+        # shape: [n_batch, 86, 60]
+        llh_charge = tf.squeeze(result_tensors['dom_charges_log_pdf_values'],
+                                axis=-1)
+
+        # get uncertainty on DOM charges
+        # shape: [n_batch, 86, 60]
+        dom_charges_unc = tf.squeeze(
+            result_tensors['dom_charges_gaussian_unc'], axis=-1)
+
+        # mask out dom exclusions
+        if ('x_dom_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+            mask_valid = tf.cast(
+                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
+                dtype=dtype)
+            llh_charge = llh_charge * mask_valid
+            hits_true = hits_true * mask_valid
+            hits_pred = hits_pred * mask_valid
+            dom_charges_unc = dom_charges_unc * mask_valid
+        else:
+            mask_valid = tf.ones_like(llh_charge)
+
+        # Compute Gaussian likelihood over total event charge
+        event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
+        event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
+        event_charges_unc = tf.sqrt(tf.reduce_sum(tf.square(dom_charges_unc),
+                                                  axis=[1, 2]))
+        llh_event = tf.math.log(basis_functions.tf_gauss(
+            x=event_charges_true,
+            mu=event_charges_pred,
+            sigma=event_charges_unc,
+        ))
+
+        # calculate sum over a whole batch of events
+        total_charge_loss = tf.reduce_sum(-llh_charge)
+        total_event_loss = tf.reduce_sum(-llh_event)
+
+        # average loss over events, such that it does not depend on batch size
+        num_doms = tf.reduce_sum(mask_valid)
+        average_event_loss = (total_charge_loss + total_event_loss
+                              ) / (num_doms + 1)
         return average_event_loss
