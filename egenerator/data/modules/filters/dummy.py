@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 
 import logging
+import numpy as np
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
