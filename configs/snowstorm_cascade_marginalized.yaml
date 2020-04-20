@@ -268,7 +268,7 @@ loss_module_settings: [
             'float_precision': 'float32',
 
             # choose the loss function to use
-            'loss_function_name': 'unbinned_charge_quantile_pdf',
+            'loss_function_name': 'dom_and_event_charge_pdf',
         },
     },
 ]
