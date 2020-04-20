@@ -498,7 +498,7 @@ class BaseDataHandler(BaseComponent):
         for i in range(num_events):
 
             # make sure that the batch indices are correct
-            assert np.all(indices[i, :, 0] == i)
+            assert np.all(indices[i][:, 0] == i)
 
             values_list.extend(values[i])
             indices_list.extend(indices[i])
