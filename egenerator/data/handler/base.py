@@ -502,7 +502,12 @@ class BaseDataHandler(BaseComponent):
 
             values_list.extend(values[i])
             indices_list.extend(indices[i])
-        return np.stack(values_list, axis=0), np.stack(indices_list, axis=0)
+
+        if len(values_list) > 0:
+            values_list = np.stack(values_list, axis=0)
+            indices_list = np.stack(indices_list, axis=0)
+
+        return values_list, indices_list
 
     def get_batch_generator(self, input_data, batch_size,
                             sample_randomly=True,
