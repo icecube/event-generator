@@ -519,11 +519,11 @@ class DefaultLossModule(BaseComponent):
         event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
         event_charges_unc = tf.sqrt(tf.reduce_sum(tf.square(dom_charges_unc),
                                                   axis=[1, 2]))
-        llh_event = tf.math.log(basis_functions.tf_gauss(
+        llh_event = basis_functions.tf_log_gauss(
             x=event_charges_true,
             mu=event_charges_pred,
             sigma=event_charges_unc,
-        ))
+        )
 
         # calculate sum over a whole batch of events
         total_charge_loss = tf.reduce_sum(-llh_charge)

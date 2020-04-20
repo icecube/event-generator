@@ -19,7 +19,28 @@ def tf_gauss(x, mu, sigma):
     tf.Tensor
         The Gaussian PDF evaluated at x
     """
-    return tf.exp(-0.5*(x - mu)**2 / sigma**2) / (2*np.pi*sigma**2)**0.5
+    return tf.exp(-0.5*((x - mu) / sigma)**2) / (2*np.pi*sigma**2)**0.5
+
+
+def tf_log_gauss(x, mu, sigma):
+    """Log Gaussian PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+
+    Returns
+    -------
+    tf.Tensor
+        The Gaussian PDF evaluated at x
+    """
+    norm = np.log(np.sqrt(2*np.pi))
+    return -0.5*((x - mu) / sigma)**2 - tf.math.log(sigma) - norm
 
 
 def tf_asymmetric_gauss(x, mu, sigma, r):
