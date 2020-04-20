@@ -25,7 +25,7 @@ class GeneralFilterModule(BaseComponent):
         logger = logger or logging.getLogger(__name__)
         super(GeneralFilterModule, self).__init__(logger=logger)
 
-    def _configure(self, constraints):
+    def _configure(self, constraints, **kwargs):
         """Configure Component class instance
 
         This is an abstract method and must be implemented by derived class.
@@ -46,6 +46,8 @@ class GeneralFilterModule(BaseComponent):
                     The constrain threshold value.
 
             An event passes the filter, if all constraints evaluate to True.
+        **kwargs
+            Arbitrary keyword arguments.
 
         Returns
         -------
@@ -79,9 +81,12 @@ class GeneralFilterModule(BaseComponent):
             when the component is saved and loaded.
             Return None if no dependent sub components exist.
         """
+        settings = dict(kwargs)
+        settings['constraints'] = constraints
+
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings={'constraints': constraints},
+            settings=settings,
             )
         return configuration, {}, {}
 
