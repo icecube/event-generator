@@ -410,11 +410,11 @@ class ModuleDataHandler(BaseDataHandler):
         filtered_batch = [None for v in self.tensors.names]
         filtered_num_events = np.sum(filter_mask)
 
-        for i, tensor in enumerate(self.tensors.list):
+        for tensor_index, tensor in enumerate(self.tensors.list):
 
             # check if data exists
-            if event_batch[i] is None:
-                filtered_batch[i] = None
+            if event_batch[tensor_index] is None:
+                filtered_batch[tensor_index] = None
 
             if tensor.vector_info is not None:
                 if tensor.vector_info['type'] == 'value':
@@ -426,13 +426,13 @@ class ModuleDataHandler(BaseDataHandler):
                     value_index = self.tensors.get_index(
                         tensor.vector_info['reference'])
                     values = event_batch[value_index]
-                    indices = event_batch[i]
+                    indices = event_batch[tensor_index]
 
                     if values is None or indices is None:
                         assert values == indices, '{!r} != {!r}'.format(
                             values, indices)
                         filtered_batch[value_index] = None
-                        filtered_batch[i] = None
+                        filtered_batch[tensor_index] = None
                     else:
                         # This data input is a vector type and must be
                         # restructured to event shape, filtered, and
@@ -443,8 +443,12 @@ class ModuleDataHandler(BaseDataHandler):
 
                         # filtered event values and indices
                         # shape: [n_filtered, n_per_event. k] (not a tensor!)
-                        event_values_filterd = values[filter_mask]
-                        event_indices_filtered = indices[filter_mask]
+                        event_values_filterd = []
+                        event_indices_filtered = []
+                        for index, passed_filter in enumerate(filter_mask):
+                            if passed_filter:
+                                event_values_filterd.append(values[index])
+                                event_indices_filtered.append(indices[index])
 
                         # set new batch indices
                         for batch_index in range(filtered_num_events):
@@ -459,11 +463,12 @@ class ModuleDataHandler(BaseDataHandler):
                         )
 
                         filtered_batch[value_index] = values
-                        filtered_batch[i] = indices
+                        filtered_batch[tensor_index] = indices
             else:
                 # This data input is already in event structure and
                 # must simply be concatenated along axis 0.
-                filtered_batch[i] = event_batch[i][filter_mask]
+                filtered_batch[tensor_index] = \
+                    event_batch[tensor_index][filter_mask]
 
         return filtered_num_events, filtered_batch
 

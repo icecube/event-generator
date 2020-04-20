@@ -121,7 +121,7 @@ class GeneralFilterModule(BaseComponent):
         constraints = self.configuration.config['constraints']
         for key, column, op, threshold in constraints:
             with pd.HDFStore(file, 'r') as f:
-                values = file[key][column]
+                values = f[key][column]
 
             if op == '>':
                 constraint_mask = values > threshold
