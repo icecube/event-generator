@@ -381,7 +381,11 @@ class ModuleDataHandler(BaseDataHandler):
             num_events, event_batch = self._filter_data(filter_mask,
                                                         num_events,
                                                         event_batch)
-        return num_events, event_batch
+
+        if num_events == 0:
+            return None, None
+        else:
+            return num_events, event_batch
 
     def _filter_data(self, filter_mask, num_events, event_batch):
         """Filter events according to provided filter mask.
