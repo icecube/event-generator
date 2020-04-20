@@ -502,7 +502,7 @@ class BaseDataHandler(BaseComponent):
 
             values_list.extend(values[i])
             indices_list.extend(indices[i])
-        return np.concatenate(values_list), np.concatenate(indices_list)
+        return np.stack(values_list, axis=0), np.stack(indices_list, axis=0)
 
     def get_batch_generator(self, input_data, batch_size,
                             sample_randomly=True,
