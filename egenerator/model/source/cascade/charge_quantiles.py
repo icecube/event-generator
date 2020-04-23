@@ -544,26 +544,26 @@ class ChargeQuantileCascadeModel(Source):
         pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
         pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
 
-        tf.print('pulse_latent_mu',
-                 tf.reduce_min(pulse_latent_mu),
-                 tf.reduce_mean(pulse_latent_mu),
-                 tf.reduce_max(pulse_latent_mu),
-                 )
-        tf.print('pulse_latent_sigma',
-                 tf.reduce_min(pulse_latent_sigma),
-                 tf.reduce_mean(pulse_latent_sigma),
-                 tf.reduce_max(pulse_latent_sigma),
-                 )
-        tf.print('pulse_latent_r',
-                 tf.reduce_min(pulse_latent_r),
-                 tf.reduce_mean(pulse_latent_r),
-                 tf.reduce_max(pulse_latent_r),
-                 )
-        tf.print('pulse_latent_scale',
-                 tf.reduce_min(pulse_latent_scale),
-                 tf.reduce_mean(pulse_latent_scale),
-                 tf.reduce_max(pulse_latent_scale),
-                 )
+        # tf.print('pulse_latent_mu',
+        #          tf.reduce_min(pulse_latent_mu),
+        #          tf.reduce_mean(pulse_latent_mu),
+        #          tf.reduce_max(pulse_latent_mu),
+        #          )
+        # tf.print('pulse_latent_sigma',
+        #          tf.reduce_min(pulse_latent_sigma),
+        #          tf.reduce_mean(pulse_latent_sigma),
+        #          tf.reduce_max(pulse_latent_sigma),
+        #          )
+        # tf.print('pulse_latent_r',
+        #          tf.reduce_min(pulse_latent_r),
+        #          tf.reduce_mean(pulse_latent_r),
+        #          tf.reduce_max(pulse_latent_r),
+        #          )
+        # tf.print('pulse_latent_scale',
+        #          tf.reduce_min(pulse_latent_scale),
+        #          tf.reduce_mean(pulse_latent_scale),
+        #          tf.reduce_max(pulse_latent_scale),
+        #          )
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------

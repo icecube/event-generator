@@ -883,6 +883,7 @@ class SourceManager(BaseModelManager):
             # # x0[0, 5] = 100
 
             # # set snowstorm params to expectation
+            # x0 = x0.numpy()
             # x0[:, 7:10] = 1.0
             # x0[:, 10] = -0.5
             # x0[:, 11:36] = 0.

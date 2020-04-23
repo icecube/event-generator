@@ -166,19 +166,27 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
                       'cascade_azimuth', 'cascade_energy', 'cascade_t']:
                 cascade_parameters.append(_labels[l])
 
-            _snowstorm_params = f[self.configuration.config['snowstorm_key']]
+            snowstorm_key = self.configuration.config['snowstorm_key']
             num_params = self.configuration.config['num_snowstorm_params']
-            params = _snowstorm_params['item']
-            index = _snowstorm_params['vector_index']
-            assert max(index) == num_params - 1
-            assert min(index) == 0
 
-            num_events = len(cascade_parameters[0])
-            for i in range(num_params):
+            if snowstorm_key is not None:
+                _snowstorm_params = f[snowstorm_key]
+                params = _snowstorm_params['item']
+                index = _snowstorm_params['vector_index']
+                assert max(index) == num_params - 1
+                assert min(index) == 0
 
-                snowstorm_param = params[index == i]
-                assert len(snowstorm_param) == num_events
-                cascade_parameters.append(snowstorm_param)
+                num_events = len(cascade_parameters[0])
+                for i in range(num_params):
+
+                    snowstorm_param = params[index == i]
+                    assert len(snowstorm_param) == num_events
+                    cascade_parameters.append(snowstorm_param)
+
+            else:
+                # No Snowstorm key is provided: add dummy values
+                for i in range(num_params):
+                    cascade_parameters.append(1.)
 
         except Exception as e:
             self._logger.warning(e)
