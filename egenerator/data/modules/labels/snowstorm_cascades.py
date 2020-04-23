@@ -189,7 +189,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             else:
                 # No Snowstorm key is provided: add dummy values
                 for i in range(num_params):
-                    cascade_parameters.append(1.)
+                    cascade_parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
