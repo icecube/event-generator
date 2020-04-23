@@ -55,6 +55,9 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             The name of the key under which the labels are saved.
         snowstorm_key : str, optional
             The name of the key under which the snowstorm parameters are saved.
+            If `snowstorm_key` is None, no snowstorm parameters will be loaded.
+            Instead a default value of 1. will be assigned to each of the
+            `num_snowstorm_params` number of snowstorm parameters.
         num_snowstorm_params : int, optional
             The number of varied snowstorm parameters.
 
