@@ -174,9 +174,9 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30002_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30003_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30004_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30022_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30024_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
         ],
     },
 

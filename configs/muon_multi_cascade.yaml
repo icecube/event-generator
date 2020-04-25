@@ -225,6 +225,14 @@ data_iterator_settings: {
              # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuMu/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
              # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuMu/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
 
+             # # Egenerator NuGen SpiceLea Test Data
+             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/5/egenerator_NuE_low_energy_IC86_2013_l5_lea_run_000040*.hdf5',
+             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/27/egenerator_NuE_medium_energy_IC86_2013_l5_lea_run_0002600*.hdf5',
+
+             # # Egenerator NuGen Spice3.2 Test Data
+             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_0000400*.hdf5',
+             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_00004000.hdf5',
+
             # Muon Benchmark Datasets
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/muon_benchmark/reconstruction-benchmarks/MPEQuality/1/*emin_5.0_emax_6*.hdf5',
         ],
