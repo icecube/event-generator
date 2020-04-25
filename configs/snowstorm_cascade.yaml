@@ -91,7 +91,7 @@ reconstruction_settings: {
 
     #     # settings for the label module
     #     'label_settings':{
-    #         'shift_cascade_vertex': False,
+    #         'shift_cascade_vertex': True,
     #         # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
     #         'trafo_log': [False, False, False, False, False, True, False],
     #         'label_key': 'LabelsDeepLearning',
@@ -145,22 +145,20 @@ data_iterator_settings: {
             # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30022/egenerator_30022_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30012/egenerator_30012_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30002_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30012/egenerator_30012_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30002/egenerator_30002_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
             # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/02000-02999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cunbinned_extended_pulse_llhgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
 
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30003_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30003/egenerator_30003_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
              # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30024/egenerator_30024_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30004_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30004/egenerator_30004_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
         ],
     },
@@ -219,13 +217,23 @@ data_iterator_settings: {
             # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30012/egenerator_30012_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
             # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cunbinned_extended_pulse_llhgenerator/30023/egenerator_30023_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/10000-10999/*100*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
 
             # # NuGen -- L5MonopodFit4 vertex
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+
+            # # Egenerator NuGen SpiceLea Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/5/egenerator_NuE_low_energy_IC86_2013_l5_lea_run_000040*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/27/egenerator_NuE_medium_energy_IC86_2013_l5_lea_run_0002600*.hdf5',
+
+            # # Egenerator NuGen Spice3.2 Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_0000400*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_00004000.hdf5',
+
         ],
     },
 }
@@ -311,7 +319,7 @@ data_handler_settings: {
 
     # settings for the label module
     'label_settings':{
-        'shift_cascade_vertex': False,
+        'shift_cascade_vertex': True,
         # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
         'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
