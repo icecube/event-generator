@@ -1,6 +1,6 @@
 #!/usr/local/bin/python3
-
 import unittest
+import numpy as np
 
 from egenerator.data.modules.filters.dummy import DummyFilterModule
 
@@ -37,9 +37,9 @@ class TestDummyFilterModule(unittest.TestCase):
         """
         dummy_module = DummyFilterModule()
         dummy_module.configure(config_data=None)
-        num_events, batch = dummy_module.filter_data('tensors', 42, 1337)
-        self.assertEqual(num_events, 42)
-        self.assertEqual(batch, 1337)
+        mask = dummy_module.get_event_filter_mask(None, 'tensors', 42, 1337)
+        self.assertEqual(np.sum(mask), 42)
+        self.assertEqual(len(mask), 42)
 
 
 if __name__ == '__main__':
