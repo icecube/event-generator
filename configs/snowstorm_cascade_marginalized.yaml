@@ -224,10 +224,10 @@ data_iterator_settings: {
         'input_data': [
             # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30012/egenerator_30012_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
-            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
-            # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
+            # # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30013/egenerator_30013_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
+            # # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30014/egenerator_30014_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
 
             # # NuGen -- L5MonopodFit4 vertex
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
@@ -241,9 +241,19 @@ data_iterator_settings: {
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_0000400*.hdf5',
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_00004000.hdf5',
 
-
             # # Spice Lea Coverage Test
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99003/egenerator_99003_step_3_pass2_get_pulses_IC86_pulses/trigger_time/00000-00999/*000.hdf5',
+
+            # MESE NuGen NuE l5 Benchmark Datasets
+            # Spice3.2.1 variable
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99900/egenerator_99900_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # Spice3.2.1 const
+            #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99901/egenerator_99901_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea variable
+            #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea const
+            #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+
         ],
     },
 }
