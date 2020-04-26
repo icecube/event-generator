@@ -40,7 +40,7 @@ reconstruction_settings: {
     # define which tensor to use as parameter_tensor (default: x_parameters)
     'parameter_tensor_name': 'x_parameters',
     # define seed (to seed from MC truth choose: 'x_parameters')
-    'seed': 'x_parameters', #'MonopodFit4_PartialExclusion',
+    'seed': 'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
