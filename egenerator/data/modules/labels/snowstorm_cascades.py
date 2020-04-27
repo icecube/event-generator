@@ -200,10 +200,11 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
 
         # shift cascade vertex to shower maximum?
         if self.configuration.config['shift_cascade_vertex']:
-            x, y, z = self._shift_to_maximum(*cascade_parameters[:6])
+            x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
             cascade_parameters[0] = x
             cascade_parameters[1] = y
             cascade_parameters[2] = z
+            cascade_parameters[6] = t
 
         # format cascade parameters
         dtype = getattr(np, self.configuration.config['float_precision'])
@@ -213,7 +214,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
 
         return num_events, (cascade_parameters,)
 
-    def _shift_to_maximum(self, x, y, z, zenith, azimuth, ref_energy,
+    def _shift_to_maximum(self, x, y, z, zenith, azimuth, ref_energy, t,
                           eps=1e-6):
         """
         PPC does its own cascade extension, leaving the showers at the
@@ -235,14 +236,18 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Cascade azimuth direction in rad.
         ref_energy : float or np.ndarray of floats
             Energy of cascade in GeV.
+        t : float or np.ndarray of floats
+            Cascade interaction vertex time (unshifted) in ns.
         eps : float, optional
             Small constant float.
 
         Returns
         -------
-        (float, float, float) or (np.ndarray, np.ndarray, np.ndarray)
-            Shifted vertex poisition (position of shower maximum) in meter.
+        Tuple of float or tuple of np.ndarray
+            Shifted vertex position (position of shower maximum) in meter and
+            shifted vertex time in nano seconds.
         """
+        c = 0.299792458  # meter / ns
         dir_x = -np.sin(zenith) * np.cos(azimuth)
         dir_y = -np.sin(zenith) * np.sin(azimuth)
         dir_z = -np.cos(zenith)
@@ -254,4 +259,5 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         x_shifted = x + dir_x * length_to_maximum
         y_shifted = y + dir_y * length_to_maximum
         z_shifted = z + dir_z * length_to_maximum
-        return x_shifted, y_shifted, z_shifted
+        t_shifted = t + length_to_maximum / c
+        return x_shifted, y_shifted, z_shifted, t_shifted
