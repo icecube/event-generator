@@ -274,20 +274,26 @@ loss_module_settings: [
 
             # choose the loss function to use
             'loss_function_name': 'unbinned_charge_quantile_pdf',
+
+            # [Only relevant for unbinned_charge_quantile_pdf loss]
+            # Define which pulses contribute to likelihood by providing
+            # upper and lower bounds of charge quantiles
+            'min_charge_quantile':,
+            'max_charge_quantile': 0.1,
         },
     },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
 
-        config: {
-            # the float precision to use
-            'float_precision': 'float32',
+    #     config: {
+    #         # the float precision to use
+    #         'float_precision': 'float32',
 
-            # choose the loss function to use
-            'loss_function_name': 'dom_and_event_charge_pdf',
-        },
-    },
+    #         # choose the loss function to use
+    #         'loss_function_name': 'dom_and_event_charge_pdf',
+    #     },
+    # },
 ]
 
 #---------------------------
@@ -401,7 +407,7 @@ model_settings: {
         'scale_charge_by_global_dom_efficiency': False,
         'estimate_charge_distribution': True,
         'num_latent_models': 1,
-        'add_predicted_charge_to_latend_vars': True,
+        'add_predicted_charge_to_latend_vars': False,
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],

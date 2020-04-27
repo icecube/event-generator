@@ -402,6 +402,7 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_pulses]
         pulse_charges = data_batch_dict['x_pulses'][:, 0]
+        pulse_quantiles = data_batch_dict['x_pulses'][:, 2]
         pulse_pdf_values = result_tensors['pulse_quantile_pdf']
 
         # throw error if this is being used with time window exclusions
@@ -423,8 +424,30 @@ class DefaultLossModule(BaseComponent):
         pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
 
         # compute unbinned negative likelihood over pulse times with given
-        # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
-        time_loss = -pulse_charges * pulse_log_pdf_values
+        # time pdf: -sum( log(pdf_d(t_i)) )
+        # do not weight with pulse charges here: a very high pulse charge
+        # means that multiple pulses were combinend and that the true quantile
+        # is not very accurate. Contrary, a low pulse charge
+        # (probable single pulse) defines a very accurate time and quantile.
+        # Therefore: do not weight log_pdf by charge
+        time_loss = -pulse_log_pdf_values
+
+        # only train for certain quantiles if bounds are provided
+        low_lim = self.configuration.config['config']['min_charge_quantile']
+        max_lim = self.configuration.config['config']['max_charge_quantile']
+
+        if low_lim is not None:
+            time_loss = tf.where(
+                    pulse_quantiles < low_lim,
+                    tf.zeros_like(time_loss),
+                    time_loss
+                )
+        if max_lim is not None:
+            time_loss = tf.where(
+                    pulse_quantiles > max_lim,
+                    tf.zeros_like(time_loss),
+                    time_loss
+                )
 
         # calculate sum over a whole batch of events
         total_time_loss = tf.reduce_sum(time_loss)
