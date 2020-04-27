@@ -401,18 +401,18 @@ model_settings: {
         'keep_prob':,
         'add_opening_angle': True,
         'add_dom_coordinates': False,
-        'num_local_vars': 0,
+        'num_local_vars': 2,
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': False,
         'estimate_charge_distribution': True,
-        'num_latent_models': 1,
+        'num_latent_models': 2,
         'add_predicted_charge_to_latend_vars': False,
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [20, 300, 300, 300, 23],
-        'method_list' : ['locally_connected',
+        'num_filters_list' : [300, 300, 300, 300, 23],
+        'method_list' : ['convolution',
                          'convolution', 'convolution', 'convolution',
                          'convolution',
                          ],
@@ -422,7 +422,7 @@ model_settings: {
         'use_residual_list' : True,
 
         # Fully connected layers for p(t| q_i, D_i) calculation
-        'fc_num_filters_list' : [100, 100, 4],
+        'fc_num_filters_list' : [300, 300, 8],
         'fc_use_dropout_list' : False,
         'fc_activation_list' : ['elu', 'elu', ''],
         'fc_use_batch_norm_list' : False,
