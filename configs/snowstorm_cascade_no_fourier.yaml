@@ -254,11 +254,6 @@ loss_module_settings: [
             'loss_function_name': 'unbinned_extended_pulse_llh',
         },
     },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
-        config: {},
-    },
 ]
 
 #---------------------------
