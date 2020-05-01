@@ -238,6 +238,70 @@ class SourceManager(BaseModelManager):
 
         return loss_and_gradients_function
 
+    def get_hessian_function(self, loss_module, input_signature,
+                             fit_paramater_list,
+                             minimize_in_trafo_space=True,
+                             seed=None,
+                             parameter_tensor_name='x_parameters'):
+        """Get a function that returns the  Hessian wrt parameters.
+
+        Parameters
+        ----------
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        input_signature : tf.TensorSpec or nested tf.TensorSpec
+            The input signature of the parameters and data_batch arguments
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str, optional
+            If a fit_paramater_list is provided with at least one 'False'
+            entry, the seed name must also be provided.
+            The seed is the name of the data tensor by which the reconstruction
+            is seeded.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
+
+        Returns
+        -------
+        tf.function
+            A tensorflow function: f(parameters, data_batch) -> hessian
+            that returns the Hessian of the loss with respect to the
+            model parameters.
+        """
+
+        @tf.function(input_signature=input_signature)
+        def hessian_function(parameters_trafo, data_batch):
+            loss = self.parameter_loss_function(
+                    parameters_trafo=parameters_trafo,
+                    data_batch=data_batch,
+                    loss_module=loss_module,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=seed,
+                    parameter_tensor_name=parameter_tensor_name)
+
+            hessian = tf.hessians(loss, parameters_trafo)[0]
+
+            # we will limit this to a batch dimension of 1 for now
+            # Note: this runs through and works for a batch dimension
+            # but it requires some thinking of what the result actually means
+            hessian = tf.squeeze(tf.ensure_shape(
+                hessian, [1, parameters_trafo.shape[1]]*2))
+
+            return hessian
+
+        return hessian_function
+
     def reconstruct_events(self, data_batch, loss_module,
                            loss_and_gradients_function,
                            fit_paramater_list,
@@ -246,6 +310,7 @@ class SourceManager(BaseModelManager):
                            parameter_tensor_name='x_parameters',
                            jac=True,
                            method='L-BFGS-B',
+                           hessian_function=None,
                            **kwargs):
         """Reconstruct events with scipy.optimize.minimize interface.
 
@@ -278,6 +343,9 @@ class SourceManager(BaseModelManager):
             Passed on to scipy.optimize.minimize
         method : str, optional
             Passed on to scipy.optimize.minimize
+        hessian_function : tf.function, optional
+            The tensorflow function:
+                f(parameters, data_batch) -> hessian
         **kwargs
             Keyword arguments that will be passed on to scipy.optimize.minimize
 
@@ -313,6 +381,17 @@ class SourceManager(BaseModelManager):
             grad_flat = np.reshape(grad, [-1])
             return loss, grad_flat
 
+        if hessian_function is not None:
+            def get_hessian(x, data_batch):
+                # reshape and convert to tensor
+                x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
+                               param_shape)
+                hessian = hessian_function(x, data_batch)
+                hessian = hessian.numpy().astype('float64')
+                return hessian
+
+            kwargs['hess'] = get_hessian
+
         # transform seed if minimization is performed in trafo space
         seed_index = self.data_handler.tensors.get_index(seed)
         seed_tensor = data_batch[seed_index]
@@ -345,6 +424,7 @@ class SourceManager(BaseModelManager):
                               seed='x_parameters',
                               parameter_tensor_name='x_parameters',
                               method='bfgs_minimize',
+                              hessian_function=None,
                               **kwargs):
         """Reconstruct events with tensorflow probability interface.
 
@@ -375,6 +455,9 @@ class SourceManager(BaseModelManager):
             The name of the parameter tensor to use. Default: 'x_parameters'
         method : str, optional
             The tensorflow probability optimizer. Must be part of tfp.optimizer
+        hessian_function : tf.function, optional
+            The tensorflow function:
+                f(parameters, data_batch) -> hessian
         **kwargs
             Keyword arguments that will be passed on to the tensorflow
             probability optimizer.
@@ -419,6 +502,10 @@ class SourceManager(BaseModelManager):
             loss, grad = loss_and_gradients_function(x, data_batch)
             loss = tf.reshape(loss, [1])
             return loss, grad
+
+        if hessian_function is not None:
+            raise NotImplementedError(
+                'Use of Hessian currently not implemented')
 
         optimizer = getattr(tfp.optimizer, method)
         otpim_results = optimizer(
@@ -769,6 +856,20 @@ class SourceManager(BaseModelManager):
             raise ValueError(msg.format(
                 reco_config['reco_optimizer_interface'], ['scipy', 'tfp']))
 
+        # -----------------
+        # Covariance-Matrix
+        # -----------------
+        calculate_covariance_matrix = True
+        if calculate_covariance_matrix:
+            hessian_function = self.get_hessian_function(
+                input_signature=(param_signature, test_dataset.element_spec),
+                loss_module=loss_module,
+                fit_paramater_list=fit_paramater_list,
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                seed=reco_config['seed'],
+                parameter_tensor_name=parameter_tensor_name,
+            )
+
         # -----------------------------------
         # Build Angular Uncertainty Estimator
         # -----------------------------------
@@ -908,6 +1009,35 @@ class SourceManager(BaseModelManager):
                             tensor_name=parameter_tensor_name).numpy()
             else:
                 cascade_seed_batch_trafo = cascade_seed_batch
+
+            # -----------------
+            # Covariance-Matrix
+            # -----------------
+            if calculate_covariance_matrix:
+
+                # get Hessian at reco best fit
+                hessian = hessian_function(
+                    parameters_trafo=result,
+                    data_batch=data_batch).numpy().astype('float64')
+                cov = np.linalg.inv(hessian)
+
+                if reco_config['minimize_in_trafo_space']:
+                    cov = self.model.data_trafo.inverse_transform_cov(
+                        cov_trafo=cov, tensor_name=parameter_tensor_name)
+
+                    if hasattr(result_obj, 'hess_inv'):
+                        cov_min = self.model.data_trafo.inverse_transform_cov(
+                            cov_trafo=result_obj.hess_inv,
+                            tensor_name=parameter_tensor_name,
+                        )
+                        print('Covariance:', np.sqrt(np.diag(cov)))
+                        print('Covariance res', np.sqrt(np.diag(cov_min)))
+
+                # Write to file
+                cov_file = '{}_cov_{:08d}.txt'.format(
+                    os.path.splitext(reco_config['reco_output_file'])[0],
+                    event_counter)
+                np.savetxt(cov_file, np.stack([cov, cov_min]))
 
             # -------------------
             # Angular Uncertainty
