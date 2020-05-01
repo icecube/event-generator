@@ -240,11 +240,18 @@ class DefaultLossModule(BaseComponent):
         total_time_log_likelihood = tf.reduce_sum(time_log_likelihood)
         total_llh_event = tf.reduce_sum(llh_event)
 
-        # average loss over events, such that it does not depend on batch size
-        batch_size = tf.cast(tf.shape(llh_event)[0], dtype=dtype)
-        average_event_loss = (total_llh_poisson + total_time_log_likelihood
-                              + total_llh_event) / batch_size
-        return average_event_loss
+        loss = total_llh_poisson + total_time_log_likelihood + total_llh_event
+
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
+            norm_pulses = tf.reduce_sum(tf.lgamma(pulse_charges))
+            norm_doms = tf.reduce_sum(tf.lgamma(dom_charges_true))
+            norm_events = tf.reduce_sum(tf.lgamma(event_charges_true))
+            loss += norm_pulses + norm_doms + norm_events
+
+        return loss
 
     def unbinned_pulse_time_llh(self, data_batch_dict,
                                 result_tensors, tensors):
@@ -317,9 +324,13 @@ class DefaultLossModule(BaseComponent):
         # calculate sum over a whole batch of events
         total_time_loss = tf.reduce_sum(time_loss)
 
-        # average loss over events, such that it does not depend on batch size
-        average_event_loss = total_time_loss / tf.reduce_sum(pulse_charges)
-        return average_event_loss
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
+            total_time_loss += tf.reduce_sum(tf.lgamma(pulse_charges))
+
+        return total_time_loss
 
     def unbinned_pulse_and_dom_charge_pdf(self, data_batch_dict,
                                           result_tensors, tensors):
@@ -419,11 +430,17 @@ class DefaultLossModule(BaseComponent):
         total_charge_loss = tf.reduce_sum(-llh_charge)
         total_time_loss = tf.reduce_sum(time_loss)
 
-        # average loss over events, such that it does not depend on batch size
-        batch_size = tf.cast(tf.shape(llh_charge)[0], dtype=dtype)
-        average_event_loss = (total_charge_loss + total_time_loss
-                              ) / batch_size
-        return average_event_loss
+        loss = total_charge_loss + total_time_loss
+
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
+            norm_pulses = tf.reduce_sum(tf.lgamma(pulse_charges))
+            norm_doms = tf.reduce_sum(tf.lgamma(hits_true))
+            loss += norm_pulses + norm_doms
+
+        return loss
 
     def unbinned_charge_quantile_pdf(self, data_batch_dict, result_tensors,
                                      tensors):
@@ -527,12 +544,15 @@ class DefaultLossModule(BaseComponent):
         # calculate sum over a whole batch of events
         total_time_loss = tf.reduce_sum(time_loss)
 
-        # average loss over events, such that it does not depend on batch size
-        # batch_size = tf.cast(tf.shape(data_batch_dict['x_dom_charge'])[0],
-        #                      dtype=dtype)
-        # average_event_loss = total_time_loss / batch_size
-        average_event_loss = total_time_loss / tf.reduce_sum(pulse_charges)
-        return average_event_loss
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
+            # the pulse_pdf is already correctly normalized due to the
+            # mixture model
+            pass
+
+        return total_time_loss
 
     def dom_and_event_charge_pdf(self, data_batch_dict, result_tensors,
                                  tensors):
@@ -627,9 +647,13 @@ class DefaultLossModule(BaseComponent):
         total_charge_loss = tf.reduce_sum(-llh_charge)
         total_event_loss = tf.reduce_sum(-llh_event)
 
-        # average loss over events, such that it does not depend on batch size
-        batch_size = tf.cast(tf.shape(llh_charge)[0], dtype=dtype)
-        num_doms = tf.reduce_sum(mask_valid)
-        average_event_loss = (total_charge_loss + total_event_loss
-                              ) / (num_doms + batch_size)
-        return average_event_loss
+        loss = total_charge_loss + total_event_loss
+
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
+            # total event charge is properly normalized due to the used gauss
+            pass
+
+        return loss
