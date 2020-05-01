@@ -151,7 +151,7 @@ class DefaultLossModule(BaseComponent):
         tf.Tensor
             Description
         """
-        return tf.math.lgamma(tf.clip_by_value(x + 1, 2, np.inf))
+        return tf.math.lgamma(tf.clip_by_value(x + 1, 2, float('inf')))
 
     def unbinned_extended_pulse_llh(self, data_batch_dict, result_tensors,
                                     tensors):
