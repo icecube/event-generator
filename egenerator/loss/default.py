@@ -246,9 +246,9 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            norm_pulses = tf.reduce_sum(tf.lgamma(pulse_charges))
-            norm_doms = tf.reduce_sum(tf.lgamma(dom_charges_true))
-            norm_events = tf.reduce_sum(tf.lgamma(event_charges_true))
+            norm_pulses = tf.reduce_sum(tf.math.lgamma(pulse_charges))
+            norm_doms = tf.reduce_sum(tf.math.lgamma(dom_charges_true))
+            norm_events = tf.reduce_sum(tf.math.lgamma(event_charges_true))
             loss += norm_pulses + norm_doms + norm_events
 
         return loss
@@ -328,7 +328,7 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            total_time_loss += tf.reduce_sum(tf.lgamma(pulse_charges))
+            total_time_loss += tf.reduce_sum(tf.math.lgamma(pulse_charges))
 
         return total_time_loss
 
@@ -436,8 +436,8 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            norm_pulses = tf.reduce_sum(tf.lgamma(pulse_charges))
-            norm_doms = tf.reduce_sum(tf.lgamma(hits_true))
+            norm_pulses = tf.reduce_sum(tf.math.lgamma(pulse_charges))
+            norm_doms = tf.reduce_sum(tf.math.lgamma(hits_true))
             loss += norm_pulses + norm_doms
 
         return loss
