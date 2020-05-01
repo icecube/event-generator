@@ -234,8 +234,4 @@ class SnowstormPriorLossModule(BaseComponent):
         fourier_loss = -tf.math.log(fourier_pdf)
         event_loss += tf.reduce_sum(fourier_loss, axis=1)
 
-        # average loss over events, such that it does not depend on batch size
-        batch_size = tf.cast(tf.shape(event_loss)[0], dtype=event_loss.dtype)
-        loss = tf.reduce_sum(event_loss) / batch_size
-
-        return loss
+        return tf.reduce_sum(event_loss)

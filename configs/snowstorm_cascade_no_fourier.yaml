@@ -203,12 +203,12 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
-            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/10000-10999/*100*.hdf5',
-            # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
+            # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/10000-10999/*100*.hdf5',
+            # # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*100*.hdf5',
 
             # # NuGen -- L5MonopodFit4 vertex
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
@@ -226,7 +226,7 @@ data_iterator_settings: {
             # Spice3.2.1 variable
             # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99900/egenerator_99900_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # Spice3.2.1 const
-            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99901/egenerator_99901_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99901/egenerator_99901_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # SpiceLea variable
             #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # SpiceLea const
@@ -249,7 +249,8 @@ loss_module_settings: [
         config: {
             # the float precision to use
             'float_precision': 'float32',
-
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'unbinned_extended_pulse_llh',
         },

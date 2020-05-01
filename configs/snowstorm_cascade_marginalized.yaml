@@ -271,7 +271,8 @@ loss_module_settings: [
         config: {
             # the float precision to use
             'float_precision': 'float32',
-
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'unbinned_charge_quantile_pdf',
 
@@ -289,7 +290,8 @@ loss_module_settings: [
     #     config: {
     #         # the float precision to use
     #         'float_precision': 'float32',
-
+    #         # Add normalization terms to llh if True
+    #         'add_normalization_term': True,
     #         # choose the loss function to use
     #         'loss_function_name': 'dom_and_event_charge_pdf',
     #     },
