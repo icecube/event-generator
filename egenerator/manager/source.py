@@ -1034,10 +1034,10 @@ class SourceManager(BaseModelManager):
                         print('Covariance res', np.sqrt(np.diag(cov_min)))
 
                 # Write to file
-                cov_file = '{}_cov_{:08d}.txt'.format(
+                cov_file = '{}_cov_{:08d}.npy'.format(
                     os.path.splitext(reco_config['reco_output_file'])[0],
                     event_counter)
-                np.savetxt(cov_file, np.stack([cov, cov_min]))
+                np.save(cov_file, np.stack([cov, cov_min]))
 
             # -------------------
             # Angular Uncertainty
