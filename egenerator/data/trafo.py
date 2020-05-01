@@ -266,16 +266,18 @@ class DataTransformer(BaseComponent):
         return self._update_online_variance_vars(data_batch=data_batch, n=n,
                                                  mean=mean, M2=M2)
 
-    def _check_settings(self, data, tensor_name):
+    def _check_settings(self, data, tensor_name, check_shape=True):
         """Check settings and return necessary parameters for trafo and inverse
         trafo method.
 
         Parameters
         ----------
-        data :  numpy.ndarray or tf.Tensor
+        data : numpy.ndarray or tf.Tensor
             The data that will be transformed.
         tensor_name : str
             The name of the tensor which will be transformed.
+        check_shape : bool, optional
+            If True, check shape of provided data tensor.
 
         Returns
         -------
@@ -301,14 +303,15 @@ class DataTransformer(BaseComponent):
         tensor = self.data['tensors'][tensor_name]
 
         # check if shape of data matches expected shape
-        trafo_shape = list(tensor.shape)
-        trafo_shape.pop(tensor.trafo_batch_axis)
-        data_shape = list(data.shape)
-        data_shape.pop(tensor.trafo_batch_axis)
+        if check_shape:
+            trafo_shape = list(tensor.shape)
+            trafo_shape.pop(tensor.trafo_batch_axis)
+            data_shape = list(data.shape)
+            data_shape.pop(tensor.trafo_batch_axis)
 
-        if list(data_shape) != trafo_shape:
-            msg = 'Shape of data {!r} does not match expected shape {!r}'
-            raise ValueError(msg.format(data_shape, trafo_shape))
+            if list(data_shape) != trafo_shape:
+                msg = 'Shape of data {!r} does not match expected shape {!r}'
+                raise ValueError(msg.format(data_shape, trafo_shape))
 
         is_tf = tf.is_tensor(data)
 
@@ -460,3 +463,50 @@ class DataTransformer(BaseComponent):
         else:
             data = data.astype(dtype)
         return data
+
+    def inverse_transform_cov(self, cov_trafo, tensor_name):
+        """Applies inverse transformation of covariance matrix.
+
+        Note: this only corrects for scaling vie the standard deviation.
+        If a logarithm was applied, this does not undo that transformation.
+        E.g. in that case the return covariance matrix is provided in log-space
+        for that parameter.
+
+        Parameters
+        ----------
+        cov_trafo : array_like
+            The covariance matrix of the transformed parameter tensor.
+        tensor_name : str
+            The name of the tensor which the provided covariance matrix
+            describes.
+
+        Returns
+        -------
+        array_like
+            The covariance matrix of the inverse transformed parameter tensor
+            excluding possible log-transformations.
+        """
+
+        cov_trafo, _, _, is_tf, dtype, tensor = self._check_settings(
+            cov_trafo, tensor_name)
+
+        # V_trafo = B V B^T
+        # V = B^-1 V_trafo (B^T)^-1
+        # Define B^-1 which is a diagonal matrix
+        B_inv = np.diag(
+            self.data['norm_constant'] + self.data[tensor_name+'_std'])
+
+        # Since B is diagonal: B = B^T
+        if is_tf:
+            cov = tf.matmul(tf.matmul(B_inv, cov_trafo), B_inv)
+        else:
+            cov = np.matmul(np.matmul(B_inv, cov_trafo), B_inv)
+
+        # cast back to original dtype
+        if is_tf:
+            if dtype != self.data['tf_float_dtype']:
+                cov = tf.cast(cov, dtype=dtype)
+        else:
+            cov = cov.astype(dtype)
+
+        return cov
