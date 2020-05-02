@@ -544,25 +544,27 @@ class ChargeQuantileCascadeModel(Source):
         pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
         pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
 
+        mask = exp_pulse_quantiles < 0.5
+        mu_offset = factor_mu * latent_mu_offset / t_scale
         tf.print('pulse_latent_mu offset',
-                 tf.reduce_min(factor_mu * latent_mu_offset / t_scale),
-                 tf.reduce_mean(factor_mu * latent_mu_offset / t_scale),
-                 tf.reduce_max(factor_mu * latent_mu_offset / t_scale),
+                 tf.reduce_min(mu_offset[mask]),
+                 tf.reduce_mean(mu_offset[mask]),
+                 tf.reduce_max(mu_offset[mask]),
                  )
         tf.print('pulse_latent_sigma',
-                 tf.reduce_min(pulse_latent_sigma),
-                 tf.reduce_mean(pulse_latent_sigma),
-                 tf.reduce_max(pulse_latent_sigma),
+                 tf.reduce_min(pulse_latent_sigma[mask]),
+                 tf.reduce_mean(pulse_latent_sigma[mask]),
+                 tf.reduce_max(pulse_latent_sigma[mask]),
                  )
         tf.print('pulse_latent_r',
-                 tf.reduce_min(pulse_latent_r),
-                 tf.reduce_mean(pulse_latent_r),
-                 tf.reduce_max(pulse_latent_r),
+                 tf.reduce_min(pulse_latent_r[mask]),
+                 tf.reduce_mean(pulse_latent_r[mask]),
+                 tf.reduce_max(pulse_latent_r[mask]),
                  )
         tf.print('pulse_latent_scale',
-                 tf.reduce_min(pulse_latent_scale),
-                 tf.reduce_mean(pulse_latent_scale),
-                 tf.reduce_max(pulse_latent_scale),
+                 tf.reduce_min(pulse_latent_scale[mask]),
+                 tf.reduce_mean(pulse_latent_scale[mask]),
+                 tf.reduce_max(pulse_latent_scale[mask]),
                  )
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
