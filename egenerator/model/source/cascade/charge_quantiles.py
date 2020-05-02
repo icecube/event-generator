@@ -544,7 +544,7 @@ class ChargeQuantileCascadeModel(Source):
         pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
         pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
 
-        mask = exp_pulse_quantiles < 0.5
+        mask = np.ones_like(mu_offset)*exp_pulse_quantiles < 0.5
         mu_offset = factor_mu * latent_mu_offset / t_scale
         tf.print('pulse_latent_mu offset',
                  tf.reduce_min(mu_offset[mask]),
