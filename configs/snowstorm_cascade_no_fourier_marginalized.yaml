@@ -366,7 +366,7 @@ model_settings: {
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': False,
-        'estimate_charge_distribution': 'neg_binomial',
+        'estimate_charge_distribution': 'negative_binomial',
         'num_latent_models': 5,
 
         # First convolutions

@@ -117,7 +117,7 @@ class ChargeQuantileCascadeModel(Source):
         num_fc_inputs = config['num_filters_list'][-1] - 1 + 2
         if config['estimate_charge_distribution'] is True:
             num_fc_inputs -= 2
-        elif config['estimate_charge_distribution'] == 'neg_binomial':
+        elif config['estimate_charge_distribution'] == 'negative_binomial':
             num_fc_inputs -= 1
 
         if config['add_predicted_charge_to_latend_vars']:
@@ -330,7 +330,7 @@ class ChargeQuantileCascadeModel(Source):
         # -------------------------------------------
         if config['estimate_charge_distribution'] is True:
             n_charge = 3
-        elif config['estimate_charge_distribution'] == 'neg_binomial':
+        elif config['estimate_charge_distribution'] == 'negative_binomial':
             n_charge = 2
         else:
             n_charge = 1
@@ -430,7 +430,7 @@ class ChargeQuantileCascadeModel(Source):
             tensor_dict['dom_charges_unc'] = dom_charges_unc
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
 
-        elif config['estimate_charge_distribution'] == 'neg_binomial':
+        elif config['estimate_charge_distribution'] == 'negative_binomial':
             """
             Use negative binomial PDF instead of Poisson to account for
             over-dispersion induces by systematic variations.

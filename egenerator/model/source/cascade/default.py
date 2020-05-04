@@ -289,7 +289,7 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         if config['estimate_charge_distribution'] is True:
             n_charge = 3
-        elif config['estimate_charge_distribution'] == 'neg_binomial':
+        elif config['estimate_charge_distribution'] == 'negative_binomial':
             n_charge = 2
         else:
             n_charge = 1
@@ -389,7 +389,7 @@ class DefaultCascadeModel(Source):
             tensor_dict['dom_charges_unc'] = dom_charges_unc
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
 
-        elif config['estimate_charge_distribution'] == 'neg_binomial':
+        elif config['estimate_charge_distribution'] == 'negative_binomial':
             """
             Use negative binomial PDF instead of Poisson to account for
             over-dispersion induces by systematic variations.
