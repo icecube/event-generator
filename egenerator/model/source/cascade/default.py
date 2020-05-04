@@ -287,8 +287,10 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         # Get expected charge at DOM
         # -------------------------------------------
-        if config['estimate_charge_distribution']:
+        if config['estimate_charge_distribution'] is True:
             n_charge = 3
+        elif config['estimate_charge_distribution'] == 'neg_binomial':
+            n_charge = 2
         else:
             n_charge = 1
 
@@ -318,7 +320,7 @@ class DefaultCascadeModel(Source):
         # -------------------------------------
         # get charge distribution uncertainties
         # -------------------------------------
-        if config['estimate_charge_distribution']:
+        if config['estimate_charge_distribution'] is True:
             sigma_scale_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 1],
                                                axis=-1)
             dom_charges_r_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 2],
@@ -384,7 +386,45 @@ class DefaultCascadeModel(Source):
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
             tensor_dict['dom_charges_r'] = dom_charges_r
-            tensor_dict['dom_charges_gaussian_unc'] = dom_charges_unc
+            tensor_dict['dom_charges_unc'] = dom_charges_unc
+            tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
+
+        elif config['estimate_charge_distribution'] == 'neg_binomial':
+            """
+            Use negative binomial PDF instead of Poisson to account for
+            over-dispersion induces by systematic variations.
+
+            The parameterization chosen here is defined by the mean mu and
+            the over-dispersion factor alpha.
+
+                Var(x) = mu + alpha*mu**2
+
+            Alpha must be greater than zero.
+            """
+            alpha_trafo = tf.expand_dims(
+                conv_hex3d_layers[-1][..., 1], axis=-1)
+
+            # create correct offset and force positive and min values
+            # The over-dispersion parameterized by alpha must be greater zero
+            dom_charges_alpha = tf.nn.elu(alpha_trafo - 5) + 1.000001
+
+            # compute log pdf
+            dom_charges_llh = basis_functions.tf_log_negative_binomial(
+                x=dom_charges_true,
+                mu=dom_charges,
+                alpha=dom_charges_alpha,
+            )
+
+            # compute standard deviation
+            # std = sqrt(var) = sqrt(mu + alpha*mu**2)
+            dom_charges_unc = tf.sqrt(
+                dom_charges + dom_charges_alpha*dom_charges**2)
+
+            print('dom_charges_llh', dom_charges_llh)
+
+            # add tensors to tensor dictionary
+            tensor_dict['dom_charges_alpha'] = dom_charges_alpha
+            tensor_dict['dom_charges_unc'] = dom_charges_unc
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
 
         # -------------------------------------------

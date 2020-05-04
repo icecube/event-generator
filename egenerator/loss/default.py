@@ -571,12 +571,12 @@ class DefaultLossModule(BaseComponent):
 
     def dom_and_event_charge_pdf(self, data_batch_dict, result_tensors,
                                  tensors):
-        """Poisson + Asymmetric Gaussian Charge PDF (estimated by Model)
+        """Charge PDF (estimated by Model)
 
         This is a likelihood over the total event charge in addition to the
-        charge measured at each DOM. Below a threshold of (measured) 5 PE,
-        a Poisson Likelihood will be used for the DOM. Above 5 PE, an
-        asymmetric Gaussian PDF as estimated by the model will be used.
+        charge measured at each DOM. The PDF and likelihood used is defined
+        by the model which must provide the computed log likelihood values
+        for the DOMs: `dom_charges_log_pdf_values`.
         The uncertainty on the total event charge is computed by accumulating
         the uncertainties in quadrature.
 
@@ -632,7 +632,7 @@ class DefaultLossModule(BaseComponent):
         # get uncertainty on DOM charges
         # shape: [n_batch, 86, 60]
         dom_charges_unc = tf.squeeze(
-            result_tensors['dom_charges_gaussian_unc'], axis=-1)
+            result_tensors['dom_charges_unc'], axis=-1)
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and

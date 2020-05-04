@@ -372,7 +372,7 @@ model_settings: {
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': True,
-        'estimate_charge_distribution': True,
+        'estimate_charge_distribution': False,
         'num_latent_models': 5,
 
         # This is a list of the orderd snowstorm parameters: (name, number)
@@ -387,7 +387,7 @@ model_settings: {
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [20, 300, 300, 300, 23],
+        'num_filters_list' : [25, 500, 500, 500, 21],
         'method_list' : ['locally_connected',
                          'convolution', 'convolution', 'convolution',
                          'convolution',

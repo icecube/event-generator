@@ -859,7 +859,7 @@ class SourceManager(BaseModelManager):
         # -----------------
         # Covariance-Matrix
         # -----------------
-        calculate_covariance_matrix = True
+        calculate_covariance_matrix = False
         if calculate_covariance_matrix:
             hessian_function = self.get_hessian_function(
                 input_signature=(param_signature, test_dataset.element_spec),
