@@ -422,6 +422,13 @@ class DefaultCascadeModel(Source):
 
             print('dom_charges_llh', dom_charges_llh)
 
+            tf.print(
+                'dom_charges_alpha',
+                tf.reduce_min(dom_charges_alpha),
+                tf.reduce_mean(dom_charges_alpha),
+                tf.reduce_max(dom_charges_alpha),
+            )
+
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_alpha'] = dom_charges_alpha
             tensor_dict['dom_charges_unc'] = dom_charges_unc
