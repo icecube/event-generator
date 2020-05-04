@@ -111,7 +111,7 @@ def tf_log_negative_binomial(x, mu, alpha, add_normalization_term=False):
     if add_normalization_term:
         gamma_terms -= tf.math.gamma(x + 1.)
 
-    term1 = -inv_alpha * tf.log(1. + alpha_mu)
-    term2 = x * tf.log(alpha_mu / (1. + alpha_mu))
+    term1 = -inv_alpha * tf.math.log(1. + alpha_mu)
+    term2 = x * tf.math.log(alpha_mu / (1. + alpha_mu))
 
     return gamma_terms + term1 + term2
