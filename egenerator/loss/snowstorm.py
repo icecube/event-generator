@@ -101,27 +101,34 @@ class SnowstormPriorLossModule(BaseComponent):
         """
 
         # define parameterizations
-        self.untracked_data['sigmas'] = [
+        if 'sigmas' in config:
+            self.untracked_data['sigmas'] = config['sigmas']
+        else:
+            self.untracked_data['sigmas'] = [
 
-            # Amplitude sigmas
-            0.00500100, 0.03900780, 0.04500900, 0.17903581, 0.07101420,
-            0.30306061, 0.14502901, 0.09501900, 0.16103221, 0.13302661,
-            0.15703141, 0.13302661,
+                # Amplitude sigmas
+                0.00500100, 0.03900780, 0.04500900, 0.17903581, 0.07101420,
+                0.30306061, 0.14502901, 0.09501900, 0.16103221, 0.13302661,
+                0.15703141, 0.13302661,
 
-            # Phase sigmas
-            0.00000001, 0.01664937, 0.02708014, 0.43171273, 0.02351273,
-            2.33565571, 0.16767628, 0.05414841, 0.31355088, 0.04227052,
-            0.27955606, 4.02237848
-        ]
+                # Phase sigmas
+                0.00000001, 0.01664937, 0.02708014, 0.43171273, 0.02351273,
+                2.33565571, 0.16767628, 0.05414841, 0.31355088, 0.04227052,
+                0.27955606, 4.02237848
+            ]
 
-        self.untracked_data['uniform_parameters'] = {
-            'Absorption': [0.9, 1.1],
-            'AnisotropyScale': [0., 2.0],
-            'DOMEfficiency': [0.9, 1.1],
-            'Scattering': [0.9, 1.1],
-            'HoleIceForward_Unified_00': [-2., 1.],
-            'HoleIceForward_Unified_01': [-0.2, 0.2],
-        }
+        if 'uniform_parameters' in config:
+            self.untracked_data['uniform_parameters'] = config[
+                                                        'uniform_parameters']
+        else:
+            self.untracked_data['uniform_parameters'] = {
+                'Absorption': [0.9, 1.1],
+                'AnisotropyScale': [0., 2.0],
+                'DOMEfficiency': [0.9, 1.1],
+                'Scattering': [0.9, 1.1],
+                'HoleIceForward_Unified_00': [-2., 1.],
+                'HoleIceForward_Unified_01': [-0.2, 0.2],
+            }
 
         # create configuration object
         configuration = Configuration(
@@ -215,23 +222,26 @@ class SnowstormPriorLossModule(BaseComponent):
                 event_loss += self.uniform_prior_loss(values, *bounds)
 
         # compute loss for Fourier modes
-        start_index = model.get_index('IceWavePlusModes_00')
-        end_index = model.get_index('IceWavePlusModes_23') + 1
-        assert end_index - start_index == 24
-        for i, exp_index in enumerate(range(start_index, end_index)):
-            index = model.get_index('IceWavePlusModes_{:02d}'.format(i))
-            assert exp_index == index, '{} != {}'.format(exp_index, index)
+        num_sigmas = len(self.untracked_data['sigmas'])
+        if num_sigmas > 0:
+            start_index = model.get_index('IceWavePlusModes_00')
+            end_index = model.get_index('IceWavePlusModes_{:02d}'.format(
+                                                            num_sigmas)) + 1
+            assert end_index - start_index == num_sigmas
+            for i, exp_index in enumerate(range(start_index, end_index)):
+                index = model.get_index('IceWavePlusModes_{:02d}'.format(i))
+                assert exp_index == index, '{} != {}'.format(exp_index, index)
 
-        # shape: [batch, n_fourier]
-        fourier_values = parameters[:, start_index:end_index]
+            # shape: [batch, n_fourier]
+            fourier_values = parameters[:, start_index:end_index]
 
-        fourier_sigmas = tf.expand_dims(self.sigmas, axis=0)
-        fourier_pdf = tf_gauss(fourier_values,
-                               mu=tf.zeros_like(fourier_sigmas),
-                               sigma=fourier_sigmas)
+            fourier_sigmas = tf.expand_dims(self.sigmas, axis=0)
+            fourier_pdf = tf_gauss(fourier_values,
+                                   mu=tf.zeros_like(fourier_sigmas),
+                                   sigma=fourier_sigmas)
 
-        # we will use the negative log likelihood as loss
-        fourier_loss = -tf.math.log(fourier_pdf)
-        event_loss += tf.reduce_sum(fourier_loss, axis=1)
+            # we will use the negative log likelihood as loss
+            fourier_loss = -tf.math.log(fourier_pdf)
+            event_loss += tf.reduce_sum(fourier_loss, axis=1)
 
         return tf.reduce_sum(event_loss)

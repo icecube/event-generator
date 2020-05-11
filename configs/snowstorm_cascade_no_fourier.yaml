@@ -256,6 +256,25 @@ loss_module_settings: [
             'loss_function_name': 'unbinned_extended_pulse_llh',
         },
     },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
+        config: {
+
+            # define uniform priors
+            'uniform_parameters': {
+                'Absorption': [0.9, 1.1],
+                'AnisotropyScale': [0., 2.0],
+                'DOMEfficiency': [0.9, 1.1],
+                'Scattering': [0.9, 1.1],
+                'HoleIceForward_Unified_00': [-1., 1.],
+                'HoleIceForward_Unified_01': [-0.2, 0.2],
+            },
+
+            # define fourier component sigmas
+            'sigmas': [],
+        },
+    },
 ]
 
 #---------------------------
