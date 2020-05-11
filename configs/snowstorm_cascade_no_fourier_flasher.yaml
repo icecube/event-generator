@@ -253,7 +253,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_pulse_data',
+    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_flasher_pulse_data',
 }
 
 #----------------------
