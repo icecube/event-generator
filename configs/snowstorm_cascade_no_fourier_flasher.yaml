@@ -76,11 +76,16 @@ reconstruction_settings: {
     # is held constant.
     # Set default value which will apply to all parameters, except if stated
     # otherwise in the 'minimize_parameter_dict'
-    'minimize_parameter_default_value': True,
+    'minimize_parameter_default_value': False,
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
-
+        'Absorption': True,
+        'AnisotropyScale': True,
+        'DOMEfficiency': True,
+        'HoleIceForward_Unified_00': True,
+        'HoleIceForward_Unified_01': True,
+        'Scattering': True,
     },
 
     # # An alternative label module may be defined that will be loaded instead
