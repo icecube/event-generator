@@ -859,7 +859,7 @@ class SourceManager(BaseModelManager):
         # -----------------
         # Covariance-Matrix
         # -----------------
-        calculate_covariance_matrix = False
+        calculate_covariance_matrix = True
         if calculate_covariance_matrix:
             hessian_function = self.get_hessian_function(
                 input_signature=(param_signature, test_dataset.element_spec),
@@ -969,6 +969,10 @@ class SourceManager(BaseModelManager):
         loss_true_list = []
         loss_reco_list = []
         loss_seed_list = []
+        std_devs = []
+        std_devs_fit = []
+        cov_zen_azi_list = []
+        cov_fit_zen_azi_list = []
 
         event_counter = 0
         for data_batch in test_dataset:
@@ -1033,11 +1037,21 @@ class SourceManager(BaseModelManager):
                         print('Covariance:', np.sqrt(np.diag(cov)))
                         print('Covariance res', np.sqrt(np.diag(cov_min)))
 
+                # save correlation between zenith and azimuth
+                zen_index = self.model.get_index('zenith')
+                azi_index = self.model.get_index('azimuth')
+
+                cov_zen_azi_list.append(cov[zen_index, azi_index])
+                cov_fit_zen_azi_list.append(cov_min[zen_index, azi_index])
+
+                std_devs.append(np.sqrt(np.diag(cov)))
+                std_devs_fit.append(np.sqrt(np.diag(cov_min)))
+
                 # Write to file
                 cov_file = '{}_cov_{:08d}.npy'.format(
                     os.path.splitext(reco_config['reco_output_file'])[0],
                     event_counter)
-                np.save(cov_file, np.stack([cov, cov_min]))
+                # np.save(cov_file, np.stack([cov, cov_min]))
 
             # -------------------
             # Angular Uncertainty
@@ -1370,6 +1384,9 @@ class SourceManager(BaseModelManager):
         cascade_parameters_seed = np.stack(cascade_parameters_seed, axis=0)
         cascade_parameters_reco = np.stack(cascade_parameters_reco, axis=0)
 
+        std_devs_fit = np.stack(std_devs_fit, axis=0)
+        std_devs = np.stack(std_devs, axis=0)
+
         # ----------------
         # create dataframe
         # ----------------
@@ -1379,6 +1396,16 @@ class SourceManager(BaseModelManager):
                                  ['_reco', cascade_parameters_reco],
                                  ['_seed', cascade_parameters_seed]):
                 df_reco[param_name + name] = params[:, index]
+
+        if calculate_covariance_matrix:
+            for index, param_name in enumerate(self.model.parameter_names):
+                for name, unc in (['_unc', std_devs],
+                                  ['_unc_fit', std_devs_fit]):
+                    df_reco[param_name + name] = unc[:, index]
+
+            # save correlation between zenith and azimuth
+            df_reco['cov_zenith_azimuth'] = cov_zen_azi_list
+            df_reco['cov_fit_zenith_azimuth'] = cov_fit_zen_azi_list
 
         df_reco['loss_true'] = loss_true_list
         df_reco['loss_reco'] = loss_reco_list
