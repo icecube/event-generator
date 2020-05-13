@@ -351,7 +351,6 @@ class SourceManager(BaseModelManager):
                         values=[tf.reshape(term, [-1]) for term in loss_terms],
                         axis=0)
 
-                    print('acc.jvp(loss_terms_concat)', acc.jvp(loss_terms_concat))
                     kernel_fprop.append(acc.jvp(loss_terms_concat))
 
             # shape: [n_terms, n_params, 1]
@@ -363,47 +362,6 @@ class SourceManager(BaseModelManager):
                                             transpose_b=True)
             print('opg_estimate', opg_estimate)
             tf.print('opg_estimate shape', tf.shape(opg_estimate))
-
-            # with tf.GradientTape(watch_accessed_variables=False) as tape:
-            #     tape.watch(parameters_trafo)
-
-            #     # loss_terms = self.parameter_loss_function(
-            #     #     parameters_trafo=parameters_trafo,
-            #     #     data_batch=data_batch,
-            #     #     loss_module=loss_module,
-            #     #     fit_paramater_list=fit_paramater_list,
-            #     #     minimize_in_trafo_space=minimize_in_trafo_space,
-            #     #     seed=seed,
-            #     #     parameter_tensor_name=parameter_tensor_name,
-            #     #     reduce_to_scalar=False)
-            #     loss_terms = loss_function(
-            #             parameters_trafo=parameters_trafo,
-            #             data_batch=data_batch)
-
-            #     # reshape loss terms and concatenate to shape [n_terms]
-            #     print('loss_terms', loss_terms)
-            #     loss_terms_concat = tf.concat(
-            #         values=[tf.reshape(term, [-1]) for term in loss_terms],
-            #         axis=0)
-
-            #     print('loss_terms_concat', loss_terms_concat)
-            #     tf.print('loss_terms_concat', loss_terms_concat)
-
-            # # shape: [n_terms, n_params]
-            # grad = tape.gradient(loss_terms_concat, parameters_trafo)
-            # print('grad before', grad)
-
-            # tf.print('grad back', grad)
-            # tf.print('grad forward', kernel_fprop)
-
-            # # shape: [n_terms, n_params, 1]
-            # grad = tf.expand_dims(grad, axis=-1)
-            # print('grad after', grad)
-
-            # # shape: [n_terms, n_params, n_params]
-            # opg_estimate = tf.linalg.matmul(grad, grad, transpose_b=True)
-            # print('opg_estimate', opg_estimate)
-            # tf.print('opg_estimate shape', opg_estimate.get_shape())
 
             return tf.reduce_sum(opg_estimate, axis=0)
 
@@ -1152,7 +1110,7 @@ class SourceManager(BaseModelManager):
         std_devs = []
         std_devs_fit = []
         std_devs_sandwich = []
-        std_devs_sandwich2 = []
+        std_devs_sandwich_fit = []
         cov_zen_azi_list = []
         cov_fit_zen_azi_list = []
 
@@ -1171,10 +1129,18 @@ class SourceManager(BaseModelManager):
 
             # # set snowstorm params to expectation
             # x0 = x0.numpy()
+
+            # # # all snowstorm variations
+            # # x0[:, 7:10] = 1.0
+            # # x0[:, 10] = -0.5
+            # # x0[:, 11:36] = 0.
+            # # x0[:, 36] = 1.0
+
+            # # wihtout ft
             # x0[:, 7:10] = 1.0
-            # x0[:, 10] = -0.5
-            # x0[:, 11:36] = 0.
-            # x0[:, 36] = 1.0
+            # x0[:, 10] = 0.
+            # x0[:, 11] = 0.
+
             # x0 = tf.reshape(tf.convert_to_tensor(x0, param_dtype), seed_shape)
             # new_batch = [b for b in data_batch]
             # new_batch[seed_index] = x0
@@ -1210,63 +1176,34 @@ class SourceManager(BaseModelManager):
                     parameters_trafo=result,
                     data_batch=data_batch).numpy().astype('float64')
 
-                # get gradient at reco best fit
-                gradient_vec = loss_and_gradients_function(
-                    parameters_trafo=result,
-                    data_batch=data_batch)[1].numpy().astype('float64')
-
-                # make sure we only have one event in batch and choose first
-                # event
-                assert len(gradient_vec) == 1
-                gradient_vec = gradient_vec[0]
-
-                # expand to matrix shape (num_params, 1)
-                gradient_vec = np.expand_dims(gradient_vec, axis=-1)
-
-                var_matrix = np.matmul(gradient_vec, gradient_vec.T)
                 cov = np.linalg.inv(hessian)
-                # cov_sandwich = np.matmul(np.matmul(cov, var_matrix), cov)
-                cov_sandwich = np.matmul(np.matmul(cov, opg_estimate), cov)
-                cov_sandwich2 = np.matmul(np.matmul(
-                    result_obj.hess_inv, opg_estimate), result_obj.hess_inv)
-                print('gradient_vec', gradient_vec)
-                print('result_obj.jac', result_obj.jac)
-                print('var_matrix', var_matrix)
-                print('opg_estimate', opg_estimate)
+                cov_sand = np.matmul(np.matmul(cov, opg_estimate), cov)
+                if hasattr(result_obj, 'hess_inv'):
+                    cov_sand_fit = np.matmul(
+                        np.matmul(result_obj.hess_inv, opg_estimate),
+                        result_obj.hess_inv)
 
                 if reco_config['minimize_in_trafo_space']:
                     cov = self.model.data_trafo.inverse_transform_cov(
                         cov_trafo=cov, tensor_name=parameter_tensor_name)
 
-                    cov_sandwich = self.model.data_trafo.inverse_transform_cov(
-                        cov_trafo=cov_sandwich,
+                    cov_sand = self.model.data_trafo.inverse_transform_cov(
+                        cov_trafo=cov_sand,
                         tensor_name=parameter_tensor_name
                     )
-                    cov_sandwich2 = self.model.data_trafo.inverse_transform_cov(
-                        cov_trafo=cov_sandwich2,
+                    cov_sand_fit = self.model.data_trafo.inverse_transform_cov(
+                        cov_trafo=cov_sand_fit,
                         tensor_name=parameter_tensor_name
                     )
-                    var_matrix = self.model.data_trafo.inverse_transform_cov(
-                        cov_trafo=var_matrix,
-                        tensor_name=parameter_tensor_name
-                    )
-                    opg_estimate = self.model.data_trafo.inverse_transform_cov(
-                        cov_trafo=opg_estimate,
-                        tensor_name=parameter_tensor_name
-                    )
-                    # cov_sandwich2 = np.matmul(np.matmul(cov, var_matrix), cov)
-                    # cov_sandwich2 = np.matmul(np.matmul(cov, opg_estimate), cov)
 
                     if hasattr(result_obj, 'hess_inv'):
                         cov_min = self.model.data_trafo.inverse_transform_cov(
                             cov_trafo=result_obj.hess_inv,
                             tensor_name=parameter_tensor_name,
                         )
-                        # cov_sandwich2 = np.matmul(np.matmul(cov, cov_min), cov)
                         print('Covariance:', np.sqrt(np.diag(cov)))
-                        print('Cov. sandwich:', np.sqrt(np.diag(cov_sandwich)))
-                        print('Cov. sandwich2:', np.sqrt(np.diag(cov_sandwich2)))
-                        print('variance:', np.sqrt(np.diag(var_matrix)))
+                        print('Cov. sand:', np.sqrt(np.diag(cov_sand)))
+                        print('Cov. sand fit:', np.sqrt(np.diag(cov_sand_fit)))
                         print('opg_estimate:', np.sqrt(np.diag(opg_estimate)))
                         print('Covariance res', np.sqrt(np.diag(cov_min)))
 
@@ -1277,8 +1214,8 @@ class SourceManager(BaseModelManager):
                 cov_zen_azi_list.append(cov[zen_index, azi_index])
                 cov_fit_zen_azi_list.append(cov_min[zen_index, azi_index])
 
-                std_devs_sandwich.append(np.sqrt(np.diag(cov_sandwich)))
-                std_devs_sandwich2.append(np.sqrt(np.diag(cov_sandwich2)))
+                std_devs_sandwich.append(np.sqrt(np.diag(cov_sand)))
+                std_devs_sandwich_fit.append(np.sqrt(np.diag(cov_sand_fit)))
                 std_devs.append(np.sqrt(np.diag(cov)))
                 std_devs_fit.append(np.sqrt(np.diag(cov_min)))
 
@@ -1622,7 +1559,7 @@ class SourceManager(BaseModelManager):
         std_devs_fit = np.stack(std_devs_fit, axis=0)
         std_devs = np.stack(std_devs, axis=0)
         std_devs_sandwich = np.stack(std_devs_sandwich, axis=0)
-        std_devs_sandwich2 = np.stack(std_devs_sandwich2, axis=0)
+        std_devs_sandwich_fit = np.stack(std_devs_sandwich_fit, axis=0)
 
         # ----------------
         # create dataframe
@@ -1639,7 +1576,8 @@ class SourceManager(BaseModelManager):
                 for name, unc in (['_unc', std_devs],
                                   ['_unc_fit', std_devs_fit],
                                   ['_unc_sandwhich', std_devs_sandwich],
-                                  ['_unc_sandwhich2', std_devs_sandwich2],
+                                  ['_unc_sandwhich_fit',
+                                   std_devs_sandwich_fit],
                                   ):
                     df_reco[param_name + name] = unc[:, index]
 
