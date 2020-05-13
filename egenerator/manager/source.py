@@ -32,7 +32,8 @@ class SourceManager(BaseModelManager):
                                 loss_module, fit_paramater_list,
                                 minimize_in_trafo_space=True,
                                 seed=None,
-                                parameter_tensor_name='x_parameters'):
+                                parameter_tensor_name='x_parameters',
+                                reduce_to_scalar=True):
         """Compute loss for a chosen set of parameters.
 
         Parameters
@@ -65,11 +66,22 @@ class SourceManager(BaseModelManager):
             is seeded.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        reduce_to_scalar : bool, optional
+            If True, the individual terms of the log likelihood loss will be
+            reduced (aggregated) to a scalar loss.
+            If False, a list of tensors will be returned that contain the terms
+            of the log likelihood. Note that each of the returend tensors may
+            have a different shape.
 
         Returns
         -------
-        tf.scalar
+        tf.Tensor or list of tf.Tensor
             The loss for the given data_batch and chosen set of parameters.
+            if `reduce_to_scalar` is True:
+                Scalar loss
+                Shape: []
+            else:
+                List of tensors defining the terms of the log likelihood
         """
         data_batch_dict = {}
         for i, name in enumerate(self.data_handler.tensors.names):
@@ -118,14 +130,16 @@ class SourceManager(BaseModelManager):
             result_tensors,
             self.data_handler.tensors,
             model=self.model,
-            parameter_tensor_name=parameter_tensor_name)
+            parameter_tensor_name=parameter_tensor_name,
+            reduce_to_scalar=reduce_to_scalar)
         return loss
 
     def get_parameter_loss_function(self, loss_module, input_signature,
                                     fit_paramater_list,
                                     minimize_in_trafo_space=True,
                                     seed=None,
-                                    parameter_tensor_name='x_parameters'):
+                                    parameter_tensor_name='x_parameters',
+                                    reduce_to_scalar=True):
         """Get a function that returns the loss for a chosen set of parameters.
 
         Parameters
@@ -153,6 +167,12 @@ class SourceManager(BaseModelManager):
             is seeded.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        reduce_to_scalar : bool, optional
+            If True, the individual terms of the log likelihood loss will be
+            reduced (aggregated) to a scalar loss.
+            If False, a list of tensors will be returned that contain the terms
+            of the log likelihood. Note that each of the returend tensors may
+            have a different shape.
 
         Returns
         -------
@@ -172,7 +192,8 @@ class SourceManager(BaseModelManager):
                     fit_paramater_list=fit_paramater_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
-                    parameter_tensor_name=parameter_tensor_name)
+                    parameter_tensor_name=parameter_tensor_name,
+                    reduce_to_scalar=reduce_to_scalar)
             return loss
 
         return parameter_loss_function
@@ -237,6 +258,156 @@ class SourceManager(BaseModelManager):
             return loss, grad
 
         return loss_and_gradients_function
+
+    def get_opg_estimate_function(self, loss_module, input_signature,
+                                  fit_paramater_list,
+                                  minimize_in_trafo_space=True,
+                                  seed=None,
+                                  parameter_tensor_name='x_parameters'):
+        """Get a fucntion that returns the outer products of gradients (OPG).
+
+        The outer product of gradients (OPG) estimate can be used in connection
+        with the inverse Hessian matrix in order to obtain a robust estimate
+        for the covariance matrix.
+
+        Parameters
+        ----------
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        input_signature : tf.TensorSpec or nested tf.TensorSpec
+            The input signature of the parameters and data_batch arguments
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str, optional
+            If a fit_paramater_list is provided with at least one 'False'
+            entry, the seed name must also be provided.
+            The seed is the name of the data tensor by which the reconstruction
+            is seeded.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
+
+        Returns
+        -------
+        tf.function
+            A tensorflow function: f(parameters, data_batch) -> loss, gradient
+            that returns the loss and the gradients of the loss with
+            respect to the model parameters.
+        """
+
+        # get the loss function
+        loss_function = self.get_parameter_loss_function(
+            loss_module=loss_module,
+            input_signature=input_signature,
+            fit_paramater_list=fit_paramater_list,
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            seed=seed,
+            parameter_tensor_name=parameter_tensor_name,
+            reduce_to_scalar=False)
+
+        @tf.function(input_signature=input_signature)
+        def opg_estimate_function(parameters_trafo, data_batch):
+
+            """
+            We need to accumulate the Jacobian over colums (xs) in
+            the forward accumulator.
+            If we did this via back propagation we would need to compute
+            the Jacobian over rows (ys) and therefore perform a loop over
+            each loss term.
+
+            See:
+            https://www.tensorflow.org/api_docs/python/tf/
+            autodiff/ForwardAccumulator
+            """
+
+            kernel_fprop = []
+            for i in range(parameters_trafo.shape[1]):
+                tangent = np.zeros([1, parameters_trafo.shape[1]])
+                tangent[:, i] = 1
+                tangent = tf.convert_to_tensor(
+                    tangent, dtype=parameters_trafo.dtype)
+
+                with tf.autodiff.ForwardAccumulator(
+                        # parameters for which we want to compute gradients
+                        primals=parameters_trafo,
+                        # tangent vector which defines the direction, e.g.
+                        # parameter (xs) we want to compute the gradients for
+                        tangents=tangent) as acc:
+
+                    loss_terms = loss_function(
+                        parameters_trafo=parameters_trafo,
+                        data_batch=data_batch)
+
+                    loss_terms_concat = tf.concat(
+                        values=[tf.reshape(term, [-1]) for term in loss_terms],
+                        axis=0)
+
+                    print('acc.jvp(loss_terms_concat)', acc.jvp(loss_terms_concat))
+                    kernel_fprop.append(acc.jvp(loss_terms_concat))
+
+            # shape: [n_terms, n_params, 1]
+            kernel_fprop = tf.stack(kernel_fprop, axis=1)[..., tf.newaxis]
+            print('kernel_fprop', kernel_fprop)
+
+            # shape: [n_terms, n_params, n_params]
+            opg_estimate = tf.linalg.matmul(kernel_fprop, kernel_fprop,
+                                            transpose_b=True)
+            print('opg_estimate', opg_estimate)
+            tf.print('opg_estimate shape', tf.shape(opg_estimate))
+
+            # with tf.GradientTape(watch_accessed_variables=False) as tape:
+            #     tape.watch(parameters_trafo)
+
+            #     # loss_terms = self.parameter_loss_function(
+            #     #     parameters_trafo=parameters_trafo,
+            #     #     data_batch=data_batch,
+            #     #     loss_module=loss_module,
+            #     #     fit_paramater_list=fit_paramater_list,
+            #     #     minimize_in_trafo_space=minimize_in_trafo_space,
+            #     #     seed=seed,
+            #     #     parameter_tensor_name=parameter_tensor_name,
+            #     #     reduce_to_scalar=False)
+            #     loss_terms = loss_function(
+            #             parameters_trafo=parameters_trafo,
+            #             data_batch=data_batch)
+
+            #     # reshape loss terms and concatenate to shape [n_terms]
+            #     print('loss_terms', loss_terms)
+            #     loss_terms_concat = tf.concat(
+            #         values=[tf.reshape(term, [-1]) for term in loss_terms],
+            #         axis=0)
+
+            #     print('loss_terms_concat', loss_terms_concat)
+            #     tf.print('loss_terms_concat', loss_terms_concat)
+
+            # # shape: [n_terms, n_params]
+            # grad = tape.gradient(loss_terms_concat, parameters_trafo)
+            # print('grad before', grad)
+
+            # tf.print('grad back', grad)
+            # tf.print('grad forward', kernel_fprop)
+
+            # # shape: [n_terms, n_params, 1]
+            # grad = tf.expand_dims(grad, axis=-1)
+            # print('grad after', grad)
+
+            # # shape: [n_terms, n_params, n_params]
+            # opg_estimate = tf.linalg.matmul(grad, grad, transpose_b=True)
+            # print('opg_estimate', opg_estimate)
+            # tf.print('opg_estimate shape', opg_estimate.get_shape())
+
+            return tf.reduce_sum(opg_estimate, axis=0)
+
+        return opg_estimate_function
 
     def get_hessian_function(self, loss_module, input_signature,
                              fit_paramater_list,
@@ -870,6 +1041,15 @@ class SourceManager(BaseModelManager):
                 parameter_tensor_name=parameter_tensor_name,
             )
 
+            opg_estimate_function = self.get_opg_estimate_function(
+                input_signature=(param_signature, test_dataset.element_spec),
+                loss_module=loss_module,
+                fit_paramater_list=fit_paramater_list,
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                seed=reco_config['seed'],
+                parameter_tensor_name=parameter_tensor_name,
+            )
+
         # -----------------------------------
         # Build Angular Uncertainty Estimator
         # -----------------------------------
@@ -971,6 +1151,8 @@ class SourceManager(BaseModelManager):
         loss_seed_list = []
         std_devs = []
         std_devs_fit = []
+        std_devs_sandwich = []
+        std_devs_sandwich2 = []
         cov_zen_azi_list = []
         cov_fit_zen_azi_list = []
 
@@ -1023,18 +1205,69 @@ class SourceManager(BaseModelManager):
                 hessian = hessian_function(
                     parameters_trafo=result,
                     data_batch=data_batch).numpy().astype('float64')
+
+                opg_estimate = opg_estimate_function(
+                    parameters_trafo=result,
+                    data_batch=data_batch).numpy().astype('float64')
+
+                # get gradient at reco best fit
+                gradient_vec = loss_and_gradients_function(
+                    parameters_trafo=result,
+                    data_batch=data_batch)[1].numpy().astype('float64')
+
+                # make sure we only have one event in batch and choose first
+                # event
+                assert len(gradient_vec) == 1
+                gradient_vec = gradient_vec[0]
+
+                # expand to matrix shape (num_params, 1)
+                gradient_vec = np.expand_dims(gradient_vec, axis=-1)
+
+                var_matrix = np.matmul(gradient_vec, gradient_vec.T)
                 cov = np.linalg.inv(hessian)
+                # cov_sandwich = np.matmul(np.matmul(cov, var_matrix), cov)
+                cov_sandwich = np.matmul(np.matmul(cov, opg_estimate), cov)
+                cov_sandwich2 = np.matmul(np.matmul(
+                    result_obj.hess_inv, opg_estimate), result_obj.hess_inv)
+                print('gradient_vec', gradient_vec)
+                print('result_obj.jac', result_obj.jac)
+                print('var_matrix', var_matrix)
+                print('opg_estimate', opg_estimate)
 
                 if reco_config['minimize_in_trafo_space']:
                     cov = self.model.data_trafo.inverse_transform_cov(
                         cov_trafo=cov, tensor_name=parameter_tensor_name)
+
+                    cov_sandwich = self.model.data_trafo.inverse_transform_cov(
+                        cov_trafo=cov_sandwich,
+                        tensor_name=parameter_tensor_name
+                    )
+                    cov_sandwich2 = self.model.data_trafo.inverse_transform_cov(
+                        cov_trafo=cov_sandwich2,
+                        tensor_name=parameter_tensor_name
+                    )
+                    var_matrix = self.model.data_trafo.inverse_transform_cov(
+                        cov_trafo=var_matrix,
+                        tensor_name=parameter_tensor_name
+                    )
+                    opg_estimate = self.model.data_trafo.inverse_transform_cov(
+                        cov_trafo=opg_estimate,
+                        tensor_name=parameter_tensor_name
+                    )
+                    # cov_sandwich2 = np.matmul(np.matmul(cov, var_matrix), cov)
+                    # cov_sandwich2 = np.matmul(np.matmul(cov, opg_estimate), cov)
 
                     if hasattr(result_obj, 'hess_inv'):
                         cov_min = self.model.data_trafo.inverse_transform_cov(
                             cov_trafo=result_obj.hess_inv,
                             tensor_name=parameter_tensor_name,
                         )
+                        # cov_sandwich2 = np.matmul(np.matmul(cov, cov_min), cov)
                         print('Covariance:', np.sqrt(np.diag(cov)))
+                        print('Cov. sandwich:', np.sqrt(np.diag(cov_sandwich)))
+                        print('Cov. sandwich2:', np.sqrt(np.diag(cov_sandwich2)))
+                        print('variance:', np.sqrt(np.diag(var_matrix)))
+                        print('opg_estimate:', np.sqrt(np.diag(opg_estimate)))
                         print('Covariance res', np.sqrt(np.diag(cov_min)))
 
                 # save correlation between zenith and azimuth
@@ -1044,6 +1277,8 @@ class SourceManager(BaseModelManager):
                 cov_zen_azi_list.append(cov[zen_index, azi_index])
                 cov_fit_zen_azi_list.append(cov_min[zen_index, azi_index])
 
+                std_devs_sandwich.append(np.sqrt(np.diag(cov_sandwich)))
+                std_devs_sandwich2.append(np.sqrt(np.diag(cov_sandwich2)))
                 std_devs.append(np.sqrt(np.diag(cov)))
                 std_devs_fit.append(np.sqrt(np.diag(cov_min)))
 
@@ -1386,6 +1621,8 @@ class SourceManager(BaseModelManager):
 
         std_devs_fit = np.stack(std_devs_fit, axis=0)
         std_devs = np.stack(std_devs, axis=0)
+        std_devs_sandwich = np.stack(std_devs_sandwich, axis=0)
+        std_devs_sandwich2 = np.stack(std_devs_sandwich2, axis=0)
 
         # ----------------
         # create dataframe
@@ -1400,7 +1637,10 @@ class SourceManager(BaseModelManager):
         if calculate_covariance_matrix:
             for index, param_name in enumerate(self.model.parameter_names):
                 for name, unc in (['_unc', std_devs],
-                                  ['_unc_fit', std_devs_fit]):
+                                  ['_unc_fit', std_devs_fit],
+                                  ['_unc_sandwhich', std_devs_sandwich],
+                                  ['_unc_sandwhich2', std_devs_sandwich2],
+                                  ):
                     df_reco[param_name + name] = unc[:, index]
 
             # save correlation between zenith and azimuth
