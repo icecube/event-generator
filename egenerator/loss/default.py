@@ -94,7 +94,7 @@ class DefaultLossModule(BaseComponent):
         return configuration, {}, {}
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters'):
+                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -127,16 +127,31 @@ class DefaultLossModule(BaseComponent):
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
             This option is ignored here and has no effect.
+        reduce_to_scalar : bool, optional
+            If True, the individual terms of the log likelihood loss will be
+            reduced (aggregated) to a scalar loss.
+            If False, a list of tensors will be returned that contain the terms
+            of the log likelihood. Note that each of the returend tensors may
+            have a different shape.
 
         Returns
         -------
-        tf.Tensor
-            Scalar loss
-            Shape: []
+        tf.Tensor or list of tf.Tensor
+            if `reduce_to_scalar` is True:
+                Scalar loss
+                Shape: []
+            else:
+                List of tensors defining the terms of the log likelihood
         """
-        return self.loss_function(data_batch_dict=data_batch_dict,
-                                  result_tensors=result_tensors,
-                                  tensors=tensors)
+        loss_terms = self.loss_function(data_batch_dict=data_batch_dict,
+                                        result_tensors=result_tensors,
+                                        tensors=tensors)
+
+        if reduce_to_scalar:
+            return tf.math.accumulate_n([tf.reduce_sum(loss_term)
+                                         for loss_term in loss_terms])
+        else:
+            return loss_terms
 
     def log_faculty(self, x):
         """Get continous log faculty approximation via gamma distribution
@@ -189,9 +204,9 @@ class DefaultLossModule(BaseComponent):
 
         Returns
         -------
-        tf.tensor
+        List of tf.tensor
             Poisson Likelihood.
-            Shape: []
+            List of tensors defining the terms of the log likelihood
 
         Raises
         ------
@@ -250,12 +265,7 @@ class DefaultLossModule(BaseComponent):
         llh_event = event_charges_pred - event_charges_true * tf.math.log(
                                                     event_charges_pred + eps)
 
-        # calculate sum over a whole batch of events
-        total_llh_poisson = tf.reduce_sum(llh_poisson)
-        total_time_log_likelihood = tf.reduce_sum(time_log_likelihood)
-        total_llh_event = tf.reduce_sum(llh_event)
-
-        loss = total_llh_poisson + total_time_log_likelihood + total_llh_event
+        loss_terms = [llh_poisson, time_log_likelihood, llh_event]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
@@ -264,9 +274,10 @@ class DefaultLossModule(BaseComponent):
             norm_pulses = tf.reduce_sum(self.log_faculty(pulse_charges))
             norm_doms = tf.reduce_sum(self.log_faculty(dom_charges_true))
             norm_events = tf.reduce_sum(self.log_faculty(event_charges_true))
-            loss += norm_pulses + norm_doms + norm_events
+            norm = norm_pulses + norm_doms + norm_events
+            loss_terms.append(norm)
 
-        return loss
+        return loss_terms
 
     def unbinned_pulse_time_llh(self, data_batch_dict,
                                 result_tensors, tensors):
@@ -304,9 +315,9 @@ class DefaultLossModule(BaseComponent):
 
         Returns
         -------
-        tf.tensor
+        List of tf.tensor
             Poisson Likelihood.
-            Shape: []
+            List of tensors defining the terms of the log likelihood
 
         Raises
         ------
@@ -336,16 +347,15 @@ class DefaultLossModule(BaseComponent):
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
         time_loss = -pulse_charges * pulse_log_pdf_values
 
-        # calculate sum over a whole batch of events
-        total_time_loss = tf.reduce_sum(time_loss)
+        loss_terms = [time_loss]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            total_time_loss += tf.reduce_sum(self.log_faculty(pulse_charges))
+            loss_terms.append(tf.reduce_sum(self.log_faculty(pulse_charges)))
 
-        return total_time_loss
+        return loss_terms
 
     def unbinned_pulse_and_dom_charge_pdf(self, data_batch_dict,
                                           result_tensors, tensors):
@@ -390,9 +400,9 @@ class DefaultLossModule(BaseComponent):
 
         Returns
         -------
-        tf.tensor
+        List of tf.tensor
             Poisson Likelihood.
-            Shape: []
+            List of tensors defining the terms of the log likelihood
 
         Raises
         ------
@@ -441,11 +451,7 @@ class DefaultLossModule(BaseComponent):
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
         time_loss = -pulse_charges * pulse_log_pdf_values
 
-        # calculate sum over a whole batch of events
-        total_charge_loss = tf.reduce_sum(-llh_charge)
-        total_time_loss = tf.reduce_sum(time_loss)
-
-        loss = total_charge_loss + total_time_loss
+        loss_terms = [-llh_charge, time_loss]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
@@ -453,9 +459,9 @@ class DefaultLossModule(BaseComponent):
         if self.configuration.config['config']['add_normalization_term']:
             norm_pulses = tf.reduce_sum(self.log_faculty(pulse_charges))
             norm_doms = tf.reduce_sum(self.log_faculty(hits_true))
-            loss += norm_pulses + norm_doms
+            loss_terms.append(norm_pulses + norm_doms)
 
-        return loss
+        return loss_terms
 
     def unbinned_charge_quantile_pdf(self, data_batch_dict, result_tensors,
                                      tensors):
@@ -500,9 +506,9 @@ class DefaultLossModule(BaseComponent):
 
         Returns
         -------
-        tf.tensor
+        List of tf.tensor
             Quantile PDF Likelihood.
-            Shape: []
+            List of tensors defining the terms of the log likelihood
         """
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
@@ -556,8 +562,7 @@ class DefaultLossModule(BaseComponent):
                     time_loss
                 )
 
-        # calculate sum over a whole batch of events
-        total_time_loss = tf.reduce_sum(time_loss)
+        loss_terms = [time_loss]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
@@ -567,7 +572,7 @@ class DefaultLossModule(BaseComponent):
             # mixture model
             pass
 
-        return total_time_loss
+        return loss_terms
 
     def dom_and_event_charge_pdf(self, data_batch_dict, result_tensors,
                                  tensors):
@@ -612,9 +617,9 @@ class DefaultLossModule(BaseComponent):
 
         Returns
         -------
-        tf.tensor
+        List of tf.tensor
             Charge PDF Likelihood.
-            Shape: []
+            List of tensors defining the terms of the log likelihood
         """
         eps = 1e-7
         dtype = getattr(
@@ -658,11 +663,7 @@ class DefaultLossModule(BaseComponent):
             sigma=event_charges_unc,
         )
 
-        # calculate sum over a whole batch of events
-        total_charge_loss = tf.reduce_sum(-llh_charge)
-        total_event_loss = tf.reduce_sum(-llh_event)
-
-        loss = total_charge_loss + total_event_loss
+        loss_terms = [-llh_charge, -llh_event]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
@@ -671,4 +672,4 @@ class DefaultLossModule(BaseComponent):
             # total event charge is properly normalized due to the used gauss
             pass
 
-        return loss
+        return loss_terms

@@ -79,7 +79,7 @@ class MultiLossModule(BaseComponent):
         return configuration, {}, dependent_sub_components
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters'):
+                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -111,29 +111,42 @@ class MultiLossModule(BaseComponent):
             The model object used to calculate the result tensors.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
+        reduce_to_scalar : bool, optional
+            If True, the individual terms of the log likelihood loss will be
+            reduced (aggregated) to a scalar loss.
+            If False, a list of tensors will be returned that contain the terms
+            of the log likelihood. Note that each of the returend tensors may
+            have a different shape.
 
         Returns
         -------
-        tf.Tensor
-            Scalar loss
-            Shape: []
+        tf.Tensor or list of tf.Tensor
+            if `reduce_to_scalar` is True:
+                Scalar loss
+                Shape: []
+            else:
+                List of tensors defining the terms of the log likelihood
         """
+        loss_terms = []
         loss = None
         for loss_module in self.sub_components.values():
-            if loss is None:
-                loss = loss_module.get_loss(
-                    data_batch_dict=data_batch_dict,
-                    result_tensors=result_tensors,
-                    tensors=tensors,
-                    model=model,
-                    parameter_tensor_name=parameter_tensor_name,
-                )
+            loss_i = loss_module.get_loss(
+                data_batch_dict=data_batch_dict,
+                result_tensors=result_tensors,
+                tensors=tensors,
+                model=model,
+                parameter_tensor_name=parameter_tensor_name,
+                reduce_to_scalar=reduce_to_scalar,
+            )
+            if reduce_to_scalar:
+                if loss is None:
+                    loss = loss_i
+                else:
+                    loss += loss_i
             else:
-                loss += loss_module.get_loss(
-                    data_batch_dict=data_batch_dict,
-                    result_tensors=result_tensors,
-                    tensors=tensors,
-                    model=model,
-                    parameter_tensor_name=parameter_tensor_name,
-                )
-        return loss
+                loss_terms.extend(loss_i)
+
+        if reduce_to_scalar:
+            return loss
+        else:
+            return loss_terms

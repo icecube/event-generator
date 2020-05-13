@@ -167,7 +167,7 @@ class SnowstormPriorLossModule(BaseComponent):
         return loss
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters'):
+                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -199,27 +199,33 @@ class SnowstormPriorLossModule(BaseComponent):
             The model object used to calculate the result tensors.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
+        reduce_to_scalar : bool, optional
+            If True, the individual terms of the log likelihood loss will be
+            reduced (aggregated) to a scalar loss.
+            If False, a list of tensors will be returned that contain the terms
+            of the log likelihood. Note that each of the returend tensors may
+            have a different shape.
 
         Returns
         -------
-        tf.Tensor
-            Scalar loss
-            Shape: []
+        tf.Tensor or list of tf.Tensor
+            if `reduce_to_scalar` is True:
+                Scalar loss
+                Shape: []
+            else:
+                List of tensors defining the terms of the log likelihood
         """
 
         # get parameters
         parameters = model.add_parameter_indexing(
             data_batch_dict[parameter_tensor_name])
 
-        event_loss = None
+        loss_terms = []
 
         # compute loss for uniform priors
         for name, bounds in self.untracked_data['uniform_parameters'].items():
             values = parameters.params[name]
-            if event_loss is None:
-                event_loss = self.uniform_prior_loss(values, *bounds)
-            else:
-                event_loss += self.uniform_prior_loss(values, *bounds)
+            loss_terms.append(self.uniform_prior_loss(values, *bounds))
 
         # compute loss for Fourier modes
         num_sigmas = len(self.untracked_data['sigmas'])
@@ -242,6 +248,10 @@ class SnowstormPriorLossModule(BaseComponent):
 
             # we will use the negative log likelihood as loss
             fourier_loss = -tf.math.log(fourier_pdf)
-            event_loss += tf.reduce_sum(fourier_loss, axis=1)
+            loss_terms.append(fourier_loss)
 
-        return tf.reduce_sum(event_loss)
+        if reduce_to_scalar:
+            return tf.math.accumulate_n([tf.reduce_sum(loss_term)
+                                         for loss_term in loss_terms])
+        else:
+            return loss_terms
