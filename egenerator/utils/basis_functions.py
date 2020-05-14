@@ -22,6 +22,26 @@ def tf_gauss(x, mu, sigma):
     return tf.exp(-0.5*((x - mu) / sigma)**2) / (2*np.pi*sigma**2)**0.5
 
 
+def gauss(x, mu, sigma):
+    """Gaussian PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+
+    Returns
+    -------
+    tf.Tensor
+        The Gaussian PDF evaluated at x
+    """
+    return np.exp(-0.5*((x - mu) / sigma)**2) / (2*np.pi*sigma**2)**0.5
+
+
 def tf_log_gauss(x, mu, sigma):
     """Log Gaussian PDF
 
@@ -41,6 +61,27 @@ def tf_log_gauss(x, mu, sigma):
     """
     norm = np.log(np.sqrt(2*np.pi))
     return -0.5*((x - mu) / sigma)**2 - tf.math.log(sigma) - norm
+
+
+def log_gauss(x, mu, sigma):
+    """Log Gaussian PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+
+    Returns
+    -------
+    tf.Tensor
+        The Gaussian PDF evaluated at x
+    """
+    norm = np.log(np.sqrt(2*np.pi))
+    return -0.5*((x - mu) / sigma)**2 - np.log(sigma) - norm
 
 
 def tf_asymmetric_gauss(x, mu, sigma, r):
@@ -66,6 +107,33 @@ def tf_asymmetric_gauss(x, mu, sigma, r):
     exp = tf.where(x < mu,
                    tf.exp(-0.5*((x - mu) / sigma)**2),
                    tf.exp(-0.5*((x - mu) / (sigma*r))**2),
+                   )
+    return norm * exp
+
+
+def asymmetric_gauss(x, mu, sigma, r):
+    """Asymmetric Gaussian PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+    r : tf.Tensor
+        The asymmetry of the Gaussian.
+
+    Returns
+    -------
+    tf.Tensor
+        The asymmetric Gaussian PDF evaluated at x
+    """
+    norm = 2. / (np.sqrt(2*np.pi*sigma**2) * (r+1))
+    exp = np.where(x < mu,
+                   np.exp(-0.5*((x - mu) / sigma)**2),
+                   np.exp(-0.5*((x - mu) / (sigma*r))**2),
                    )
     return norm * exp
 
