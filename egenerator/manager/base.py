@@ -29,10 +29,27 @@ class BaseModelManager(Model):
             return None
 
     @property
-    def model(self):
+    def data_trafo(self):
+        if self.models is not None:
+            return self.models[0].data_trafo
+        else:
+            return None
+
+    @property
+    def models(self):
+
         if self.sub_components is not None and \
-                'model' in self.sub_components:
-            return self.sub_components['model']
+                'models_0000' in self.sub_components:
+
+            # cache model list in untracked data
+            if 'models' not in self.untracked_data:
+                model_list = []
+                for key in sorted([k for k in self.sub_components.keys()
+                                   if 'models_' == k[:7]]):
+                    model_list.append(self.sub_components[key])
+                self._untracked_data['models'] = model_list
+
+            return self.untracked_data['models']
         else:
             return None
 
@@ -47,17 +64,19 @@ class BaseModelManager(Model):
         self._logger = logger or logging.getLogger(__name__)
         super(BaseModelManager, self).__init__(logger=self._logger)
 
-    def _configure(self, config, data_handler, model):
+    def _configure(self, config, data_handler, models):
         """Configure the ModelManager component instance.
 
         Parameters
         ----------
         config : dict
             Configuration of the ModelManager object.
-        data_handler : TYPE
-            Description
-        model : TYPE
-            Description
+        data_handler : DataHandler object
+            The data handler object.
+        models : List of Models
+            The list of model objects to use. An ensemble of models will be
+            created. All of the models must define the same hypothesis and use
+            the same data transformation object.
 
         Returns
         -------
@@ -92,13 +111,20 @@ class BaseModelManager(Model):
             when the component is saved and loaded.
             Return None if no dependent sub components exist.
         """
+
         sub_components = {
             'data_handler': data_handler,
-            'model': model,
         }
+
+        for i, m in enumerate(models):
+            sub_components['models_{:04d}'.format(i)] = m
 
         # check for compatibilities of sub components
         self._check_sub_component_compatibility(sub_components)
+
+        # check if all models define the same hypothesis and use the same
+        # data transformation object
+        self._check_model_ensemble_compatibility(models)
 
         # create configuration object
         configuration = Configuration(
@@ -106,6 +132,55 @@ class BaseModelManager(Model):
             settings=dict(config=config))
 
         return configuration, {}, sub_components
+
+    def _check_model_ensemble_compatibility(self, models):
+        """Check compatibility of models in an ensemble.
+
+        Models need to define the same hypothesis and ordering of parameter
+        names as well as use the same data transformation object
+        (values must all match exactly).
+
+        Parameters
+        ----------
+        models : list of Model objects
+            A list of model objects that define the model ensemble.
+        """
+
+        # get parameter names and data trafo object of the first model
+        parameter_names = models[0].parameter_names
+        data_trafo = models[0].data_trafo
+
+        # Now go through models and check if all define the same
+        # data transformation and parameters
+        for i, model in enumerate(models):
+
+            # check parameter names
+            if parameter_names != models[i].parameter_names:
+                msg = 'Parameter names of model {:04d} do not match: {} != {}'
+                raise ValueError(msg.format(
+                    i, models[i].parameter_names, parameter_names))
+
+            # check data trafo object
+            data_trafo_i = models[i].data_trafo
+            if not data_trafo.configuration.is_compatible(
+                    data_trafo_i.configuration):
+                msg = 'Data Trafo of model {:04d} is not compatible: {}, {}'
+                raise ValueError(msg.format(
+                    i, data_trafo_i.configuration, data_trafo.configuration))
+
+            # (The following are probably unnecessary, since it should already
+            #  be checked in the compatibility check.)
+            if set(data_trafo.data.keys()) != set(data_trafo_i.data.keys()):
+                msg = 'Data Trafo keys of model {:04d} do not match: {} != {}'
+                raise ValueError(msg.format(
+                    i, set(data_trafo_i.keys()), set(data_trafo.keys())))
+
+            for key in data_trafo.data.keys():
+                if np.any(data_trafo.data[key] != data_trafo_i.data[key]):
+                    msg = 'Data trafo key {} of model {:04d} does not match: '
+                    msg += '{} != {}'
+                    raise ValueError(msg.format(
+                        key, i, data_trafo.data[key], data_trafo_i.data[key]))
 
     def _check_sub_component_compatibility(self, sub_components):
         """Check compatibility of sub components.
@@ -126,20 +201,28 @@ class BaseModelManager(Model):
                 'model': model,
             }
         """
-        # check compatibility of data_handler configurations of
-        # data_trafo (model) and the data_handler component
-        model_config = sub_components['model'].configuration
-        data_trafo_config = Configuration(
-            **model_config.sub_component_configurations['data_trafo'])
-        data_handler_config = Configuration(
-            **data_trafo_config.sub_component_configurations['data_handler'])
+        for name, model in sub_components.items():
 
-        if not sub_components['data_handler'].configuration.is_compatible(
-                data_handler_config):
-            msg = 'Model and data handler are not compatible: {}, {}'
-            raise ValueError(msg.format(
-                    sub_components['data_handler'].configuration.dict,
-                    data_handler_config.dict))
+            # skip data handler sub component, since that is what we are
+            # checking compatiblity against
+            if name == 'data_handler':
+                continue
+
+            # check compatibility of data_handler configurations of
+            # data_trafo (model) and the data_handler component
+            model_config = model.configuration
+            trafo_config = Configuration(
+                **model_config.sub_component_configurations['data_trafo'])
+            data_handler_config = Configuration(
+                **trafo_config.sub_component_configurations['data_handler'])
+
+            if not sub_components['data_handler'].configuration.is_compatible(
+                    data_handler_config):
+                msg = 'Model {} and data handler are not compatible: {}, {}'
+                raise ValueError(msg.format(
+                        name,
+                        sub_components['data_handler'].configuration.dict,
+                        data_handler_config.dict))
 
     def _update_sub_components(self, names):
         """Update settings which are based on the modified sub component.
@@ -407,29 +490,36 @@ class BaseModelManager(Model):
         for i, name in enumerate(self.data_handler.tensors.names):
             data_batch_dict[name] = data_batch[i]
 
-        result_tensors = self.model.get_tensors(
-            data_batch_dict,
-            is_training=is_training,
-            parameter_tensor_name=parameter_tensor_name)
+        # get loss for each model
+        combined_loss = None
+        for i, model in enumerate(self.models):
+            result_tensors = model.get_tensors(
+                data_batch_dict,
+                is_training=is_training,
+                parameter_tensor_name=parameter_tensor_name)
 
-        loss_value = loss_module.get_loss(
-            data_batch_dict, result_tensors,
-            self.data_handler.tensors,
-            model=self.model,
-            parameter_tensor_name=parameter_tensor_name)
+            loss_value = loss_module.get_loss(
+                data_batch_dict, result_tensors,
+                self.data_handler.tensors,
+                model=model,
+                parameter_tensor_name=parameter_tensor_name)
 
-        reg_loss = self.regularization_loss(
-                                    variables=self.model.trainable_variables,
-                                    opt_config=opt_config)
+            reg_loss = self.regularization_loss(
+                                        variables=model.trainable_variables,
+                                        opt_config=opt_config)
 
-        combined_loss = loss_value + reg_loss
+            if combined_loss is None:
+                combined_loss = loss_value + reg_loss
+            else:
+                combined_loss += loss_value + reg_loss
 
-        # create summaries if a writer is provided
-        if step is not None:
-            tf.summary.scalar('loss', loss_value, step=step)
-            if (opt_config['l1_regularization'] > 0. or
-                    opt_config['l2_regularization'] > 0.):
-                tf.summary.scalar('reg_loss', reg_loss)
+            # create summaries if a writer is provided
+            if step is not None:
+                tf.summary.scalar('loss_{:04d}'.format(i),
+                                  loss_value, step=step)
+                if (opt_config['l1_regularization'] > 0. or
+                        opt_config['l2_regularization'] > 0.):
+                    tf.summary.scalar('reg_loss_{:04d}'.format(i), reg_loss)
 
         return combined_loss
 
@@ -463,7 +553,9 @@ class BaseModelManager(Model):
                                 is_training=True,
                                 parameter_tensor_name=parameter_tensor_name)
 
-        variables = self.model.trainable_variables
+        variables = []
+        for model in self.models:
+            variables.extend(model.trainable_variables)
         gradients = tape.gradient(combined_loss, variables)
 
         # remove nans in gradients and replace these with zeros
@@ -618,7 +710,8 @@ class BaseModelManager(Model):
             # --------------------------
 
             # increment step counter
-            self.model.step.assign_add(1)
+            for model in self.models:
+                model.step.assign_add(1)
 
             # get new batch of training data
             training_data_batch = next(train_dataset)

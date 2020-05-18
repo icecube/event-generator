@@ -35,14 +35,6 @@ def main(config_files):
     setup_manager = SetupManager(config_files)
     config = setup_manager.get_config()
 
-    # # Check if path already exists
-    # if os.path.exists(config['data_trafo_settings']['model_dir']):
-    #     if not click.confirm(
-    #             'File already exists at destination. Overwrite {!r}?'.format(
-    #                 config['data_trafo_settings']['model_dir']),
-    #             default=False):
-    #         raise ValueError('Aborting!')
-
     # ------------------
     # Create loss module
     # ------------------

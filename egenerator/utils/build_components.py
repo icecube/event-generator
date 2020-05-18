@@ -16,7 +16,41 @@ from egenerator.data.trafo import DataTransformer
 from egenerator.loss.multi_loss import MultiLossModule
 
 
+def build_data_handler(config):
+    """Build a data handler object
+
+    Parameters
+    ----------
+    config : dict
+        A dictionary containg the settings. Must at least contain the key
+        `data_handler_settings` which defines the data handler
+
+    Returns
+    -------
+    DataHandler object
+        The data handler object.
+    """
+    DataHandlerClass = misc.load_class('egenerator.data.handler.{}'.format(
+                    config['data_handler_settings']['data_handler']))
+    data_handler = DataHandlerClass()
+    data_handler.configure(config=config['data_handler_settings'])
+    return data_handler
+
+
 def build_loss_module(config):
+    """Build a loss module
+
+    Parameters
+    ----------
+    config : dict
+        A dictionary containg the settings. Must at least contain the key
+        `loss_module_settings` which defines the loss module.
+
+    Returns
+    -------
+    LossModule object
+        The loss module object.
+    """
     loss_module_settings = config['loss_module_settings']
 
     # If a dictionary is provided, then this is just a single loss module
@@ -25,7 +59,7 @@ def build_loss_module(config):
         loss_module = LossModuleClass()
         loss_module.configure(config=loss_module_settings['config'])
 
-    # A list of dictrionaries is provided which each define a loss module
+    # A list of dictionaries is provided which each define a loss module
     else:
         loss_modules = []
         for settings in loss_module_settings:
@@ -41,10 +75,74 @@ def build_loss_module(config):
     return loss_module
 
 
+def build_model(config, data_transformer):
+    """Build a Model object
+
+    Parameters
+    ----------
+    config : dict
+        A dictionary containg the settings. Must at least contain the key
+        `model_settings` which defines the model
+    data_transformer : DataTransformer object
+        The data transformer object to use for the model.
+
+    Returns
+    -------
+    Model object
+        The model object.
+
+    Raises
+    ------
+    ValueError
+        Description
+    """
+    model_settings = config['model_settings']
+
+    # check if base sources need to be built:
+    base_sources = {}
+    if 'multi_source_bases' in model_settings:
+
+        multi_source_bases = model_settings['multi_source_bases']
+
+        # loop through defined multi-source bases and create them
+        for name, settings in multi_source_bases.items():
+
+            # create base source
+            BaseSourceClass = misc.load_class(settings['model_class'])
+            base_source = BaseSourceClass()
+
+            # load model
+            if ('load_dir' in settings and settings['load_dir'] is not None):
+                base_source.load(settings['load_dir'])
+
+            # configure model if we are not loading it new
+            else:
+                if not allow_rebuild_base_sources:
+                    msg = 'Model is not allowed to be rebuild! To change this '
+                    msg += "setting, set 'allow_rebuild_base_sources' to True."
+                    raise ValueError(msg)
+
+                base_source.configure(config=settings['config'],
+                                      data_trafo=data_transformer)
+
+            base_sources[name] = base_source
+
+    ModelClass = misc.load_class(model_settings['model_class'])
+    model = ModelClass()
+
+    arguments = dict(config=model_settings['config'],
+                     data_trafo=data_transformer)
+    if base_sources != {}:
+        arguments['base_sources'] = base_sources
+
+    model.configure(**arguments)
+    return model
+
+
 def build_manager(config, restore,
                   data_handler=None,
                   data_transformer=None,
-                  model=None,
+                  models=None,
                   modified_sub_components={},
                   allow_rebuild_base_sources=False):
     """Build the Manager Component.
@@ -59,8 +157,10 @@ def build_manager(config, restore,
         A data handler object to use.
     data_transformer : DataTransformer object, optional
         A data transformer object to use.
-    model : Model object, optional
-        A model object to use.
+    models : List of Model objects, optional
+        The model objects to use. If more than one model object is provided,
+        an ensemble of models is created. Models must be compatible, define
+        the same hypothesis and use the same data trafo model.
     modified_sub_components : dict, optional
         A dictionary of modified sub-components that will be passed on to
         ModelManager load method.
@@ -98,11 +198,7 @@ def build_manager(config, restore,
         # Create Data Handler object
         # --------------------------
         if data_handler is None:
-            DataHandlerClass = misc.load_class(
-                'egenerator.data.handler.{}'.format(
-                            config['data_handler_settings']['data_handler']))
-            data_handler = DataHandlerClass()
-            data_handler.configure(config=config['data_handler_settings'])
+            data_handler = build_data_handler(config)
 
         # --------------------------
         # create and load TrafoModel
@@ -113,55 +209,15 @@ def build_manager(config, restore,
         # -----------------------
         # create and Model object
         # -----------------------
-        if model is None:
-            model_settings = config['model_settings']
-
-            # check if base sources need to be built:
-            base_sources = {}
-            if 'multi_source_bases' in model_settings:
-
-                multi_source_bases = model_settings['multi_source_bases']
-
-                # loop through defined multi-source bases and create them
-                for name, settings in multi_source_bases.items():
-
-                    # create base source
-                    BaseSourceClass = misc.load_class(settings['model_class'])
-                    base_source = BaseSourceClass()
-
-                    # load model
-                    if ('load_dir' in settings and
-                            settings['load_dir'] is not None):
-                        base_source.load(settings['load_dir'])
-
-                    # configure model if we are not loading it new
-                    else:
-                        if not allow_rebuild_base_sources:
-                            msg = 'Model is not allowed to be rebuild! '
-                            msg += 'To change this setting, set '
-                            msg += "'allow_rebuild_base_sources' to True."
-                            raise ValueError(msg)
-
-                        base_source.configure(config=settings['config'],
-                                              data_trafo=data_transformer)
-
-                    base_sources[name] = base_source
-
-            ModelClass = misc.load_class(model_settings['model_class'])
-            model = ModelClass()
-
-            arguments = dict(config=model_settings['config'],
-                             data_trafo=data_transformer)
-            if base_sources != {}:
-                arguments['base_sources'] = base_sources
-
-            model.configure(**arguments)
+        if models is None:
+            model = build_model(config, data_transformer=data_transformer)
+            models = [model]
 
         # -----------------------
         # configure model manager
         # -----------------------
         manager.configure(config=manager_config['config'],
                           data_handler=data_handler,
-                          model=model)
+                          models=models)
 
-    return manager, model, data_handler, data_transformer
+    return manager, manager.models, manager.data_handler, data_transformer

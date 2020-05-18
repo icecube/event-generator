@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import os
+from copy import deepcopy
 import shutil
 import logging
 import click
@@ -12,28 +13,46 @@ from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
 from egenerator.utils.build_components import build_loss_module
+from egenerator.utils.build_components import build_model
 from egenerator.data.trafo import DataTransformer
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
 @click.command()
 @click.argument('config_files', type=click.Path(exists=True), nargs=-1)
-def main(config_files):
-    """Script to reconstruct test data.
+@click.option('-r', '--reco_config_file', default=None, type=str,
+              help='The reconstruction config file to use. If None, '
+                   'then the first provided config file will be used.')
+def main(config_files, reco_config_file=None):
+    """Script to train model.
 
     Parameters
     ----------
     config_files : list of strings
         List of yaml config files.
+        Each config file defines a model. If more than one config file is
+        passed, an ensemble of models will be used.
+    reco_config_file : str, optional
+        Name of config file which defines the reconstruction settings.
+
+    Raises
+    ------
+    ValueError
+        Description
     """
+
+    if reco_config_file is None:
+        reco_config_file = [config_files[0]]
+    else:
+        reco_config_file = [reco_config_file]
 
     # limit GPU usage
     gpu_devices = tf.config.experimental.list_physical_devices('GPU')
     for device in gpu_devices:
         tf.config.experimental.set_memory_growth(device, True)
 
-    # read in and combine config files and set up
-    setup_manager = SetupManager(config_files)
+    # read in reconstruction config file
+    setup_manager = SetupManager(reco_config_file)
     config = setup_manager.get_config()
 
     # ------------------
@@ -107,11 +126,25 @@ def main(config_files):
                 'missing_value': reco_config['seed_missing_value'],
             }
 
+    # load models from config files
+    models = []
+    for config_file in config_files:
+
+        # load manager objects and extract models and a data_handler
+        model_manger,  _, data_handler, _ = build_manager(
+            SetupManager([config_file]).get_config(),
+            restore=True,
+            modified_sub_components=deepcopy(modified_sub_components),
+            allow_rebuild_base_sources=False,
+        )
+        models.extend(model_manger.models)
+
     # build manager object
-    manager, model, data_handler, data_transformer = build_manager(
+    manager, models, data_handler, data_transformer = build_manager(
                             config,
-                            restore=manager_config['restore_model'],
-                            modified_sub_components=modified_sub_components,
+                            restore=False,
+                            models=models,
+                            data_handler=data_handler,
                             allow_rebuild_base_sources=False)
 
     # --------------------

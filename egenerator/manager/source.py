@@ -91,7 +91,7 @@ class SourceManager(BaseModelManager):
 
         # transform seed data if necessary
         if minimize_in_trafo_space:
-            seed_trafo = self.model.data_trafo.transform(
+            seed_trafo = self.data_trafo.transform(
                 data=data_batch[seed_index], tensor_name=parameter_tensor_name)
         else:
             seed_trafo = data_batch[seed_index]
@@ -113,25 +113,35 @@ class SourceManager(BaseModelManager):
 
         # unnormalize if minimization is perfomed in trafo space
         if minimize_in_trafo_space:
-            parameters = self.model.data_trafo.inverse_transform(
+            parameters = self.data_trafo.inverse_transform(
                 data=parameters_trafo, tensor_name=parameter_tensor_name)
         else:
             parameters = parameters_trafo
 
         data_batch_dict[parameter_tensor_name] = parameters
 
-        result_tensors = self.model.get_tensors(
+        loss = None
+        for model in self.models:
+            result_tensors = model.get_tensors(
                                 data_batch_dict,
                                 is_training=False,
                                 parameter_tensor_name=parameter_tensor_name)
 
-        loss = loss_module.get_loss(
-            data_batch_dict,
-            result_tensors,
-            self.data_handler.tensors,
-            model=self.model,
-            parameter_tensor_name=parameter_tensor_name,
-            reduce_to_scalar=reduce_to_scalar)
+            loss_i = loss_module.get_loss(
+                    data_batch_dict,
+                    result_tensors,
+                    self.data_handler.tensors,
+                    model=model,
+                    parameter_tensor_name=parameter_tensor_name,
+                    reduce_to_scalar=reduce_to_scalar)
+            if loss is None:
+                loss = loss_i
+            else:
+                if reduce_to_scalar:
+                    loss += loss_i
+                else:
+                    for index in range(len(loss_i)):
+                        loss[index] += loss_i[index]
         return loss
 
     def get_parameter_loss_function(self, loss_module, input_signature,
@@ -525,7 +535,7 @@ class SourceManager(BaseModelManager):
         seed_index = self.data_handler.tensors.get_index(seed)
         seed_tensor = data_batch[seed_index]
         if minimize_in_trafo_space:
-            seed_tensor = self.model.data_trafo.transform(
+            seed_tensor = self.data_trafo.transform(
                 data=seed_tensor, tensor_name=parameter_tensor_name)
 
         # get seed parameters
@@ -614,7 +624,7 @@ class SourceManager(BaseModelManager):
         seed_index = self.data_handler.tensors.get_index(seed)
         seed_tensor = data_batch[seed_index]
         if minimize_in_trafo_space:
-            seed_tensor = self.model.data_trafo.transform(
+            seed_tensor = self.data_trafo.transform(
                 data=seed_tensor, tensor_name=parameter_tensor_name)
 
         # get seed parameters
@@ -747,8 +757,7 @@ class SourceManager(BaseModelManager):
                     if i != 5:
                         raise NotImplementedError()
                     step_size[0][i] = 0.01
-            step_size /= self.model.data_trafo.data[
-                                        parameter_tensor_name+'_std']
+            step_size /= self.data_trafo.data[parameter_tensor_name+'_std']
 
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
         step_size = tf.reshape(step_size, [1, len(fit_paramater_list)])
@@ -808,7 +817,7 @@ class SourceManager(BaseModelManager):
             samples = tf.reshape(samples,
                                  [num_chains*num_results, num_params])
             if minimize_in_trafo_space:
-                samples = self.model.data_trafo.inverse_transform(
+                samples = self.data_trafo.inverse_transform(
                     data=samples, tensor_name=parameter_tensor_name)
 
             samples = tf.reshape(samples,
@@ -864,7 +873,7 @@ class SourceManager(BaseModelManager):
 
         # transform back if minimization was performed in trafo space
         if minimize_in_trafo_space:
-            cascade_reco_batch = self.model.data_trafo.inverse_transform(
+            cascade_reco_batch = self.data_trafo.inverse_transform(
                 data=cascade_reco_batch,
                 tensor_name=parameter_tensor_name)
         return cascade_reco_batch
@@ -908,11 +917,11 @@ class SourceManager(BaseModelManager):
         assert len(truth_trafo) == 1, 'Expects one event at a time'
         assert len(covariance_names) == len(covariance_list)
 
-        truth = self.model.data_trafo.inverse_transform(
+        truth = self.data_trafo.inverse_transform(
             data=truth_trafo,
             tensor_name=parameter_tensor_name,
         )
-        result = self.model.data_trafo.inverse_transform(
+        result = self.data_trafo.inverse_transform(
             data=result_trafo,
             tensor_name=parameter_tensor_name,
         )
@@ -924,7 +933,7 @@ class SourceManager(BaseModelManager):
         }
 
         # now go through each of the parameters and make the scan
-        for param_i, parameter in enumerate(self.model.parameter_names):
+        for param_i, parameter in enumerate(self.models[0].parameter_names):
 
             # make llh scan
             diff = range_dict.get(parameter, 1.0)
@@ -952,7 +961,7 @@ class SourceManager(BaseModelManager):
                 )
 
                 # undo transformation in values
-                param_tensor = self.model.data_trafo.inverse_transform(
+                param_tensor = self.data_trafo.inverse_transform(
                                 data=param_tensor_trafo,
                                 tensor_name=parameter_tensor_name)
                 values.append(param_tensor[0, param_i])
@@ -1036,7 +1045,7 @@ class SourceManager(BaseModelManager):
         self.assert_configured(True)
 
         # print out number of model variables
-        num_vars, num_total_vars = self.model.num_variables
+        num_vars, num_total_vars = self.models[0].num_variables
         msg = '\nNumber of Model Variables:\n'
         msg += '\tFree: {}\n'
         msg += '\tTotal: {}'
@@ -1048,9 +1057,9 @@ class SourceManager(BaseModelManager):
 
         # get a list of parameters to fit
         fit_paramater_list = [reco_config['minimize_parameter_default_value']
-                              for i in range(self.model.num_parameters)]
+                              for i in range(self.models[0].num_parameters)]
         for name, value in reco_config['minimize_parameter_dict'].items():
-            fit_paramater_list[self.model.get_index(name)] = value
+            fit_paramater_list[self.models[0].get_index(name)] = value
 
         # create directory if needed
         directory = os.path.dirname(reco_config['reco_output_file'])
@@ -1154,8 +1163,8 @@ class SourceManager(BaseModelManager):
         if estimate_angular_uncertainty:
 
             unc_fit_paramater_list = list(fit_paramater_list)
-            unc_fit_paramater_list[self.model.get_index('zenith')] = False
-            unc_fit_paramater_list[self.model.get_index('azimuth')] = False
+            unc_fit_paramater_list[self.models[0].get_index('zenith')] = False
+            unc_fit_paramater_list[self.models[0].get_index('azimuth')] = False
 
             unc_param_signature = tf.TensorSpec(
                 shape=[None, np.sum(unc_fit_paramater_list, dtype=int)],
@@ -1295,7 +1304,7 @@ class SourceManager(BaseModelManager):
             cascade_seed_batch = data_batch[seed_index].numpy()
 
             if reco_config['minimize_in_trafo_space']:
-                cascade_seed_batch_trafo = self.model.data_trafo.transform(
+                cascade_seed_batch_trafo = self.data_trafo.transform(
                             data=data_batch[seed_index],
                             tensor_name=parameter_tensor_name).numpy()
             else:
@@ -1323,20 +1332,20 @@ class SourceManager(BaseModelManager):
                         result_obj.hess_inv)
 
                 if reco_config['minimize_in_trafo_space']:
-                    cov = self.model.data_trafo.inverse_transform_cov(
+                    cov = self.data_trafo.inverse_transform_cov(
                         cov_trafo=cov, tensor_name=parameter_tensor_name)
 
-                    cov_sand = self.model.data_trafo.inverse_transform_cov(
+                    cov_sand = self.data_trafo.inverse_transform_cov(
                         cov_trafo=cov_sand,
                         tensor_name=parameter_tensor_name
                     )
-                    cov_sand_fit = self.model.data_trafo.inverse_transform_cov(
+                    cov_sand_fit = self.data_trafo.inverse_transform_cov(
                         cov_trafo=cov_sand_fit,
                         tensor_name=parameter_tensor_name
                     )
 
                     if hasattr(result_obj, 'hess_inv'):
-                        cov_min = self.model.data_trafo.inverse_transform_cov(
+                        cov_min = self.data_trafo.inverse_transform_cov(
                             cov_trafo=result_obj.hess_inv,
                             tensor_name=parameter_tensor_name,
                         )
@@ -1347,8 +1356,8 @@ class SourceManager(BaseModelManager):
                         print('Covariance res', np.sqrt(np.diag(cov_min)))
 
                 # save correlation between zenith and azimuth
-                zen_index = self.model.get_index('zenith')
-                azi_index = self.model.get_index('azimuth')
+                zen_index = self.models[0].get_index('zenith')
+                azi_index = self.models[0].get_index('azimuth')
 
                 cov_zen_azi_list.append(cov[zen_index, azi_index])
                 cov_fit_zen_azi_list.append(cov_min[zen_index, azi_index])
@@ -1372,7 +1381,7 @@ class SourceManager(BaseModelManager):
                     self.make_1d_llh_scans(
                         data_batch=data_batch,
                         result_trafo=result,
-                        truth_trafo=self.model.data_trafo.transform(
+                        truth_trafo=self.data_trafo.transform(
                             data=data_batch[param_index].numpy(),
                             tensor_name=parameter_tensor_name),
                         # covariance_list=[cov, cov_min, cov_sand, cov_sand_fit],
@@ -1394,12 +1403,12 @@ class SourceManager(BaseModelManager):
                 # specify a random number generator for reproducibility
                 random_service = np.random.RandomState(42)
 
-                zenith_index = self.model.get_index('zenith')
-                azimuth_index = self.model.get_index('azimuth')
+                zenith_index = self.models[0].get_index('zenith')
+                azimuth_index = self.models[0].get_index('azimuth')
 
                 # invert transformation of result if necessary
                 if minimize_in_trafo_space:
-                    result_inv = self.model.data_trafo.inverse_transform(
+                    result_inv = self.data_trafo.inverse_transform(
                             data=result,
                             tensor_name=parameter_tensor_name)
                 else:
@@ -1518,7 +1527,7 @@ class SourceManager(BaseModelManager):
                 df['delta_psi'] = delta_psi
 
                 param_counter = 0
-                for name in self.model.parameter_names:
+                for name in self.models[0].parameter_names:
                     if name == 'azimuth':
                         values = azi
                     elif name == 'zenith':
@@ -1541,7 +1550,7 @@ class SourceManager(BaseModelManager):
                 num_params = len(fit_paramater_list)
 
                 if minimize_in_trafo_space:
-                    result_inv = self.model.data_trafo.inverse_transform(
+                    result_inv = self.data_trafo.inverse_transform(
                             data=result,
                             tensor_name=parameter_tensor_name)
                 else:
@@ -1570,7 +1579,7 @@ class SourceManager(BaseModelManager):
                                                         dtype=param_dtype)
 
                 if minimize_in_trafo_space:
-                    initial_position = self.model.data_trafo.transform(
+                    initial_position = self.data_trafo.transform(
                                             data=initial_position,
                                             tensor_name=parameter_tensor_name)
 
@@ -1591,7 +1600,7 @@ class SourceManager(BaseModelManager):
                     steps = trace[2].numpy()
                     step_size = steps[0][0]
                     if minimize_in_trafo_space:
-                        step_size *= self.model.data_trafo.data[
+                        step_size *= self.data_trafo.data[
                                                 parameter_tensor_name+'_std']
 
                 num_accepted = np.sum(accepted)
@@ -1622,7 +1631,7 @@ class SourceManager(BaseModelManager):
                     # ---------------------
                     df = pd.DataFrame()
                     df['log_prob'] = sorted_log_prob_values
-                    for i, name in enumerate(self.model.parameter_names):
+                    for i, name in enumerate(self.models[0].parameter_names):
                         df['samples_{}'.format(name)] = sorted_samples[:, i]
 
                     mcmc_file = '{}_mcmc_{:08d}.hdf5'.format(
@@ -1637,7 +1646,7 @@ class SourceManager(BaseModelManager):
                     central_50p = sorted_samples[int(num_accepted*0.5):]
                     central_90p = sorted_samples[int(num_accepted*0.1):]
 
-                    for i, name in enumerate(self.model.parameter_names):
+                    for i, name in enumerate(self.models[0].parameter_names):
                         min_val_90 = min(central_90p[:, i])
                         max_val_90 = max(central_90p[:, i])
                         min_val_50 = min(central_50p[:, i])
@@ -1665,13 +1674,13 @@ class SourceManager(BaseModelManager):
 
                 data_batch_seed = list(data_batch)
                 data_batch_seed[param_index] = tf.reshape(
-                                cascade_seed, [-1, self.model.num_parameters])
+                            cascade_seed, [-1, self.models[0].num_parameters])
                 data_batch_seed = tuple(data_batch_seed)
 
                 data_batch_reco = list(data_batch)
                 data_batch_reco[param_index] = tf.reshape(tf.convert_to_tensor(
                                     cascade_reco, dtype=param_signature.dtype),
-                                [-1, self.model.num_parameters])
+                                [-1, self.models[0].num_parameters])
                 data_batch_reco = tuple(data_batch_reco)
 
                 loss_true = get_loss(data_batch).numpy()
@@ -1685,7 +1694,7 @@ class SourceManager(BaseModelManager):
                 msg += pattern.format('', loss_true, loss_seed, loss_reco,
                                       loss_true - loss_reco, 'Loss')
                 for index, (name, fit) in enumerate(zip(
-                            self.model.parameter_names, fit_paramater_list)):
+                        self.models[0].parameter_names, fit_paramater_list)):
                     msg += pattern.format(
                         str(fit),
                         cascade_true[index],
@@ -1723,14 +1732,14 @@ class SourceManager(BaseModelManager):
         # create dataframe
         # ----------------
         df_reco = pd.DataFrame()
-        for index, param_name in enumerate(self.model.parameter_names):
+        for index, param_name in enumerate(self.models[0].parameter_names):
             for name, params in (['', cascade_parameters_true],
                                  ['_reco', cascade_parameters_reco],
                                  ['_seed', cascade_parameters_seed]):
                 df_reco[param_name + name] = params[:, index]
 
         if calculate_covariance_matrix:
-            for index, param_name in enumerate(self.model.parameter_names):
+            for index, param_name in enumerate(self.models[0].parameter_names):
                 for name, unc in (['_unc', std_devs],
                                   ['_unc_fit', std_devs_fit],
                                   ['_unc_sandwhich', std_devs_sandwich],
