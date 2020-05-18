@@ -35,7 +35,7 @@ training_settings: {
 # Reconstruction settings
 #------------------------
 reconstruction_settings: {
-    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_snowstorm_cascade_no_fourier.hdf5',
+    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
 
     # define which tensor to use as parameter_tensor (default: x_parameters)
     'parameter_tensor_name': 'x_parameters',
