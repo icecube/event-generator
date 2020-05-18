@@ -1045,11 +1045,12 @@ class SourceManager(BaseModelManager):
         self.assert_configured(True)
 
         # print out number of model variables
-        num_vars, num_total_vars = self.models[0].num_variables
-        msg = '\nNumber of Model Variables:\n'
-        msg += '\tFree: {}\n'
-        msg += '\tTotal: {}'
-        print(msg.format(num_vars, num_total_vars))
+        for model in self.models:
+            num_vars, num_total_vars = model.num_variables
+            msg = '\nNumber of Model Variables:\n'
+            msg += '\tFree: {}\n'
+            msg += '\tTotal: {}'
+            print(msg.format(num_vars, num_total_vars))
 
         # get reconstruction config
         reco_config = config['reconstruction_settings']
