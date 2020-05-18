@@ -1713,10 +1713,11 @@ class SourceManager(BaseModelManager):
         cascade_parameters_seed = np.stack(cascade_parameters_seed, axis=0)
         cascade_parameters_reco = np.stack(cascade_parameters_reco, axis=0)
 
-        std_devs_fit = np.stack(std_devs_fit, axis=0)
-        std_devs = np.stack(std_devs, axis=0)
-        std_devs_sandwich = np.stack(std_devs_sandwich, axis=0)
-        std_devs_sandwich_fit = np.stack(std_devs_sandwich_fit, axis=0)
+        if calculate_covariance_matrix:
+            std_devs_fit = np.stack(std_devs_fit, axis=0)
+            std_devs = np.stack(std_devs, axis=0)
+            std_devs_sandwich = np.stack(std_devs_sandwich, axis=0)
+            std_devs_sandwich_fit = np.stack(std_devs_sandwich_fit, axis=0)
 
         # ----------------
         # create dataframe
