@@ -101,6 +101,22 @@ def main(config_files, reco_config_file=None):
                 'label_module': label_module
             }
 
+    if 'modified_data_module' in reco_config:
+        data_config = reco_config['modified_data_module']
+        DataModuleClass = misc.load_class(
+            'egenerator.data.modules.data.{}'.format(
+                        data_config['data_module']))
+        data_module = DataModuleClass()
+        data_module.configure(config_data=None, **data_config['data_settings'])
+
+        if 'data_handler' in modified_sub_components:
+            modified_sub_components['data_handler']['data_module'] = \
+                data_module
+        else:
+            modified_sub_components['data_handler'] = {
+                'data_module': data_module
+            }
+
     # -----------------------------
     # Create and load Model Manager
     # -----------------------------
