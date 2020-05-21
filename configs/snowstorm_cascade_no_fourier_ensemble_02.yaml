@@ -99,6 +99,19 @@ reconstruction_settings: {
     #     },
     # },
 
+    # # # An alternative data module may be defined that will be loaded instead
+    # 'modified_data_module': {
+    #     'data_module': 'pulse_data.PulseDataModule',
+
+    #     # settings for the data module
+    #     'data_settings':{
+    #         'pulse_key': 'InIceDSTPulses_masked',
+    #         'dom_exclusions_key': 'combined_exclusions',  # 'BadDomsList',
+    #         'time_exclusions_key': ,
+    #         'float_precision': 'float32',
+    #         'add_charge_quantiles': False,
+    #     },
+    # },
 }
 
 #-----------------------
