@@ -1045,7 +1045,8 @@ class SourceManager(BaseModelManager):
                     basis_functions.rayleigh_cdf(delta_psi, sigma))**2
             return np.sum(loss)
 
-        result_wilks = minimize(loss_cdf, x0=x0, args=(delta_psi, cdf_values))
+        result_wilks = optimize.minimize(
+            loss_cdf, x0=x0, args=(delta_psi, cdf_values))
         return result_wilks.x[0]
 
     def reconstruct_testdata(self, config, loss_module):
@@ -1518,13 +1519,23 @@ class SourceManager(BaseModelManager):
                         low = center
                     return low, high, values
 
-                num_unc_scale_steps = 4
-                lower_bound = 0.
-                upper_bound = 90.
-                for i in range(num_unc_scale_steps):
-                    lower_bound, upper_bound, values = bisection_step(
-                        lower_bound, upper_bound, ddof=ddof)
-                unc_upper_bound = min(89.9, values[0][0])
+                if calculate_covariance_matrix:
+                    stds = np.sqrt(np.diag(cov_sand_fit))
+                    circ_sigma = np.sqrt((
+                        stds[zenith_index]**2 +
+                        stds[azimuth_index]**2 *
+                        np.sin(result_zenith)**2) / 2.)
+
+                    unc_upper_bound = 3*np.rad2deg(circ_sigma)
+                else:
+                    num_unc_scale_steps = 4
+                    lower_bound = 0.
+                    upper_bound = 90.
+                    for i in range(num_unc_scale_steps):
+                        lower_bound, upper_bound, values = bisection_step(
+                            lower_bound, upper_bound, ddof=ddof)
+                    unc_upper_bound = min(89.9, values[0][0])
+
                 print('Upper bound: {} | ddof: {}'.format(
                       unc_upper_bound, ddof))
                 # ------------------------
