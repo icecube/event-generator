@@ -27,16 +27,16 @@ def gauss(x, mu, sigma):
 
     Parameters
     ----------
-    x : tf.Tensor
+    x : array_like
         The input tensor.
-    mu : tf.Tensor
+    mu : array_like
         Mu parameter of Gaussian.
-    sigma : tf.Tensor
+    sigma : array_like
         Sigma parameter of Gaussian.
 
     Returns
     -------
-    tf.Tensor
+    array_like
         The Gaussian PDF evaluated at x
     """
     return np.exp(-0.5*((x - mu) / sigma)**2) / (2*np.pi*sigma**2)**0.5
@@ -68,16 +68,16 @@ def log_gauss(x, mu, sigma):
 
     Parameters
     ----------
-    x : tf.Tensor
+    x : array_like
         The input tensor.
-    mu : tf.Tensor
+    mu : array_like
         Mu parameter of Gaussian.
-    sigma : tf.Tensor
+    sigma : array_like
         Sigma parameter of Gaussian.
 
     Returns
     -------
-    tf.Tensor
+    array_like
         The Gaussian PDF evaluated at x
     """
     norm = np.log(np.sqrt(2*np.pi))
@@ -116,18 +116,18 @@ def asymmetric_gauss(x, mu, sigma, r):
 
     Parameters
     ----------
-    x : tf.Tensor
+    x : array_like
         The input tensor.
-    mu : tf.Tensor
+    mu : array_like
         Mu parameter of Gaussian.
-    sigma : tf.Tensor
+    sigma : array_like
         Sigma parameter of Gaussian.
-    r : tf.Tensor
+    r : array_like
         The asymmetry of the Gaussian.
 
     Returns
     -------
-    tf.Tensor
+    array_like
         The asymmetric Gaussian PDF evaluated at x
     """
     norm = 2. / (np.sqrt(2*np.pi*sigma**2) * (r+1))
@@ -183,3 +183,75 @@ def tf_log_negative_binomial(x, mu, alpha, add_normalization_term=False):
     term2 = x * tf.math.log(alpha_mu / (1. + alpha_mu))
 
     return gamma_terms + term1 + term2
+
+
+def tf_rayleigh(x, sigma):
+    """Computes Rayleigh PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    sigma : tf.Tensor
+        The sigma parameter of the Rayleigh distribution.
+
+    Returns
+    -------
+    tf.Tensor
+        The PDF of the Rayleigh distribution evaluated at x.
+    """
+    return x/(sigma**2) * tf.exp(-0.5*(x/sigma)**2)
+
+
+def rayleigh(x, sigma):
+    """Computes Rayleigh PDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    sigma : array_like
+        The sigma parameter of the Rayleigh distribution.
+
+    Returns
+    -------
+    array_like
+        The PDF of the Rayleigh distribution evaluated at x.
+    """
+    return x/(sigma**2) * np.exp(-0.5*(x/sigma)**2)
+
+
+def tf_rayleigh_cdf(x, sigma):
+    """Computes CDF of Rayleigh distribution.
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    sigma : tf.Tensor
+        The sigma parameter of the Rayleigh distribution.
+
+    Returns
+    -------
+    tf.Tensor
+        The CDF of the Rayleigh distribution evaluated at x.
+    """
+    return 1 - tf.exp(-0.5*(x/sigma)**2)
+
+
+def rayleigh_cdf(x, sigma):
+    """Computes CDF of Rayleigh distribution.
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    sigma : array_like
+        The sigma parameter of the Rayleigh distribution.
+
+    Returns
+    -------
+    array_like
+        The CDF of the Rayleigh distribution evaluated at x.
+    """
+    return 1 - np.exp(-0.5*(x/sigma)**2)

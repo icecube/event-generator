@@ -1016,6 +1016,37 @@ class SourceManager(BaseModelManager):
             axes[1].set_ylabel('LLH Value')
             axes[1].set_xlabel('{}'.format(parameter))
             fig.savefig(plot_file.format(parameter=parameter))
+            plt.close(fig)
+
+    def get_circularized_estimate(self, delta_psi, delta_loss, x0=5., ddof=5):
+        """Estimate circularized sigma based on Wilk's Theorem.
+
+        Parameters
+        ----------
+        delta_psi : array_like
+            The opening angles between best fit and sample point.
+        delta_loss : array_like
+            The delta log likelihood values of best fit vs sample point.
+        x0 : float, optional
+            Initial guess for circularized uncertainty
+        ddof : int, optional
+            Degrees of freedom to use for chi2 fit.
+
+        Returns
+        -------
+        float
+            The estimated circularized uncertainty assuming Wilk's theorem.
+        """
+        ts = 2 * delta_loss
+        cdf_values = chi2(ddof).cdf(ts)
+
+        def loss_cdf(sigma, delta_psi, cdf_values):
+            loss = (cdf_values -
+                    basis_functions.rayleigh_cdf(delta_psi, sigma))**2
+            return np.sum(loss)
+
+        result_wilks = minimize(loss_cdf, x0=x0, args=(delta_psi, cdf_values))
+        return result_wilks.x[0]
 
     def reconstruct_testdata(self, config, loss_module):
         """Reconstruct test data events.
@@ -1160,7 +1191,7 @@ class SourceManager(BaseModelManager):
         # -----------------------------------
         # Build Angular Uncertainty Estimator
         # -----------------------------------
-        estimate_angular_uncertainty = False
+        estimate_angular_uncertainty = True
         if estimate_angular_uncertainty:
 
             unc_fit_paramater_list = list(fit_paramater_list)
@@ -1262,6 +1293,7 @@ class SourceManager(BaseModelManager):
         std_devs_sandwich_fit = []
         cov_zen_azi_list = []
         cov_fit_zen_azi_list = []
+        circular_unc_list = []
 
         event_counter = 0
         for data_batch in test_dataset:
@@ -1512,6 +1544,11 @@ class SourceManager(BaseModelManager):
                 # calculate delta_log_prob
                 delta_loss = unc_losses - unc_loss_best
 
+                # fit chi2 CDF and estimate circularized uncertainty
+                circular_unc = self.get_circularized_estimate(
+                    delta_psi, delta_loss, x0=5., ddof=ddof)
+                circular_unc_list.append(circular_unc)
+
                 # end timer
                 unc_end_t = timeit.default_timer()
 
@@ -1522,27 +1559,28 @@ class SourceManager(BaseModelManager):
                 # ---------------------
                 # write samples to file
                 # ---------------------
-                df = pd.DataFrame()
-                df['loss'] = unc_losses
-                df['delta_loss'] = delta_loss
-                df['delta_psi'] = delta_psi
+                if False:
+                    df = pd.DataFrame()
+                    df['loss'] = unc_losses
+                    df['delta_loss'] = delta_loss
+                    df['delta_psi'] = delta_psi
 
-                param_counter = 0
-                for name in self.models[0].parameter_names:
-                    if name == 'azimuth':
-                        values = azi
-                    elif name == 'zenith':
-                        values = zen
-                    else:
-                        values = unc_results[:, param_counter]
-                        param_counter += 1
-                    df[name] = values
+                    param_counter = 0
+                    for name in self.models[0].parameter_names:
+                        if name == 'azimuth':
+                            values = azi
+                        elif name == 'zenith':
+                            values = zen
+                        else:
+                            values = unc_results[:, param_counter]
+                            param_counter += 1
+                        df[name] = values
 
-                unc_file = '{}_unc_{:08d}.hdf5'.format(
-                    os.path.splitext(reco_config['reco_output_file'])[0],
-                    event_counter)
-                df.to_hdf(unc_file, key='Variables', mode='w', format='t',
-                          data_columns=True)
+                    unc_file = '{}_unc_{:08d}.hdf5'.format(
+                        os.path.splitext(reco_config['reco_output_file'])[0],
+                        event_counter)
+                    df.to_hdf(unc_file, key='Variables', mode='w', format='t',
+                              data_columns=True)
 
             # -------------
             # run mcmc test
@@ -1729,6 +1767,9 @@ class SourceManager(BaseModelManager):
             std_devs_sandwich = np.stack(std_devs_sandwich, axis=0)
             std_devs_sandwich_fit = np.stack(std_devs_sandwich_fit, axis=0)
 
+        if estimate_angular_uncertainty:
+            circular_unc_list = np.stack(circular_unc_list, axis=0)
+
         # ----------------
         # create dataframe
         # ----------------
@@ -1752,6 +1793,9 @@ class SourceManager(BaseModelManager):
             # save correlation between zenith and azimuth
             df_reco['cov_zenith_azimuth'] = cov_zen_azi_list
             df_reco['cov_fit_zenith_azimuth'] = cov_fit_zen_azi_list
+
+        if estimate_angular_uncertainty:
+            df_reco['circular_unc'] = circular_unc_list
 
         df_reco['loss_true'] = loss_true_list
         df_reco['loss_reco'] = loss_reco_list
