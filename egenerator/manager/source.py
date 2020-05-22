@@ -1524,9 +1524,9 @@ class SourceManager(BaseModelManager):
                     circ_sigma = np.sqrt((
                         stds[zenith_index]**2 +
                         stds[azimuth_index]**2 *
-                        np.sin(result_zenith)**2) / 2.)
+                        np.sin(result_zenith)**2) / 2.)[0]
 
-                    unc_upper_bound = 3*np.rad2deg(circ_sigma)
+                    unc_upper_bound = min(89.9, 3*np.rad2deg(circ_sigma))
                 else:
                     num_unc_scale_steps = 4
                     lower_bound = 0.
