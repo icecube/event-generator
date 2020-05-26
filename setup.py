@@ -3,7 +3,7 @@
 egenerator setup config
 '''
 import os
-from setuptools import setup
+from setuptools import setup, find_packages
 
 here = os.path.dirname(__file__)
 
@@ -14,9 +14,7 @@ with open(os.path.join(here, 'egenerator', '__about__.py')) as fobj:
 setup(
     name='egenerator',
     version=about['__version__'],
-    packages=[
-        'egenerator',
-    ],
+    packages=find_packages(),
     install_requires=[
         'numpy', 'scipy', 'pandas', 'tensorflow_probability',
     ],
