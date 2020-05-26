@@ -157,30 +157,6 @@ class TestModuleDataHandler(unittest.TestCase):
         self.assertTrue(data_handler_new.tensors == data_handler.tensors)
         self.assertTrue(data_handler.is_compatible(data_handler_new))
 
-    def test_not_implemented_method_get_data_from_frame(self):
-
-        data_handler = ModuleDataHandler()
-        data_handler.configure(**self.config)
-
-        with self.assertRaises(NotImplementedError) as context:
-            data_handler.get_data_from_frame(None)
-
-    def test_not_implemented_method_create_data_from_frame(self):
-
-        data_handler = ModuleDataHandler()
-        data_handler.configure(**self.config)
-
-        with self.assertRaises(NotImplementedError) as context:
-            data_handler.create_data_from_frame(None)
-
-    def test_not_implemented_method_write_data_to_frame(self):
-
-        data_handler = ModuleDataHandler()
-        data_handler.configure(**self.config)
-
-        with self.assertRaises(NotImplementedError) as context:
-            data_handler.write_data_to_frame(None, None)
-
     def test_method_batch_to_event_structure(self):
         """Test restructuring method which restructures a vector shape to
         a structure where the first dimension corresponds to the event id.

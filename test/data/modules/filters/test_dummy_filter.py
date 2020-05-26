@@ -37,7 +37,8 @@ class TestDummyFilterModule(unittest.TestCase):
         """
         dummy_module = DummyFilterModule()
         dummy_module.configure(config_data=None)
-        mask = dummy_module.get_event_filter_mask(None, 'tensors', 42, 1337)
+        mask = dummy_module.get_event_filter_mask_from_hdf(
+            None, 'tensors', 42, 1337)
         self.assertEqual(np.sum(mask), 42)
         self.assertEqual(len(mask), 42)
 

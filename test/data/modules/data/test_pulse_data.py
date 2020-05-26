@@ -215,60 +215,6 @@ class TestPulseDataModule(unittest.TestCase):
                 module = PulseDataModule()
                 module.configure(**config)
 
-    def test_not_implemented_get_data_from_frame(self):
-        """Check not implemented method
-        """
-        config = {
-            'config_data': 'dummy_data',
-            'pulse_key': 'pulse_key',
-            'dom_exclusions_key': None,
-            'time_exclusions_key': None,
-            'float_precision': 'float32',
-            'add_charge_quantiles': False,
-        }
-        module = PulseDataModule()
-        module.configure(**config)
-
-        # check if error is correctly raised when wrong data type is passed
-        with self.assertRaises(NotImplementedError) as context:
-            module.get_data_from_frame(None)
-
-    def test_not_implemented_create_data_from_frame(self):
-        """Check not implemented method
-        """
-        config = {
-            'config_data': 'dummy_data',
-            'pulse_key': 'pulse_key',
-            'dom_exclusions_key': None,
-            'time_exclusions_key': None,
-            'float_precision': 'float32',
-            'add_charge_quantiles': False,
-        }
-        module = PulseDataModule()
-        module.configure(**config)
-
-        # check if error is correctly raised when wrong data type is passed
-        with self.assertRaises(NotImplementedError) as context:
-            module.create_data_from_frame(None)
-
-    def test_not_implemented_write_data_to_frame(self):
-        """Check not implemented method
-        """
-        config = {
-            'config_data': 'dummy_data',
-            'pulse_key': 'pulse_key',
-            'dom_exclusions_key': None,
-            'time_exclusions_key': None,
-            'float_precision': 'float32',
-            'add_charge_quantiles': False,
-        }
-        module = PulseDataModule()
-        module.configure(**config)
-
-        # check if error is correctly raised when wrong data type is passed
-        with self.assertRaises(NotImplementedError) as context:
-            module.write_data_to_frame(None, None)
-
     def test_get_data_from_hdf_skip_file(self):
         """Check if file is skipped correctly if a label does not exist.
         """
@@ -319,6 +265,13 @@ class TestPulseDataModule(unittest.TestCase):
     def test_get_data_from_frame_check_configured(self):
         """Check if error is raised when not configured
         """
+
+        # This test requires IceCube metaproject to be loaded
+        try:
+            from icecube import dataclasses
+        except ImportError:
+            return
+
         module = PulseDataModule()
 
         with self.assertRaises(ValueError) as context:
@@ -337,6 +290,13 @@ class TestPulseDataModule(unittest.TestCase):
     def test_create_data_from_frame_check_configured(self):
         """Check if error is raised when not configured
         """
+
+        # This test requires IceCube metaproject to be loaded
+        try:
+            from icecube import dataclasses
+        except ImportError:
+            return
+
         module = PulseDataModule()
 
         with self.assertRaises(ValueError) as context:
