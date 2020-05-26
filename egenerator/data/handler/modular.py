@@ -284,13 +284,16 @@ class ModuleDataHandler(BaseDataHandler):
             self._data['weight_tensors'].list +
             self._data['misc_tensors'].list)
 
-    def _get_data_from_hdf(self, file, *args, **kwargs):
-        """Get data from hdf file.
+    def _get_data(self, file_or_frame, method, *args, **kwargs):
+        """Get data from hdf file or I3Frame.
 
         Parameters
         ----------
-        file : str
-            The path to the hdf file.
+        file_or_frame : str or I3Frame
+            The path to the hdf file or the I3Frame from which to get the data.
+        method : str
+            The method how to obtain the data. Options are:
+                'get_from_hdf', 'get_from_frame', 'create_from_frame'
         *args
             Variable length argument list.
         **kwargs
@@ -304,19 +307,48 @@ class ModuleDataHandler(BaseDataHandler):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
 
+        Raises
+        ------
+        ValueError
+            Description
         """
+        methods = ['get_from_hdf', 'get_from_frame', 'create_from_frame']
+        if method not in methods:
+            raise ValueError('Method {} is not in {!r}'.format(
+                method, methods))
 
         # load data
-        num_data, data = self.data_module.get_data_from_hdf(
-                                                        file, *args, **kwargs)
-        num_labels, labels = self.label_module.get_data_from_hdf(
-                                                        file, *args, **kwargs)
-        num_misc, misc = self.misc_module.get_data_from_hdf(
-                                                        file, *args, **kwargs)
-        num_weights, weights = self.weight_module.get_data_from_hdf(
-                                                        file, *args, **kwargs)
+        if method == 'get_from_hdf':
+            assert isinstance(file_or_frame, str), 'Expected file path string'
 
-        # check if there were any problems loading files and skip if there were
+            num_data, data = self.data_module.get_data_from_hdf(
+                                                file_or_frame, *args, **kwargs)
+            num_labels, labels = self.label_module.get_data_from_hdf(
+                                                file_or_frame, *args, **kwargs)
+            num_misc, misc = self.misc_module.get_data_from_hdf(
+                                                file_or_frame, *args, **kwargs)
+            num_weights, weights = self.weight_module.get_data_from_hdf(
+                                                file_or_frame, *args, **kwargs)
+        elif method == 'get_from_frame':
+            num_data, data = self.data_module.get_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+            num_labels, labels = self.label_module.get_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+            num_misc, misc = self.misc_module.get_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+            num_weights, weights = self.weight_module.get_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+        elif method == 'create_from_frame':
+            num_data, data = self.data_module.create_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+            num_labels, labels = self.label_module.create_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+            num_misc, misc = self.misc_module.create_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+            num_weights, weights = self.weight_module.create_data_from_frame(
+                                                file_or_frame, *args, **kwargs)
+
+        # check if there were any problems loading data and skip if there were
         found_problem = False
         if self.data_tensors.len > 0 and num_data is None and data is None:
             found_problem = True
@@ -329,8 +361,8 @@ class ModuleDataHandler(BaseDataHandler):
                 and weights is None:
             found_problem = True
         if found_problem:
-            self._logger.warning('Found missing values, skipping {!r}'.format(
-                file))
+            msg = 'Found missing values, skipping {!r}'
+            self._logger.warning(msg.format(file_or_frame))
             return None, None
 
         # combine data in correct order
@@ -373,8 +405,14 @@ class ModuleDataHandler(BaseDataHandler):
             raise ValueError('Something went wrong!')
 
         # get filter mask for events
-        filter_mask = self.filter_module.get_event_filter_mask(
-            file, self.tensors, num_events, event_batch, *args, **kwargs)
+        if method == 'get_from_hdf':
+            filter_mask = self.filter_module.get_event_filter_mask_from_hdf(
+                file_or_frame, self.tensors, num_events, event_batch,
+                *args, **kwargs)
+        elif method in ['get_from_frame', 'create_from_frame']:
+            filter_mask = self.filter_module.get_event_filter_mask_from_frame(
+                file_or_frame, self.tensors, num_events, event_batch,
+                *args, **kwargs)
 
         # filter out events, if there is at least one event that is filtered
         if not np.all(filter_mask):
@@ -476,9 +514,30 @@ class ModuleDataHandler(BaseDataHandler):
 
         return filtered_num_events, filtered_batch
 
+    def _get_data_from_hdf(self, file, *args, **kwargs):
+        """Get data from hdf file.
+
+        Parameters
+        ----------
+        file : str
+            The path to the hdf file.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        int
+            Number of events.
+        tuple of array-like tensors
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+        """
+        return self._get_data(file, method='get_from_hdf', *args, **kwargs)
+
     def _get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -495,11 +554,10 @@ class ModuleDataHandler(BaseDataHandler):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        return self.data_module.get_data_from_frame(frame, *args, **kwargs)
+        return self._get_data(frame, method='get_from_frame', *args, **kwargs)
 
     def _create_data_from_frame(self, frame, *args, **kwargs):
         """Create data from I3Frame.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -516,11 +574,12 @@ class ModuleDataHandler(BaseDataHandler):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        return self.data_module.create_data_from_frame(frame, *args, **kwargs)
+
+        return self._get_data(
+            frame, method='create_from_frame', *args, **kwargs)
 
     def _write_data_to_frame(self, data, frame, *args, **kwargs):
         """Write data to I3Frame.
-        This will only write tensors of type 'data' to frame.
 
         Parameters
         ----------
@@ -534,5 +593,18 @@ class ModuleDataHandler(BaseDataHandler):
         **kwargs
             Arbitrary keyword arguments.
         """
-        return self.data_module.write_data_to_frame(
-            data, frame, *args, **kwargs)
+
+        # loop through each module
+        for name in ['data', 'label', 'misc', 'weight']:
+
+            # get module
+            module = getattr(self, name + '_module')
+
+            # collect data tensors
+            data_batch = []
+            for i, tensor in enumerate(self.tensors.list):
+                if tensor.type == name:
+                    data_batch.append(data[i])
+
+            # write_data to frame
+            module.write_data_to_frame(data_batch, frame, *args, **kwargs)

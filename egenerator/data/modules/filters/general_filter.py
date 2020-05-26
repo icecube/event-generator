@@ -90,9 +90,9 @@ class GeneralFilterModule(BaseComponent):
             )
         return configuration, {}, {}
 
-    def get_event_filter_mask(self, file, tensors, num_events, batch,
-                              *args, **kwargs):
-        """Calculate event filter mask.
+    def get_event_filter_mask_from_hdf(self, file, tensors, num_events, batch,
+                                       *args, **kwargs):
+        """Calculate event filter mask from hdf file.
 
         Parameters
         ----------
@@ -122,6 +122,59 @@ class GeneralFilterModule(BaseComponent):
         for key, column, op, threshold in constraints:
             with pd.HDFStore(file, 'r') as f:
                 values = f[key][column]
+
+            if op == '>':
+                constraint_mask = values > threshold
+            elif op == '>=':
+                constraint_mask = values >= threshold
+            elif op == '<=':
+                constraint_mask = values <= threshold
+            elif op == '<':
+                constraint_mask = values < threshold
+            elif op == '==':
+                constraint_mask = values == threshold
+            else:
+                raise ValueError('Unknown operation: {}'.format(op))
+
+            filter_mask = np.logical_and(filter_mask, constraint_mask)
+
+        return filter_mask
+
+    def get_event_filter_mask_from_frame(self, frame, tensors, num_events,
+                                         batch, *args, **kwargs):
+        """Calculate event filter mask from frame.
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The I3Frame from which to compute the filter mask.
+        tensors : DataTensorList
+            The data tensor list that describes the data input tensors.
+        num_events : int
+            The number of loaded events.
+        batch : tuple of array-like
+            The data that needs to be filtered.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        array_like
+            An array of bool indicating whether an event passed the filter
+            (True) or wheter it is filtered out (False).
+            Shape: [num_events]
+        """
+        filter_mask = np.ones(num_events, dtype=bool)
+
+        constraints = self.configuration.config['constraints']
+        for key, column, op, threshold in constraints:
+            value_table = frame[key]
+            if key in value_table:
+                values = np.atleast_1d(value_table[key])
+            else:
+                values = np.atleast_1d(getattr(value_table, key))
 
             if op == '>':
                 constraint_mask = values > threshold

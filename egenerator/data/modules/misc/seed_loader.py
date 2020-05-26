@@ -133,6 +133,9 @@ class SeedLoaderMiscModule(BaseComponent):
             DataTensorList (self.tensors).
             Returns None if no misc data is loaded.
         """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
+
         # open file
         f = pd.HDFStore(file, 'r')
 
@@ -175,3 +178,112 @@ class SeedLoaderMiscModule(BaseComponent):
                 num_events_list, self.configuration.config['seed_names']))
 
         return num_events, seeds
+
+    def get_data_from_frame(self, frame, *args, **kwargs):
+        """Get misc data from frame.
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The I3Frame from which to get the data.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        int
+            Number of events.
+        tuple of array-like tensors or None
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+            Returns None if no misc data is loaded.
+        """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
+
+        seeds = []
+        num_events_list = []
+        missing_value = self.configuration.config['missing_value']
+        for seed_name in self.configuration.config['seed_names']:
+
+            seed_parameters = []
+            try:
+                _labels = frame[seed_name]
+                for l in self.configuration.config['seed_parameter_names']:
+                    if l in _labels:
+                        seed_parameters.append([_labels[l]])
+                    elif hasattr(_labels, l):
+                        seed_parameters.append([getattr(_labels, l)])
+                    elif missing_value is not None:
+                        seed_parameters.append([missing_value])
+                    else:
+                        raise KeyError('Could not find key {!r}'.format(l))
+
+            except Exception as e:
+                self._logger.warning(e)
+                self._logger.warning('Skipping frame: {}'.format(frame))
+                return None, None
+
+            # format cascade parameters
+            dtype = getattr(np, self.configuration.config['float_precision'])
+            seed_parameters = np.array(seed_parameters, dtype=dtype).T
+
+            seeds.append(seed_parameters)
+            num_events = len(seed_parameters)
+            num_events_list.append(num_events)
+
+        # check if number of events matches accross all events
+        if not np.all([n == num_events for n in num_events_list]):
+            msg = 'Not all event numbers match: {!r} for seeds: {!r}.'
+            raise ValueError(msg.format(
+                num_events_list, self.configuration.config['seed_names']))
+
+        return num_events, seeds
+
+    def create_data_from_frame(self, frame, *args, **kwargs):
+        """Create misc data from frame.
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The I3Frame from which to get the data.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        int
+            Number of events.
+        tuple of array-like tensors or None
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+            Returns None if no misc data is created.
+        """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
+
+        return self.get_data_from_frame(frame, *args, **kwargs)
+
+    def write_data_to_frame(self, data, frame, *args, **kwargs):
+        """Write misc data to I3Frame.
+
+        Parameters
+        ----------
+        data : tuple of array-like tensors
+            The input data (array-like) as specified in the
+            DataTensorList (self.data['data_tensors']).
+        frame : I3Frame
+            The I3Frame to which the data is to be written to.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+        """
+        if not self.is_configured:
+            raise ValueError('Module not configured yet!')
+
+        pass

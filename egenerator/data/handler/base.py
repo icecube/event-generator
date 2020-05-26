@@ -303,7 +303,6 @@ class BaseDataHandler(BaseComponent):
 
     def get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -325,13 +324,12 @@ class BaseDataHandler(BaseComponent):
         num_events, data = self._get_data_from_frame(frame, *args, **kwargs)
         if num_events is None and data is None:
             return None, None
-        self._check_data_structure(data, check_vector_tensors=True)
+        self._check_data_structure(data)
         return num_events, data
 
     def _get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame. This method needs to be implemented by
         derived class.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -352,7 +350,6 @@ class BaseDataHandler(BaseComponent):
 
     def create_data_from_frame(self, frame, *args, **kwargs):
         """Create data from I3Frame.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -374,13 +371,12 @@ class BaseDataHandler(BaseComponent):
         num_events, data = self._create_data_from_frame(frame, *args, **kwargs)
         if num_events is None and data is None:
             return None, None
-        self._check_data_structure(data, check_vector_tensors=True)
+        self._check_data_structure(data)
         return num_events, data
 
     def _create_data_from_frame(self, frame, *args, **kwargs):
         """Create data from I3Frame. This method needs to be implemented by
         derived class.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -401,7 +397,6 @@ class BaseDataHandler(BaseComponent):
 
     def write_data_to_frame(self, data, frame, *args, **kwargs):
         """Write data to I3Frame.
-        This will only write tensors of type 'data' to frame.
 
         Parameters
         ----------
@@ -422,7 +417,6 @@ class BaseDataHandler(BaseComponent):
     def _write_data_to_frame(self, data, frame, *args, **kwargs):
         """Write data to I3Frame. This method needs to be implemented by
         derived class.
-        This will only write tensors of type 'data' to frame.
 
         Parameters
         ----------

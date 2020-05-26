@@ -282,7 +282,7 @@ class PulseDataModule(BaseComponent):
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
-                cum_charge = x_dom_charge[index, string-1, dom-1, 0]
+                cum_charge = float(x_dom_charge[index, string-1, dom-1, 0])
                 x_pulses[pulse_index] = [row[12], row[10], cum_charge]
 
             else:
@@ -337,7 +337,6 @@ class PulseDataModule(BaseComponent):
 
     def get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -354,14 +353,138 @@ class PulseDataModule(BaseComponent):
             The input data (array-like) as specified in the
             DataTensorList (self.data['data_tensors']).
         """
+        from icecube import dataclasses
+
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
 
-        raise NotImplementedError()
+        # get pulses
+        pulses = frame[self.configuration.config['pulse_key']]
+
+        if isinstance(pulses, dataclasses.I3RecoPulseSeriesMapMask) or \
+           isinstance(pulses, dataclasses.I3RecoPulseSeriesMapUnion):
+            pulses = pulses.apply(frame)
+
+        # get DOM exclusions
+        if self.data['dom_exclusions_exist']:
+            try:
+                dom_exclusions = \
+                    frame[self.configuration.config['dom_exclusions_key']]
+            except KeyError:
+                msg = 'Could not find exclusion key {!r}'
+                self._logger.warning(msg.format(
+                    self.configuration.config['dom_exclusions_key']))
+                dom_exclusions = None
+        else:
+            dom_exclusions = None
+
+        # number of events in batch (one frame at a time)
+        size = 1
+
+        # create empty array for DOM charges
+        x_dom_charge = np.zeros([size, 86, 60, 1],
+                                dtype=self.data['np_float_precision'])
+
+        if self.data['dom_exclusions_exist']:
+            x_dom_exclusions = np.ones_like(x_dom_charge, dtype=bool)
+        else:
+            x_dom_exclusions = None
+
+        if self.data['time_exclusions_exist']:
+            raise NotImplementedError(
+                'Time window exclusions not yet implemented!')
+        else:
+            x_time_exclusions = None
+            x_time_exclusions_ids = None
+
+        add_charge_quantiles = \
+            self.configuration.config['add_charge_quantiles']
+
+        x_pulses = []
+        x_pulses_ids = []
+
+        # get pulse information
+        for omkey, pulse_list in pulses.items():
+
+            string = omkey.string
+            dom = omkey.om
+
+            if dom > 60:
+                self._logger.warning(
+                    'skipping pulse: {} {}'.format(string, dom))
+                continue
+
+            for pulse in pulse_list:
+                index = 0
+
+                # pulse charge: row[12], time: row[10]
+                # accumulate charge in DOMs
+                x_dom_charge[index, string-1, dom-1, 0] += pulse.charge
+
+                # gather pulses
+                if add_charge_quantiles:
+
+                    # (charge, time, quantile)
+                    cum_charge = float(x_dom_charge[index, string-1, dom-1, 0])
+                    x_pulses.append([pulse.charge, pulse.time, cum_charge])
+
+                else:
+                    # (charge, time)
+                    x_pulses.append([pulse.charge, pulse.time])
+
+                # gather pulse ids (batch index, string, dom)
+                x_pulses_ids.append([index, string-1, dom-1])
+
+        x_pulses = np.array(x_pulses, dtype=self.data['np_float_precision'])
+        x_pulses_ids = np.array(x_pulses_ids, dtype=np.int32)
+
+        # convert cumulative charge to fraction of total charge, e.g. quantile
+        if add_charge_quantiles:
+
+            # compute flat indices
+            dim1 = x_dom_charge.shape[1]
+            dim2 = x_dom_charge.shape[2]
+            flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
+                            x_pulses_ids[:, 1]*dim2 +  # string
+                            x_pulses_ids[:, 2])  # DOM
+
+            # flatten dom charges
+            flat_charges = x_dom_charge.flatten()
+
+            # calculate quantiles
+            x_pulses[:, 2] /= flat_charges[flat_indices]
+
+        # get dom exclusions
+        if dom_exclusions is not None:
+            for omkey in dom_exclusions:
+                string = omkey.string
+                dom = omkey.om
+
+                if dom > 60:
+                    msg = 'skipping exclusion DOM: {!r} {!r}'
+                    self._logger.info(msg.format(string, dom))
+                    continue
+
+                index = 0
+                x_dom_exclusions[index, string-1, dom-1, 0] = False
+
+        # put everything together and make sure the order is correct
+        data_dict = {
+            'x_dom_charge': x_dom_charge,
+            'x_dom_exclusions': x_dom_exclusions,
+            'x_pulses': x_pulses,
+            'x_pulses_ids': x_pulses_ids,
+            'x_time_exclusions': x_time_exclusions,
+            'x_time_exclusions_ids': x_time_exclusions_ids,
+        }
+        event_batch = []
+        for tensor in self.data['data_tensors'].list:
+            event_batch.append(data_dict[tensor.name])
+
+        return size, event_batch
 
     def create_data_from_frame(self, frame, *args, **kwargs):
         """Create data from I3Frame.
-        This will only return tensors of type 'data'.
 
         Parameters
         ----------
@@ -381,11 +504,10 @@ class PulseDataModule(BaseComponent):
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
 
-        raise NotImplementedError()
+        return self.get_data_from_frame(frame, *args, **kwargs)
 
     def write_data_to_frame(self, data, frame, *args, **kwargs):
         """Write data to I3Frame.
-        This will only write tensors of type 'data' to frame.
 
         Parameters
         ----------
@@ -402,4 +524,4 @@ class PulseDataModule(BaseComponent):
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
 
-        raise NotImplementedError()
+        pass

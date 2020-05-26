@@ -71,14 +71,42 @@ class DummyFilterModule(BaseComponent):
             settings=kwargs)
         return configuration, {}, {}
 
-    def get_event_filter_mask(self, file, tensors, num_events, batch,
-                              *args, **kwargs):
-        """Calculate event filter mask.
+    def get_event_filter_mask_from_hdf(self, file, tensors, num_events, batch,
+                                       *args, **kwargs):
+        """Calculate event filter mask from hdf file.
 
         Parameters
         ----------
         file : str
             The path to the input hdf5 file.
+        tensors : DataTensorList
+            The data tensor list that describes the data input tensors.
+        num_events : int
+            The number of loaded events.
+        batch : tuple of array-like
+            The data that needs to be filtered.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        array_like
+            An array of bool indicating whether an event passed the filter
+            (True) or wheter it is filtered out (False).
+            Shape: [num_events]
+        """
+        return np.ones(num_events, dtype=bool)
+
+    def get_event_filter_mask_from_frame(self, frame, tensors, num_events,
+                                         batch, *args, **kwargs):
+        """Calculate event filter mask from frame.
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The I3Frame from which to compute the filter mask.
         tensors : DataTensorList
             The data tensor list that describes the data input tensors.
         num_events : int
