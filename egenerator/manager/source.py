@@ -745,9 +745,14 @@ class SourceManager(BaseModelManager):
 
         # Initialize the HMC transition kernel.
         # step sizes for x, y, z, zenith, azimuth, energy, time
-        step_size = np.array([[.5, .5, .5, 0.02, 0.02, 10., 1.]])
+        step_size = [[.5, .5, .5, 0.02, 0.02, 10., 1.]]
         if method == 'HamiltonianMonteCarlo':
-            step_size = np.array([[.1, .1, .1, 0.01, 0.02, 10., 1.]])
+            step_size = [[.1, .1, .1, 0.01, 0.02, 10., 1.]]
+
+        if num_params != len(step_size):
+            step_size = [[0.1 for p in range(num_params)]]
+
+        step_size = np.array(step_size)
 
         param_tensor = self.data_handler.tensors[parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
@@ -1139,6 +1144,44 @@ class SourceManager(BaseModelManager):
         #     minimize_in_trafo_space=minimize_in_trafo_space,
         #     parameter_tensor_name=parameter_tensor_name,
         # )
+
+        # reco_tray.add_module(
+        #     'CircularizedAngularUncertainty',
+        #     name='CircularizedAngularUncertainty',
+        #     fit_paramater_list=fit_paramater_list,
+        #     seed_tensor_name=reco_config['seed'],
+        #     reco_key='reco',
+        #     # covariance_key='covariance',
+        #     minimize_in_trafo_space=minimize_in_trafo_space,
+        #     parameter_tensor_name=parameter_tensor_name,
+        # )
+
+        reco_config['mcmc_num_chains'] = 10
+        reco_config['mcmc_num_results'] = 100  # 10000
+        reco_config['mcmc_num_burnin_steps'] = 30  # 100
+        reco_config['mcmc_num_steps_between_results'] = 0
+        reco_config['mcmc_num_parallel_iterations'] = 1
+        reco_config['mcmc_method'] = 'HamiltonianMonteCarlo'
+        # HamiltonianMonteCarlo
+        # RandomWalkMetropolis
+        # NoUTurnSampler
+        reco_tray.add_module(
+            'MarkovChainMonteCarlo',
+            name='MarkovChainMonteCarlo',
+            fit_paramater_list=fit_paramater_list,
+            seed_tensor_name=reco_config['seed'],
+            reco_key='reco',
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            parameter_tensor_name=parameter_tensor_name,
+            mcmc_num_chains=reco_config['mcmc_num_chains'],
+            mcmc_method=reco_config['mcmc_method'],
+            mcmc_num_results=reco_config['mcmc_num_results'],
+            mcmc_num_burnin_steps=reco_config['mcmc_num_burnin_steps'],
+            mcmc_num_steps_between_results=reco_config[
+                'mcmc_num_steps_between_results'],
+            mcmc_num_parallel_iterations=reco_config[
+                'mcmc_num_parallel_iterations'],
+        )
 
         # plot_file = os.path.splitext(reco_config['reco_output_file'])[0]
         # plot_file += '_llh_scan_{event_counter:08d}_{parameter}'

@@ -80,8 +80,9 @@ class Visualize1DLikelihoodScan:
             parameter_tensor_name=parameter_tensor_name,
         )
 
-        # Get Hessian Function
-        self.loss_function = function_cache.get('loss_function', func_settings)
+        # Get parameter loss function
+        self.loss_function = function_cache.get(
+            'parameter_loss_function', func_settings)
 
         if self.loss_function is None:
             self.loss_function = manager.get_parameter_loss_function(
