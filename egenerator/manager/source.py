@@ -13,6 +13,7 @@ from egenerator import misc
 from egenerator.utils import angles, basis_functions
 from egenerator.manager.component import Configuration
 from egenerator.manager.base import BaseModelManager
+from egenerator.manager.reconstruction.tray import ReconstructionTray
 
 
 class SourceManager(BaseModelManager):
@@ -1050,7 +1051,7 @@ class SourceManager(BaseModelManager):
         return result_wilks.x[0]
 
     def reconstruct_testdata(self, config, loss_module):
-        """Reconstruct test data events.
+        """Reconstruct test data events from hdf5 files.
 
         Parameters
         ----------
@@ -1112,6 +1113,21 @@ class SourceManager(BaseModelManager):
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
             dtype=param_dtype)
+
+        # -------------------------
+        # Build reconstruction tray
+        # -------------------------
+        reco_tray = ReconstructionTray(manager=self, loss_module=loss_module)
+        reco_tray.add_module(
+            'Reconstruction',
+            fit_paramater_list=fit_paramater_list,
+            seed_tensor_name=reco_config['seed'],
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            parameter_tensor_name=parameter_tensor_name,
+            reco_optimizer_interface=reco_config['reco_optimizer_interface'],
+            scipy_optimizer_settings=reco_config['scipy_optimizer_settings'],
+            tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+        )
 
         # --------------------------------------------------
         # get concrete functions for reconstruction and loss
