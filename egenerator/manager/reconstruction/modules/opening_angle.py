@@ -1,7 +1,7 @@
 
 class CircularizedAngularUncertainty:
 
-    def __init__(self, manager, loss_module, tf_functions, **settings):
+    def __init__(self, manager, loss_module, function_cache, **settings):
         """Initialize module and setup tensorflow functions.
 
         Parameters
@@ -10,18 +10,8 @@ class CircularizedAngularUncertainty:
             The SourceManager object.
         loss_module : LossModule object
             The LossModule object to use for the reconstruction steps.
-        tf_functions : dict
-            Dictionary of created tf functions. These are saved such that they
-            may be reused without having to create new ones.
-            Structure is as follows:
-
-            tf_functions = {
-                func_name1: [(settings1, func1), (settings2, func2)],
-                func_name2: [(settings3, func3), (settings4, func4)],
-            }
-
-            where func1 and func2 are based of the same function, but use
-            different settings. Sampe applies to func3 and func4.
+        function_cache : FunctionCache object
+            A cache to store and share created concrete tensorflow functions.
         **settings
             Description
 

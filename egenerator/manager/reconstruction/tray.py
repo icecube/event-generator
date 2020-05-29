@@ -22,18 +22,16 @@ class ReconstructionTray:
 
     Attributes
     ----------
-    tf_functions : dict
-        Dictionary of created tf functions. These are saved such that they may
-        be reused without having to create new ones.
-        Structure is as follows:
-
-        tf_functions = {
-            function_name1: [(settings1, function1), (settings2, function2)],
-            function_name2: [(settings3, function3), (settings4, function4)],
-        }
-
-        where function1 and function2 are based of the same function, but use
-        different settings. Sampe applies to function3 and function4.
+    function_cache : FunctionCache object
+        A cache to store and share created concrete tensorflow functions.
+    loss_module : LossModule object
+        The LossModule object to use for the reconstruction steps.
+    manager : Manager object
+            The SourceManager object.
+    module_names : list of str
+        A list of the module names.
+    modules : list
+        A list of reconstruction modules that will be executed.
     """
 
     def __init__(self, manager, loss_module):
@@ -48,7 +46,7 @@ class ReconstructionTray:
         """
 
         # set up a cache for concrete tensorflow functions
-        self.tf_functions = {}
+        self.function_cache = FunctionCache()
 
         # create list to store reconstruction modules
         self.modules = []
@@ -89,7 +87,7 @@ class ReconstructionTray:
         module = ModuleClass(
             manager=self.manager,
             loss_module=self.loss_module,
-            tf_functions=self.tf_functions,
+            function_cache=self.function_cache,
             **settings
         )
 
@@ -116,3 +114,85 @@ class ReconstructionTray:
             results[name] = module.execute(data_batch, results)
 
         return results
+
+
+class FunctionCache:
+    """Data Structure to keep a cache of created concrete tensorflow functions.
+
+    Attributes
+    ----------
+    functions : dict
+        Dictionary of created tf functions. These are saved such that they may
+        be reused without having to create new ones.
+        Structure is as follows:
+
+        tf_functions = {
+            function_name1: [(settings1, function1), (settings2, function2)],
+            function_name2: [(settings3, function3), (settings4, function4)],
+        }
+
+        where function1 and function2 are based of the same function, but use
+        different settings. Sampe applies to function3 and function4.
+
+    """
+
+    def __init__(self):
+        """Initialize data structure
+        """
+        self.functions = {}
+
+    def add(self, function, settings):
+        """Add a function to the local cache
+
+        Parameters
+        ----------
+        function : function
+            The function to add to the local cache.
+        settings : dict
+            A dictionary of settings that were used to create the function.
+
+        Raises
+        ------
+        KeyError
+            If function with specified settings already exists in cache.
+        """
+        if function.__name__ in self.functions:
+
+            # check if the function already exists
+            for function_entry in self.functions[function.__name__]:
+                if settings == function_entry[0]:
+                    msg = 'Function {} with settings {} already exists!'
+                    raise KeyError(msg.format(
+                        function.__name__, settings))
+
+            # append to list
+            self.functions[function.__name__].append((settings, function))
+        else:
+            # add the new function
+            self.functions[function.__name__] = [(settings, function)]
+
+    def get(self, function_name, settings):
+        """Retrieve a function with the specified settings from the cache.
+
+        Parameters
+        ----------
+        function_name : str
+            The name of the function.
+        settings : dict
+            A dictionary of settings that were used to create the function.
+
+        Returns
+        -------
+        function or None
+            If the function with the specified settings exists in the cache,
+            it will be returned. Otherwise None will be returned.
+        """
+        if function_name in self.functions:
+
+            # get the function if it already exists
+            for function_entry in self.functions[function_name]:
+                if settings == function_entry[0]:
+                    return function_entry[1]
+
+        # no suitable function exists in cache
+        return None

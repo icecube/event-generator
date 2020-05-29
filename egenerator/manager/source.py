@@ -1120,6 +1120,7 @@ class SourceManager(BaseModelManager):
         reco_tray = ReconstructionTray(manager=self, loss_module=loss_module)
         reco_tray.add_module(
             'Reconstruction',
+            name='reco',
             fit_paramater_list=fit_paramater_list,
             seed_tensor_name=reco_config['seed'],
             minimize_in_trafo_space=minimize_in_trafo_space,
@@ -1128,6 +1129,30 @@ class SourceManager(BaseModelManager):
             scipy_optimizer_settings=reco_config['scipy_optimizer_settings'],
             tf_optimizer_settings=reco_config['tf_optimizer_settings'],
         )
+
+        # reco_tray.add_module(
+        #     'CovarianceMatrix',
+        #     name='covariance',
+        #     fit_paramater_list=fit_paramater_list,
+        #     seed_tensor_name=reco_config['seed'],
+        #     reco_key='reco',
+        #     minimize_in_trafo_space=minimize_in_trafo_space,
+        #     parameter_tensor_name=parameter_tensor_name,
+        # )
+
+        # plot_file = os.path.splitext(reco_config['reco_output_file'])[0]
+        # plot_file += '_llh_scan_{event_counter:08d}_{parameter}'
+        # reco_tray.add_module(
+        #     'Visualize1DLikelihoodScan',
+        #     name='visualization',
+        #     fit_paramater_list=fit_paramater_list,
+        #     seed_tensor_name=reco_config['seed'],
+        #     plot_file_template=plot_file,
+        #     reco_key='reco',
+        #     # covariance_key='covariance',
+        #     minimize_in_trafo_space=minimize_in_trafo_space,
+        #     parameter_tensor_name=parameter_tensor_name,
+        # )
 
         # --------------------------------------------------
         # get concrete functions for reconstruction and loss
@@ -1185,7 +1210,7 @@ class SourceManager(BaseModelManager):
         # -----------------
         # Covariance-Matrix
         # -----------------
-        calculate_covariance_matrix = True
+        calculate_covariance_matrix = False
         if calculate_covariance_matrix:
             hessian_function = self.get_hessian_function(
                 input_signature=(param_signature, test_dataset.element_spec),
@@ -1208,7 +1233,7 @@ class SourceManager(BaseModelManager):
         # -----------------------------------
         # Build Angular Uncertainty Estimator
         # -----------------------------------
-        estimate_angular_uncertainty = True
+        estimate_angular_uncertainty = False
         if estimate_angular_uncertainty:
 
             unc_fit_paramater_list = list(fit_paramater_list)
@@ -1344,6 +1369,12 @@ class SourceManager(BaseModelManager):
             # new_batch[seed_index] = x0
             # data_batch = tuple(new_batch)
             # # -------------------
+
+            # ---------------------------
+            # Execute reconstruction tray
+            # ---------------------------
+            results = reco_tray.execute(data_batch)
+            print('results', results)
 
             # reconstruct event
             reco_start_t = timeit.default_timer()
