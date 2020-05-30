@@ -1,3 +1,4 @@
+import timeit
 from egenerator import misc
 
 
@@ -111,7 +112,16 @@ class ReconstructionTray:
         for name, module in zip(self.module_names, self.modules):
 
             # run module
-            results[name] = module.execute(data_batch, results)
+            start_t = timeit.default_timer()
+            module_results = module.execute(data_batch, results)
+            end_t = timeit.default_timer()
+
+            if 'runtime' in module_results:
+                raise ValueError('Module results must not contain "runtime"!')
+
+            module_results['runtime'] = end_t - start_t
+
+            results[name] = module_results
 
         return results
 
