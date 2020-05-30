@@ -1024,8 +1024,6 @@ class SourceManager(BaseModelManager):
         event_counter = 0
         for data_batch in test_dataset:
 
-            if event_counter == 10:
-                break
             # # -------------------
             # # Hack to modify seed
             # # -------------------
