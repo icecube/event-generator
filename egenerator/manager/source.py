@@ -13,6 +13,7 @@ from egenerator import misc
 from egenerator.utils import angles, basis_functions
 from egenerator.manager.component import Configuration
 from egenerator.manager.base import BaseModelManager
+from egenerator.manager.reconstruction.tray import ReconstructionTray
 
 
 class SourceManager(BaseModelManager):
@@ -744,9 +745,14 @@ class SourceManager(BaseModelManager):
 
         # Initialize the HMC transition kernel.
         # step sizes for x, y, z, zenith, azimuth, energy, time
-        step_size = np.array([[.5, .5, .5, 0.02, 0.02, 10., 1.]])
+        step_size = [[.5, .5, .5, 0.02, 0.02, 10., 1.]]
         if method == 'HamiltonianMonteCarlo':
-            step_size = np.array([[.1, .1, .1, 0.01, 0.02, 10., 1.]])
+            step_size = [[.1, .1, .1, 0.01, 0.02, 10., 1.]]
+
+        if num_params != len(step_size):
+            step_size = [[0.1 for p in range(num_params)]]
+
+        step_size = np.array(step_size)
 
         param_tensor = self.data_handler.tensors[parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
@@ -825,232 +831,9 @@ class SourceManager(BaseModelManager):
 
             return samples, trace
         return run_chain()
-        # ------------------
-
-    def get_reco_result_batch(self, result,
-                              fit_paramater_list,
-                              minimize_in_trafo_space,
-                              cascade_seed_batch_trafo=None,
-                              parameter_tensor_name='x_parameters'):
-        """Get the reco result batch.
-
-        This inverts a possible transformation if minimize_in_trafo_space is
-        True and also puts the full hypothesis back together if only parts
-        of it were fitted
-
-        Parameters
-        ----------
-        result : TYPE
-            Description
-        fit_paramater_list : TYPE
-            Description
-        minimize_in_trafo_space : TYPE
-            Description
-        cascade_seed_batch_trafo : TYPE
-            Description
-        parameter_tensor_name : str, optional
-            Description
-
-        Returns
-        -------
-        tf.Tensor
-            The full result batch.
-        """
-        if np.all(fit_paramater_list):
-            cascade_reco_batch = result
-        else:
-            # get seed parameters
-            cascade_reco_batch = []
-            result_counter = 0
-            for i, fit in enumerate(fit_paramater_list):
-                if fit:
-                    cascade_reco_batch.append(result[:, result_counter])
-                    result_counter += 1
-                else:
-                    cascade_reco_batch.append(
-                        cascade_seed_batch_trafo[:, i])
-            cascade_reco_batch = np.array(cascade_reco_batch).T
-
-        # transform back if minimization was performed in trafo space
-        if minimize_in_trafo_space:
-            cascade_reco_batch = self.data_trafo.inverse_transform(
-                data=cascade_reco_batch,
-                tensor_name=parameter_tensor_name)
-        return cascade_reco_batch
-
-    def make_1d_llh_scans(self, data_batch, result_trafo, truth_trafo,
-                          loss_function,
-                          covariance_list=[],
-                          covariance_names=[],
-                          plot_file='llh_scan_{parameter}',
-                          parameter_tensor_name='x_parameters'):
-        """Make 1D LLh scans for each parameter
-
-        Parameters
-        ----------
-        data_batch : list of tf.Tensor
-            The tensorflow data batch from the tf.Dataset.
-        result_trafo : np.array
-            The best fit result in transformed and normalized coordinates.
-            Shape: [1, num_parameters]
-        truth_trafo : np.array
-            The true parameters in transformed and normalized coordinates.
-            Shape: [1, num_parameters]
-        loss_function : tf.function
-            The function which computes the llh loss for a given parameter
-            tensor.
-        covariance_list : list of array_like, optional
-            A list of covariance matrices.
-            Shape of each matrix: [num_parameters, num_parameters]
-        covariance_names : list of str, optional
-            A list of names for each of the provided covariance matrices.
-        plot_file : str, optional
-            The name of the output file. The plot will be saved to
-            plot_file.format(parameter=parameter) where parameter is the name
-            of the current parameter.
-        parameter_tensor_name : str, optional
-            The name of the parameter tensor.
-        """
-        from matplotlib import pyplot as plt
-
-        assert len(result_trafo) == 1, 'Expects one event at a time'
-        assert len(truth_trafo) == 1, 'Expects one event at a time'
-        assert len(covariance_names) == len(covariance_list)
-
-        truth = self.data_trafo.inverse_transform(
-            data=truth_trafo,
-            tensor_name=parameter_tensor_name,
-        )
-        result = self.data_trafo.inverse_transform(
-            data=result_trafo,
-            tensor_name=parameter_tensor_name,
-        )
-
-        range_dict = {
-            # 'x': 0.05,
-            # 'y': 0.05,
-            # 'z': 0.05,
-        }
-
-        # now go through each of the parameters and make the scan
-        for param_i, parameter in enumerate(self.models[0].parameter_names):
-
-            # make llh scan
-            diff = range_dict.get(parameter, 1.0)
-            values_trafo = np.linspace(truth_trafo[0, param_i] - diff,
-                                       truth_trafo[0, param_i] + diff, 1000)
-            llh_vals_true = []
-            llh_vals_reco = []
-            values = []
-            for value_trafo in values_trafo:
-
-                # create a parameter tensor based on the best fit result
-                param_tensor_trafo = np.array(result_trafo)
-                param_tensor_trafo[0, param_i] = value_trafo
-                llh_vals_reco.append(loss_function(
-                    parameters_trafo=param_tensor_trafo,
-                    data_batch=data_batch).numpy()
-                )
-
-                # create a parameter tensor based on the truth
-                param_tensor_trafo = np.array(truth_trafo)
-                param_tensor_trafo[0, param_i] = value_trafo
-                llh_vals_true.append(loss_function(
-                    parameters_trafo=param_tensor_trafo,
-                    data_batch=data_batch).numpy()
-                )
-
-                # undo transformation in values
-                param_tensor = self.data_trafo.inverse_transform(
-                                data=param_tensor_trafo,
-                                tensor_name=parameter_tensor_name)
-                values.append(param_tensor[0, param_i])
-
-            offset_truth = loss_function(parameters_trafo=truth_trafo,
-                                         data_batch=data_batch).numpy()
-            offset_reco = loss_function(parameters_trafo=result_trafo,
-                                        data_batch=data_batch).numpy()
-
-            print('parameter', parameter)
-            print('values_trafo', values_trafo)
-            print('llh_vals_true', llh_vals_true)
-            print('llh_vals_reco', llh_vals_reco)
-
-            fig, axes = plt.subplots(2, 1, sharex=True, sharey=False,
-                                     figsize=(9, 8))
-
-            # add covariance parabolas
-            offsets = [offset_truth, offset_reco]
-            mu_list = [truth[0, param_i], result[0, param_i]]
-            for name, covariance in zip(covariance_names, covariance_list):
-                sigma = np.sqrt(covariance[param_i, param_i])
-                for i, ax in enumerate(axes):
-                    offset = -np.log(sigma) - np.log(np.sqrt(2*np.pi))
-                    parabola = offset - basis_functions.log_gauss(
-                        values, mu=mu_list[i], sigma=sigma) + offsets[i]
-                    ax.plot(values, parabola, label=name)
-
-            # plot landscapes
-            axes[0].plot(values, llh_vals_true,
-                         label='LLh (Truth)', color='0.2')
-            axes[0].axhline(offset_truth, color='0.8', linestyle='--')
-            axes[1].plot(values, llh_vals_reco,
-                         label='LLh (Reco)', color='0.2')
-            axes[1].axhline(offset_reco, color='0.8', linestyle='-')
-
-            # plot lines at best fit and truth
-            for ax in axes:
-                ax.axvline(truth[0, param_i], label='Truth',
-                           linestyle='--', color='red')
-                ax.axvline(result[0, param_i], label='Reco',
-                           linestyle='-', color='red')
-                ax.legend(ncol=2)
-
-            if False:
-                axes[0].set_ylim(min(offset_truth - 0.1, min(llh_vals_true)),
-                                 offset_truth + 10)
-                axes[1].set_ylim(min(offset_reco - 0.1, min(llh_vals_reco)),
-                                 offset_reco + 10)
-
-            axes[0].set_ylabel('LLH Value')
-            axes[1].set_ylabel('LLH Value')
-            axes[1].set_xlabel('{}'.format(parameter))
-            fig.savefig(plot_file.format(parameter=parameter))
-            plt.close(fig)
-
-    def get_circularized_estimate(self, delta_psi, delta_loss, x0=5., ddof=5):
-        """Estimate circularized sigma based on Wilk's Theorem.
-
-        Parameters
-        ----------
-        delta_psi : array_like
-            The opening angles between best fit and sample point.
-        delta_loss : array_like
-            The delta log likelihood values of best fit vs sample point.
-        x0 : float, optional
-            Initial guess for circularized uncertainty
-        ddof : int, optional
-            Degrees of freedom to use for chi2 fit.
-
-        Returns
-        -------
-        float
-            The estimated circularized uncertainty assuming Wilk's theorem.
-        """
-        ts = 2 * delta_loss
-        cdf_values = chi2(ddof).cdf(ts)
-
-        def loss_cdf(sigma, delta_psi, cdf_values):
-            loss = (cdf_values -
-                    basis_functions.rayleigh_cdf(delta_psi, sigma))**2
-            return np.sum(loss)
-
-        result_wilks = optimize.minimize(
-            loss_cdf, x0=x0, args=(delta_psi, cdf_values))
-        return result_wilks.x[0]
 
     def reconstruct_testdata(self, config, loss_module):
-        """Reconstruct test data events.
+        """Reconstruct test data events from hdf5 files.
 
         Parameters
         ----------
@@ -1113,9 +896,7 @@ class SourceManager(BaseModelManager):
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
             dtype=param_dtype)
 
-        # --------------------------------------------------
-        # get concrete functions for reconstruction and loss
-        # --------------------------------------------------
+        # get concrete function to compute loss
         get_loss = self.get_concrete_function(
             function=self.get_loss,
             input_signature=(test_dataset.element_spec,),
@@ -1123,163 +904,107 @@ class SourceManager(BaseModelManager):
             opt_config={'l1_regularization': 0., 'l2_regularization': 0},
             is_training=False,
             parameter_tensor_name=parameter_tensor_name)
-        loss_function = self.get_parameter_loss_function(
-            input_signature=(param_signature, test_dataset.element_spec),
-            loss_module=loss_module,
-            fit_paramater_list=fit_paramater_list,
-            minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=reco_config['seed'],
-            parameter_tensor_name=parameter_tensor_name)
-        loss_and_gradients_function = self.get_loss_and_gradients_function(
-            input_signature=(param_signature, test_dataset.element_spec),
-            loss_module=loss_module,
-            fit_paramater_list=fit_paramater_list,
-            minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=reco_config['seed'],
-            parameter_tensor_name=parameter_tensor_name)
 
-        # choose reconstruction method depending on the optimizer interface
-        if reco_config['reco_optimizer_interface'].lower() == 'scipy':
-            def reconstruction_method(data_batch):
-                return self.reconstruct_events(
-                    data_batch, loss_module,
-                    loss_and_gradients_function=loss_and_gradients_function,
-                    fit_paramater_list=fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=reco_config['seed'],
-                    parameter_tensor_name=parameter_tensor_name,
-                    **reco_config['scipy_optimizer_settings'])
-
-        elif reco_config['reco_optimizer_interface'].lower() == 'tfp':
-            # @tf.function(input_signature=(test_dataset.element_spec,))
-            def reconstruction_method(data_batch):
-                return self.tf_reconstruct_events(
-                    data_batch, loss_module,
-                    loss_and_gradients_function=loss_and_gradients_function,
-                    fit_paramater_list=fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=reco_config['seed'],
-                    parameter_tensor_name=parameter_tensor_name,
-                    **reco_config['tf_optimizer_settings'])
-        else:
-            msg = 'Unknown interface {!r}. Options are {!r}'
-            raise ValueError(msg.format(
-                reco_config['reco_optimizer_interface'], ['scipy', 'tfp']))
-
-        # -----------------
-        # Covariance-Matrix
-        # -----------------
+        # ---------------
+        # Define Settings
+        # ---------------
         calculate_covariance_matrix = True
-        if calculate_covariance_matrix:
-            hessian_function = self.get_hessian_function(
-                input_signature=(param_signature, test_dataset.element_spec),
-                loss_module=loss_module,
-                fit_paramater_list=fit_paramater_list,
-                minimize_in_trafo_space=minimize_in_trafo_space,
-                seed=reco_config['seed'],
-                parameter_tensor_name=parameter_tensor_name,
-            )
-
-            opg_estimate_function = self.get_opg_estimate_function(
-                input_signature=(param_signature, test_dataset.element_spec),
-                loss_module=loss_module,
-                fit_paramater_list=fit_paramater_list,
-                minimize_in_trafo_space=minimize_in_trafo_space,
-                seed=reco_config['seed'],
-                parameter_tensor_name=parameter_tensor_name,
-            )
-
-        # -----------------------------------
-        # Build Angular Uncertainty Estimator
-        # -----------------------------------
         estimate_angular_uncertainty = True
-        if estimate_angular_uncertainty:
-
-            unc_fit_paramater_list = list(fit_paramater_list)
-            unc_fit_paramater_list[self.models[0].get_index('zenith')] = False
-            unc_fit_paramater_list[self.models[0].get_index('azimuth')] = False
-
-            unc_param_signature = tf.TensorSpec(
-                shape=[None, np.sum(unc_fit_paramater_list, dtype=int)],
-                dtype=param_dtype)
-
-            unc_loss_function = self.get_parameter_loss_function(
-                    input_signature=(unc_param_signature,
-                                     test_dataset.element_spec),
-                    loss_module=loss_module,
-                    fit_paramater_list=unc_fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=reco_config['seed'],
-                    parameter_tensor_name=parameter_tensor_name)
-
-            unc_loss_and_grad_function = \
-                self.get_loss_and_gradients_function(
-                    input_signature=(unc_param_signature,
-                                     test_dataset.element_spec),
-                    loss_module=loss_module,
-                    fit_paramater_list=unc_fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=reco_config['seed'],
-                    parameter_tensor_name=parameter_tensor_name)
-
-            def unc_reconstruction_method(data_batch):
-                return self.reconstruct_events(
-                    data_batch, loss_module,
-                    loss_and_gradients_function=unc_loss_and_grad_function,
-                    fit_paramater_list=unc_fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=reco_config['seed'],
-                    parameter_tensor_name=parameter_tensor_name,
-                    # Scipy optimizer settings:
-                    method='L-BFGS-B',
-                    # method='BFGS',
-                    )
-
-        # ------------------
-        # Build MCMC Sampler
-        # ------------------
         run_mcmc = False
+        make_1d_llh_scans = False
+
+        reco_config['mcmc_num_chains'] = 10
+        reco_config['mcmc_num_results'] = 100  # 10000
+        reco_config['mcmc_num_burnin_steps'] = 30  # 100
+        reco_config['mcmc_num_steps_between_results'] = 0
+        reco_config['mcmc_num_parallel_iterations'] = 1
+        reco_config['mcmc_method'] = 'HamiltonianMonteCarlo'
+        # HamiltonianMonteCarlo
+        # RandomWalkMetropolis
+        # NoUTurnSampler
+
+        plot_file = os.path.splitext(reco_config['reco_output_file'])[0]
+        plot_file += '_llh_scan_{event_counter:08d}_{parameter}'
+
+        # -------------------------
+        # Build reconstruction tray
+        # -------------------------
+
+        # create reconstruction tray
+        reco_tray = ReconstructionTray(manager=self, loss_module=loss_module)
+
+        # add reconstruction module
+        reco_tray.add_module(
+            'Reconstruction',
+            name='reco',
+            fit_paramater_list=fit_paramater_list,
+            seed_tensor_name=reco_config['seed'],
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            parameter_tensor_name=parameter_tensor_name,
+            reco_optimizer_interface=reco_config['reco_optimizer_interface'],
+            scipy_optimizer_settings=reco_config['scipy_optimizer_settings'],
+            tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+        )
+
+        # add covariance module
+        if calculate_covariance_matrix:
+            reco_tray.add_module(
+                'CovarianceMatrix',
+                name='covariance',
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=reco_config['seed'],
+                reco_key='reco',
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+            )
+
+        # add circularized angular uncertainty estimation module
+        if estimate_angular_uncertainty:
+            reco_tray.add_module(
+                'CircularizedAngularUncertainty',
+                name='CircularizedAngularUncertainty',
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=reco_config['seed'],
+                reco_key='reco',
+                # covariance_key='covariance',
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+            )
+
+        # add MCMC module
         if run_mcmc:
-            reco_config['mcmc_num_chains'] = 10
-            reco_config['mcmc_num_results'] = 100  # 10000
-            reco_config['mcmc_num_burnin_steps'] = 30  # 100
-            reco_config['mcmc_num_steps_between_results'] = 0
-            reco_config['mcmc_num_parallel_iterations'] = 100
-            reco_config['mcmc_method'] = 'HamiltonianMonteCarlo'
-            # HamiltonianMonteCarlo
-            # RandomWalkMetropolis
-            # NoUTurnSampler
+            reco_tray.add_module(
+                'MarkovChainMonteCarlo',
+                name='mcmc',
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=reco_config['seed'],
+                reco_key='reco',
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                mcmc_num_chains=reco_config['mcmc_num_chains'],
+                mcmc_method=reco_config['mcmc_method'],
+                mcmc_num_results=reco_config['mcmc_num_results'],
+                mcmc_num_burnin_steps=reco_config['mcmc_num_burnin_steps'],
+                mcmc_num_steps_between_results=reco_config[
+                    'mcmc_num_steps_between_results'],
+                mcmc_num_parallel_iterations=reco_config[
+                    'mcmc_num_parallel_iterations'],
+            )
 
-            parameter_loss_function = self.get_parameter_loss_function(
-                    input_signature=(param_signature,
-                                     test_dataset.element_spec),
-                    loss_module=loss_module,
-                    fit_paramater_list=fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=reco_config['seed'],
-                    parameter_tensor_name=parameter_tensor_name)
-
-            @tf.function(input_signature=(param_signature,
-                                          test_dataset.element_spec))
-            def run_mcmc_on_events(initial_position, data_batch):
-                return self.run_mcmc_on_events(
-                    initial_position=initial_position,
-                    data_batch=data_batch,
-                    loss_module=loss_module,
-                    parameter_loss_function=parameter_loss_function,
-                    fit_paramater_list=fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    num_chains=reco_config['mcmc_num_chains'],
-                    seed=reco_config['seed'],
-                    method=reco_config['mcmc_method'],
-                    num_results=reco_config['mcmc_num_results'],
-                    num_burnin_steps=reco_config['mcmc_num_burnin_steps'],
-                    num_steps_between_results=reco_config[
-                        'mcmc_num_steps_between_results'],
-                    num_parallel_iterations=reco_config[
-                        'mcmc_num_parallel_iterations'],
-                    parameter_tensor_name=parameter_tensor_name)
-        # ------------------
+        # add plotting module
+        if make_1d_llh_scans:
+            reco_tray.add_module(
+                'Visualize1DLikelihoodScan',
+                name='visualization',
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=reco_config['seed'],
+                plot_file_template=plot_file,
+                reco_key='reco',
+                # covariance_key='covariance',
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+            )
+        # -------------------------
 
         # create empty lists
         cascade_parameters_true = []
@@ -1329,250 +1054,60 @@ class SourceManager(BaseModelManager):
             # data_batch = tuple(new_batch)
             # # -------------------
 
-            # reconstruct event
+            # ---------------------------
+            # Execute reconstruction tray
+            # ---------------------------
             reco_start_t = timeit.default_timer()
-            result, result_obj = reconstruction_method(data_batch)
+            results = reco_tray.execute(data_batch)
             reco_end_t = timeit.default_timer()
 
+            cascade_reco_batch = results['reco']['result']
             cascade_true_batch = data_batch[param_index].numpy()
             cascade_seed_batch = data_batch[seed_index].numpy()
-
-            if reco_config['minimize_in_trafo_space']:
-                cascade_seed_batch_trafo = self.data_trafo.transform(
-                            data=data_batch[seed_index],
-                            tensor_name=parameter_tensor_name).numpy()
-            else:
-                cascade_seed_batch_trafo = cascade_seed_batch
 
             # -----------------
             # Covariance-Matrix
             # -----------------
             if calculate_covariance_matrix:
 
-                # get Hessian at reco best fit
-                hessian = hessian_function(
-                    parameters_trafo=result,
-                    data_batch=data_batch).numpy().astype('float64')
-
-                opg_estimate = opg_estimate_function(
-                    parameters_trafo=result,
-                    data_batch=data_batch).numpy().astype('float64')
-
-                cov = np.linalg.inv(hessian)
-                cov_sand = np.matmul(np.matmul(cov, opg_estimate), cov)
-                if hasattr(result_obj, 'hess_inv'):
-                    cov_sand_fit = np.matmul(
-                        np.matmul(result_obj.hess_inv, opg_estimate),
-                        result_obj.hess_inv)
-
-                if reco_config['minimize_in_trafo_space']:
-                    cov = self.data_trafo.inverse_transform_cov(
-                        cov_trafo=cov, tensor_name=parameter_tensor_name)
-
-                    cov_sand = self.data_trafo.inverse_transform_cov(
-                        cov_trafo=cov_sand,
-                        tensor_name=parameter_tensor_name
-                    )
-                    cov_sand_fit = self.data_trafo.inverse_transform_cov(
-                        cov_trafo=cov_sand_fit,
-                        tensor_name=parameter_tensor_name
-                    )
-
-                    if hasattr(result_obj, 'hess_inv'):
-                        cov_min = self.data_trafo.inverse_transform_cov(
-                            cov_trafo=result_obj.hess_inv,
-                            tensor_name=parameter_tensor_name,
-                        )
-                        print('Covariance:', np.sqrt(np.diag(cov)))
-                        print('Cov. sand:', np.sqrt(np.diag(cov_sand)))
-                        print('Cov. sand fit:', np.sqrt(np.diag(cov_sand_fit)))
-                        print('opg_estimate:', np.sqrt(np.diag(opg_estimate)))
-                        print('Covariance res', np.sqrt(np.diag(cov_min)))
+                # extract results
+                cov = results['covariance']['cov']
+                cov_fit = results['covariance']['cov_fit']
+                cov_sand = results['covariance']['cov_sand']
+                cov_sand_fit = results['covariance']['cov_sand_fit']
 
                 # save correlation between zenith and azimuth
                 zen_index = self.models[0].get_index('zenith')
                 azi_index = self.models[0].get_index('azimuth')
 
                 cov_zen_azi_list.append(cov[zen_index, azi_index])
-                cov_fit_zen_azi_list.append(cov_min[zen_index, azi_index])
+                cov_fit_zen_azi_list.append(cov_fit[zen_index, azi_index])
 
                 std_devs_sandwich.append(np.sqrt(np.diag(cov_sand)))
                 std_devs_sandwich_fit.append(np.sqrt(np.diag(cov_sand_fit)))
                 std_devs.append(np.sqrt(np.diag(cov)))
-                std_devs_fit.append(np.sqrt(np.diag(cov_min)))
+                std_devs_fit.append(np.sqrt(np.diag(cov_fit)))
 
                 # Write to file
                 cov_file = '{}_cov_{:08d}.npy'.format(
                     os.path.splitext(reco_config['reco_output_file'])[0],
                     event_counter)
-                # np.save(cov_file, np.stack([cov, cov_min]))
-
-                # make plots
-                if False:
-                    plot_file = '{}_llh_scan_{:08d}'.format(
-                        os.path.splitext(reco_config['reco_output_file'])[0],
-                        event_counter) + '_{parameter}'
-                    self.make_1d_llh_scans(
-                        data_batch=data_batch,
-                        result_trafo=result,
-                        truth_trafo=self.data_trafo.transform(
-                            data=data_batch[param_index].numpy(),
-                            tensor_name=parameter_tensor_name),
-                        # covariance_list=[cov, cov_min, cov_sand, cov_sand_fit],
-                        # covariance_names=['cov', 'cov_min', 'cov_sand',
-                        #                   'cov_sand_fit'],
-                        loss_function=loss_function,
-                        plot_file=plot_file,
-                        parameter_tensor_name=parameter_tensor_name)
+                # np.save(cov_file, np.stack([cov, cov_fit]))
 
             # -------------------
             # Angular Uncertainty
             # -------------------
             if estimate_angular_uncertainty:
-                n = 10
 
-                # The following assumes that result is the full hypothesis
-                assert np.all(fit_paramater_list)
-
-                # specify a random number generator for reproducibility
-                random_service = np.random.RandomState(42)
-
-                zenith_index = self.models[0].get_index('zenith')
-                azimuth_index = self.models[0].get_index('azimuth')
-
-                # invert transformation of result if necessary
-                if minimize_in_trafo_space:
-                    result_inv = self.data_trafo.inverse_transform(
-                            data=result,
-                            tensor_name=parameter_tensor_name)
-                else:
-                    result_inv = result
-
-                # calculate delta degrees of freedom
-                ddof = len(result_inv[0]) - 2
-
-                # define reconstruction method
-                def reconstruct_at_angle(zeniths, azimuths):
-                    data_batch_combined = [t for t in data_batch]
-                    seed_tensor = np.array(result_inv)
-                    unc_results_list = []
-                    unc_loss_list = []
-                    for zen, azi in zip(zeniths, azimuths):
-
-                        # put together seed tensor and new data batch
-                        seed_tensor[:, zenith_index] = zen
-                        seed_tensor[:, azimuth_index] = azi
-                        data_batch_combined[seed_index] = tf.convert_to_tensor(
-                            seed_tensor, param_dtype)
-
-                        # reconstruct (while keeping azimuth and zenith fixed)
-                        unc_result, result_obj = unc_reconstruction_method(
-                            tuple(data_batch_combined))
-
-                        # get loss
-                        unc_loss = unc_loss_function(
-                            parameters_trafo=unc_result,
-                            data_batch=tuple(data_batch_combined)).numpy()
-
-                        # append data
-                        unc_results_list.append(unc_result)
-                        unc_loss_list.append(unc_loss)
-
-                    unc_results = np.concatenate(unc_results_list, axis=0)
-                    unc_losses = np.array(unc_loss_list)
-
-                    return unc_results, unc_losses
-
-                # start timer
-                unc_start_t = timeit.default_timer()
-
-                # get loss of reco best fit
-                unc_loss_best = loss_function(
-                    parameters_trafo=result,
-                    data_batch=data_batch).numpy()
-
-                # define zenith and azimuth of reconstruction result
-                result_zenith = result_inv[:, zenith_index]
-                result_azimuth = result_inv[:, azimuth_index]
-
-                # ------------------------
-                # get scale of uncertainty
-                # ------------------------
-                def bisection_step(low, high, target=0.99, ddof=5):
-                    center = low + (high - low) / 2.
-                    zen, azi = angles.get_delta_psi_vector(
-                        zenith=result_zenith,
-                        azimuth=result_azimuth,
-                        delta_psi=[center],
-                        random_service=random_service)
-                    unc_results, unc_losses = reconstruct_at_angle(zen, azi)
-
-                    # calculate cdf value assuming Wilk's Theorem
-                    cdf_value = chi2(ddof).cdf(2*(unc_losses - unc_loss_best))
-
-                    # pack values together
-                    values = ([center], zen, azi, unc_results,
-                              unc_losses, cdf_value)
-                    if cdf_value > target:
-                        high = center
-                    else:
-                        low = center
-                    return low, high, values
-
-                if calculate_covariance_matrix:
-                    stds = np.sqrt(np.diag(cov_sand_fit))
-                    circ_sigma = np.sqrt((
-                        stds[zenith_index]**2 +
-                        stds[azimuth_index]**2 *
-                        np.sin(result_zenith)**2) / 2.)[0]
-
-                    unc_upper_bound = min(89.9, 3*np.rad2deg(circ_sigma))
-                else:
-                    num_unc_scale_steps = 4
-                    lower_bound = 0.
-                    upper_bound = 90.
-                    for i in range(num_unc_scale_steps):
-                        lower_bound, upper_bound, values = bisection_step(
-                            lower_bound, upper_bound, ddof=ddof)
-                    unc_upper_bound = min(89.9, values[0][0])
-
-                print('Upper bound: {} | ddof: {}'.format(
-                      unc_upper_bound, ddof))
-                # ------------------------
-
-                # generate random vectors at different opening angles delta psi
-                delta_psi = random_service.uniform(1, unc_upper_bound, size=n)
-                delta_psi = np.linspace(0, unc_upper_bound, n)
-                zen, azi = angles.get_delta_psi_vector(
-                    zenith=result_zenith,
-                    azimuth=result_azimuth,
-                    delta_psi=delta_psi,
-                    random_service=random_service)
-
-                # reconstruct at chosen angles
-                unc_results, unc_losses = reconstruct_at_angle(zen, azi)
-
-                # calculate delta_log_prob
-                delta_loss = unc_losses - unc_loss_best
-
-                # fit chi2 CDF and estimate circularized uncertainty
-                circular_unc = self.get_circularized_estimate(
-                    delta_psi, delta_loss, x0=5., ddof=ddof)
-                circular_unc_list.append(circular_unc)
-
-                # end timer
-                unc_end_t = timeit.default_timer()
-
-                print('delta_loss', delta_loss)
-                print('Uncertainty estimation took: {:3.3f}s'.format(
-                    unc_end_t - unc_start_t))
+                circular_unc_list.append(
+                    results['CircularizedAngularUncertainty']['circular_unc'])
 
                 # ---------------------
                 # write samples to file
                 # ---------------------
                 if False:
                     df = pd.DataFrame()
-                    df['loss'] = unc_losses
+                    # df['loss'] = unc_losses
                     df['delta_loss'] = delta_loss
                     df['delta_psi'] = delta_psi
 
@@ -1597,74 +1132,11 @@ class SourceManager(BaseModelManager):
             # run mcmc test
             # -------------
             if run_mcmc:
-                num_params = len(fit_paramater_list)
 
-                if minimize_in_trafo_space:
-                    result_inv = self.data_trafo.inverse_transform(
-                            data=result,
-                            tensor_name=parameter_tensor_name)
-                else:
-                    result_inv = result
-
-                assert len(result_inv) == 1
-                result_inv = result_inv[0]
-                cascade_true = cascade_true_batch[0]
-
-                # 0, 1, 2,      3,       4,      5,    6
-                # x, y, z, zenith, azimuth, energy, time
-                scale = np.array([10., 10., 10., 0.2, 0.2, 0., 20.])
-                scale = 0
-                low = result_inv - scale
-                high = result_inv + scale
-                # low[3] = 0.0
-                # low[4] = 0.0
-                # high[3] = np.pi
-                # high[4] = 2*np.pi
-                low[5] *= 0.9
-                high[5] *= 1.1
-                initial_position = np.random.uniform(
-                    low=low, high=high,
-                    size=[reco_config['mcmc_num_chains'], num_params])
-                initial_position = tf.convert_to_tensor(initial_position,
-                                                        dtype=param_dtype)
-
-                if minimize_in_trafo_space:
-                    initial_position = self.data_trafo.transform(
-                                            data=initial_position,
-                                            tensor_name=parameter_tensor_name)
-
-                # initial_position = tf.reshape(
-                #     tf.convert_to_tensor(result, dtype=param_dtype),
-                #     [1, len(fit_paramater_list)])
-                # print('initial_position', initial_position)
-                # print('initial_position.shape', initial_position.shape)
-                mcmc_start_t = timeit.default_timer()
-                samples, trace = run_mcmc_on_events(initial_position,
-                                                    data_batch)
-                mcmc_end_t = timeit.default_timer()
-
-                samples = samples.numpy()
-                accepted = trace[0].numpy()
-                log_prob_values = trace[1].numpy()
-                if len(trace) > 2:
-                    steps = trace[2].numpy()
-                    step_size = steps[0][0]
-                    if minimize_in_trafo_space:
-                        step_size *= self.data_trafo.data[
-                                                parameter_tensor_name+'_std']
-
-                num_accepted = np.sum(accepted)
-                num_samples = samples.shape[0] * samples.shape[1]
-                samples = samples[accepted]
-                log_prob_values = log_prob_values[accepted]
-                print('MCMC Results took {:3.3f}s:'.format(
-                    mcmc_end_t - mcmc_start_t))
-                print('\tAcceptance Ratio: {:2.1f}%'.format(
-                    (100. * num_accepted) / num_samples))
-                msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
-                if len(trace) > 2:
-                    print('\tStepsize: ' + msg.format(*step_size))
-                msg = '{:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f}'
+                # extract results
+                samples = results['mcmc']['samples']
+                log_prob_values = results['mcmc']['log_prob_values']
+                num_accepted = len(log_prob_values)
 
                 if num_accepted > 0:
                     index_max = np.argmax(log_prob_values)
@@ -1707,14 +1179,6 @@ class SourceManager(BaseModelManager):
                                          min_val_50, max_val_50, max_val_90,
                                          name))
             # -------------
-
-            # get reco cascade
-            cascade_reco_batch = self.get_reco_result_batch(
-                result=result,
-                fit_paramater_list=fit_paramater_list,
-                minimize_in_trafo_space=reco_config['minimize_in_trafo_space'],
-                cascade_seed_batch_trafo=cascade_seed_batch_trafo,
-                parameter_tensor_name=parameter_tensor_name)
 
             # Now loop through events in this batch
             for cascade_reco, cascade_seed, cascade_true in zip(
