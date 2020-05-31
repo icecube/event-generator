@@ -104,7 +104,8 @@ def main(config_files, output_dir, reco_config_file=None):
     manager.save(output_dir)
 
     # copy over reco config to output directory
-    shutil.copy(reco_config_file, os.path.join(output_dir, 'reco_config.yaml'))
+    shutil.copy(reco_config_file[0],
+                os.path.join(output_dir, 'reco_config.yaml'))
 
 
 if __name__ == '__main__':
