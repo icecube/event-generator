@@ -5,7 +5,6 @@ import os
 import shutil
 import logging
 import click
-import ruamel.yaml as yaml
 import tensorflow as tf
 
 from egenerator import misc

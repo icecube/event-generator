@@ -3,18 +3,13 @@
 from __future__ import division, print_function
 import os
 from copy import deepcopy
-import shutil
-import logging
 import click
-import ruamel.yaml as yaml
 import tensorflow as tf
 
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
 from egenerator.utils.build_components import build_loss_module
-from egenerator.utils.build_components import build_model
-from egenerator.data.trafo import DataTransformer
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
