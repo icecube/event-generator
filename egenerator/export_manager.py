@@ -4,7 +4,6 @@ from __future__ import division, print_function
 import os
 from copy import deepcopy
 import shutil
-import logging
 import click
 import ruamel.yaml as yaml
 import tensorflow as tf
@@ -95,11 +94,7 @@ def main(config_files, output_dir, reco_config_file=None):
     manager.save(output_dir)
 
     # copy over reco config to output directory
-    raise NotImplementedError
-
-    # delete logs directory in output directory if desired
-
-    # clean up superflous checkpoints
+    shutil.copy(reco_config_file, os.path.join(output_dir, 'reco_config.yaml'))
 
 
 if __name__ == '__main__':
