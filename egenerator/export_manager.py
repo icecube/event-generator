@@ -44,6 +44,16 @@ def main(config_files, output_dir, reco_config_file=None):
         Description
     """
 
+    if os.path.exists(output_dir):
+        if not click.confirm(
+                'Directory already exists at destination. Delete {!r}?'.format(
+                    output_dir),
+                default=False):
+            raise ValueError('Aborting!')
+        else:
+            print('Deleting directory {}'.format(output_dir))
+            shutil.rmtree(output_dir)
+
     if reco_config_file is None:
         reco_config_file = [config_files[0]]
     else:
