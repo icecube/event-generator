@@ -107,6 +107,11 @@ def main(config_files, output_dir, reco_config_file=None):
     shutil.copy(reco_config_file[0],
                 os.path.join(output_dir, 'reco_config.yaml'))
 
+    print('\n====================================')
+    print('= Successfully exported model to:  =')
+    print('====================================')
+    print('{!r}\n'.format(output_dir))
+
 
 if __name__ == '__main__':
     main()
