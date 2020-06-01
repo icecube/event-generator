@@ -69,7 +69,7 @@ class I3ManagerConfigurator:
         # Create misc module
         # ------------------
         reco_config = config['reconstruction_settings']
-        if reco_config['seed'] == 'x_parameters':
+        if misc_setting_updates['seed_names'] == ['x_parameters']:
             # The parameter labels are being used as a seed, so we do not need
             # to create a modified misc module
             modified_sub_components = {}
@@ -82,6 +82,7 @@ class I3ManagerConfigurator:
                 missing_value=reco_config['seed_missing_value'],
             )
             misc_settings.update(misc_setting_updates)
+            print('misc_settings', misc_settings)
             misc_module.configure(config_data=None, **misc_settings)
 
             # create nested dictionary of modified sub components in order to

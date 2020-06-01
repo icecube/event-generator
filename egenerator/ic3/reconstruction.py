@@ -2,6 +2,7 @@ import os
 from icecube import dataclasses, icetray
 
 from egenerator.ic3.configurator import I3ManagerConfigurator
+from egenerator.manager.reconstruction.tray import ReconstructionTray
 
 
 class EventGeneratorReconstruction(icetray.I3ConditionalModule):
@@ -153,7 +154,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             reco_config_dir=None,
             load_labels=False,
             misc_setting_updates={
-                'seed_names': self.seed_keys,
+                'seed_names': [self.seed_keys],
             },
             label_setting_updates={
                 'label_key': self.label_key,
@@ -181,7 +182,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         # get a list of parameters to fit
         fit_paramater_list = [self.minimize_parameter_default_value
-                              for i in range(self.models[0].num_parameters)]
+                              for i in
+                              range(self.manager.models[0].num_parameters)]
         for name, value in self.minimize_parameter_dict.items():
             fit_paramater_list[self.models[0].get_index(name)] = value
 

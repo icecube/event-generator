@@ -44,8 +44,8 @@ class Reconstruction:
         #     parameter_tensor_name)
         self.seed_index = manager.data_handler.tensors.get_index(
             seed_tensor_name)
-        param_dtype = getattr(
-            tf, manager.data_handler.tensors[parameter_tensor_name].dtype)
+        param_dtype = getattr(tf, manager.data_trafo.data_handler.tensors[
+            parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
             dtype=param_dtype)

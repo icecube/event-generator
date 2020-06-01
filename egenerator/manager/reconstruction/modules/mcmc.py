@@ -75,12 +75,8 @@ class MarkovChainMonteCarlo:
         self.rng = np.random.RandomState(random_seed)
 
         # parameter input signature
-        self.param_index = manager.data_handler.tensors.get_index(
-            parameter_tensor_name)
-        # self.seed_index = manager.data_handler.tensors.get_index(
-        #     seed_tensor_name)
-        self.param_dtype = getattr(
-            tf, manager.data_handler.tensors[parameter_tensor_name].dtype)
+        self.param_dtype = getattr(tf, manager.data_trafo.data_handler.tensors[
+            parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
             dtype=self.param_dtype)
@@ -156,7 +152,6 @@ class MarkovChainMonteCarlo:
 
         assert len(result_inv) == 1
         result_inv = result_inv[0]
-        cascade_true = data_batch[self.param_index].numpy()[0]
 
         # # 0, 1, 2,      3,       4,      5,    6
         # # x, y, z, zenith, azimuth, energy, time
