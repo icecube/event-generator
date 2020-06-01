@@ -347,7 +347,6 @@ class ModuleDataHandler(BaseDataHandler):
                                                 file_or_frame, *args, **kwargs)
             num_weights, weights = self.weight_module.create_data_from_frame(
                                                 file_or_frame, *args, **kwargs)
-
         # check if there were any problems loading data and skip if there were
         found_problem = False
         if self.data_tensors.len > 0 and num_data is None and data is None:

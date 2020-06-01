@@ -8,6 +8,12 @@ from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
+try:
+    from icecube import dataclasses
+except ImportError:
+    logging.getLogger(__name__).warning(
+        'Could not import icecube. No IceCube support')
+
 
 class SeedLoaderMiscModule(BaseComponent):
 
@@ -212,16 +218,26 @@ class SeedLoaderMiscModule(BaseComponent):
             try:
                 _labels = frame[seed_name]
                 for l in self.configuration.config['seed_parameter_names']:
-                    if l in _labels:
+                    if isinstance(_labels, dataclasses.I3Particle):
+                        if hasattr(_labels, l):
+                            value = getattr(_labels, l)
+                        elif l in ['x', 'y', 'z']:
+                            value = getattr(_labels.pos, l)
+                        elif l in ['zenith', 'azimuth']:
+                            value = getattr(_labels.dir, l)
+                        elif missing_value is not None:
+                            value = missing_value
+                        else:
+                            raise KeyError('Could not find key {!r}'.format(l))
+                        seed_parameters.append([value])
+                    elif l in _labels:
                         seed_parameters.append([_labels[l]])
-                    elif hasattr(_labels, l):
-                        seed_parameters.append([getattr(_labels, l)])
                     elif missing_value is not None:
                         seed_parameters.append([missing_value])
                     else:
                         raise KeyError('Could not find key {!r}'.format(l))
 
-            except Exception as e:
+            except KeyError as e:
                 self._logger.warning(e)
                 self._logger.warning('Skipping frame: {}'.format(frame))
                 return None, None

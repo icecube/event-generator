@@ -59,6 +59,7 @@ class Reconstruction:
             data_batch_signature.append(tf.TensorSpec(
                 shape=shape,
                 dtype=getattr(tf, tensor.dtype)))
+
         data_batch_signature = tuple(data_batch_signature)
 
         # --------------------------------------------------

@@ -315,6 +315,8 @@ class BaseDataHandler(BaseComponent):
 
         Returns
         -------
+        int
+            Number of events.
         tuple of array-like tensors
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
@@ -326,6 +328,37 @@ class BaseDataHandler(BaseComponent):
             return None, None
         self._check_data_structure(data)
         return num_events, data
+
+    def get_tensor_from_frame(self, frame, *args, **kwargs):
+        """Get data from I3Frame and convert it to tf tensors.
+
+        Non-existing Tensors with values None, will be replaced with a
+        default value of the expected data type.
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The I3Frame from which to get the data.
+        *args
+            Variable length argument list.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        tuple of tf tensors
+            The input data (array-like) as specified in the
+            DataTensorList (self.tensors).
+        """
+        num_events, data = self.get_data_from_frame(frame, *args, **kwargs)
+
+        data_tensors = []
+        for i, tensor in enumerate(self.tensors.list):
+            if tensor.exists:
+                data_tensors.append(tf.convert_to_tensor(data[i]))
+            else:
+                data_tensors.append(getattr(np, tensor.dtype)())
+        return tuple(data_tensors)
 
     def _get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame. This method needs to be implemented by

@@ -82,7 +82,6 @@ class I3ManagerConfigurator:
                 missing_value=reco_config['seed_missing_value'],
             )
             misc_settings.update(misc_setting_updates)
-            print('misc_settings', misc_settings)
             misc_module.configure(config_data=None, **misc_settings)
 
             # create nested dictionary of modified sub components in order to

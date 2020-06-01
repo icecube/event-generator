@@ -251,7 +251,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         """
 
         # get data batch
-        data_batch = self.manager.data_handler.get_data_from_frame(frame)
+        data_batch = self.manager.data_handler.get_tensor_from_frame(frame)
 
         # reconstruct data
         results = self.reco_tray.execute(data_batch)
