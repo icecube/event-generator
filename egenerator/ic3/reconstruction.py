@@ -256,8 +256,50 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         # reconstruct data
         results = self.reco_tray.execute(data_batch)
 
+        # --------------
         # write to frame
-        print('results', results)
+        # --------------
+
+        # write best fit results to frame
+        best_fit = results['reco']['result'][0]
+
+        result_dict = dataclasses.I3MapStringDouble()
+        for i, name in enumerate(self.manager.models[0].parameter_names):
+            result_dict[name] = best_fit[i]
+
+        # add an I3Particle
+        particle = dataclasses.I3Particle()
+        particle.energy = result_dict['energy']
+        particle.time = result_dict['time']
+        particle.pos = dataclasses.I3Position(
+            result_dict['x'], result_dict['y'], result_dict['z'])
+        particle.dir = dataclasses.I3Direction(
+            result_dict['zenith'], result_dict['azimuth'])
+
+        # write runtimes for each module to frame
+        result_dict['']
+
+        # write covariance Matrices to frame
+        if self.add_covariances:
+            for name, value in results['covariance']:
+                if name == 'runtime':
+                    result_dict['runtime_covariance'] = value
+                else:
+                    frame[self.output_key+'_cov_matrix_'+name] = \
+                        dataclasses.I3Matrix(value)
+        else:
+            # write covariance matrix from minimizer to frame
+            pass
+
+        if self.add_circular_err:
+            result_dict['circular_unc'] = \
+                results['CircularizedAngularUncertainty']['circular_unc']
+            result_dict['runtime_circular_err'] = \
+                results['CircularizedAngularUncertainty']['runtime']
+
+        # save to frame
+        frame[self.output_key] = result_dict
+        frame[self.output_key+'_I3Particle'] = particle
 
         # push frame to next modules
         self.PushFrame(frame)
