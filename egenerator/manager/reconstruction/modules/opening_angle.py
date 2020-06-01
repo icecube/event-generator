@@ -60,7 +60,7 @@ class CircularizedAngularUncertainty:
         # parameter input signature
         self.seed_index = manager.data_handler.tensors.get_index(
             seed_tensor_name)
-        self.param_dtype = getattr(tf, manager.data_trafo.data_handler.tensors[
+        self.param_dtype = getattr(tf, manager.data_trafo['tensors'][
             parameter_tensor_name].dtype)
 
         unc_param_signature = tf.TensorSpec(
