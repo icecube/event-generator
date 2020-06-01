@@ -42,7 +42,7 @@ class CovarianceMatrix:
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
 
-        param_dtype = getattr(tf, manager.data_trafo['tensors'][
+        param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],

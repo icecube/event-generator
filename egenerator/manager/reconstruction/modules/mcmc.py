@@ -75,7 +75,7 @@ class MarkovChainMonteCarlo:
         self.rng = np.random.RandomState(random_seed)
 
         # parameter input signature
-        self.param_dtype = getattr(tf, manager.data_trafo['tensors'][
+        self.param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],

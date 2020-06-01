@@ -500,7 +500,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
-        param_tensor = self.data_trafo['tensors'][parameter_tensor_name]
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
 
@@ -613,7 +613,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
-        param_tensor = self.data_trafo['tensors'][parameter_tensor_name]
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
 
@@ -754,7 +754,7 @@ class SourceManager(BaseModelManager):
 
         step_size = np.array(step_size)
 
-        param_tensor = self.data_trafo['tensors'][parameter_tensor_name]
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
 
         if minimize_in_trafo_space:
