@@ -49,7 +49,7 @@ class I3ManagerConfigurator:
         else:
             reco_config_dir = [reco_config_dir]
 
-        reco_config_file = os.path.join(reco_config_dir, 'reco_config.yaml')
+        reco_config_file = os.path.join(reco_config_dir[0], 'reco_config.yaml')
 
         # limit GPU usage
         gpu_devices = tf.config.experimental.list_physical_devices('GPU')
@@ -57,7 +57,7 @@ class I3ManagerConfigurator:
             tf.config.experimental.set_memory_growth(device, True)
 
         # read in reconstruction config file
-        setup_manager = SetupManager(reco_config_file)
+        setup_manager = SetupManager([reco_config_file])
         config = setup_manager.get_config()
 
         # ------------------
@@ -98,12 +98,12 @@ class I3ManagerConfigurator:
                 }
             else:
                 label_config = reco_config['modified_label_module']
+                label_config['label_settings'].update(label_setting_updates)
 
             LabelModuleClass = misc.load_class(
                 'egenerator.data.modules.labels.{}'.format(
                             label_config['label_module']))
             label_module = LabelModuleClass()
-            label_config['label_settings'].update(label_setting_updates)
             label_module.configure(config_data=None,
                                    **label_config['label_settings'])
 
@@ -136,20 +136,20 @@ class I3ManagerConfigurator:
         # -----------------------------
         # Create and load Model Manager
         # -----------------------------
-        manager_config = config['model_manager_settings']
-        manager_dir = manager_config['config']['manager_dir']
-
-        if not os.path.exists(os.path.join(manager_dir, 'configuration.yaml')):
-            msg = 'Could not find a saved model at {!r}!'
-            raise ValueError(msg.format(manager_dir))
 
         # load models from config files
         models = []
-        for config_file in manager_dirs:
+        for manager_dir in manager_dirs:
+
+            # adjust manager_dir
+            config_i = SetupManager(
+                [os.path.join(manager_dir, 'reco_config.yaml')]).get_config()
+            config_i['model_manager_settings']['config']['manager_dir'] = \
+                manager_dir
 
             # load manager objects and extract models and a data_handler
-            model_manger,  _, data_handler, _ = build_manager(
-                SetupManager([config_file]).get_config(),
+            model_manger,  _, data_handler, data_transformer = build_manager(
+                config_i,
                 restore=True,
                 modified_sub_components=deepcopy(modified_sub_components),
                 allow_rebuild_base_sources=False,
@@ -162,6 +162,7 @@ class I3ManagerConfigurator:
                                 restore=False,
                                 models=models,
                                 data_handler=data_handler,
+                                data_transformer=data_transformer,
                                 allow_rebuild_base_sources=False)
 
         # save manager

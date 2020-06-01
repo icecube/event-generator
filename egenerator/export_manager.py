@@ -79,7 +79,7 @@ def main(config_files, output_dir, reco_config_file=None):
     for config_file in config_files:
 
         # load manager objects and extract models and a data_handler
-        model_manger,  _, data_handler, _ = build_manager(
+        model_manger,  _, data_handler, data_transformer = build_manager(
             SetupManager([config_file]).get_config(),
             restore=True,
             modified_sub_components={},
@@ -93,6 +93,7 @@ def main(config_files, output_dir, reco_config_file=None):
                             restore=False,
                             models=models,
                             data_handler=data_handler,
+                            data_transformer=data_transformer,
                             allow_rebuild_base_sources=False)
 
     # --------------

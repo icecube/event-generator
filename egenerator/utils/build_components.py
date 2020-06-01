@@ -203,8 +203,9 @@ def build_manager(config, restore,
         # --------------------------
         # create and load TrafoModel
         # --------------------------
-        data_transformer = DataTransformer()
-        data_transformer.load(config['data_trafo_settings']['model_dir'])
+        if data_transformer is None:
+            data_transformer = DataTransformer()
+            data_transformer.load(config['data_trafo_settings']['model_dir'])
 
         # -----------------------
         # create and Model object
@@ -220,4 +221,4 @@ def build_manager(config, restore,
                           data_handler=data_handler,
                           models=models)
 
-    return manager, manager.models, manager.data_handler, data_transformer
+    return manager, manager.models, manager.data_handler, manager.data_trafo

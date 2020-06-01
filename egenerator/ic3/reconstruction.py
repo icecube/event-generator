@@ -38,8 +38,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           ' The full path is given by `model_base_dir` + '
                           ' model_name if `model_base_dir` is provided. '
                           'Otherwise `model_names` must define the full '
-                          'model path.'
-                          None)
+                          'model path.',
+                          '/data/user/mhuennefeld/exported_models/egenerator')
+        self.AddParameter('output_key',
+                          'The output base key to which results will be saved',
+                          'EventGenerator')
         self.AddParameter('pulse_key',
                           'The pulses to use for the reconstruction.',
                           'InIceDSTPulses')
@@ -109,6 +112,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.seed_keys = self.GetParameter('seed_keys')
         self.model_names = self.GetParameter('model_names')
         self.model_base_dir = self.GetParameter('model_base_dir')
+        self.output_key = self.GetParameter('output_key')
         self.pulse_key = self.GetParameter('pulse_key')
         self.dom_exclusions_key = self.GetParameter('dom_exclusions_key')
         self.time_exclusions_key = self.GetParameter('time_exclusions_key')
@@ -132,6 +136,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         if isinstance(self.seed_keys, (list, tuple)):
             raise NotImplementedError('Multiple seeds not yet supported')
+
+        if isinstance(self.model_names, str):
+            self.model_names = [self.model_names]
 
         manager_dirs = []
         for name in self.model_names:
