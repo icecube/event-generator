@@ -276,9 +276,6 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         particle.dir = dataclasses.I3Direction(
             result_dict['zenith'], result_dict['azimuth'])
 
-        # write runtimes for each module to frame
-        result_dict['']
-
         # write covariance Matrices to frame
         if self.add_covariances:
             for name, value in results['covariance']:
