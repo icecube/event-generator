@@ -48,6 +48,15 @@ reconstruction_settings: {
                              'd', 'd', 'd', 'd', 'd', 'd',
                          ],
     'seed_missing_value': 1.,
+    'seed_missing_value_dict': {
+        'Absorption': 1.,
+        'AnisotropyScale': 1.,
+        'DOMEfficiency': 1.,
+        'HoleIceForward_Unified_00': 0.,
+        'HoleIceForward_Unified_01': 0.,
+        'Scattering': 1.,
+    },
+
     'seed_float_precision': 'float32',
 
     # choose the otpimizer iterface:

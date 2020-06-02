@@ -80,6 +80,7 @@ class I3ManagerConfigurator:
                 seed_parameter_names=reco_config['seed_parameter_names'],
                 float_precision=reco_config['seed_float_precision'],
                 missing_value=reco_config['seed_missing_value'],
+                missing_value_dict=reco_config['seed_missing_value_dict'],
             )
             misc_settings.update(misc_setting_updates)
             misc_module.configure(config_data=None, **misc_settings)

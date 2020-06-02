@@ -33,7 +33,7 @@ class SeedLoaderMiscModule(BaseComponent):
         super(SeedLoaderMiscModule, self).__init__(logger=logger)
 
     def _configure(self, config_data, seed_names, seed_parameter_names,
-                   float_precision, missing_value=None):
+                   float_precision, missing_value=None, missing_value_dict={}):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -55,6 +55,9 @@ class SeedLoaderMiscModule(BaseComponent):
         missing_value : None, optional
             Optionally, if a parameter does not exist, this value can be
             assigned to it.
+        missing_value_dict : dict, optional
+            Optionally, a dictionary with default values to assign to a certain
+            parameter if it does not exist. Structure: parameter_name: value
 
         Returns
         -------
@@ -118,7 +121,8 @@ class SeedLoaderMiscModule(BaseComponent):
             mutable_settings={'seed_names': seed_names,
                               'seed_parameter_names': seed_parameter_names,
                               'float_precision': float_precision,
-                              'missing_value': missing_value},
+                              'missing_value': missing_value,
+                              'missing_value_dict': missing_value_dict},
             )
         return configuration, data, {}
 
@@ -148,6 +152,7 @@ class SeedLoaderMiscModule(BaseComponent):
         seeds = []
         num_events_list = []
         missing_value = self.configuration.config['missing_value']
+        missing_value_dict = self.configuration.config['missing_value_dict']
         for seed_name in self.configuration.config['seed_names']:
 
             seed_parameters = []
@@ -156,6 +161,10 @@ class SeedLoaderMiscModule(BaseComponent):
                 for l in self.configuration.config['seed_parameter_names']:
                     if l in _labels:
                         seed_parameters.append(_labels[l].values)
+                    elif l in missing_value_dict:
+                        num_events = len(seed_parameters[-1])
+                        seed_parameters.append(
+                            [missing_value_dict[l]]*num_events)
                     elif missing_value is not None:
                         num_events = len(seed_parameters[-1])
                         seed_parameters.append([missing_value]*num_events)
@@ -212,6 +221,7 @@ class SeedLoaderMiscModule(BaseComponent):
         seeds = []
         num_events_list = []
         missing_value = self.configuration.config['missing_value']
+        missing_value_dict = self.configuration.config['missing_value_dict']
         for seed_name in self.configuration.config['seed_names']:
 
             seed_parameters = []
@@ -225,6 +235,8 @@ class SeedLoaderMiscModule(BaseComponent):
                             value = getattr(_labels.pos, l)
                         elif l in ['zenith', 'azimuth']:
                             value = getattr(_labels.dir, l)
+                        elif l in missing_value_dict:
+                            value = missing_value_dict[l]
                         elif missing_value is not None:
                             value = missing_value
                         else:
@@ -232,6 +244,8 @@ class SeedLoaderMiscModule(BaseComponent):
                         seed_parameters.append([value])
                     elif l in _labels:
                         seed_parameters.append([_labels[l]])
+                    elif l in missing_value_dict:
+                        seed_parameters.append([missing_value_dict[l]])
                     elif missing_value is not None:
                         seed_parameters.append([missing_value])
                     else:
