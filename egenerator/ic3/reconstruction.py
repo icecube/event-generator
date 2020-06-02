@@ -68,6 +68,16 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'Only relevant if labels are being loaded. '
                           'The key from which to load snowstorm parameters.',
                           'SnowstormParameters')
+        self.AddParameter('num_threads',
+                          'Number of threads to use for tensorflow. This will '
+                          'be passed on to tensorflow where it is used to set '
+                          'the "intra_op_parallelism_threads" and '
+                          '"inter_op_parallelism_threads" settings. If a '
+                          'value of zero (default) is provided, the system '
+                          'uses an appropriate number. Note: when running '
+                          'this as a job on a cluster you might want to limit '
+                          '"num_threads" to the amount of allocated CPUs.',
+                          0)
 
         # Reconstruction specific optional settings
         self.AddParameter('minimize_in_trafo_space',
@@ -121,6 +131,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.add_covariances = self.GetParameter('add_covariances')
         self.label_key = self.GetParameter('label_key')
         self.snowstorm_key = self.GetParameter('snowstorm_key')
+        self.num_threads = self.GetParameter('num_threads')
 
         # Reconstruction specific settings
         self.minimize_in_trafo_space = \
@@ -164,7 +175,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 'pulse_key': self.pulse_key,
                 'dom_exclusions_key': self.dom_exclusions_key,
                 'time_exclusions_key': self.time_exclusions_key,
-            }
+            },
+            num_threads=self.num_threads,
         )
         self.manager = self.manager_configurator.manager
         self.loss_module = self.manager_configurator.loss_module
@@ -266,6 +278,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         result_dict = dataclasses.I3MapStringDouble()
         for i, name in enumerate(self.manager.models[0].parameter_names):
             result_dict[name] = best_fit[i]
+        result_dict['runtime_reconstruction'] = results['reco']['runtime']
 
         # add an I3Particle
         particle = dataclasses.I3Particle()

@@ -16,7 +16,8 @@ class I3ManagerConfigurator:
                  load_labels=False,
                  misc_setting_updates={},
                  label_setting_updates={},
-                 data_setting_updates={}):
+                 data_setting_updates={},
+                 num_threads=0):
         """Set up and configure the SourceManager object.
 
         Parameters
@@ -38,9 +39,13 @@ class I3ManagerConfigurator:
             A dictionary with setting values to overwrite.
         data_setting_updates : dict, optional
             A dictionary with setting values to overwrite.
+        num_threads : int, optional
+            Number of threads to use for tensorflow settings
+            `intra_op_parallelism_threads` and `inter_op_parallelism_threads`.
+            If zero (default), the system picks an appropriate number.
 
-        Raises
-        ------
+        No Longer Raises
+        ----------------
         ValueError
             Description
         """
@@ -55,6 +60,10 @@ class I3ManagerConfigurator:
         gpu_devices = tf.config.experimental.list_physical_devices('GPU')
         for device in gpu_devices:
             tf.config.experimental.set_memory_growth(device, True)
+
+        # limit number of CPU threads
+        tf.config.threading.set_intra_op_parallelism_threads(num_threads)
+        tf.config.threading.set_inter_op_parallelism_threads(num_threads)
 
         # read in reconstruction config file
         setup_manager = SetupManager([reco_config_file])
