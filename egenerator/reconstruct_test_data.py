@@ -71,6 +71,7 @@ def main(config_files, reco_config_file=None):
             seed_parameter_names=reco_config['seed_parameter_names'],
             float_precision=reco_config['seed_float_precision'],
             missing_value=reco_config['seed_missing_value'],
+            missing_value_dict=reco_config['seed_missing_value_dict'],
             )
 
         # create nested dictionary of modified sub components in order to
