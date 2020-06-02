@@ -45,7 +45,10 @@ reconstruction_settings: {
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
                              'energy', 'time',
-                             'd', 'd', 'd', 'd', 'd', 'd',
+                             'Absorption', 'AnisotropyScale', 'DOMEfficiency',
+                             'HoleIceForward_Unified_00',
+                             'HoleIceForward_Unified_01',
+                             'Scattering',
                          ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
