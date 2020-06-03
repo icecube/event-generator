@@ -65,6 +65,25 @@ class Reconstruction:
         # --------------------------------------------------
         # get concrete functions for reconstruction and loss
         # --------------------------------------------------
+
+        # Get loss function
+        loss_settings = dict(
+            input_signature=(param_signature, data_batch_signature),
+            loss_module=loss_module,
+            fit_paramater_list=np.ones_like(fit_paramater_list),
+            minimize_in_trafo_space=False,
+            seed=seed_tensor_name,
+            parameter_tensor_name=parameter_tensor_name,
+        )
+        self.parameter_loss_function = function_cache.get(
+            'parameter_loss_function', loss_settings)
+
+        if self.parameter_loss_function is None:
+            self.parameter_loss_function = manager.get_parameter_loss_function(
+                **loss_settings)
+            function_cache.add(self.parameter_loss_function, loss_settings)
+
+        # Get loss and gradients function
         function_settings = dict(
             input_signature=(param_signature, data_batch_signature),
             loss_module=loss_module,
@@ -135,10 +154,16 @@ class Reconstruction:
             minimize_in_trafo_space=self.minimize_in_trafo_space,
             parameter_tensor_name=self.parameter_tensor_name)
 
+        loss_seed = self.parameter_loss_function(
+            data_batch[self.seed_index], data_batch).numpy()
+        loss_reco = self.parameter_loss_function(result, data_batch).numpy()
+
         result_dict = {
             'result': result,
             'result_trafo': result_trafo,
             'result_object': result_object,
+            'loss_seed': loss_seed,
+            'loss_reco': loss_reco,
         }
         return result_dict
 

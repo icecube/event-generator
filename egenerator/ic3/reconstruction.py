@@ -274,11 +274,15 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         # write best fit results to frame
         best_fit = results['reco']['result'][0]
+        best_fit_obj = results['reco']['result_object']
 
         result_dict = dataclasses.I3MapStringDouble()
         for i, name in enumerate(self.manager.models[0].parameter_names):
-            result_dict[name] = best_fit[i]
+            result_dict[name] = float(best_fit[i])
         result_dict['runtime_reconstruction'] = results['reco']['runtime']
+        result_dict['minimization_success'] = best_fit_obj.success
+        result_dict['loss_reco'] = float(results['reco']['loss_reco'])
+        result_dict['loss_seed'] = float(results['reco']['loss_seed'])
 
         # add an I3Particle
         particle = dataclasses.I3Particle()
@@ -291,12 +295,19 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         # write covariance Matrices to frame
         if self.add_covariances:
-            for name, value in results['covariance']:
+            for name, value in results['covariance'].items():
                 if name == 'runtime':
                     result_dict['runtime_covariance'] = value
                 else:
-                    frame[self.output_key+'_cov_matrix_'+name] = \
-                        dataclasses.I3Matrix(value)
+                    # frame[self.output_key+'_cov_matrix_'+name] = \
+                    #     dataclasses.I3Matrix(value)
+                    cov_dict = dataclasses.I3MapStringDouble()
+                    for i, name_i in enumerate(
+                            self.manager.models[0].parameter_names):
+                        for j, name_j in enumerate(
+                                self.manager.models[0].parameter_names):
+                            cov_dict[name_i+'_'+name_j] = value[i, j]
+                    frame[self.output_key+'_cov_matrix_'+name] = cov_dict
         else:
             # write covariance matrix from minimizer to frame
             pass
