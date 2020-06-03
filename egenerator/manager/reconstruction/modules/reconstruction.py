@@ -70,7 +70,7 @@ class Reconstruction:
         loss_settings = dict(
             input_signature=(param_signature, data_batch_signature),
             loss_module=loss_module,
-            fit_paramater_list=np.ones_like(fit_paramater_list),
+            fit_paramater_list=[True for f in fit_paramater_list],
             minimize_in_trafo_space=False,
             seed=seed_tensor_name,
             parameter_tensor_name=parameter_tensor_name,
