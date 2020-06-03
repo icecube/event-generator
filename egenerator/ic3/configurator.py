@@ -17,7 +17,8 @@ class I3ManagerConfigurator:
                  misc_setting_updates={},
                  label_setting_updates={},
                  data_setting_updates={},
-                 num_threads=0):
+                 num_threads=0,
+                 tf_random_seed=1337):
         """Set up and configure the SourceManager object.
 
         Parameters
@@ -43,6 +44,8 @@ class I3ManagerConfigurator:
             Number of threads to use for tensorflow settings
             `intra_op_parallelism_threads` and `inter_op_parallelism_threads`.
             If zero (default), the system picks an appropriate number.
+        tf_random_seed : int, optional
+            Random seed for tensorflow.
 
         No Longer Raises
         ----------------
@@ -55,6 +58,8 @@ class I3ManagerConfigurator:
             reco_config_dir = [reco_config_dir]
 
         reco_config_file = os.path.join(reco_config_dir[0], 'reco_config.yaml')
+
+        tf.random.set_seed(tf_random_seed)
 
         # limit GPU usage
         gpu_devices = tf.config.experimental.list_physical_devices('GPU')
