@@ -908,10 +908,12 @@ class SourceManager(BaseModelManager):
         # ---------------
         # Define Settings
         # ---------------
-        calculate_covariance_matrix = True
-        estimate_angular_uncertainty = True
-        run_mcmc = False
-        make_1d_llh_scans = False
+        calculate_covariance_matrix = \
+            reco_config['calculate_covariance_matrix']
+        estimate_angular_uncertainty = \
+            reco_config['estimate_angular_uncertainty']
+        run_mcmc = reco_config['run_mcmc']
+        make_1d_llh_scans = reco_config['make_1d_llh_scans']
 
         reco_config['mcmc_num_chains'] = 10
         reco_config['mcmc_num_results'] = 100  # 10000

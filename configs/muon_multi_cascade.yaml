@@ -37,6 +37,12 @@ training_settings: {
 reconstruction_settings: {
     'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction.hdf5',
 
+    # Define which modules to run
+    'calculate_covariance_matrix': False,
+    'estimate_angular_uncertainty': False,
+    'run_mcmc': False,
+    'make_1d_llh_scans': False,
+
     # define which tensor to use as parameter_tensor
     'parameter_tensor_name': 'SplineMPE', #'MonopodFit4_PartialExclusion',
     # define seed (to seed from MC truth choose: 'x_parameters')
