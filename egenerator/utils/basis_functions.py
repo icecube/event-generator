@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from scipy import special
 
 
 def tf_gauss(x, mu, sigma):
@@ -136,6 +137,110 @@ def asymmetric_gauss(x, mu, sigma, r):
                    np.exp(-0.5*((x - mu) / (sigma*r))**2),
                    )
     return norm * exp
+
+
+def tf_asymmetric_gauss_cdf(x, mu, sigma, r):
+    """Asymmetric Gaussian CDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+    r : tf.Tensor
+        The asymmetry of the Gaussian.
+
+    Returns
+    -------
+    tf.Tensor
+        The asymmetric Gaussian CDF evaluated at x
+    """
+    norm = 1. / (r + 1)
+    exp = tf.where(x < mu,
+                   1. + tf.math.erf((x - mu) / (np.sqrt(2) * sigma)),
+                   1. + r * tf.math.erf((x - mu) / (np.sqrt(2) * r * sigma)),
+                   )
+    return norm * exp
+
+
+def asymmetric_gauss_cdf(x, mu, sigma, r):
+    """Asymmetric Gaussian CDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    mu : array_like
+        Mu parameter of Gaussian.
+    sigma : array_like
+        Sigma parameter of Gaussian.
+    r : array_like
+        The asymmetry of the Gaussian.
+
+    Returns
+    -------
+    array_like
+        The asymmetric Gaussian CDF evaluated at x
+    """
+    norm = 1. / (r + 1)
+    exp = np.where(x < mu,
+                   1. + special.erf((x - mu) / (np.sqrt(2) * sigma)),
+                   1. + r * special.erf((x - mu) / (np.sqrt(2) * r * sigma)),
+                   )
+    return norm * exp
+
+
+def tf_asymmetric_gauss_ppf(q, mu, sigma, r):
+    """Asymmetric Gaussian PPF
+
+    Parameters
+    ----------
+    q : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+    r : tf.Tensor
+        The asymmetry of the Gaussian.
+
+    Returns
+    -------
+    tf.Tensor
+        The asymmetric Gaussian PPF evaluated at q
+    """
+    return np.where(q < 1. / (r + 1),
+                    mu + np.sqrt(2) * sigma * tf.math.erfinv(q*(r+1) - 1),
+                    mu + r*np.sqrt(2)*sigma * tf.math.erfinv((q*(r+1) - 1)/r),
+                    )
+
+
+def asymmetric_gauss_ppf(q, mu, sigma, r):
+    """Asymmetric Gaussian PPF
+
+    Parameters
+    ----------
+    q : array_like
+        The input tensor.
+    mu : array_like
+        Mu parameter of Gaussian.
+    sigma : array_like
+        Sigma parameter of Gaussian.
+    r : array_like
+        The asymmetry of the Gaussian.
+
+    Returns
+    -------
+    array_like
+        The asymmetric Gaussian PPF evaluated at q
+    """
+    return np.where(q < 1. / (r + 1),
+                    mu + np.sqrt(2) * sigma * special.erfinv(q*(r+1) - 1),
+                    mu + r*np.sqrt(2)*sigma * special.erfinv((q*(r+1) - 1)/r),
+                    )
 
 
 def tf_log_negative_binomial(x, mu, alpha, add_normalization_term=False):
