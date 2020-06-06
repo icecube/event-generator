@@ -83,11 +83,8 @@ class I3ManagerConfigurator:
         # Create misc module
         # ------------------
         reco_config = config['reconstruction_settings']
-        if misc_setting_updates['seed_names'] == ['x_parameters']:
-            # The parameter labels are being used as a seed, so we do not need
-            # to create a modified misc module
-            modified_sub_components = {}
-        else:
+        if ('seed_names' in misc_setting_updates and
+                misc_setting_updates['seed_names'] != ['x_parameters']):
             misc_module = SeedLoaderMiscModule()
             misc_settings = dict(
                 seed_names=[reco_config['seed']],
@@ -104,6 +101,10 @@ class I3ManagerConfigurator:
             modified_sub_components = {'data_handler': {
                 'misc_module': misc_module,
             }}
+        else:
+            # The parameter labels are being used as a seed, so we do not need
+            # to create a modified misc module
+            modified_sub_components = {}
 
         if not load_labels or 'modified_label_module' in reco_config:
             if not load_labels:
