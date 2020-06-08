@@ -291,8 +291,8 @@ class NNMinimizerModel(Model):
 
         num_points = int(
             config['proposal_layers_config']['fc_sizes'][-1] /
-            len(parameter_names))
-        if (num_points * len(parameter_names) !=
+            (len(parameter_names) / 2))
+        if (num_points * (len(parameter_names) / 2) !=
                 config['proposal_layers_config']['fc_sizes'][-1]):
             raise ValueError(
                 'Last layer of proposal_layers must have a multitude of n '
@@ -302,7 +302,7 @@ class NNMinimizerModel(Model):
         # build fully-connected (dense) layers that define at which points
         # to evaluate the SourceModel
         self._untracked_data['proposal_layers'] = tfs.FCLayers(
-            input_shape=[-1, 2*len(parameter_names)],
+            input_shape=[-1, len(parameter_names)],
             name='proposal_layer',
             verbose=True,
             **config['proposal_layers_config']
@@ -311,7 +311,7 @@ class NNMinimizerModel(Model):
         # build fully-connected (dense) layers that interpret evaluated points
         # and put together a new seed and uncertainty
         self._untracked_data['interpretation_layers'] = tfs.FCLayers(
-            input_shape=[-1, num_points + 2*len(parameter_names)],
+            input_shape=[-1, num_points + len(parameter_names)],
             name='interpretation_layer',
             verbose=True,
             **config['interpretation_layers_config']
