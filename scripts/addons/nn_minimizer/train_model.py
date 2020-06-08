@@ -111,13 +111,16 @@ def main(config_files, nn_minmimizer_config):
             data_trafo=data_transformer,
             model_parameter_names=model_manager.models[0].parameter_names,
         )
-        model.setup_model_loss_function(model_manager, model_loss_module)
         models = [model]
 
     # build manager object
     manager, model, data_handler, data_transformer = build_manager(
         config, models=models, data_handler=data_handler,
         data_transformer=data_transformer, restore=restore)
+
+    # setup loss function for Event-Generator source
+    manager.models[0].setup_model_loss_function(
+        model_manager, model_loss_module)
 
     # --------------
     # start training

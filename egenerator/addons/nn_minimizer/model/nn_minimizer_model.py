@@ -313,11 +313,13 @@ class NNMinimizerModel(Model):
 
         data_batch_signature = tuple(data_batch_signature)
 
-        get_model_loss = model_manager.get_concrete_function(
-            function=model_manager.get_loss,
-            input_signature=data_batch_signature,
-            loss_module=model_loss_module,
-            is_training=False)
+        @tf.function(input_signature=data_batch_signature)
+        def get_model_loss(data_batch):
+            return model_manager.get_loss(
+                data_batch,
+                loss_module=model_loss_module,
+                is_training=False
+            )
         self._untracked_data['get_model_loss'] = get_model_loss
 
     def get_tensors(self, data_batch_dict, is_training,
@@ -461,7 +463,7 @@ class NNMinimizerModel(Model):
         )[-1]
 
         proposals = tf.reshape(
-            proposals, [-1, self.num_points, self.num_parameters / 2])
+            proposals, [-1, self.num_points, int(self.num_parameters / 2)])
 
         print('proposals', proposals)
 
@@ -472,7 +474,7 @@ class NNMinimizerModel(Model):
         loss_results = []
         for index in range(self.num_points):
             data_batch = []
-            for i, name in enumerate(self.data_handler.tensors.names):
+            for i, name in enumerate(self.data_trafo.data['tensors'].names):
                 if name == parameter_tensor_name:
                     data_batch.append(proposals[:, index, :])
                 else:
