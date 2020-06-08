@@ -472,25 +472,42 @@ class NNMinimizerModel(Model):
         proposals = tf.reshape(
             proposals, [self.num_points, int(self.num_parameters / 2)])
 
-        print('proposals', proposals)
         # Shape: [num_points, 1, num_model_params]
         parameters = self.data_trafo.inverse_transform(
             proposals, tensor_name=parameter_tensor_name)[:, tf.newaxis, :]
 
-        def func(parameters):
-            """Helper function for map_fn
-            """
-            print('func', parameters)
-            data_batch = []
-            for i, name in enumerate(self.data_trafo.data['tensors'].names):
-                if name == parameter_tensor_name:
-                    data_batch.append(parameters)
-                else:
-                    data_batch.append(data_batch_dict[name])
-            return self._untracked_data['get_model_loss'](tuple(data_batch))
+        print('proposals', proposals)
+        use_map_fn = False
+        if use_map_fn:
 
-        loss_results = tf.map_fn(
-            func, parameters, parallel_iterations=1)[tf.newaxis, :]
+            def func(parameters):
+                """Helper function for map_fn
+                """
+                print('func', parameters)
+                data_batch = []
+                for i, name in enumerate(self.data_trafo.data['tensors'].names):
+                    if name == parameter_tensor_name:
+                        data_batch.append(parameters)
+                    else:
+                        data_batch.append(data_batch_dict[name])
+                return self._untracked_data['get_model_loss'](tuple(data_batch))
+
+            loss_results = tf.map_fn(
+                func, parameters, parallel_iterations=1)[tf.newaxis, :]
+        else:
+            loss_results = []
+            for index in range(self.num_points):
+                data_batch = []
+                for i, name in enumerate(
+                        self.data_trafo.data['tensors'].names):
+                    if name == parameter_tensor_name:
+                        data_batch.append(parameters[i])
+                    else:
+                        data_batch.append(data_batch_dict[name])
+            loss_results.append(
+                self._untracked_data['get_model_loss'](tuple(data_batch)))
+            loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
+
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
