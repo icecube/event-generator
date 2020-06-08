@@ -75,7 +75,7 @@ def main(config_files):
         # start from scratch
         if os.path.exists(os.path.join(manager_dir, 'configuration.yaml')):
 
-            # check if director y already exists
+            # check if directory already exists
             msg = 'A saved model already exists at destination. Delete {!r}?'
             if not click.confirm(msg.format(manager_dir), default=False):
                 raise ValueError('Aborting!')
