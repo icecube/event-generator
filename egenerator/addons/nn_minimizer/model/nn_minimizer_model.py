@@ -77,6 +77,14 @@ class NNMinimizerModel(Model):
             return None
 
     @property
+    def num_points(self):
+        if self.untracked_data is not None and \
+                'num_points' in self.untracked_data:
+            return self.untracked_data['num_points']
+        else:
+            return None
+
+    @property
     def parameter_names(self):
         if self.untracked_data is not None and \
                 'parameter_names' in self.untracked_data:
@@ -281,14 +289,15 @@ class NNMinimizerModel(Model):
         parameter_names = list(model_manager.models[0].parameter_names) + [
             p + '_unc' for p in model_manager.models[0].parameter_names]
 
-        self.num_points = int(
+        num_points = int(
             config['proposal_layers_config']['fc_sizes'][-1] /
             len(parameter_names))
-        if (self.num_points * len(parameter_names) !=
+        if (num_points * len(parameter_names) !=
                 config['proposal_layers_config']['fc_sizes'][-1]):
             raise ValueError(
                 'Last layer of proposal_layers must have a multitude of n '
                 'nodes where n is the number of parameters')
+        self._untracked_data['num_points'] = num_points
 
         # build fully-connected (dense) layers that define at which points
         # to evaluate the SourceModel
@@ -302,7 +311,7 @@ class NNMinimizerModel(Model):
         # build fully-connected (dense) layers that interpret evaluated points
         # and put together a new seed and uncertainty
         self._untracked_data['interpretation_layers'] = tfs.FCLayers(
-            input_shape=[-1, self.num_points + 2*len(parameter_names)],
+            input_shape=[-1, num_points + 2*len(parameter_names)],
             name='interpretation_layer',
             verbose=True,
             **config['interpretation_layers_config']
