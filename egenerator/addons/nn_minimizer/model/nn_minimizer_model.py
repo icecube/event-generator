@@ -283,7 +283,7 @@ class NNMinimizerModel(Model):
 
         return parameter_names
 
-    def setup_model_loss_function(self, model_manager):
+    def setup_model_loss_function(self, model_manager, model_loss_module):
         """Define and save the model loss function.
 
         Parameters
@@ -291,6 +291,9 @@ class NNMinimizerModel(Model):
         model_manager : SourceManager
             The manager of the Event-Generator source for which to define
             the loss function.
+        model_loss_module : LossModule
+            The loss module to use to compute the loss for the
+            Event-Generator source model.
         """
 
         # a very basic sanity check
