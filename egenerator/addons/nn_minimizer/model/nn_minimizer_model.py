@@ -101,7 +101,7 @@ class NNMinimizerModel(Model):
             The logger to use.
         """
         self._logger = logger or logging.getLogger(__name__)
-        super(Source, self).__init__(logger=self._logger)
+        super(NNMinimizerModel, self).__init__(logger=self._logger)
 
     def _configure_derived_class(self, config, model_manager,
                                  model_loss_module, name=None):
