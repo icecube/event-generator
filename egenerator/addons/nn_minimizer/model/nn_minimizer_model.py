@@ -391,6 +391,7 @@ class NNMinimizerModel(Model):
         self.assert_configured(True)
 
         config = self.configuration.config['config']
+        dtype = getattr(tf, config['float_precision'])
         x_dom_charge = data_batch_dict['x_dom_charge']
 
         # only allow a batch size of 1 for now
@@ -402,8 +403,10 @@ class NNMinimizerModel(Model):
             raise NotImplementedError('Only supports batch size of 1')
 
         # create initial guess
-        parameters_trafo = tf.zeros(num_events, self.num_parameters)
-        parameters_unc_trafo = tf.ones(num_events, self.num_parameters)
+        parameters_trafo = tf.zeros(
+            (num_events, self.num_parameters), dtype=dtype)
+        parameters_unc_trafo = tf.ones(
+            (num_events, self.num_parameters), dtype=dtype)
 
         initial_seed = tf.concat((parameters_trafo, parameters_unc_trafo),
                                  axis=-1)
