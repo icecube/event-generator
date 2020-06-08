@@ -502,4 +502,7 @@ class NNMinimizerModel(Model):
         parameters_trafo = refined_seed[..., 0:int(self.num_parameters/2)]
         parameters_unc_trafo = refined_seed[..., int(self.num_parameters/2):]
 
+        # enforce positive values for uncertainty and add minimum
+        parameters_unc_trafo = tf.exp(parameters_unc_trafo) + 1e-6
+
         return parameters_trafo, parameters_unc_trafo
