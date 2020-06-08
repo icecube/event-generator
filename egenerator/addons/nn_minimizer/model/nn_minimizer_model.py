@@ -105,7 +105,7 @@ class NNMinimizerModel(Model):
         super(NNMinimizerModel, self).__init__(logger=self._logger)
 
     def _configure_derived_class(self, config, data_trafo,
-                                 parameter_names, name=None):
+                                 model_parameter_names, name=None):
         """Setup and configure the Source's architecture.
 
         After this function call, the sources's architecture (weights) must
@@ -118,7 +118,7 @@ class NNMinimizerModel(Model):
             architecture and weights.
         data_trafo : DataTrafo
             A data trafo object.
-        parameter_names : list of string
+        model_parameter_names : list of string
             A list of parameter names of the Event-Generator model.
         name : str, optional
             The name of the NN minmizer.
@@ -163,7 +163,8 @@ class NNMinimizerModel(Model):
 
         # build architecture: create and save model weights
         # returns parameter_names
-        parameter_names = self._build_architecture(config, parameter_names)
+        parameter_names = self._build_architecture(
+            config, model_parameter_names)
 
         # get names of parameters
         self._untracked_data['name'] = name
@@ -179,7 +180,8 @@ class NNMinimizerModel(Model):
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config=config, parameter_names=parameter_names),
+            settings=dict(config=config,
+                          model_parameter_names=model_parameter_names),
             mutable_settings=dict(name=name))
 
         return configuration, {}, {'data_trafo': data_trafo}
@@ -223,14 +225,14 @@ class NNMinimizerModel(Model):
                     tensor, self._untracked_data['parameter_names']))
         return tensor
 
-    def _build_architecture(self, config, parameter_names):
+    def _build_architecture(self, config, model_parameter_names):
         """Set up and build architecture: create and save all model weights.
 
         Parameters
         ----------
         config : dict
             A dictionary of settings that fully defines the architecture.
-        parameter_names : list of str
+        model_parameter_names : list of str
             A list of parameter names of the Event-Generator model.
 
         Returns
@@ -248,8 +250,8 @@ class NNMinimizerModel(Model):
         """
         self.assert_configured(False)
 
-        parameter_names = list(parameter_names) + [p + '_unc' for
-                                                   p in parameter_names]
+        parameter_names = list(model_parameter_names) + [
+            p + '_unc' for p in model_parameter_names]
 
         num_points = int(
             config['proposal_layers_config']['fc_sizes'][-1] /
