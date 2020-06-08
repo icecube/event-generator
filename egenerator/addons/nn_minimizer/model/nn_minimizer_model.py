@@ -466,8 +466,11 @@ class NNMinimizerModel(Model):
         proposals = tf.reshape(
             proposals, [self.num_points, int(self.num_parameters / 2)])
 
+        print('proposals', proposals)
         parameters = self.data_trafo.inverse_transform(
             proposals, tensor_name=parameter_tensor_name)[tf.newaxis, ...]
+
+        print('parameters', parameters)
 
         # get loss from Event-Generator model for each of these proposals
         # Todo: figure out a proper way to handle tensors without having to
