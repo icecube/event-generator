@@ -39,8 +39,8 @@ def main(config_files, nn_minmimizer_config):
         tf.config.experimental.set_memory_growth(device, True)
 
     # load Event-Generator model manager and loss module
-    model_manager, model_loss_module, data_handler = setup_egenerator_manager(
-        config_files)
+    model_manager, model_loss_module, data_handler, data_transformer = \
+        setup_egenerator_manager(config_files)
 
     # read in and combine config files and set up
     setup_manager = SetupManager([nn_minmimizer_config])
@@ -115,7 +115,8 @@ def main(config_files, nn_minmimizer_config):
 
     # build manager object
     manager, model, data_handler, data_transformer = build_manager(
-        config, models=models, data_handler=data_handler, restore=restore)
+        config, models=models, data_handler=data_handler,
+        data_transformer=data_transformer, restore=restore)
 
     # --------------
     # start training
@@ -157,7 +158,7 @@ def setup_egenerator_manager(config_files):
     manager, model, data_handler, data_transformer = build_manager(
                                                     config, restore=True)
 
-    return manager, loss_module, data_handler
+    return manager, loss_module, data_handler, data_transformer
 
 
 if __name__ == '__main__':
