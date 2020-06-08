@@ -215,6 +215,7 @@ class BaseModelManager(Model):
             if 'data_trafo' not in model_config.sub_component_configurations:
                 self._logger.warning(
                     'Did not find data_trafo component in model', name)
+                continue
 
             trafo_config = Configuration(
                 **model_config.sub_component_configurations['data_trafo'])
