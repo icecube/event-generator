@@ -109,6 +109,7 @@ def main(config_files, nn_minmimizer_config):
         model.configure(
             config=model_settings['config'],
             data_trafo=data_transformer,
+            parameter_names=model_manager.models[0].parameter_names,
         )
         model.setup_model_loss_function(model_manager)
         models = [model]
