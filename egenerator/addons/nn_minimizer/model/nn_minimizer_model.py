@@ -106,7 +106,7 @@ class NNMinimizerModel(Model):
 
     def _configure_derived_class(self, config, data_trafo,
                                  model_parameter_names,
-                                 num_refinement_blocks,
+                                 num_refinement_steps,
                                  name=None):
         """Setup and configure the Source's architecture.
 
@@ -122,7 +122,7 @@ class NNMinimizerModel(Model):
             A data trafo object.
         model_parameter_names : list of string
             A list of parameter names of the Event-Generator model.
-        num_refinement_blocks : int
+        num_refinement_steps : int
             Number of refinement steps to perform.
         name : str, optional
             The name of the NN minmizer.
@@ -173,7 +173,7 @@ class NNMinimizerModel(Model):
         # get names of parameters
         self._untracked_data['name'] = name
         self._untracked_data['num_parameters'] = len(parameter_names)
-        self._untracked_data['num_refinement_blocks'] = num_refinement_blocks
+        self._untracked_data['num_refinement_steps'] = num_refinement_steps
         self._untracked_data['parameter_names'] = parameter_names
         self._untracked_data['parameter_name_dict'] = \
             {name: index for index, name in enumerate(parameter_names)}
@@ -188,7 +188,7 @@ class NNMinimizerModel(Model):
             settings=dict(config=config,
                           model_parameter_names=model_parameter_names),
             mutable_settings=dict(name=name,
-                                  num_refinement_blocks=num_refinement_blocks))
+                                  num_refinement_steps=num_refinement_steps))
 
         return configuration, {}, {'data_trafo': data_trafo}
 
@@ -403,7 +403,7 @@ class NNMinimizerModel(Model):
             (num_events, self.num_parameters / 2), dtype=dtype)
 
         # run refinement block
-        for i in range(self.configuration.config['num_refinement_blocks']):
+        for i in range(self.configuration.config['num_refinement_steps']):
             parameters_trafo, parameters_unc_trafo = self.refinement_block(
                 parameters_trafo, parameters_unc_trafo,
                 data_batch_dict, is_training,

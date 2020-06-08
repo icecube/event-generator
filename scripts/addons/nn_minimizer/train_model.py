@@ -110,7 +110,7 @@ def main(config_files, nn_minmimizer_config):
             config=model_settings['config'],
             data_trafo=data_transformer,
             model_parameter_names=model_manager.models[0].parameter_names,
-            num_refinement_blocks=model_settings['num_refinement_blocks'],
+            num_refinement_steps=model_settings['num_refinement_steps'],
         )
         models = [model]
 

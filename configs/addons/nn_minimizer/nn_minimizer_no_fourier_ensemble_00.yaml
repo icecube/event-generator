@@ -250,10 +250,12 @@ model_settings: {
     # The model module class to use
     'model_class': 'egenerator.addons.nn_minimizer.model.NNMinimizerModel',
 
+    # Define the number of refinement steps to perform
+    'num_refinement_steps': 3,
+
     config: {
 
         'keep_prob':,
-        'num_refinement_blocks': 3,
         'float_precision': 'float32',
 
         # settings for proposal layers
