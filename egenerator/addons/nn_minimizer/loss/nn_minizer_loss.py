@@ -204,7 +204,7 @@ class NNMinimizerLoss(BaseComponent):
         y_pred_unc_trafo = result_tensors['parameters_unc_trafo']
         y_true = data_batch_dict['x_parameters']
         y_true_trafo = model.data_trafo.transform(
-            y_true, tensor_name=parameter_tensor_name)
+            y_true, tensor_name='x_parameters')
 
         tf.print(
             'y_pred_trafo',
