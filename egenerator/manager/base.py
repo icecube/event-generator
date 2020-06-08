@@ -152,7 +152,7 @@ class BaseModelManager(Model):
 
         # Now go through models and check if all define the same
         # data transformation and parameters
-        for i, model in enumerate(models[1:]):
+        for i, model in enumerate(models):
 
             # check parameter names
             if parameter_names != models[i].parameter_names:
@@ -211,12 +211,6 @@ class BaseModelManager(Model):
             # check compatibility of data_handler configurations of
             # data_trafo (model) and the data_handler component
             model_config = model.configuration
-
-            if 'data_trafo' not in model_config.sub_component_configurations:
-                self._logger.warning(
-                    'Did not find data_trafo component in model {}'.format(
-                        name))
-                continue
 
             trafo_config = Configuration(
                 **model_config.sub_component_configurations['data_trafo'])

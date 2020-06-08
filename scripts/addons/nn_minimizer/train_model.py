@@ -108,9 +108,9 @@ def main(config_files, nn_minmimizer_config):
         model = ModelClass()
         model.configure(
             config=model_settings['config'],
-            model_manager=model_manager,
-            model_loss_module=model_loss_module,
+            data_trafo=data_transformer,
         )
+        model.setup_model_loss_function(model_manager)
         models = [model]
 
     # build manager object

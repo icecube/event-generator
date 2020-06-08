@@ -49,15 +49,8 @@ class NNMinimizerModel(Model):
     @property
     def data_trafo(self):
         if self.sub_components is not None and \
-                'model_manager' in self.sub_components:
-            return self.sub_components['model_manager'].data_trafo
-        else:
-            return None
-
-    def model_manager(self):
-        if self.sub_components is not None and \
-                'model_manager' in self.sub_components:
-            return self.sub_components['model_manager']
+                'data_trafo' in self.sub_components:
+            return self.sub_components['data_trafo']
         else:
             return None
 
@@ -111,8 +104,8 @@ class NNMinimizerModel(Model):
         self._logger = logger or logging.getLogger(__name__)
         super(NNMinimizerModel, self).__init__(logger=self._logger)
 
-    def _configure_derived_class(self, config, model_manager,
-                                 model_loss_module, name=None):
+    def _configure_derived_class(self, config, data_trafo,
+                                 parameter_names, name=None):
         """Setup and configure the Source's architecture.
 
         After this function call, the sources's architecture (weights) must
@@ -123,10 +116,10 @@ class NNMinimizerModel(Model):
         config : dict
             A dictionary of settings which is used to set up the model
             architecture and weights.
-        model_manager : SourceManager
-            A source manager object.
-        model_loss_module : LossModule
-            Loss module for Event-Generator.
+        data_trafo : DataTrafo
+            A data trafo object.
+        parameter_names : list of string
+            A list of parameter names of the Event-Generator model.
         name : str, optional
             The name of the NN minmizer.
 
@@ -162,30 +155,6 @@ class NNMinimizerModel(Model):
             when the component is saved and loaded.
             Return None if no dependent sub components exist.
 
-        No Longer Raises
-        ----------------
-        ValueError
-            Description
-        """
-
-        # check that all created variables are part of the module.variables
-
-        """Build the architecture. This must return:
-
-            tf.Module:
-                - Must contain all tensorflow variables as class attributes,
-                    so that they are found by tf.Module.variables
-                - Must implement:
-                     __call__(self, input_params)
-                    which returns a dictionary with output tensors. This
-                    dictionary must at least contain
-                        'dom_charges': the predicted charge at each DOM
-                                       Shape: [-1, 86, 60, 1]
-                        'latent_var_mu': Shape: [-1, 86, 60, n_models]
-                        'latent_var_sigma': Shape: [-1, 86, 60, n_models]
-                        'latent_var_r': Shape: [-1, 86, 60, n_models]
-                        'latent_var_scale': Shape: [-1, 86, 60, n_models]
-
         """
         if name is None:
             name = __name__
@@ -194,8 +163,7 @@ class NNMinimizerModel(Model):
 
         # build architecture: create and save model weights
         # returns parameter_names
-        parameter_names = self._build_architecture(
-            config, model_manager, model_loss_module)
+        parameter_names = self._build_architecture(config, parameter_names)
 
         # get names of parameters
         self._untracked_data['name'] = name
@@ -211,12 +179,10 @@ class NNMinimizerModel(Model):
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config=config),
+            settings=dict(config=config, parameter_names=parameter_names),
             mutable_settings=dict(name=name))
 
-        return configuration, {}, {
-            'model_manager': model_manager,
-            'model_loss_module': model_loss_module}
+        return configuration, {}, {'data_trafo': data_trafo}
 
     def get_index(self, param_name):
         """Returns the index of a parameter name
@@ -257,20 +223,15 @@ class NNMinimizerModel(Model):
                     tensor, self._untracked_data['parameter_names']))
         return tensor
 
-    def _build_architecture(self, config, model_manager, model_loss_module):
+    def _build_architecture(self, config, parameter_names):
         """Set up and build architecture: create and save all model weights.
-
-        This is a virtual method which must be implemented by the derived
-        source class.
 
         Parameters
         ----------
         config : dict
             A dictionary of settings that fully defines the architecture.
-        model_manager : SourceManager
-            A source manager object for the Event-Generator model.
-        model_loss_module : LossModule
-            Loss module to use to evalute loss for Event-Generator model.
+        parameter_names : list of str
+            A list of parameter names of the Event-Generator model.
 
         Returns
         -------
@@ -283,11 +244,12 @@ class NNMinimizerModel(Model):
         ------
         ValueError
             Description
+
         """
         self.assert_configured(False)
 
-        parameter_names = list(model_manager.models[0].parameter_names) + [
-            p + '_unc' for p in model_manager.models[0].parameter_names]
+        parameter_names = list(parameter_names) + [p + '_unc' for
+                                                   p in parameter_names]
 
         num_points = int(
             config['proposal_layers_config']['fc_sizes'][-1] /
@@ -317,6 +279,21 @@ class NNMinimizerModel(Model):
             **config['interpretation_layers_config']
         )
 
+        return parameter_names
+
+    def setup_model_loss_function(self, model_manager):
+        """Define and save the model loss function.
+
+        Parameters
+        ----------
+        model_manager : SourceManager
+            The manager of the Event-Generator source for which to define
+            the loss function.
+        """
+
+        # a very basic sanity check
+        assert model_manager.models[0].parameter_names == self.parameter_names
+
         # get a concrete loss function of Event-Generator model
         data_batch_signature = []
         for tensor in model_manager.data_handler.tensors.list:
@@ -336,8 +313,6 @@ class NNMinimizerModel(Model):
             loss_module=model_loss_module,
             is_training=False)
         self._untracked_data['get_model_loss'] = get_model_loss
-
-        return parameter_names
 
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
@@ -389,6 +364,11 @@ class NNMinimizerModel(Model):
                                   Shape: [num_parameters]
         """
         self.assert_configured(True)
+
+        if 'get_model_loss' not in self._untracked_data:
+            raise ValueError(
+                'You must first setup a model loss function via '
+                'setup_model_loss_function(model_manager)')
 
         config = self.configuration.config['config']
         dtype = getattr(tf, config['float_precision'])
