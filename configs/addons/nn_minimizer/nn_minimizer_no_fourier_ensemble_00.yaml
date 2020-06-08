@@ -253,7 +253,7 @@ model_settings: {
     config: {
 
         'keep_prob':,
-        'num_refinement_blocks': 1,
+        'num_refinement_blocks': 3,
         'float_precision': 'float32',
 
         # settings for proposal layers

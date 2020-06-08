@@ -206,24 +206,24 @@ class NNMinimizerLoss(BaseComponent):
         y_true_trafo = model.data_trafo.transform(
             y_true, tensor_name='x_parameters')
 
-        # tf.print(
-        #     'y_pred_trafo',
-        #     tf.reduce_min(y_pred_trafo),
-        #     tf.reduce_max(y_pred_trafo),
-        #     tf.reduce_mean(y_pred_trafo),
-        # )
-        # tf.print(
-        #     'y_pred_unc_trafo',
-        #     tf.reduce_min(y_pred_unc_trafo),
-        #     tf.reduce_max(y_pred_unc_trafo),
-        #     tf.reduce_mean(y_pred_unc_trafo),
-        # )
-        # tf.print(
-        #     'y_true_trafo',
-        #     tf.reduce_min(y_true_trafo),
-        #     tf.reduce_max(y_true_trafo),
-        #     tf.reduce_mean(y_true_trafo),
-        # )
+        tf.print(
+            'y_pred_trafo',
+            tf.reduce_min(y_pred_trafo),
+            tf.reduce_max(y_pred_trafo),
+            tf.reduce_mean(y_pred_trafo),
+        )
+        tf.print(
+            'y_pred_unc_trafo',
+            tf.reduce_min(y_pred_unc_trafo),
+            tf.reduce_max(y_pred_unc_trafo),
+            tf.reduce_mean(y_pred_unc_trafo),
+        )
+        tf.print(
+            'y_true_trafo',
+            tf.reduce_min(y_true_trafo),
+            tf.reduce_max(y_true_trafo),
+            tf.reduce_mean(y_true_trafo),
+        )
 
         llh_event = basis_functions.tf_log_gauss(
             x=y_pred_trafo,
