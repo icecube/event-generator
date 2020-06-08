@@ -476,7 +476,10 @@ class NNMinimizerModel(Model):
             data_batch = []
             for i, name in enumerate(self.data_trafo.data['tensors'].names):
                 if name == parameter_tensor_name:
-                    data_batch.append(proposals[:, index, :])
+                    parameters = self.data_trafo.inverse_transform(
+                        proposals[:, index, :],
+                        tensor_name=parameter_tensor_name)
+                    data_batch.append(parameters)
                 else:
                     data_batch.append(data_batch_dict[name])
 
