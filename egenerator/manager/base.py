@@ -152,7 +152,7 @@ class BaseModelManager(Model):
 
         # Now go through models and check if all define the same
         # data transformation and parameters
-        for i, model in enumerate(models):
+        for i, model in enumerate(models[1:]):
 
             # check parameter names
             if parameter_names != models[i].parameter_names:
@@ -211,6 +211,11 @@ class BaseModelManager(Model):
             # check compatibility of data_handler configurations of
             # data_trafo (model) and the data_handler component
             model_config = model.configuration
+
+            if 'data_trafo' not in model_config.sub_component_configurations:
+                self._logger.warning(
+                    'Did not find data_trafo component in model', name)
+
             trafo_config = Configuration(
                 **model_config.sub_component_configurations['data_trafo'])
             data_handler_config = Configuration(
@@ -456,7 +461,8 @@ class BaseModelManager(Model):
         return reg_loss
 
     @tf.function
-    def get_loss(self, data_batch, loss_module, opt_config, is_training,
+    def get_loss(self, data_batch, loss_module, is_training,
+                 opt_config=None,
                  step=None, parameter_tensor_name='x_parameters'):
         """Get the scalar loss for a batch of data and a given loss component.
 
@@ -469,13 +475,13 @@ class BaseModelManager(Model):
             must provide a
             loss_module.get_loss(data_batch_dict, result_tensors)
             method.
-        opt_config : config
-            The optimization config defining the settings.
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
             True: in training mode
             False: inference mode.
+        opt_config : config, optional
+            The optimization config defining the settings.
         step : int, optional
             The current training step.
         parameter_tensor_name : str, optional
@@ -504,7 +510,8 @@ class BaseModelManager(Model):
                 model=model,
                 parameter_tensor_name=parameter_tensor_name)
 
-            reg_loss = self.regularization_loss(
+            if opt_config is not None:
+                reg_loss = self.regularization_loss(
                                         variables=model.trainable_variables,
                                         opt_config=opt_config)
 
@@ -517,7 +524,8 @@ class BaseModelManager(Model):
             if step is not None:
                 tf.summary.scalar('loss_{:04d}'.format(i),
                                   loss_value, step=step)
-                if (opt_config['l1_regularization'] > 0. or
+                if opt_config is not None and (
+                        opt_config['l1_regularization'] > 0. or
                         opt_config['l2_regularization'] > 0.):
                     tf.summary.scalar('reg_loss_{:04d}'.format(i), reg_loss)
 
