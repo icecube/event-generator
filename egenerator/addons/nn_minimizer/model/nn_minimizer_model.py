@@ -467,34 +467,45 @@ class NNMinimizerModel(Model):
             proposals, [self.num_points, int(self.num_parameters / 2)])
 
         print('proposals', proposals)
+        # Shape: [num_points, 1, num_model_params]
         parameters = self.data_trafo.inverse_transform(
-            proposals, tensor_name=parameter_tensor_name)[tf.newaxis, ...]
+            proposals, tensor_name=parameter_tensor_name)[:, tf.newaxis, :]
 
-        print('parameters', parameters)
-
-        # get loss from Event-Generator model for each of these proposals
-        # Todo: figure out a proper way to handle tensors without having to
-        # loop through individual proposals
-        # Todo: make this support a batch size != 1
-        loss_results = []
-        # loss_results = tf.TensorArray(
-        #     dtype, size=self.num_points, dynamic_size=False)
-        for index in range(self.num_points):
+        def func(parameters):
             data_batch = []
             for i, name in enumerate(self.data_trafo.data['tensors'].names):
                 if name == parameter_tensor_name:
-                    data_batch.append(parameters[:, index, :])
+                    data_batch.append(parameters)
                 else:
                     data_batch.append(data_batch_dict[name])
+        loss_results = tf.map_fn(func, parameters)[tf.newaxis, :]
 
-            # Warning: this only works for a batch size of 1, since
-            # loss is provided as a scalar!
-            loss = self._untracked_data['get_model_loss'](tuple(data_batch))
-            # loss_results.write(index, loss)
-            loss_results.append(loss)
+        print('parameters', parameters)
+        print('loss_results', loss_results)
 
-        # loss_results = loss_results.stack()[tf.newaxis, :]
-        loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
+        # # get loss from Event-Generator model for each of these proposals
+        # # Todo: figure out a proper way to handle tensors without having to
+        # # loop through individual proposals
+        # # Todo: make this support a batch size != 1
+        # loss_results = []
+        # # loss_results = tf.TensorArray(
+        # #     dtype, size=self.num_points, dynamic_size=False)
+        # for index in range(self.num_points):
+        #     data_batch = []
+        #     for i, name in enumerate(self.data_trafo.data['tensors'].names):
+        #         if name == parameter_tensor_name:
+        #             data_batch.append(parameters[:, index, :])
+        #         else:
+        #             data_batch.append(data_batch_dict[name])
+
+        #     # Warning: this only works for a batch size of 1, since
+        #     # loss is provided as a scalar!
+        #     loss = self._untracked_data['get_model_loss'](tuple(data_batch))
+        #     # loss_results.write(index, loss)
+        #     loss_results.append(loss)
+
+        # # loss_results = loss_results.stack()[tf.newaxis, :]
+        # loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
