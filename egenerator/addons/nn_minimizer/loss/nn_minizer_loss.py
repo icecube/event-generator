@@ -145,7 +145,8 @@ class NNMinimizerLoss(BaseComponent):
         """
         loss_terms = self.loss_function(data_batch_dict=data_batch_dict,
                                         result_tensors=result_tensors,
-                                        tensors=tensors)
+                                        tensors=tensors,
+                                        model=model)
 
         if reduce_to_scalar:
             return tf.math.accumulate_n([tf.reduce_sum(loss_term)
@@ -153,7 +154,8 @@ class NNMinimizerLoss(BaseComponent):
         else:
             return loss_terms
 
-    def gaussian_likelihood(self, data_batch_dict, result_tensors, tensors):
+    def gaussian_likelihood(self, data_batch_dict, result_tensors, tensors,
+                            model):
         """Gaussian Likelihood
 
         Computes a gaussian likelihood over predicted parameters and
@@ -189,6 +191,8 @@ class NNMinimizerLoss(BaseComponent):
                                         Shape: [-1, num_parameters]
         tensors : DataTensorList
             The data tensor list describing the input data
+        model : Model
+            The model object used to calculate the result tensors.
 
         Returns
         -------
@@ -198,9 +202,22 @@ class NNMinimizerLoss(BaseComponent):
         """
         y_pred_trafo = result_tensors['parameters_trafo']
         y_pred_unc_trafo = result_tensors['parameters_unc_trafo']
-        y_true_trafo = data_batch_dict['x_parameters']
-        tf.print('y_pred_trafo', y_pred_trafo)
-        tf.print('y_pred_unc_trafo', y_pred_unc_trafo)
+        y_true = data_batch_dict['x_parameters']
+        y_true_trafo = model.data_trafo.transform(
+            y_true, tensor_name=parameter_tensor_name)
+
+        tf.print(
+            'y_pred_trafo',
+            tf.reduce_min(y_pred_trafo),
+            tf.reduce_max(y_pred_trafo),
+            tf.reduce_mean(y_pred_trafo),
+        )
+        tf.print(
+            'y_pred_unc_trafo',
+            tf.reduce_min(y_pred_unc_trafo),
+            tf.reduce_max(y_pred_unc_trafo),
+            tf.reduce_mean(y_pred_unc_trafo),
+        )
         tf.print('y_true_trafo', y_true_trafo)
 
         llh_event = basis_functions.tf_log_gauss(
