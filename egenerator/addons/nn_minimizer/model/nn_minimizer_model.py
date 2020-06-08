@@ -404,9 +404,9 @@ class NNMinimizerModel(Model):
 
         # create initial guess
         parameters_trafo = tf.zeros(
-            (num_events, self.num_parameters), dtype=dtype)
+            (num_events, self.num_parameters / 2), dtype=dtype)
         parameters_unc_trafo = tf.ones(
-            (num_events, self.num_parameters), dtype=dtype)
+            (num_events, self.num_parameters / 2), dtype=dtype)
 
         initial_seed = tf.concat((parameters_trafo, parameters_unc_trafo),
                                  axis=-1)
@@ -415,7 +415,8 @@ class NNMinimizerModel(Model):
         # run refinement block
         for i in range(config['num_refinement_blocks']):
             initial_seed = self.refinement_block(
-                initial_seed, data_batch_dict, parameter_tensor_name)
+                initial_seed, data_batch_dict, is_training,
+                parameter_tensor_name)
         result = initial_seed
         print('result', result)
 
@@ -440,7 +441,7 @@ class NNMinimizerModel(Model):
 
         return tensor_dict
 
-    def refinement_block(self, seed, data_batch_dict,
+    def refinement_block(self, seed, data_batch_dict, is_training,
                          parameter_tensor_name='x_parameters'):
         """Defines one refinement block to update the input seed.
 
@@ -450,6 +451,11 @@ class NNMinimizerModel(Model):
             Shape: [-1, 2*num_parameters]
         data_batch_dict : dict of tf.Tensor
             A dictionary with the tensors from the data batch.
+        is_training : bool, optional
+            Indicates whether currently in training or inference mode.
+            Must be provided if batch normalisation is used.
+            True: in training mode
+            False: inference mode.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
 
