@@ -109,7 +109,8 @@ def main(config_files, nn_minmimizer_config):
         model.configure(
             config=model_settings['config'],
             data_trafo=data_transformer,
-            model_parameter_names=model_manager.models[0].parameter_names,
+            model_parameter_names=list(
+                model_manager.models[0].parameter_names),
             num_refinement_steps=model_settings['num_refinement_steps'],
         )
         models = [model]
