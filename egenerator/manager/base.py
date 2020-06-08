@@ -557,8 +557,7 @@ class BaseModelManager(Model):
         for model in self.models:
             variables.extend(model.trainable_variables)
 
-        with tf.GradientTape(watch_accessed_variables=False) as tape:
-            tape.watch(variables)
+        with tf.GradientTape() as tape:
             combined_loss = self.get_loss(
                                 data_batch, loss_module,
                                 is_training=True,
