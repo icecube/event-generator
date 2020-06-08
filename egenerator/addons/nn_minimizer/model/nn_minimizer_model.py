@@ -472,42 +472,17 @@ class NNMinimizerModel(Model):
             proposals, tensor_name=parameter_tensor_name)[:, tf.newaxis, :]
 
         def func(parameters):
+            """Helper function for map_fn
+            """
             data_batch = []
             for i, name in enumerate(self.data_trafo.data['tensors'].names):
                 if name == parameter_tensor_name:
                     data_batch.append(parameters)
                 else:
                     data_batch.append(data_batch_dict[name])
-            return loss = self._untracked_data['get_model_loss'](data_batch)
+            return self._untracked_data['get_model_loss'](tuple(data_batch))
 
         loss_results = tf.map_fn(func, parameters)[tf.newaxis, :]
-
-        print('parameters', parameters)
-        print('loss_results', loss_results)
-
-        # # get loss from Event-Generator model for each of these proposals
-        # # Todo: figure out a proper way to handle tensors without having to
-        # # loop through individual proposals
-        # # Todo: make this support a batch size != 1
-        # loss_results = []
-        # # loss_results = tf.TensorArray(
-        # #     dtype, size=self.num_points, dynamic_size=False)
-        # for index in range(self.num_points):
-        #     data_batch = []
-        #     for i, name in enumerate(self.data_trafo.data['tensors'].names):
-        #         if name == parameter_tensor_name:
-        #             data_batch.append(parameters[:, index, :])
-        #         else:
-        #             data_batch.append(data_batch_dict[name])
-
-        #     # Warning: this only works for a batch size of 1, since
-        #     # loss is provided as a scalar!
-        #     loss = self._untracked_data['get_model_loss'](tuple(data_batch))
-        #     # loss_results.write(index, loss)
-        #     loss_results.append(loss)
-
-        # # loss_results = loss_results.stack()[tf.newaxis, :]
-        # loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
@@ -516,12 +491,12 @@ class NNMinimizerModel(Model):
         # and make sure these values aren't too big
         loss_results /= 10000.
 
-        tf.print(
-            'loss_results',
-            tf.reduce_min(loss_results),
-            tf.reduce_max(loss_results),
-            tf.reduce_mean(loss_results),
-        )
+        # tf.print(
+        #     'loss_results',
+        #     tf.reduce_min(loss_results),
+        #     tf.reduce_max(loss_results),
+        #     tf.reduce_mean(loss_results),
+        # )
 
         # add on initial seed
         interp_input = tf.concat((seed, loss_results), axis=-1)
