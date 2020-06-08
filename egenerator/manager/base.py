@@ -510,6 +510,8 @@ class BaseModelManager(Model):
                 reg_loss = self.regularization_loss(
                                         variables=model.trainable_variables,
                                         opt_config=opt_config)
+            else:
+                reg_loss = 0.
 
             if combined_loss is None:
                 combined_loss = loss_value + reg_loss

@@ -313,7 +313,7 @@ class NNMinimizerModel(Model):
 
         data_batch_signature = tuple(data_batch_signature)
 
-        @tf.function(input_signature=data_batch_signature)
+        @tf.function(input_signature=(data_batch_signature,))
         def get_model_loss(data_batch):
             return model_manager.get_loss(
                 data_batch,
@@ -483,7 +483,7 @@ class NNMinimizerModel(Model):
             # Warning: this only works for a batch size of 1, since
             # loss is provided as a scalar!
             loss_results.append(
-                self._untracked_data['get_model_loss'](data_batch))
+                self._untracked_data['get_model_loss'](tuple(data_batch)))
 
         loss_results = tf.stack(loss_results, axis=1)
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
