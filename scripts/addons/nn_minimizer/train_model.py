@@ -102,6 +102,7 @@ def main(config_files, nn_minmimizer_config):
     if restore:
         models = None
     else:
+        model_settings = config['model_settings']
         ModelClass = misc.load_class(model_settings['model_class'])
         model = ModelClass()
         model.configure(
