@@ -1,0 +1,282 @@
+---
+##############
+# Config for single cascade events
+#
+# Detailed information on the parameters are given in the SetupManager
+# class located in egenerator.settings.setup_manager.py.
+##############
+
+# Provide a unique name for the model
+unique_name: 'nn_minimizer_no_fourier_ensemble_00'
+
+
+#------------------
+# Training settings
+#------------------
+training_settings: {
+    'optimizer_name': 'Adam',
+    'optimizer_settings': {
+        'learning_rate': 0.001,
+    },
+    'l1_regularization': 0.,
+    'l2_regularization': 0.,
+    'clip_gradients_value': ,
+    'remove_nan_gradients': False,
+
+    'validation_frequency': 100,
+    'evaluation_frequency': 100,
+    'save_frequency': 500,
+
+    # Number of training iterations to train the model for
+    'num_training_iterations': 1000000,
+}
+
+#-----------------------
+# Model Manager settings
+#-----------------------
+
+# Settings for model manager class
+model_manager_settings: {
+
+    # The loss module class to use
+    'model_manager_class': 'egenerator.manager.base.BaseModelManager',
+
+    # restore model if True, otherwise start from scratch
+    'restore_model' : True,
+
+    # These settings are used to configure the model manager and may not change
+    config: {
+
+        # Path to where the manager will be saved to and loaded from
+        'manager_dir': '../data/training/nn_minimizer/{unique_name}/manager',
+    },
+}
+
+#-----------------------
+# Data Iterator settings
+#-----------------------
+
+# These settings describe the data iterators
+data_iterator_settings: {
+
+    # The training data iterator
+    'training': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 2,
+        'batch_capacity': 20,
+        'num_jobs': 10,
+        'num_add_files': 3,
+        'num_repetitions': 3,
+        'input_data': [
+            # Snowstorm datasets
+            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*0.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*1.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*2.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*3.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*4.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*5.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*6.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*7.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*8.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*9.hdf5',
+
+            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*0.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*1.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*2.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*3.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*4.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*5.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*6.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*7.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*8.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*9.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*0.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*1.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*2.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*3.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*4.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*5.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*6.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*7.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*8.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*9.hdf5',
+
+             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*0.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*1.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*2.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*3.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*4.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*5.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*6.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*7.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*8.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*9.hdf5',
+
+        ],
+    },
+
+    # The trafo data iterator
+    'trafo': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 2,
+        'num_jobs': 20,
+        'num_add_files': 1,
+        'num_repetitions': 1,
+        'pick_random_files_forever': False,
+        'input_data': [
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+        ],
+    },
+
+    # The validation data iterator
+    'validation': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 3,
+        'num_jobs': 1,
+        'num_add_files': 0,
+        'num_repetitions': 1,
+        'pick_random_files_forever': True,
+        'input_data': [
+            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+
+            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+
+             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+        ],
+    },
+
+    # The test data iterator
+    'test': {
+        'batch_size': 1,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 3,
+        'num_jobs': 1,
+        'num_add_files': 0,
+        'num_repetitions': 1,
+        'sample_randomly': False,
+        'pick_random_files_forever': False,
+        'input_data': [
+            # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/10000-10999/*1000*.hdf5',
+            # # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/10000-10999/*1000*.hdf5',
+
+            # # NuGen -- L5MonopodFit4 vertex
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+
+            # # Egenerator NuGen SpiceLea Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/5/egenerator_NuE_low_energy_IC86_2013_l5_lea_run_000040*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/27/egenerator_NuE_medium_energy_IC86_2013_l5_lea_run_0002600*.hdf5',
+
+            # # Egenerator NuGen Spice3.2 Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_0000400*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_00004000.hdf5',
+
+            # MESE NuGen NuE l5 Benchmark Datasets
+            # Spice3.2.1 variable
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99900/egenerator_99900_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # Spice3.2.1 const
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99901/egenerator_99901_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea variable
+            #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea const
+            #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # Spice3.2.1 variable no fourier
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+        ],
+    },
+}
+
+#---------------------
+# Loss module settings
+#---------------------
+
+# Settings for the loss module class
+loss_module_settings: [
+    {
+
+        # The loss module class to use
+        'loss_module': 'egenerator.addons.nn_minimizer.loss.NNMinimizerLoss',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'gaussian_likelihood',
+        },
+    },
+]
+
+#---------------------------
+# Evaluation module settings
+#---------------------------
+
+# Settings for the evaluation module class
+evaluation_module_settings: {
+
+    # The loss module class to use
+    'evaluation_module':,
+    config: {
+    },
+}
+
+#---------------
+# Model settings
+#---------------
+
+# Settings for the neural network model class
+model_settings: {
+
+    # The model module class to use
+    'model_class': 'egenerator.addons.nn_minimizer.model.NNMinimizerModel',
+
+    config: {
+
+        'keep_prob':,
+        'num_refinement_blocks': 1,
+
+        # settings for proposal layers
+        # The last fc_layer must have a size of m + num_parameters
+        'proposal_layers_config': {
+            'fc_sizes': [300, 300, 1300],
+            'use_dropout_list': False,
+            'activation_list': ['elu', 'elu'],
+            'use_batch_normalisation_list': False,
+            'use_residual_list': True,
+        },
+
+        # settings for proposal layers
+        # The last fc_layer must have a size of 2*num_parameters
+        'interpretation_layers_config': {
+            'fc_sizes': [300, 300, 26],
+            'use_dropout_list': False,
+            'activation_list': ['elu', 'elu'],
+            'use_batch_normalisation_list': False,
+            'use_residual_list': True,
+        },
+
+    },
+}
+
+#----------------------
+...
