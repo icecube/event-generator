@@ -473,8 +473,9 @@ class NNMinimizerModel(Model):
         # Todo: figure out a proper way to handle tensors without having to
         # loop through individual proposals
         # Todo: make this support a batch size != 1
-        loss_results = tf.TensorArray(
-            dtype, size=self.num_points, dynamic_size=False)
+        loss_results = []
+        # loss_results = tf.TensorArray(
+        #     dtype, size=self.num_points, dynamic_size=False)
         for index in range(self.num_points):
             data_batch = []
             for i, name in enumerate(self.data_trafo.data['tensors'].names):
@@ -485,11 +486,12 @@ class NNMinimizerModel(Model):
 
             # Warning: this only works for a batch size of 1, since
             # loss is provided as a scalar!
-            loss_results.write(
-                index,
-                self._untracked_data['get_model_loss'](tuple(data_batch)))
+            loss = self._untracked_data['get_model_loss'](tuple(data_batch))
+            # loss_results.write(index, loss)
+            loss_results.append(loss)
 
-        loss_results = loss_results.stack()[tf.newaxis, :]
+        # loss_results = loss_results.stack()[tf.newaxis, :]
+        loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
