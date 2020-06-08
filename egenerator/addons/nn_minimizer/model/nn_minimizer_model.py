@@ -478,6 +478,8 @@ class NNMinimizerModel(Model):
                     data_batch.append(parameters)
                 else:
                     data_batch.append(data_batch_dict[name])
+            return loss = self._untracked_data['get_model_loss'](data_batch)
+
         loss_results = tf.map_fn(func, parameters)[tf.newaxis, :]
 
         print('parameters', parameters)
