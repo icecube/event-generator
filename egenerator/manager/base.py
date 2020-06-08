@@ -559,8 +559,9 @@ class BaseModelManager(Model):
         """
         with tf.GradientTape() as tape:
             combined_loss = self.get_loss(
-                                data_batch, loss_module, opt_config,
+                                data_batch, loss_module,
                                 is_training=True,
+                                opt_config=opt_config,
                                 parameter_tensor_name=parameter_tensor_name)
 
         variables = []
