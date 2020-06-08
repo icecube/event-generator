@@ -449,6 +449,7 @@ class NNMinimizerModel(Model):
             Shape: [-1, 2*num_parameters]
         """
         config = self.configuration.config['config']
+        dtype = getattr(tf, config['float_precision'])
 
         # combine seed
         seed = tf.concat((parameters_trafo, parameters_unc_trafo), axis=-1)
@@ -461,31 +462,34 @@ class NNMinimizerModel(Model):
             keep_prob=config['keep_prob'],
         )[-1]
 
+        # Warning: this only works for a batch size of 1
         proposals = tf.reshape(
-            proposals, [-1, self.num_points, int(self.num_parameters / 2)])
+            proposals, [self.num_points, int(self.num_parameters / 2)])
+
+        parameters = self.data_trafo.inverse_transform(
+            proposals, tensor_name=parameter_tensor_name)[tf.newaxis, ...]
 
         # get loss from Event-Generator model for each of these proposals
         # Todo: figure out a proper way to handle tensors without having to
         # loop through individual proposals
         # Todo: make this support a batch size != 1
-        loss_results = []
+        loss_results = tf.TensorArray(
+            dtype, size=self.num_points, dynamic_size=False)
         for index in range(self.num_points):
             data_batch = []
             for i, name in enumerate(self.data_trafo.data['tensors'].names):
                 if name == parameter_tensor_name:
-                    parameters = self.data_trafo.inverse_transform(
-                        proposals[:, index, :],
-                        tensor_name=parameter_tensor_name)
-                    data_batch.append(parameters)
+                    data_batch.append(parameters[:, index, :])
                 else:
                     data_batch.append(data_batch_dict[name])
 
             # Warning: this only works for a batch size of 1, since
             # loss is provided as a scalar!
-            loss_results.append(
+            loss_results.write(
+                index,
                 self._untracked_data['get_model_loss'](tuple(data_batch)))
 
-        loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
+        loss_results = loss_results.stack()[tf.newaxis, :]
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
