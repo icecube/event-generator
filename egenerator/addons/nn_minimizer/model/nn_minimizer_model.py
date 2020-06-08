@@ -292,7 +292,8 @@ class NNMinimizerModel(Model):
         """
 
         # a very basic sanity check
-        assert model_manager.models[0].parameter_names == self.parameter_names
+        assert model_manager.models[0].parameter_names == \
+            self.parameter_names[:self.num_parameters/2]
 
         # get a concrete loss function of Event-Generator model
         data_batch_signature = []
