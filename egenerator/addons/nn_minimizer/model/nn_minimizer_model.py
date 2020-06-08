@@ -409,8 +409,8 @@ class NNMinimizerModel(Model):
         print('result', result)
 
         # put the result together
-        parameters_trafo = result[..., 0:self.num_parameters/2]
-        parameters_unc_trafo = result[..., self.num_parameters/2:]
+        parameters_trafo = result[..., 0:int(self.num_parameters/2)]
+        parameters_unc_trafo = result[..., int(self.num_parameters/2):]
 
         # undo transformation
         parameters = self.data_trafo.inverse_transform(
@@ -485,10 +485,10 @@ class NNMinimizerModel(Model):
             loss_results.append(
                 self._untracked_data['get_model_loss'](tuple(data_batch)))
 
-        loss_results = tf.stack(loss_results, axis=1)
+        loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
-        # stack on initial seed
+        # add on initial seed
         interp_input = tf.concat((seed, loss_results), axis=-1)
         print('interp_input', interp_input)
 
