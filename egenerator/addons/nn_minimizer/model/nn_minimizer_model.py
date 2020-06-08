@@ -474,6 +474,7 @@ class NNMinimizerModel(Model):
         def func(parameters):
             """Helper function for map_fn
             """
+            print('func', parameters)
             data_batch = []
             for i, name in enumerate(self.data_trafo.data['tensors'].names):
                 if name == parameter_tensor_name:
@@ -483,7 +484,7 @@ class NNMinimizerModel(Model):
             return self._untracked_data['get_model_loss'](tuple(data_batch))
 
         loss_results = tf.map_fn(
-            func, parameters, parallel_iterations=10)[tf.newaxis, :]
+            func, parameters, parallel_iterations=1)[tf.newaxis, :]
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
