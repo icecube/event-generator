@@ -396,21 +396,12 @@ class NNMinimizerModel(Model):
         parameters_unc_trafo = tf.ones(
             (num_events, self.num_parameters / 2), dtype=dtype)
 
-        initial_seed = tf.concat((parameters_trafo, parameters_unc_trafo),
-                                 axis=-1)
-        print('initial_seed', initial_seed)
-
         # run refinement block
         for i in range(config['num_refinement_blocks']):
-            initial_seed = self.refinement_block(
-                initial_seed, data_batch_dict, is_training,
+            parameters_trafo, parameters_unc_trafo = self.refinement_block(
+                parameters_trafo, parameters_unc_trafo,
+                data_batch_dict, is_training,
                 parameter_tensor_name)
-        result = initial_seed
-        print('result', result)
-
-        # put the result together
-        parameters_trafo = result[..., 0:int(self.num_parameters/2)]
-        parameters_unc_trafo = result[..., int(self.num_parameters/2):]
 
         # undo transformation
         parameters = self.data_trafo.inverse_transform(
@@ -429,14 +420,18 @@ class NNMinimizerModel(Model):
 
         return tensor_dict
 
-    def refinement_block(self, seed, data_batch_dict, is_training,
+    @tf.function
+    def refinement_block(self, parameters_trafo, parameters_unc_trafo,
+                         data_batch_dict, is_training,
                          parameter_tensor_name='x_parameters'):
         """Defines one refinement block to update the input seed.
 
         Parameters
         ----------
-        seed : tf:Tensor
-            Shape: [-1, 2*num_parameters]
+        parameters_trafo : tf:Tensor
+            Shape: [-1, num_parameters / 2]
+        parameters_trafo : tf:Tensor
+            Shape: [-1, num_parameters / 2]
         data_batch_dict : dict of tf.Tensor
             A dictionary with the tensors from the data batch.
         is_training : bool, optional
@@ -455,6 +450,10 @@ class NNMinimizerModel(Model):
         """
         config = self.configuration.config['config']
 
+        # combine seed
+        seed = tf.concat((parameters_trafo, parameters_unc_trafo), axis=-1)
+        print('seed', seed)
+
         # run proposal layer
         proposals = self._untracked_data['proposal_layers'](
             seed,
@@ -464,8 +463,6 @@ class NNMinimizerModel(Model):
 
         proposals = tf.reshape(
             proposals, [-1, self.num_points, int(self.num_parameters / 2)])
-
-        print('proposals', proposals)
 
         # get loss from Event-Generator model for each of these proposals
         # Todo: figure out a proper way to handle tensors without having to
@@ -493,7 +490,6 @@ class NNMinimizerModel(Model):
 
         # add on initial seed
         interp_input = tf.concat((seed, loss_results), axis=-1)
-        print('interp_input', interp_input)
 
         # run interpretation layer
         refined_seed = self._untracked_data['interpretation_layers'](
@@ -502,6 +498,8 @@ class NNMinimizerModel(Model):
             keep_prob=config['keep_prob'],
         )[-1]
 
-        print('refined_seed', refined_seed)
+        # put the result together
+        parameters_trafo = refined_seed[..., 0:int(self.num_parameters/2)]
+        parameters_unc_trafo = refined_seed[..., int(self.num_parameters/2):]
 
-        return refined_seed
+        return parameters_trafo, parameters_unc_trafo

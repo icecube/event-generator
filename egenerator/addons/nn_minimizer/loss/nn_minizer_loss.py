@@ -199,12 +199,16 @@ class NNMinimizerLoss(BaseComponent):
         y_pred_trafo = result_tensors['parameters_trafo']
         y_pred_unc_trafo = result_tensors['parameters_unc_trafo']
         y_true_trafo = data_batch_dict['x_parameters']
+        tf.print('y_pred_trafo', y_pred_trafo)
+        tf.print('y_pred_unc_trafo', y_pred_unc_trafo)
+        tf.print('y_true_trafo', y_true_trafo)
 
         llh_event = basis_functions.tf_log_gauss(
             x=y_pred_trafo,
             mu=y_true_trafo,
             sigma=y_pred_unc_trafo,
         )
+        tf.print('llh_event', llh_event)
 
         loss_terms = [-llh_event]
 
