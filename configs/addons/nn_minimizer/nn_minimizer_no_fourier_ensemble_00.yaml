@@ -251,7 +251,7 @@ model_settings: {
     'model_class': 'egenerator.addons.nn_minimizer.model.NNMinimizerModel',
 
     # Define the number of refinement steps to perform
-    'num_refinement_steps': 10,
+    'num_refinement_steps': 3,
 
     config: {
 
