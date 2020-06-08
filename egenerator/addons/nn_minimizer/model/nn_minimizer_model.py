@@ -475,7 +475,7 @@ class NNMinimizerModel(Model):
         )[-1]
 
         proposals = tf.reshape(
-            proposals, [-1, self.num_points, self.num_parameters])
+            proposals, [-1, self.num_points, self.num_parameters / 2])
 
         print('proposals', proposals)
 
