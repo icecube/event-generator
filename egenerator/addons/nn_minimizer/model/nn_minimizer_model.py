@@ -494,12 +494,12 @@ class NNMinimizerModel(Model):
         # and make sure these values aren't too big
         loss_results /= 1000.
 
-        tf.print(
-            'loss_results',
-            tf.reduce_min(loss_results),
-            tf.reduce_max(loss_results),
-            tf.reduce_mean(loss_results),
-        )
+        # tf.print(
+        #     'loss_results',
+        #     tf.reduce_min(loss_results),
+        #     tf.reduce_max(loss_results),
+        #     tf.reduce_mean(loss_results),
+        # )
 
         # add on initial seed
         interp_input = tf.concat((seed, loss_results), axis=-1)
