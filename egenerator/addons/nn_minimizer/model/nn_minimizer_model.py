@@ -481,8 +481,11 @@ class NNMinimizerModel(Model):
         )[-1]
 
         # Warning: this only works for a batch size of 1
-        proposals = tf.reshape(
+        delta_proposals_trafo = tf.reshape(
             proposals, [self.num_points, int(self.num_parameters / 2)])
+
+        # Act as if the computed FC output are deltas to the seed
+        proposals = parameters_trafo + delta_proposals_trafo
 
         # Shape: [num_points, 1, num_model_params]
         parameters = self.data_trafo.inverse_transform(
@@ -541,15 +544,16 @@ class NNMinimizerModel(Model):
         interp_input = tf.concat((seed, loss_results), axis=-1)
 
         # run interpretation layer
-        refined_seed = self._untracked_data['interpretation_layers'](
+        deltas = self._untracked_data['interpretation_layers'](
             interp_input,
             is_training=is_training,
             keep_prob=config['keep_prob'],
         )[-1]
 
         # put the result together
-        parameters_trafo = refined_seed[..., 0:int(self.num_parameters/2)]
-        parameters_unc_trafo = refined_seed[..., int(self.num_parameters/2):]
+        # Act as if the computed FC output are deltas to the refined_seed
+        parameters_trafo += deltas[..., 0:int(self.num_parameters/2)]
+        parameters_unc_trafo += deltas[..., int(self.num_parameters/2):]
 
         # enforce positive values for uncertainty and add minimum
         parameters_unc_trafo = tf.math.softplus(parameters_unc_trafo) + 1e-6
