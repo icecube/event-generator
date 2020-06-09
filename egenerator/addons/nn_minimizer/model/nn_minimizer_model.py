@@ -399,7 +399,7 @@ class NNMinimizerModel(Model):
         # create initial guess
         if is_training:
             # create a randomly sampled seed
-            param_true_trafo = model.data_trafo.transform(
+            param_true_trafo = self.data_trafo.transform(
                 data_batch_dict['x_parameters'], tensor_name='x_parameters')
             parameters_unc_trafo = tf.random.uniform(
                 (num_events, self.num_parameters / 2), dtype=dtype) + 1e-3
@@ -408,7 +408,6 @@ class NNMinimizerModel(Model):
                 mean=param_true_trafo,
                 stddev=parameters_unc_trafo,
                 dtype=dtype)
-
         else:
             parameters_trafo = tf.zeros(
                 (num_events, self.num_parameters / 2), dtype=dtype)
