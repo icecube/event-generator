@@ -402,17 +402,17 @@ class NNMinimizerModel(Model):
             param_true_trafo = self.data_trafo.transform(
                 data_batch_dict['x_parameters'], tensor_name='x_parameters')
             parameters_unc_trafo = tf.random.uniform(
-                (num_events, self.num_parameters / 2), dtype=dtype) + 1e-3
+                (num_events, int(self.num_parameters / 2)), dtype=dtype) + 1e-3
             parameters_trafo = tf.random.normal(
-                (num_events, self.num_parameters / 2),
+                (num_events, int(self.num_parameters / 2)),
                 mean=param_true_trafo,
                 stddev=parameters_unc_trafo,
                 dtype=dtype)
         else:
             parameters_trafo = tf.zeros(
-                (num_events, self.num_parameters / 2), dtype=dtype)
+                (num_events, (self.num_parameters / 2)), dtype=dtype)
             parameters_unc_trafo = tf.ones(
-                (num_events, self.num_parameters / 2), dtype=dtype)
+                (num_events, (self.num_parameters / 2)), dtype=dtype)
 
         # run refinement block
         for i in range(self.configuration.config['num_refinement_steps']):
