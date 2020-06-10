@@ -263,7 +263,7 @@ model_settings: {
         'proposal_layers_config': {
             'fc_sizes': [300, 300, 390],
             'use_dropout_list': False,
-            'activation_list': ['elu', 'elu', 'elu'],
+            'activation_list': ['elu', 'elu', ''],
             'use_batch_normalisation_list': False,
             'use_residual_list': True,
         },
@@ -273,7 +273,7 @@ model_settings: {
         'interpretation_layers_config': {
             'fc_sizes': [300, 300, 26],
             'use_dropout_list': False,
-            'activation_list': ['elu', 'elu', 'elu'],
+            'activation_list': ['elu', 'elu', ''],
             'use_batch_normalisation_list': False,
             'use_residual_list': True,
         },
