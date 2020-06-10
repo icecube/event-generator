@@ -257,6 +257,7 @@ model_settings: {
 
         'keep_prob':,
         'float_precision': 'float32',
+        'add_gradients': True,
 
         # settings for proposal layers
         # The last fc_layer must have a size of m + num_parameters
