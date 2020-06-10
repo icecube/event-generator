@@ -469,8 +469,29 @@ class NNMinimizerModel(Model):
         config = self.configuration.config['config']
         dtype = getattr(tf, config['float_precision'])
 
+        # Shape: [1, num_model_params]
+        parameters_seed = self.data_trafo.inverse_transform(
+            parameters_trafo, tensor_name=parameter_tensor_name)
+
+        # get loss of seed
+        data_batch = []
+        for i, name in enumerate(
+                self.data_trafo.data['tensors'].names):
+            if name == parameter_tensor_name:
+                data_batch.append(parameters_seed)
+            else:
+                data_batch.append(data_batch_dict[name])
+        loss_seed = self._untracked_data['get_model_loss'](tuple(data_batch))
+
         # combine seed
-        seed = tf.concat((parameters_trafo, parameters_unc_trafo), axis=-1)
+        add_gradients = True
+        if add_gradients:
+            gradients = tf.gradients(loss_seed, parameters_trafo)
+            print('gradients', gradients)
+            seed = tf.concat(
+                (parameters_trafo, parameters_unc_trafo, gradients), axis=-1)
+        else:
+            seed = tf.concat((parameters_trafo, parameters_unc_trafo), axis=-1)
         print('seed', seed)
 
         # run proposal layer
@@ -528,8 +549,8 @@ class NNMinimizerModel(Model):
         add_gradients = True
         if add_gradients:
             gradients = tf.gradients(loss_results, parameters)
-            gradients = tf.reshape([gradients,
-                                   [1, self.num_points*self.num_parameters]])
+            gradients = tf.reshape(gradients,
+                                   [1, self.num_points*self.num_parameters])
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
