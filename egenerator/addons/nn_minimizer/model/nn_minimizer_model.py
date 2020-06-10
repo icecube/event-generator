@@ -275,7 +275,10 @@ class NNMinimizerModel(Model):
             interp_input_shape = [-1, num_points+3*len(model_parameter_names)]
         else:
             proposal_input_shape = [-1, 2*len(model_parameter_names)]
-            interp_input_shape = [-1, num_points+2*len(model_parameter_names)]
+            interp_input_shape = [
+                -1, num_points + num_points * len(model_parameter_names)]
+        print('Proposal layer input shape:', proposal_input_shape)
+        print('Interpretation layer input shape:', interp_input_shape)
 
         # build fully-connected (dense) layers that define at which points
         # to evaluate the SourceModel
