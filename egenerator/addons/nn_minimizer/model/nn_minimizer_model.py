@@ -527,11 +527,7 @@ class NNMinimizerModel(Model):
 
         add_gradients = True
         if add_gradients:
-            gradients = []
-            for index in range(self.num_points):
-                gradients.append(
-                    tf.gradients(loss_results[:, i], parameters[i]))
-            gradients = tf.stack(gradients, axis=0)
+            gradients = tf.gradients(loss_results, parameters)
             gradients = tf.reshape([gradients,
                                    [1, self.num_points*self.num_parameters]])
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
