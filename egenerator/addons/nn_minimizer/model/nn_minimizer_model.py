@@ -505,7 +505,10 @@ class NNMinimizerModel(Model):
 
         # combine seed
         if config['add_gradients']:
-            gradients = tf.gradients(loss_seed, parameters_trafo)[0] / 10000.
+            gradients = tf.gradients(loss_seed, parameters_trafo)[0] / 100000.
+            gradients = tf.where(tf.is_nan(gradients),
+                                 tf.zeros_like(gradients),
+                                 gradients)
             tf.print('gradients seed', gradients)
             seed = tf.concat(
                 (parameters_trafo, parameters_unc_trafo, gradients), axis=-1)
@@ -565,12 +568,7 @@ class NNMinimizerModel(Model):
                     self._untracked_data['get_model_loss'](tuple(data_batch)))
             loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
 
-        if config['add_gradients']:
-            gradients = tf.gradients(loss_results, parameters)[0] / 10000.
-            gradients = tf.reshape(
-                gradients, [1, self.num_points*int(self.num_parameters/2)])
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
-        tf.print('gradients', gradients)
 
         # let's look at delta llh
         loss_results -= loss_seed
@@ -578,6 +576,17 @@ class NNMinimizerModel(Model):
         # and make sure these values aren't too big
         loss_results /= 10000.
 
+        if config['add_gradients']:
+            gradients = tf.gradients(loss_results, parameters)[0]
+            gradients = tf.reshape(
+                gradients, [1, self.num_points*int(self.num_parameters/2)])
+
+        tf.print(
+            'gradients',
+            tf.reduce_min(gradients),
+            tf.reduce_max(gradients),
+            tf.reduce_mean(gradients),
+        )
         # tf.print(
         #     'loss_results',
         #     tf.reduce_min(loss_results),
