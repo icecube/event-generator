@@ -506,7 +506,7 @@ class NNMinimizerModel(Model):
         # combine seed
         if config['add_gradients']:
             gradients = tf.gradients(loss_seed, parameters_trafo)[0] / 100000.
-            gradients = tf.where(tf.is_nan(gradients),
+            gradients = tf.where(tf.math.is_nan(gradients),
                                  tf.zeros_like(gradients),
                                  gradients)
             tf.print('gradients seed', gradients)
