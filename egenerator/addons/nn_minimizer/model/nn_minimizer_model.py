@@ -479,6 +479,13 @@ class NNMinimizerModel(Model):
             The refined and updated seed.
             Shape: [-1, 2*num_parameters]
         """
+
+        # Ensure shape and make sure batch size is 1
+        parameters_trafo = tf.ensure_shape(
+            parameters_trafo, [1, int(self.num_parameters / 2)])
+        parameters_unc_trafo = tf.ensure_shape(
+            parameters_unc_trafo, [1, int(self.num_parameters / 2)])
+
         config = self.configuration.config['config']
         dtype = getattr(tf, config['float_precision'])
 
