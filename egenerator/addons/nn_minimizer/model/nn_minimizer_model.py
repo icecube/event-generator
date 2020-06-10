@@ -508,7 +508,7 @@ class NNMinimizerModel(Model):
             gradients = tf.gradients(loss_seed, parameters_trafo)[0] / 100000.
             gradients = tf.where(tf.math.is_nan(gradients),
                                  tf.zeros_like(gradients),
-                                 tf.clip_by_global_norm(gradients, 1.))
+                                 tf.clip_by_global_norm([gradients], 1.))
             seed = tf.concat(
                 (parameters_trafo, parameters_unc_trafo, gradients), axis=-1)
         else:
@@ -579,7 +579,7 @@ class NNMinimizerModel(Model):
             gradients = tf.gradients(loss_results, parameters)[0]
             gradients = tf.where(tf.math.is_nan(gradients),
                                  tf.zeros_like(gradients),
-                                 tf.clip_by_global_norm(gradients, 1.))
+                                 tf.clip_by_global_norm([gradients], 1.))
             gradients = tf.reshape(
                 gradients, [1, self.num_points*int(self.num_parameters/2)])
 
