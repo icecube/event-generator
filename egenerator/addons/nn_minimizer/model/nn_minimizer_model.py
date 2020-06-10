@@ -269,10 +269,18 @@ class NNMinimizerModel(Model):
                 'nodes where n is the number of parameters')
         self._untracked_data['num_points'] = num_points
 
+        # adjust input shape if gradients are added
+        if config['add_gradients']:
+            proposal_input_shape = [-1, 3*len(model_parameter_names)]
+            interp_input_shape = [-1, num_points+3*len(model_parameter_names)]
+        else:
+            proposal_input_shape = [-1, 2*len(model_parameter_names)]
+            interp_input_shape = [-1, num_points+2*len(model_parameter_names)]
+
         # build fully-connected (dense) layers that define at which points
         # to evaluate the SourceModel
         self._untracked_data['proposal_layers'] = tfs.FCLayers(
-            input_shape=[-1, len(parameter_names)],
+            input_shape=proposal_input_shape,
             name='proposal_layer',
             verbose=True,
             **config['proposal_layers_config']
@@ -281,7 +289,7 @@ class NNMinimizerModel(Model):
         # build fully-connected (dense) layers that interpret evaluated points
         # and put together a new seed and uncertainty
         self._untracked_data['interpretation_layers'] = tfs.FCLayers(
-            input_shape=[-1, num_points + len(parameter_names)],
+            input_shape=interp_input_shape,
             name='interpretation_layer',
             verbose=True,
             **config['interpretation_layers_config']
@@ -484,10 +492,8 @@ class NNMinimizerModel(Model):
         loss_seed = self._untracked_data['get_model_loss'](tuple(data_batch))
 
         # combine seed
-        add_gradients = True
-        if add_gradients:
-            gradients = tf.gradients(loss_seed, parameters_trafo)
-            print('gradients', gradients)
+        if config['add_gradients']:
+            gradients = tf.gradients(loss_seed, parameters_trafo)[0]
             seed = tf.concat(
                 (parameters_trafo, parameters_unc_trafo, gradients), axis=-1)
         else:
@@ -546,15 +552,14 @@ class NNMinimizerModel(Model):
                     self._untracked_data['get_model_loss'](tuple(data_batch)))
             loss_results = tf.stack(loss_results, axis=0)[tf.newaxis, :]
 
-        add_gradients = True
-        if add_gradients:
+        if config['add_gradients']:
             gradients = tf.gradients(loss_results, parameters)
             gradients = tf.reshape(gradients,
                                    [1, self.num_points*self.num_parameters])
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
-        loss_results -= tf.reduce_min(loss_results, axis=1)
+        loss_results -= loss_seed
 
         # and make sure these values aren't too big
         loss_results /= 10000.
@@ -567,7 +572,7 @@ class NNMinimizerModel(Model):
         # )
 
         # add on initial seed
-        if add_gradients:
+        if config['add_gradients']:
             interp_input = tf.concat((seed, loss_results, gradients), axis=-1)
         else:
             interp_input = tf.concat((seed, loss_results), axis=-1)
