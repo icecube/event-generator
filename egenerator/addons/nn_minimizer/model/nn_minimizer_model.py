@@ -272,11 +272,13 @@ class NNMinimizerModel(Model):
         # adjust input shape if gradients are added
         if config['add_gradients']:
             proposal_input_shape = [-1, 3*len(model_parameter_names)]
-            interp_input_shape = [-1, num_points+3*len(model_parameter_names)]
+            interp_input_shape = [
+                -1, num_points + 3*len(model_parameter_names)
+                + num_points*len(model_parameter_names)]
         else:
             proposal_input_shape = [-1, 2*len(model_parameter_names)]
             interp_input_shape = [
-                -1, num_points + num_points * len(model_parameter_names)]
+                -1, num_points + 2*len(model_parameter_names)]
         print('Proposal layer input shape:', proposal_input_shape)
         print('Interpretation layer input shape:', interp_input_shape)
 
