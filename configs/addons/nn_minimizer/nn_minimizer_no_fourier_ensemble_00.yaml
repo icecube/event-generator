@@ -262,7 +262,7 @@ model_settings: {
         # settings for proposal layers
         # The last fc_layer must have a size of m + num_parameters
         'proposal_layers_config': {
-            'fc_sizes': [500, 500, 260],
+            'fc_sizes': [500, 500, 130],
             'use_dropout_list': False,
             'activation_list': ['elu', 'elu', ''],
             'use_batch_normalisation_list': False,
