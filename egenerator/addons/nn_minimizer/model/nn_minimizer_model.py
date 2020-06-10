@@ -554,8 +554,8 @@ class NNMinimizerModel(Model):
 
         if config['add_gradients']:
             gradients = tf.gradients(loss_results, parameters)[0]
-            gradients = tf.reshape(gradients,
-                                   [1, self.num_points*self.num_parameters])
+            gradients = tf.reshape(
+                gradients, [1, self.num_points*int(self.num_parameters/2)])
         loss_results = tf.ensure_shape(loss_results, [1, self.num_points])
 
         # let's look at delta llh
