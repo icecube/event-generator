@@ -197,7 +197,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                               for i in
                               range(self.manager.models[0].num_parameters)]
         for name, value in self.minimize_parameter_dict.items():
-            fit_paramater_list[self.models[0].get_index(name)] = value
+            fit_paramater_list[self.manager.models[0].get_index(name)] = value
 
         # parameter input signature
         parameter_tensor_name = 'x_parameters'
