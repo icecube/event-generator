@@ -75,7 +75,7 @@ def build_loss_module(config):
     return loss_module
 
 
-def build_model(config, data_transformer):
+def build_model(config, data_transformer, allow_rebuild_base_sources=False):
     """Build a Model object
 
     Parameters
@@ -85,6 +85,10 @@ def build_model(config, data_transformer):
         `model_settings` which defines the model
     data_transformer : DataTransformer object
         The data transformer object to use for the model.
+    allow_rebuild_base_sources : bool, optional
+        If True, the base source model is allowed to be rebuild, otherwise it
+        will raise an error if a base model is not loaded, but attempted to
+        be rebuild from scratch.
 
     Returns
     -------
@@ -211,7 +215,11 @@ def build_manager(config, restore,
         # create and Model object
         # -----------------------
         if models is None:
-            model = build_model(config, data_transformer=data_transformer)
+            model = build_model(
+                config,
+                data_transformer=data_transformer,
+                allow_rebuild_base_sources=allow_rebuild_base_sources,
+            )
             models = [model]
 
         # -----------------------
