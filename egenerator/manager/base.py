@@ -709,14 +709,12 @@ class BaseModelManager(Model):
         #       - save model weights
         start_time = timeit.default_timer()
         validation_time = start_time
-        tf_step = tf.convert_to_tensor(0, dtype=tf.int64)
         for step in range(num_training_iterations):
             # --------------------------
             # perform one training step
             # --------------------------
 
             # increment step counter
-            tf_step.assign_add(1)
             for model in self.models:
                 model.step.assign_add(1)
 
@@ -775,7 +773,7 @@ class BaseModelManager(Model):
                         data_batch=val_data_batch,
                         loss_module=loss_module,
                         tensors=self.data_handler.tensors,
-                        step=tf_step,
+                        step=tf.convert_to_tensor(step, dtype=tf.int64),
                         writer=evaluation_writer)
 
                     # write to file
