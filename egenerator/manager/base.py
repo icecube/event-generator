@@ -521,11 +521,13 @@ class BaseModelManager(Model):
             # create summaries if a writer is provided
             if add_summaries:
                 tf.summary.scalar(
-                    'loss_{:04d}'.format(i), loss_value, step=model.step)
+                    'loss_{:04d}'.format(i), loss_value,
+                    step=tf.cast(model.step, dtype=tf.int64))
                 if (opt_config['l1_regularization'] > 0. or
                         opt_config['l2_regularization'] > 0.):
                     tf.summary.scalar(
-                        'reg_loss_{:04d}'.format(i), reg_loss, step=model.step)
+                        'reg_loss_{:04d}'.format(i), reg_loss,
+                        step=tf.cast(model.step, dtype=tf.int64))
 
         return combined_loss
 
