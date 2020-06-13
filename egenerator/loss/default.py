@@ -738,7 +738,8 @@ class DefaultLossModule(BaseComponent):
         dom_charges_alpha = (dom_charges_variance - hits_pred) / (
             hits_pred**2 + eps)
         # Make sure alpha is positive
-        dom_charges_alpha = tf.clip_by_value(dom_charges_alpha, eps, np.inf)
+        dom_charges_alpha = tf.clip_by_value(
+            dom_charges_alpha, eps, float('inf'))
 
         # compute negative binomial charge likelihood over DOMs
         # shape: [n_batch, 86, 60]
@@ -774,7 +775,7 @@ class DefaultLossModule(BaseComponent):
 
         # Make sure alpha is positive
         event_charges_alpha = tf.clip_by_value(
-            event_charges_alpha, eps, np.inf)
+            event_charges_alpha, eps, float('inf'))
 
         llh_event = basis_functions.tf_log_negative_binomial(
             x=event_charges_true,
