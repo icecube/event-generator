@@ -457,7 +457,7 @@ class BaseModelManager(Model):
 
     @tf.function
     def get_loss(self, data_batch, loss_module, opt_config, is_training,
-                 step=None, parameter_tensor_name='x_parameters'):
+                 add_summaries=False, parameter_tensor_name='x_parameters'):
         """Get the scalar loss for a batch of data and a given loss component.
 
         Parameters
@@ -476,8 +476,8 @@ class BaseModelManager(Model):
             Must be provided if batch normalisation is used.
             True: in training mode
             False: inference mode.
-        step : int, optional
-            The current training step.
+        add_summaries : bool, optional
+            If True, tensorflow summaries will be calculated and added.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
 
@@ -485,6 +485,11 @@ class BaseModelManager(Model):
         -------
         tf.Tensor
             The scalar loss.
+
+        Deleted Parameters
+        ------------------
+        step : int, optional
+            The current training step.
         """
         data_batch_dict = {}
         for i, name in enumerate(self.data_handler.tensors.names):
@@ -514,12 +519,13 @@ class BaseModelManager(Model):
                 combined_loss += loss_value + reg_loss
 
             # create summaries if a writer is provided
-            if step is not None:
-                tf.summary.scalar('loss_{:04d}'.format(i),
-                                  loss_value, step=step)
+            if add_summaries:
+                tf.summary.scalar(
+                    'loss_{:04d}'.format(i), loss_value, step=model.step)
                 if (opt_config['l1_regularization'] > 0. or
                         opt_config['l2_regularization'] > 0.):
-                    tf.summary.scalar('reg_loss_{:04d}'.format(i), reg_loss)
+                    tf.summary.scalar(
+                        'reg_loss_{:04d}'.format(i), reg_loss, step=model.step)
 
         return combined_loss
 
@@ -692,7 +698,7 @@ class BaseModelManager(Model):
             loss_module=loss_module,
             opt_config=opt_config,
             is_training=False,
-            step=tf.convert_to_tensor(1, dtype=tf.int64))
+            add_summaries=True)
 
         # --------------------------------
         # start loop over training batches
@@ -703,13 +709,14 @@ class BaseModelManager(Model):
         #       - save model weights
         start_time = timeit.default_timer()
         validation_time = start_time
+        tf_step = tf.convert_to_tensor(0, dtype=tf.int64)
         for step in range(num_training_iterations):
-            tf_step = tf.convert_to_tensor(step, dtype=tf.int64)
             # --------------------------
             # perform one training step
             # --------------------------
 
             # increment step counter
+            tf_step.assign_add(1)
             for model in self.models:
                 model.step.assign_add(1)
 
