@@ -365,6 +365,7 @@ class MultiSource(Source):
         # normalize pulse_pdf values: divide by total charge at DOM
         pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
                                           pulses_ids)
+
         pulse_pdf /= pulse_weight_total
 
         result_tensors = {
@@ -513,7 +514,9 @@ class MultiSource(Source):
             Additional keyword arguments that may be used by the derived
             class.
         """
-        pass
+
+        # rebuild the tensorflow graph if it does not exist yet
+        self.rebuild_tensorflow_graph()
 
     def check_source_parameter_creation(self):
         """Check created source input parameters

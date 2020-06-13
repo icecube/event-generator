@@ -248,6 +248,14 @@ class DefaultCascadeModel(Source):
         input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
                       distance]
 
+        for i, input_i in enumerate(input_list):
+            tf.print(
+                'input summary: {}'.format(i),
+                tf.reduce_min(input_i),
+                tf.reduce_max(input_i),
+                tf.reduce_mean(input_i),
+            )
+
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
 
@@ -530,5 +538,12 @@ class DefaultCascadeModel(Source):
 
         tensor_dict['pulse_pdf'] = pulse_pdf_values
         # -------------------------------------------
+
+        tf.print(
+            'pulse_pdf_values summary',
+            tf.reduce_min(pulse_pdf_values),
+            tf.reduce_max(pulse_pdf_values),
+            tf.reduce_mean(pulse_pdf_values),
+        )
 
         return tensor_dict

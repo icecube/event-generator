@@ -459,7 +459,7 @@ model_settings: {
                 'num_filters_list' : [30,
                                       300, 300, 300,
                                       300, 300, 100,
-                                      21],
+                                      22],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution', 'convolution',

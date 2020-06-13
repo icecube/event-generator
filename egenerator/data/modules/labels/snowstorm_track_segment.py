@@ -24,7 +24,7 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(SnowstormTrackGeneratorLabelModule, self).__init__(
+        super(SnowstormTrackSegmentGeneratorLabelModule, self).__init__(
                                                                 logger=logger)
 
     def _configure(self, config_data, trafo_log, float_precision,
@@ -131,10 +131,8 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config_data=config_data,
-                          shift_cascade_vertex=shift_cascade_vertex,
                           trafo_log=trafo_log,
                           float_precision=float_precision,
-                          num_cascades=num_cascades,
                           label_key=label_key,
                           snowstorm_key=snowstorm_key,
                           num_snowstorm_params=num_snowstorm_params))
@@ -213,10 +211,6 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
         finally:
             f.close()
 
-        # shift cascade vertices to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
-            track_parameters = self._shift_parameters(track_parameters)
-
         # format track parameters
         dtype = getattr(np, self.configuration.config['float_precision'])
         track_parameters = np.array(track_parameters, dtype=dtype).T
@@ -283,10 +277,6 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
             self._logger.warning(e)
             self._logger.warning('Skipping frame: {}'.format(frame))
             return None, None
-
-        # shift cascade vertices to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
-            track_parameters = self._shift_parameters(track_parameters)
 
         # format track parameters
         dtype = getattr(np, self.configuration.config['float_precision'])

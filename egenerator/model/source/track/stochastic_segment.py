@@ -269,7 +269,7 @@ class StochasticTrackSegmentModel(Source):
         zenith = parameter_list[3]
         azimuth = parameter_list[4]
         energy = parameter_list[5]
-        track_length = parameter_list[7]
+        track_length = parameter_list[7] + 1e-3
         track_lstochasticity = parameter_list[8]
 
         # calculate direction vector of track
@@ -287,6 +287,11 @@ class StochasticTrackSegmentModel(Source):
         dist_infinite_approach = dir_x*h_x + dir_y*h_y + dir_z*h_z
         rel_dist_infinite_approach = dist_infinite_approach / track_length
 
+        # this value can get extremely large if track length is ~ 0
+        # Therefore: limit it to range -10, 10 and map it onto (-1, 1)
+        rel_dist_infinite_approach_trafo = tf.math.tanh(
+            rel_dist_infinite_approach / 10.)
+
         # shift distance of infinite track onto the finite track
         dist_closest_approach = self.shift_distance_on_track(
             track_length, dist_infinite_approach)
@@ -294,19 +299,23 @@ class StochasticTrackSegmentModel(Source):
 
         # compute delta in distance of true closest approach and of closest
         # approach of infinite track
-        delta_dist_approach_points = (
-            dist_infinite_approach - dist_closest_approach
-        )
+        delta_dist_approach = dist_infinite_approach - dist_closest_approach
 
-        # debugging
-        tf.print(
-            'dist_closest_approach summary',
-            tf.reduce_min(dist_closest_approach),
-            tf.reduce_max(dist_closest_approach),
-            tf.reduce_mean(dist_closest_approach),
-        )
-        tf.print('dist_closest_approach', dist_closest_approach)
-        tf.print('dist_infinite_approach', dist_infinite_approach)
+        # # debugging
+        # tf.print(
+        #     'track_length summary',
+        #     tf.reduce_min(track_length),
+        #     tf.reduce_max(track_length),
+        #     tf.reduce_mean(track_length),
+        # )
+        # tf.print(
+        #     'dist_closest_approach summary',
+        #     tf.reduce_min(dist_closest_approach),
+        #     tf.reduce_max(dist_closest_approach),
+        #     tf.reduce_mean(dist_closest_approach),
+        # )
+        # tf.print('dist_closest_approach', dist_closest_approach)
+        # tf.print('dist_infinite_approach', dist_infinite_approach)
 
         # calculate closest approach points of track to each DOM
         closest_x = parameter_list[0] + dist_closest_approach*dir_x
@@ -376,8 +385,8 @@ class StochasticTrackSegmentModel(Source):
         norm_const = self.data_trafo.data['norm_constant']
 
         distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
-        delta_dist_approach_trafo /= (np.linalg.norm(params_std[0:3])
-                                      + norm_const)
+        delta_dist_approach_trafo = delta_dist_approach / (
+            np.linalg.norm(params_std[0:3]) + norm_const)
         opening_angle_traf = ((opening_angle - params_mean[3]) /
                               (norm_const + params_std[3]))
 
@@ -388,9 +397,9 @@ class StochasticTrackSegmentModel(Source):
 
         # transform energies
         if tensor.trafo_log[5]:
-            energy_before_trafo = tf.log(1 + energy_before)
-            energy_after_trafo = tf.log(1 + energy_after)
-            energy_cherenkov_trafo = tf.log(1 + energy_cherenkov)
+            energy_before_trafo = tf.math.log(1 + energy_before)
+            energy_after_trafo = tf.math.log(1 + energy_after)
+            energy_cherenkov_trafo = tf.math.log(1 + energy_cherenkov)
 
         # apply bias correction
         energy_before_trafo -= params_mean[5]
@@ -411,11 +420,23 @@ class StochasticTrackSegmentModel(Source):
         # put everything together
         params_expanded = tf.tile(modified_parameters, [1, 86, 60, 1])
 
-        input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
-                      distance, delta_dist_approach_trafo,
-                      energy_before_trafo, energy_after_trafo,
-                      energy_cherenkov_trafo,
-                      rel_dist_closest_approach, rel_dist_infinite_approach]
+        input_list = [
+            params_expanded, dx_normed, dy_normed, dz_normed,
+            distance,
+            tf.expand_dims(delta_dist_approach_trafo, axis=-1),
+            tf.expand_dims(energy_before_trafo, axis=-1),
+            tf.expand_dims(energy_after_trafo, axis=-1),
+            tf.expand_dims(energy_cherenkov_trafo, axis=-1),
+            tf.expand_dims(rel_dist_closest_approach, axis=-1),
+            tf.expand_dims(rel_dist_infinite_approach_trafo, axis=-1),
+        ]
+        # for i, input_i in enumerate(input_list):
+        #     tf.print(
+        #         'input summary: {}'.format(i),
+        #         tf.reduce_min(input_i),
+        #         tf.reduce_max(input_i),
+        #         tf.reduce_mean(input_i),
+        #     )
 
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
@@ -591,12 +612,12 @@ class StochasticTrackSegmentModel(Source):
 
             print('dom_charges_llh', dom_charges_llh)
 
-            tf.print(
-                'dom_charges_alpha',
-                tf.reduce_min(dom_charges_alpha),
-                tf.reduce_mean(dom_charges_alpha),
-                tf.reduce_max(dom_charges_alpha),
-            )
+            # tf.print(
+            #     'dom_charges_alpha',
+            #     tf.reduce_min(dom_charges_alpha),
+            #     tf.reduce_mean(dom_charges_alpha),
+            #     tf.reduce_max(dom_charges_alpha),
+            # )
 
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_alpha'] = dom_charges_alpha
