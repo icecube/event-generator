@@ -322,6 +322,7 @@ class MultiSource(Source):
         # -----------------------------------------------
 
         dom_charges = None
+        dom_charges_variance = None
         pulse_pdf = None
         for name, base in self._untracked_data['sources'].items():
 
@@ -342,6 +343,7 @@ class MultiSource(Source):
                                                             data_batch_dict_i)
 
             dom_charges_i = result_tensors_i['dom_charges']
+            dom_charges_variance_i = result_tensors_i['dom_charges_variance']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 
             if dom_charges_i.shape[1:] != [86, 60, 1]:
@@ -349,12 +351,19 @@ class MultiSource(Source):
                 msg += 'shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
+            if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
+                msg = 'DOM charge variances of source {!r} ({!r}) have an '
+                msg += 'unexpected shape {!r}.'
+                raise ValueError(msg.format(name, base, dom_charges_i.shape))
+
             # accumulate charge
             # (assumes that sources are linear and independent)
             if dom_charges is None:
                 dom_charges = dom_charges_i
+                dom_charges_variance = dom_charges_variance_i
             else:
                 dom_charges += dom_charges_i
+                dom_charges_variance += dom_charges_variance_i
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
@@ -373,6 +382,7 @@ class MultiSource(Source):
 
         result_tensors = {
             'dom_charges': dom_charges,
+            'dom_charges_variance': dom_charges_variance,
             'pulse_pdf': pulse_pdf,
         }
 

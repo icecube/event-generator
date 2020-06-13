@@ -255,7 +255,20 @@ loss_module_settings: [
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
-            'loss_function_name': 'unbinned_extended_pulse_llh',
+            'loss_function_name': 'unbinned_pulse_time_llh',
+        },
+    },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'negative_binomial_charge_pdf',
         },
     },
     {
@@ -419,6 +432,7 @@ model_settings: {
             'model_class': 'egenerator.model.source.track.StochasticTrackSegmentModel',
 
             # The directory from which this base source will be loaded
+            # 'load_dir': '../data/training/snowstorm_track_segment_no_fourier/manager/models_0000',
             'load_dir': ,
 
             # define data trafo settings for the track base source

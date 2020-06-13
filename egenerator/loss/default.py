@@ -634,10 +634,10 @@ class DefaultLossModule(BaseComponent):
         llh_charge = tf.squeeze(result_tensors['dom_charges_log_pdf_values'],
                                 axis=-1)
 
-        # get uncertainty on DOM charges
+        # get variance on DOM charges
         # shape: [n_batch, 86, 60]
-        dom_charges_unc = tf.squeeze(
-            result_tensors['dom_charges_unc'], axis=-1)
+        dom_charges_variance = tf.squeeze(
+            result_tensors['dom_charges_variance'], axis=-1)
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
@@ -648,19 +648,131 @@ class DefaultLossModule(BaseComponent):
             llh_charge = llh_charge * mask_valid
             hits_true = hits_true * mask_valid
             hits_pred = hits_pred * mask_valid
-            dom_charges_unc = dom_charges_unc * mask_valid
+            dom_charges_variance = dom_charges_variance * mask_valid
         else:
             mask_valid = tf.ones_like(llh_charge)
 
         # Compute Gaussian likelihood over total event charge
         event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
         event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
-        event_charges_unc = tf.sqrt(tf.reduce_sum(tf.square(dom_charges_unc),
+        event_charges_unc = tf.sqrt(tf.reduce_sum(dom_charges_variance,
                                                   axis=[1, 2]))
         llh_event = basis_functions.tf_log_gauss(
             x=event_charges_true,
             mu=event_charges_pred,
             sigma=event_charges_unc,
+        )
+
+        loss_terms = [-llh_charge, -llh_event]
+
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
+            # total event charge is properly normalized due to the used gauss
+            pass
+
+        return loss_terms
+
+    def negative_binomial_charge_pdf(self, data_batch_dict, result_tensors,
+                                     tensors):
+        """Negative Binomial Charge PDF
+
+        This is a likelihood over the total event charge in addition to the
+        charge measured at each DOM. A negative binomial distribution
+        is used to calculate the charge likelihood. This allows for the
+        inclusion of over-dispersion in contrast to the simple Poisson
+        Likelihood. The model must provide the dom charges and variances
+        thereof: `dom_charges`, `dom_charges_variance`.
+        This loss pairs well with a loss for the time PDF such
+        as `unbinned_pulse_time_llh`.
+
+        Parameters
+        ----------
+        data_batch_dict : dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
+        result_tensors : dict of tf.Tensor
+            A dictionary of output tensors.
+            This  dictionary must at least contain:
+
+                'dom_charges': the predicted charge at each DOM
+                               Shape: [-1, 86, 60, 1]
+                'dom_charges_variance':
+                    the predicted variance on the charge at each DOM.
+                    This assumes the underlying distribution is a negative
+                    binomial distribution.
+                    Shape: [-1, 86, 60]
+        tensors : DataTensorList
+            The data tensor list describing the input data
+
+        Returns
+        -------
+        List of tf.tensor
+            Charge PDF Likelihood.
+            List of tensors defining the terms of the log likelihood
+        """
+        eps = 1e-7
+        dtype = getattr(
+            tf, self.configuration.config['config']['float_precision'])
+
+        # shape: [n_batch, 86, 60]
+        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
+        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        dom_charges_variance = tf.squeeze(
+            result_tensors['dom_charges_variance'], axis=-1)
+
+        # compute over-dispersion factor alpha
+        # var = mu + alpha*mu**2
+        # alpha = (var - mu) / (mu**2)
+        dom_charges_alpha = (dom_charges_variance - hits_pred) / (hits_pred**2)
+
+        # compute negative binomial charge likelihood over DOMs
+        # shape: [n_batch, 86, 60]
+        llh_charge = basis_functions.tf_log_negative_binomial(
+            x=hits_true,
+            mu=hits_pred,
+            alpha=dom_charges_alpha,
+        )
+
+        # mask out dom exclusions
+        if ('x_dom_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+            mask_valid = tf.cast(
+                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
+                dtype=dtype)
+            llh_charge = llh_charge * mask_valid
+            hits_true = hits_true * mask_valid
+            hits_pred = hits_pred * mask_valid
+            dom_charges_variance = dom_charges_variance * mask_valid
+        else:
+            mask_valid = tf.ones_like(hits_true)
+
+        # compute negative binomial charge likelihood over total event charge
+        event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
+        event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
+        event_charges_variance = tf.reduce_sum(hits_pred, axis=[1, 2])
+
+        # compute over-dispersion factor alpha
+        # var = mu + alpha*mu**2
+        # alpha = (var - mu) / (mu**2)
+        event_charges_alpha = (event_charges_variance - event_charges_pred) / (
+            event_charges_pred**2)
+
+        llh_event = basis_functions.tf_log_negative_binomial(
+            x=event_charges_true,
+            mu=event_charges_pred,
+            alpha=event_charges_alpha,
         )
 
         loss_terms = [-llh_charge, -llh_event]

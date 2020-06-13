@@ -144,6 +144,9 @@ class DefaultCascadeModel(Source):
 
                 'dom_charges': the predicted charge at each DOM
                                Shape: [-1, 86, 60]
+                'dom_charges_variance':
+                    the predicted variance on the charge at each DOM.
+                    Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         """
@@ -247,14 +250,6 @@ class DefaultCascadeModel(Source):
 
         input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
                       distance]
-
-        for i, input_i in enumerate(input_list):
-            tf.print(
-                'input summary: {}'.format(i),
-                tf.reduce_min(input_i),
-                tf.reduce_max(input_i),
-                tf.reduce_mean(input_i),
-            )
 
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
@@ -395,6 +390,7 @@ class DefaultCascadeModel(Source):
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
             tensor_dict['dom_charges_r'] = dom_charges_r
             tensor_dict['dom_charges_unc'] = dom_charges_unc
+            tensor_dict['dom_charges_variance'] = dom_charges_unc**2
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
 
         elif config['estimate_charge_distribution'] == 'negative_binomial':
@@ -425,8 +421,9 @@ class DefaultCascadeModel(Source):
 
             # compute standard deviation
             # std = sqrt(var) = sqrt(mu + alpha*mu**2)
-            dom_charges_unc = tf.sqrt(
+            dom_charges_variance = (
                 dom_charges + dom_charges_alpha*dom_charges**2)
+            dom_charges_unc = tf.sqrt(dom_charges_variance)
 
             print('dom_charges_llh', dom_charges_llh)
 
@@ -440,7 +437,13 @@ class DefaultCascadeModel(Source):
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_alpha'] = dom_charges_alpha
             tensor_dict['dom_charges_unc'] = dom_charges_unc
+            tensor_dict['dom_charges_variance'] = dom_charges_variance
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
+
+        else:
+            # Poisson Distribution: variance is equal to expected charge
+            tensor_dict['dom_charges_unc'] = tf.sqrt(dom_charges)
+            tensor_dict['dom_charges_variance'] = dom_charges
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF
@@ -538,12 +541,5 @@ class DefaultCascadeModel(Source):
 
         tensor_dict['pulse_pdf'] = pulse_pdf_values
         # -------------------------------------------
-
-        tf.print(
-            'pulse_pdf_values summary',
-            tf.reduce_min(pulse_pdf_values),
-            tf.reduce_max(pulse_pdf_values),
-            tf.reduce_mean(pulse_pdf_values),
-        )
 
         return tensor_dict
