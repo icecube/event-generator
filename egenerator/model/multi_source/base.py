@@ -204,7 +204,8 @@ class MultiSource(Source):
             name = __name__
 
         # collect all tensorflow variables before creation
-        variables_before = set(tf.compat.v1.global_variables())
+        variables_before = set([
+            v.ref() for v in tf.compat.v1.global_variables()])
 
         # build architecture: create and save model weights
         # returns parameter_names
@@ -216,12 +217,14 @@ class MultiSource(Source):
             sub_components['data_trafo'] = data_trafo
 
         # collect all tensorflow variables after creation and match
-        variables_after = set(tf.compat.v1.global_variables())
+        variables_after = set([
+            v.ref() for v in tf.compat.v1.global_variables()])
         set_diff = variables_after - variables_before
-        if set_diff != set(self.variables):
-            msg = 'Found variables that are not part of the tf.Module: '
-            msg += '{!r} != {!r}.'
-            raise ValueError(msg.format(set_diff, set(self.variables)))
+        model_variables = set([v.ref() for v in self.variables])
+        new_unaccounted_variables = set_diff - model_variables
+        if len(new_unaccounted_variables) > 0:
+            msg = 'Found new variables that are not part of the tf.Module: {}'
+            raise ValueError(msg.format(new_unaccounted_variables))
 
         # get names of parameters
         self._untracked_data['name'] = name
@@ -516,7 +519,40 @@ class MultiSource(Source):
         """
 
         # rebuild the tensorflow graph if it does not exist yet
-        self.rebuild_tensorflow_graph()
+        if not self.is_configured:
+
+            # save temporary values to make sure these aren't modified
+            configuration_id = id(self.configuration)
+            sub_components_id = id(self.sub_components)
+            configuration = Configuration(**self.configuration.dict)
+            data = dict(self.data)
+            sub_components = dict(self.sub_components)
+
+            # rebuild graph
+            config_dict = self.configuration.config
+            data_trafo = self._sub_components['data_trafo']
+            base_sources = {}
+            for key, sub_component in self._sub_components.items():
+                if key != 'data_trafo':
+                    base_sources[key] = sub_component
+
+            self._configure(
+                data_trafo=data_trafo,
+                base_sources=base_sources,
+                **config_dict
+            )
+
+            # make sure that no additional class attributes are created
+            # apart from untracked ones
+            self._check_member_attributes()
+
+            # make sure the other values weren't overwritten
+            if (not configuration.is_compatible(self.configuration) or
+                configuration_id != id(self.configuration) or
+                data != self.data or
+                sub_components != self.sub_components or
+                    sub_components_id != id(self.sub_components)):
+                raise ValueError('Tracked components were changed!')
 
     def check_source_parameter_creation(self):
         """Check created source input parameters

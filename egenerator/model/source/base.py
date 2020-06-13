@@ -183,30 +183,24 @@ class Source(Model):
         if name is None:
             name = __name__
 
-        # build architecture: this must return the tf.Module with an im
-
-        # # load tf.Module class
-        # module_class = misc.load_class(
-        #     'egenerator.model.source.{}'.format(config['source_module']))
-
-        # # collect all tensorflow variables before creation
-        # variables_before = set(tf.compat.v1.global_variables())
-
-        # # instantiate module
-        # module = module_class(module_config)
+        # collect all tensorflow variables before creation
+        variables_before = set([
+            v.ref() for v in tf.compat.v1.global_variables()])
 
         # build architecture: create and save model weights
         # returns parameter_names
         parameter_names = self._build_architecture(config, name=name)
 
-        # # collect all tensorflow variables after creation and match
-        # variables_after = set(tf.compat.v1.global_variables())
-        # set_diff = variables_after - variables_before
-        # for tensor in set_diff:
-        #     if tensor not in self.variables:
-        #         msg = 'Found variable that is not part of the tf.Module: '
-        #         msg += '{!r} != {!r}.'
-        #         raise ValueError(msg.format(tensor, self.variables))
+        # collect all tensorflow variables after creation and match
+        variables_after = set([
+            v.ref() for v in tf.compat.v1.global_variables()])
+
+        set_diff = variables_after - variables_before
+        model_variables = set([v.ref() for v in self.variables])
+        new_unaccounted_variables = set_diff - model_variables
+        if len(new_unaccounted_variables) > 0:
+            msg = 'Found new variables that are not part of the tf.Module: {}'
+            raise ValueError(msg.format(new_unaccounted_variables))
 
         # get names of parameters
         self._untracked_data['name'] = name

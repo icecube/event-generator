@@ -532,16 +532,22 @@ class Model(tf.Module, BaseComponent):
                           protected=protected, description=description,
                           num_training_steps=num_training_steps)
 
-    def rebuild_tensorflow_graph(self):
-        """Rebuild the tensorflow graph
+    def load_weights(self, dir_path, checkpoint_number=None):
+        """Load the model weights.
 
-        Rebuilds the tensorflow graph if it does not exist, e.g. if the
-        model is loaded from file.
+        Parameters
+        ----------
+        dir_path : str
+            Path to the input directory.
+        checkpoint_number : None, optional
+            Optionally specify a certain checkpoint number that should be
+            loaded. If checkpoint_number is None (default), then the latest
+            checkpoint will be loaded.
 
         Raises
         ------
-        ValueError
-            Description
+        IOError
+            If the checkpoint meta data cannot be found in the input directory.
         """
 
         # rebuild the tensorflow graph if it does not exist yet
@@ -570,27 +576,6 @@ class Model(tf.Module, BaseComponent):
                 sub_components != self.sub_components or
                     sub_components_id != id(self.sub_components)):
                 raise ValueError('Tracked components were changed!')
-
-    def load_weights(self, dir_path, checkpoint_number=None):
-        """Load the model weights.
-
-        Parameters
-        ----------
-        dir_path : str
-            Path to the input directory.
-        checkpoint_number : None, optional
-            Optionally specify a certain checkpoint number that should be
-            loaded. If checkpoint_number is None (default), then the latest
-            checkpoint will be loaded.
-
-        Raises
-        ------
-        IOError
-            If the checkpoint meta data cannot be found in the input directory.
-        """
-
-        # rebuild the tensorflow graph if it does not exist yet
-        self.rebuild_tensorflow_graph()
 
         # Load the model_checkpoints.yaml
         yaml_file = os.path.join(dir_path, 'model_checkpoint.yaml')

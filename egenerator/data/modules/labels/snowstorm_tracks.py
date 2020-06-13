@@ -144,10 +144,10 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                     parameter_names.append('cascade_{:04d}_energy'.format(i))
                     parameter_names.append('cascade_{:04d}_distance'.format(i))
 
-        self._untracked_data['parameter_names'] = parameter_names
-        self._untracked_data['parameter_dict'] = {}
+        self.data['parameter_names'] = parameter_names
+        self.data['parameter_dict'] = {}
         for i, parameter_name in enumerate(parameter_names):
-            self._untracked_data['parameter_dict'][parameter_name] = i
+            self.data['parameter_dict'][parameter_name] = i
 
         # extend trafo log for snowstorm parameters: fill with Flase
         if isinstance(trafo_log, bool):
@@ -217,7 +217,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = f[self.configuration.config['label_key']]
-            for l in self._untracked_data['parameter_names']:
+            for l in self.data['parameter_names']:
                     track_parameters.append(_labels[l])
 
             snowstorm_key = self.configuration.config['snowstorm_key']
@@ -287,7 +287,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = frame[self.configuration.config['label_key']]
-            for l in self._untracked_data['parameter_names']:
+            for l in self.data['parameter_names']:
                 track_parameters.append(np.atleast_1d(_labels[l]))
 
             snowstorm_key = self.configuration.config['snowstorm_key']
@@ -385,7 +385,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             The shifted parameters
         """
         num_cascades = self.configuration.config['num_cascades']
-        param_dict = self._untracked_data['parameter_dict']
+        param_dict = self.data['parameter_dict']
 
         zenith = parameters[param_dict['zenith']]
         azimuth = parameters[param_dict['azimuth']]
