@@ -76,6 +76,15 @@ class StochasticTrackModel(MultiSource):
                     parameter_names.append(cascade_name + '_energy')
                     parameter_names.append(cascade_name + '_distance')
 
+        # add snowstorm parameters
+        num_snowstorm_params = 0
+        if 'snowstorm_parameter_names' in config:
+            for param_name, num in config['snowstorm_parameter_names']:
+                num_snowstorm_params += num
+                for i in range(num):
+                    parameter_names.append(param_name.format(i))
+        self._untracked_data['num_snowstorm_params'] = num_snowstorm_params
+
         return parameter_names, sources
 
     def get_source_parameters(self, parameters):
@@ -109,6 +118,9 @@ class StochasticTrackModel(MultiSource):
         d_start = parameters.params['track_distance_start']
         d_end = parameters.params['track_distance_end']
 
+        num_snowstorm_params = self._untracked_data['num_snowstorm_params']
+        snowstorm_params = parameters[:, -num_snowstorm_params:]
+
         # calculate direction vector
         dir_x = -tf.sin(zenith) * tf.cos(azimuth)
         dir_y = -tf.sin(zenith) * tf.sin(azimuth)
@@ -130,15 +142,17 @@ class StochasticTrackModel(MultiSource):
         track_length = d_end - d_start
 
         # parameters: x, y, z, zenith, azimuth, energy, time, length, stoch
-        track_parameters = tf.stack([
-            track_x, track_y, track_z,
-            zenith, azimuth,
-            parameters.params['track_energy'],
-            track_time,
-            track_length,
-            parameters.params['track_stochasticity'],
-            ], axis=1,
-        )
+        track_parameters = tf.concat(
+            (tf.stack([
+                track_x, track_y, track_z,
+                zenith, azimuth,
+                parameters.params['track_energy'],
+                track_time,
+                track_length,
+                parameters.params['track_stochasticity'],
+                ], axis=1,
+             ),
+             snowstorm_params), axis=-1)
 
         # add to source parameter mapping
         source_parameter_dict['track'] = track_parameters
@@ -150,13 +164,15 @@ class StochasticTrackModel(MultiSource):
 
             # highest energy cascade that is being used as vertex
             # parameters: x, y, z, zenith, azimuth, energy, time
-            source_parameter_dict['cascade_0000'] = tf.stack([
-                anchor_x, anchor_y, anchor_z,
-                zenith, azimuth,
-                parameters.params['cascade_0000_energy'],
-                anchor_time,
-                ], axis=1,
-            )
+            source_parameter_dict['cascade_0000'] = tf.concat(
+                (tf.stack([
+                    anchor_x, anchor_y, anchor_z,
+                    zenith, azimuth,
+                    parameters.params['cascade_0000_energy'],
+                    anchor_time,
+                    ], axis=1,
+                 ),
+                 snowstorm_params), axis=-1)
 
             # Now go through the rest of the cascades
             for index in range(1, self._untracked_data['num_cascades']):
@@ -172,12 +188,14 @@ class StochasticTrackModel(MultiSource):
 
                 # Add cascade source
                 # parameters: x, y, z, zenith, azimuth, energy, time
-                source_parameter_dict[cascade_name] = tf.stack([
-                    cascade_x, cascade_y, cascade_z,
-                    zenith, azimuth,
-                    parameters.params[cascade_name + '_energy'],
-                    cascade_time,
-                    ], axis=1,
-                )
+                source_parameter_dict[cascade_name] = tf.concat(
+                    (tf.stack([
+                        cascade_x, cascade_y, cascade_z,
+                        zenith, azimuth,
+                        parameters.params[cascade_name + '_energy'],
+                        cascade_time,
+                        ], axis=1,
+                     ),
+                     snowstorm_params), axis=-1)
 
         return source_parameter_dict

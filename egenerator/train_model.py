@@ -87,7 +87,7 @@ def main(config_files):
 
     # build manager object
     manager, model, data_handler, data_transformer = build_manager(
-                                                    config, restore=restore)
+        config, restore=restore, allow_rebuild_base_sources=True)
 
     # --------------
     # start training

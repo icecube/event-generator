@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'snowstorm_track_no_fourier'
+unique_name: 'snowstorm_track_segment_no_fourier'
 
 
 #------------------
@@ -50,7 +50,7 @@ reconstruction_settings: {
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
-                             'energy', 'time',
+                             'energy', 'time', 'length', 'stochasticity',
                              'Absorption', 'AnisotropyScale', 'DOMEfficiency',
                              'HoleIceForward_Unified_00',
                              'HoleIceForward_Unified_01',
@@ -58,6 +58,8 @@ reconstruction_settings: {
                          ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
+        'length': 500.,
+        'stochasticity': 0.2,
         'Absorption': 1.,
         'AnisotropyScale': 1.,
         'DOMEfficiency': 1.,
@@ -299,7 +301,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_track_no_fourier_pulse_data',
+    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_track_segment_no_fourier_pulse_data',
 }
 
 #----------------------
@@ -331,22 +333,16 @@ data_handler_settings: {
     # LabelModule Settings
     # --------------------
     # which label module to use
-    'label_module': 'snowstorm_tracks.SnowstormTrackGeneratorLabelModule',
+    'label_module': 'snowstorm_track_segment.SnowstormTrackSegmentGeneratorLabelModule',
 
     # settings for the label module
     'label_settings':{
-        'shift_cascade_vertex': True,
         # logarithm on labels
-        # zenith, azimuth, x, y, z, time, energy, d_start, d_end, stoch,
-        # cascade_0000_energy,
-        # cascade_i_energy, cascade_i_distance
+        # x, y, z, zenith, azimuth, energy, time, length, stochasticity
         'trafo_log': [
-            False, False, False, False, False, False, True, False, False, False,
-            True,
-            True, False, True, False, True, False, True, False,
+            False, False, False, False, False, True, False, False, False,
         ],
-        'num_cascades': 5,
-        'label_key': 'EventGeneratorMuonTrackLabels_c0005',
+        'label_key': 'EventGeneratorMuonTrackLabels_c0000',
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 6,
         'float_precision': 'float32',
@@ -392,11 +388,19 @@ data_handler_settings: {
 model_settings: {
 
     # The loss module class to use
-    'model_class': 'egenerator.model.multi_source.track.StochasticTrackModel',
+    'model_class': 'egenerator.model.source.track.StochasticTrackSegmentModel',
 
-    # configuration settings for StochasticTrackModel object
+    # configuration settings for StochasticTrackSegmentModel object
     config: {
-        'num_cascades': 5,
+        'keep_prob':,
+        'add_opening_angle': True,
+        'add_dom_coordinates': False,
+        'num_local_vars': 0,
+        'scale_charge': True,
+        'scale_charge_by_relative_dom_efficiency': True,
+        'scale_charge_by_global_dom_efficiency': True,
+        'estimate_charge_distribution': 'negative_binomial',
+        'num_latent_models': 5,
 
         # This is a list of the ordered snowstorm parameters: (name, number)
         'snowstorm_parameter_names': [
@@ -407,143 +411,31 @@ model_settings: {
             # ['IceWavePlusModes_{:02d}', 24],
             ['Scattering', 1],
         ],
-    },
 
-    # Base sources used by the multi-source class
-    multi_source_bases: {
-
-        # The track model settings
-        track: {
-
-            # The source model class to use
-            'model_class': 'egenerator.model.source.track.StochasticTrackSegmentModel',
-
-            # The directory from which this base source will be loaded
-            'load_dir': ,
-
-            # define data trafo settings for the track base source
-            data_trafo_settings: {
-                'float_precision': 'float64',
-                'norm_constant': !!float 1e-6,
-                'num_batches': 5000,
-                'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_track_segment_no_fourier_pulse_data',
-            },
-
-            # configuration settings of this base source
-            config: {
-                'keep_prob':,
-                'add_opening_angle': True,
-                'add_dom_coordinates': False,
-                'num_local_vars': 0,
-                'scale_charge': True,
-                'scale_charge_by_relative_dom_efficiency': True,
-                'scale_charge_by_global_dom_efficiency': True,
-                'estimate_charge_distribution': 'negative_binomial',
-                'num_latent_models': 5,
-
-                # This is a list of the ordered snowstorm parameters: (name, number)
-                'snowstorm_parameter_names': [
-                    ['Absorption', 1],
-                    ['AnisotropyScale', 1],
-                    ['DOMEfficiency', 1],
-                    ['HoleIceForward_Unified_{:02d}', 2],
-                    # ['IceWavePlusModes_{:02d}', 24],
-                    ['Scattering', 1],
-                ],
-
-                # First convolutions
-                'filter_size_list' : [[1, 1],
-                                      [1, 1], [1, 1], [1, 1],
-                                      [1, 1], [1, 1], [1, 1],
-                                      [1, 1]],
-                'num_filters_list' : [30,
-                                      300, 300, 300,
-                                      300, 300, 100,
-                                      21],
-                'method_list' : ['locally_connected',
-                                 'convolution', 'convolution', 'convolution',
-                                 'convolution', 'convolution', 'convolution',
-                                 'convolution',
-                                 ],
-                'use_dropout_list' : False,
-                'activation_list' : ['elu',
-                                     'elu', 'elu', 'elu',
-                                     'elu', 'elu', 'elu',
-                                     ''],
-                'use_batch_norm_list' : False,
-                'use_residual_list' : [True,
-                                       True, True, True,
-                                       True, True, True,
-                                       False],
-            },
-        },
-
-        # The cascade model settings
-        cascade: {
-
-            # The source model class to use
-            'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
-
-            # The directory from which this base source will be loaded
-            # 'load_dir': '../data/training/snowstorm_cascade_no_fourier_ensemble_00/manager/models_0000',
-            'load_dir': ,
-
-            # define data trafo settings for the cascade base source
-            data_trafo_settings: {
-                'float_precision': 'float64',
-                'norm_constant': !!float 1e-6,
-                'num_batches': 5000,
-                'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_pulse_data',
-            },
-
-            # configuration settings of this base source
-            config: {
-                'keep_prob':,
-                'add_opening_angle': True,
-                'add_dom_coordinates': False,
-                'num_local_vars': 0,
-                'scale_charge': True,
-                'scale_charge_by_relative_dom_efficiency': True,
-                'scale_charge_by_global_dom_efficiency': True,
-                'estimate_charge_distribution': False,
-                'num_latent_models': 5,
-
-                # This is a list of the ordered snowstorm parameters: (name, number)
-                'snowstorm_parameter_names': [
-                    ['Absorption', 1],
-                    ['AnisotropyScale', 1],
-                    ['DOMEfficiency', 1],
-                    ['HoleIceForward_Unified_{:02d}', 2],
-                    # ['IceWavePlusModes_{:02d}', 24],
-                    ['Scattering', 1],
-                ],
-
-                # First convolutions
-                'filter_size_list' : [[1, 1],
-                                      [1, 1], [1, 1], [1, 1],
-                                      [1, 1], [1, 1], [1, 1],
-                                      [1, 1]],
-                'num_filters_list' : [25,
-                                      300, 300, 300,
-                                      300, 300, 100,
-                                      21],
-                'method_list' : ['locally_connected',
-                                 'convolution', 'convolution', 'convolution',
-                                 'convolution', 'convolution', 'convolution',
-                                 'convolution',
-                                 ],
-                'use_dropout_list' : False,
-                'activation_list' : ['elu',
-                                     'elu', 'elu', 'elu',
-                                     'elu', 'elu', 'elu',
-                                     ''],
-                'use_batch_norm_list' : False,
-                'use_residual_list' : [True,
-                                       True, True, True,
-                                       True, True, True,
-                                       False],
-            },
-        },
+        # First convolutions
+        'filter_size_list' : [[1, 1],
+                              [1, 1], [1, 1], [1, 1],
+                              [1, 1], [1, 1], [1, 1],
+                              [1, 1]],
+        'num_filters_list' : [30,
+                              300, 300, 300,
+                              300, 300, 100,
+                              21],
+        'method_list' : ['locally_connected',
+                         'convolution', 'convolution', 'convolution',
+                         'convolution', 'convolution', 'convolution',
+                         'convolution',
+                         ],
+        'use_dropout_list' : False,
+        'activation_list' : ['elu',
+                             'elu', 'elu', 'elu',
+                             'elu', 'elu', 'elu',
+                             ''],
+        'use_batch_norm_list' : False,
+        'use_residual_list' : [True,
+                               True, True, True,
+                               True, True, True,
+                               False],
     },
 }
 

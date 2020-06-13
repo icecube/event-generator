@@ -126,8 +126,15 @@ def build_model(config, data_transformer, allow_rebuild_base_sources=False):
                     msg += "setting, set 'allow_rebuild_base_sources' to True."
                     raise ValueError(msg)
 
+                # check if the base model has its own data transformer defined
+                if 'data_trafo_settings' in settings:
+                    data_transformer_base = DataTransformer()
+                    data_transformer_base.load(
+                        settings['data_trafo_settings']['model_dir'])
+                else:
+                    data_transformer_base = data_transformer
                 base_source.configure(config=settings['config'],
-                                      data_trafo=data_transformer)
+                                      data_trafo=data_transformer_base)
 
             base_sources[name] = base_source
 

@@ -9,7 +9,7 @@ from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
-class SnowstormTrackGeneratorLabelModule(BaseComponent):
+class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
 
     """This is a label module that loads the snowstorm track labels.
     """
@@ -27,10 +27,8 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         super(SnowstormTrackGeneratorLabelModule, self).__init__(
                                                                 logger=logger)
 
-    def _configure(self, config_data, shift_cascade_vertex, trafo_log,
-                   float_precision,
-                   num_cascades=5,
-                   label_key='EventGeneratorMuonTrackLabels',
+    def _configure(self, config_data, trafo_log, float_precision,
+                   label_key='EventGeneratorMuonTrackLabels_c0000',
                    snowstorm_key='SnowstormParameters',
                    num_snowstorm_params=30):
         """Configure Module Class
@@ -41,9 +39,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         config_data : None, str, or DataTensorList
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
-        shift_cascade_vertex : bool
-            Shift cascade vertex to shower maximum instead of interaction
-            point.
         trafo_log : None or bool or list of bool
             Whether or not to apply logarithm on parameters.
             If a single bool is given, this applies to all labels. Otherwise
@@ -59,8 +54,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             applied to the snowstorm parameters.
         float_precision : str
             The float precision as a str.
-        num_cascades : int, optional
-            Number of cascades along the track.
         label_key : str, optional
             The name of the key under which the labels are saved.
         snowstorm_key : str, optional
@@ -112,44 +105,9 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             Description
         """
 
-        # sanity checks:
-        if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError('{!r} is not a boolean value!'.format(
-                shift_cascade_vertex))
-        if num_cascades < 0:
-            raise ValueError('Num cascades {} must be positive!'.format(
-                num_cascades))
+        # define number of parameters
+        num_params = 9
 
-        # compute number of parameters
-        if num_cascades == 0:
-            num_params = 10
-        elif num_cascades == 1:
-            num_params = 11
-        else:
-            num_params = 11 + (num_cascades - 1) * 2
-
-        # create list of parameter names which is needed for data loading
-        parameter_names = [
-            'zenith', 'azimuth',
-            'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-            'track_anchor_time', 'track_energy',
-            'track_distance_start', 'track_distance_end',
-            'track_stochasticity',
-        ]
-        if num_cascades >= 1:
-            parameter_names.append('cascade_0000_energy')
-
-            if num_cascades > 1:
-                for i in range(1, num_cascades):
-                    parameter_names.append('cascade_{:04d}_energy'.format(i))
-                    parameter_names.append('cascade_{:04d}_distance'.format(i))
-
-        self._untracked_data['parameter_names'] = parameter_names
-        self._untracked_data['parameter_dict'] = {}
-        for i, parameter_name in enumerate(parameter_names):
-            self._untracked_data['parameter_dict'][parameter_name] = i
-
-        # extend trafo log for snowstorm parameters: fill with Flase
         if isinstance(trafo_log, bool):
             trafo_log_ext = [trafo_log] * num_params
         else:
@@ -217,8 +175,14 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = f[self.configuration.config['label_key']]
-            for l in self._untracked_data['parameter_names']:
-                    track_parameters.append(_labels[l])
+            for l in ['track_anchor_x', 'track_anchor_y', 'track_anchor_z',
+                      'zenith', 'azimuth', 'track_energy',
+                      'track_anchor_time', 'track_distance_end',
+                      'track_stochasticity']:
+                track_parameters.append(_labels[l])
+
+            # assert that track anchor is at track vertex
+            assert (_labels['track_distance_start'] == 0).all()
 
             snowstorm_key = self.configuration.config['snowstorm_key']
             num_params = self.configuration.config['num_snowstorm_params']
@@ -287,8 +251,14 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = frame[self.configuration.config['label_key']]
-            for l in self._untracked_data['parameter_names']:
+            for l in ['track_anchor_x', 'track_anchor_y', 'track_anchor_z',
+                      'zenith', 'azimuth', 'track_energy',
+                      'track_anchor_time', 'track_distance_end',
+                      'track_stochasticity']:
                 track_parameters.append(np.atleast_1d(_labels[l]))
+
+            # assert that track anchor is at track vertex
+            assert (np.atleast_1d(_labels['track_distance_start']) == 0).all()
 
             snowstorm_key = self.configuration.config['snowstorm_key']
             num_params = self.configuration.config['num_snowstorm_params']
@@ -370,153 +340,3 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             raise ValueError('Module not configured yet!')
 
         pass
-
-    def _shift_parameters(self, parameters):
-        """Adjust parameters due to shifting of cascades to shower maximum.
-
-        Parameters
-        ----------
-        parameters : list of array
-            The parameters that should be shifted.
-
-        Returns
-        -------
-        list of array
-            The shifted parameters
-        """
-        num_cascades = self.configuration.config['num_cascades']
-        param_dict = self._untracked_data['parameter_dict']
-
-        zenith = parameters[param_dict['zenith']]
-        azimuth = parameters[param_dict['azimuth']]
-
-        c = 0.299792458  # meter / ns
-        dir_x = -np.sin(zenith) * np.cos(azimuth)
-        dir_y = -np.sin(zenith) * np.sin(azimuth)
-        dir_z = -np.cos(zenith)
-
-        # fix anchor point of track which is the first provided cascade
-        # This means that the start and end distance of the track segment
-        # must also be adjusted
-        if num_cascades > 0:
-            shift = self._get_cascade_extension(
-                parameters[param_dict['cascade_0000_energy']])
-
-            parameters[param_dict['track_anchor_x']] += dir_x * shift
-            parameters[param_dict['track_anchor_y']] += dir_y * shift
-            parameters[param_dict['track_anchor_z']] += dir_z * shift
-            parameters[param_dict['track_anchor_time']] += shift / c
-
-            parameters[param_dict['track_distance_start']] -= shift
-            parameters[param_dict['track_distance_end']] -= shift
-
-            # Also shift all of the remaining cascades
-            for i in range(1, num_cascades):
-                shift_i = self._get_cascade_extension(
-                    parameters[param_dict['cascade_{:04d}_energy'.format(i)]])
-
-                # get index of cascade distance parameter
-                dist_index = param_dict['cascade_{:04d}_distance'.format(i)]
-
-                # we need to compensate for the shift of the anchor point
-                parameters[dist_index] -= shift
-
-                # and also for the shift of the ith cascade itself
-                parameters[dist_index] += shift_i
-
-        return parameters
-
-    def _get_cascade_extension(self, ref_energy, eps=1e-6):
-        """
-        PPC does its own cascade extension, leaving the showers at the
-        production vertex. Reapply the parametrization to find the
-        position of the shower maximum, which is also the best approximate
-        position for a point cascade.
-
-        Parameters
-        ----------
-        ref_energy : array_like
-            Energy of cascade in GeV.
-        eps : float, optional
-            Small constant float.
-
-        Returns
-        -------
-        array_like
-            Distance of shower maximum to cascade vertex in meter.
-        """
-
-        # Radiation length in meters, assuming an ice density of 0.9216 g/cm^3
-        l_rad = (0.358/0.9216)  # in meter
-
-        """
-        Parameters taken from I3SimConstants (for particle e-):
-        https://code.icecube.wisc.edu/projects/icecube/browser/IceCube/
-        meta-projects/combo/trunk/sim-services/private/
-        sim-services/I3SimConstants.cxx
-        """
-        a = 2.01849 + 0.63176 * np.log(ref_energy + eps)
-        b = l_rad/0.63207
-
-        # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
-        length_to_maximum = np.clip(((a-1.)/b)*l_rad, 0., float('inf'))
-        return length_to_maximum
-
-    def _shift_to_maximum(self, x, y, z, zenith, azimuth, ref_energy, t,
-                          eps=1e-6):
-        """
-        PPC does its own cascade extension, leaving the showers at the
-        production vertex. Reapply the parametrization to find the
-        position of the shower maximum, which is also the best approximate
-        position for a point cascade.
-
-        Parameters
-        ----------
-        x : float or np.ndarray of floats
-            Cascade interaction vertex x (unshifted) in meters.
-        y : float or np.ndarray of floats
-            Cascade interaction vertex y (unshifted) in meters.
-        z : float or np.ndarray of floats
-            Cascade interaction vertex z (unshifted) in meters.
-        zenith : float or np.ndarray of floats
-            Cascade zenith direction in rad.
-        azimuth : float or np.ndarray of floats
-            Cascade azimuth direction in rad.
-        ref_energy : float or np.ndarray of floats
-            Energy of cascade in GeV.
-        t : float or np.ndarray of floats
-            Cascade interaction vertex time (unshifted) in ns.
-        eps : float, optional
-            Small constant float.
-
-        Returns
-        -------
-        Tuple of float or tuple of np.ndarray
-            Shifted vertex position (position of shower maximum) in meter and
-            shifted vertex time in nano seconds.
-        """
-
-        # Radiation length in meters, assuming an ice density of 0.9216 g/cm^3
-        l_rad = (0.358/0.9216)  # in meter
-
-        c = 0.299792458  # meter / ns
-        dir_x = -np.sin(zenith) * np.cos(azimuth)
-        dir_y = -np.sin(zenith) * np.sin(azimuth)
-        dir_z = -np.cos(zenith)
-
-        """
-        Parameters taken from I3SimConstants (for particle e-):
-        https://code.icecube.wisc.edu/projects/icecube/browser/IceCube/
-        meta-projects/combo/trunk/sim-services/private/
-        sim-services/I3SimConstants.cxx
-        """
-        a = 2.01849 + 0.63176 * np.log(ref_energy + eps)
-        b = l_rad/0.63207
-
-        # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
-        length_to_maximum = np.clip(((a-1.)/b)*l_rad, 0., float('inf'))
-        x_shifted = x + dir_x * length_to_maximum
-        y_shifted = y + dir_y * length_to_maximum
-        z_shifted = z + dir_z * length_to_maximum
-        t_shifted = t + length_to_maximum / c
-        return x_shifted, y_shifted, z_shifted, t_shifted

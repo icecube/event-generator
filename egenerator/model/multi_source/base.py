@@ -330,11 +330,11 @@ class MultiSource(Source):
             parameters_i = sub_component.add_parameter_indexing(parameters_i)
 
             # Get expected DOM charge and Likelihood evaluations for source i
-            data_batch_dict_i = {
-                'x_parameters': parameters_i,
-                'x_pulses': pulses,
-                'x_pulses_ids': pulses_ids,
-            }
+            data_batch_dict_i = {'x_parameters': parameters_i}
+            for key, values in data_batch_dict.items():
+                if key != 'x_parameters':
+                    data_batch_dict_i[key] = values
+
             result_tensors_i = concrete_get_tensors_funcs[base](
                                                             data_batch_dict_i)
 
