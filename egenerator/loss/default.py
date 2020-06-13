@@ -735,7 +735,10 @@ class DefaultLossModule(BaseComponent):
         # compute over-dispersion factor alpha
         # var = mu + alpha*mu**2
         # alpha = (var - mu) / (mu**2)
-        dom_charges_alpha = (dom_charges_variance - hits_pred) / (hits_pred**2)
+        dom_charges_alpha = (dom_charges_variance - hits_pred) / (
+            hits_pred**2 + eps)
+        # Make sure alpha is positive
+        dom_charges_alpha = tf.clip_by_value(dom_charges_alpha, eps, np.inf)
 
         # compute negative binomial charge likelihood over DOMs
         # shape: [n_batch, 86, 60]
@@ -768,6 +771,10 @@ class DefaultLossModule(BaseComponent):
         # alpha = (var - mu) / (mu**2)
         event_charges_alpha = (event_charges_variance - event_charges_pred) / (
             event_charges_pred**2)
+
+        # Make sure alpha is positive
+        event_charges_alpha = tf.clip_by_value(
+            event_charges_alpha, eps, np.inf)
 
         llh_event = basis_functions.tf_log_negative_binomial(
             x=event_charges_true,
