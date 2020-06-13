@@ -144,10 +144,9 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                     parameter_names.append('cascade_{:04d}_energy'.format(i))
                     parameter_names.append('cascade_{:04d}_distance'.format(i))
 
-        self.data['parameter_names'] = parameter_names
-        self.data['parameter_dict'] = {}
+        parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):
-            self.data['parameter_dict'][parameter_name] = i
+            parameter_dict[parameter_name] = i
 
         # extend trafo log for snowstorm parameters: fill with Flase
         if isinstance(trafo_log, bool):
@@ -156,7 +155,10 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             trafo_log_ext = list(trafo_log)
         trafo_log_ext.extend([False]*num_snowstorm_params)
 
-        data = {}
+        data = {
+            'parameter_dict': parameter_dict,
+            'parameter_names': parameter_names,
+        }
         data['label_tensors'] = DataTensorList([DataTensor(
             name='x_parameters',
             shape=[None, num_params + num_snowstorm_params],
