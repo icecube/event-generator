@@ -469,7 +469,7 @@ class StochasticTrackSegmentModel(Source):
 
         # Ensure input is not NaN
         assert_op = tf.Assert(
-            tf.math.is_finite(tf.reduce_max(x_doms_input)),
+            tf.math.is_finite(tf.reduce_max(tf.concat(input_list, axis=-1))),
             [
                 tf.reduce_min(track_length),
                 tf.reduce_mean(track_length),
