@@ -673,6 +673,7 @@ class BaseModelManager(Model):
                   description='Starting Training',
                   new_training_settings=new_training_settings,
                   num_training_steps=None,
+                  protected=True,
                   overwrite=True)
 
         # create writers
@@ -747,6 +748,10 @@ class BaseModelManager(Model):
                 # compute loss on validation data
                 with validation_writer.as_default():
                     loss_validation = get_loss(data_batch=val_data_batch)
+
+                # check if there is a nan
+                if np.isnan(loss_training) or np.isnan(loss_validation):
+                    raise ValueError('Aborting training due to invalid loss')
 
                 # write to file
                 training_writer.flush()

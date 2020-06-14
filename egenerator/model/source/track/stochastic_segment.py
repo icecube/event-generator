@@ -467,8 +467,26 @@ class StochasticTrackSegmentModel(Source):
 
             input_list.append(local_vars)
 
-        x_doms_input = tf.concat(input_list, axis=-1)
-        print('x_doms_input', x_doms_input)
+        # Ensure input is not NaN
+        assert_op = tf.Assert(
+            tf.math.is_finite(tf.reduce_max(x_doms_input)),
+            [
+                tf.reduce_min(track_length),
+                tf.reduce_mean(track_length),
+                tf.reduce_mean(delta_dist_approach_trafo),
+                tf.reduce_mean(energy_before_trafo),
+                tf.reduce_mean(energy_after_trafo),
+                tf.reduce_mean(energy_cherenkov_trafo),
+                tf.reduce_mean(rel_dist_closest_approach),
+                tf.reduce_mean(rel_dist_infinite_approach_trafo),
+                tf.reduce_mean(rel_dist_infinite_approach),
+                tf.reduce_mean(dist_closest_approach),
+            ])
+        with tf.control_dependencies([assert_op]):
+            x_doms_input = tf.concat(input_list, axis=-1)
+            print('x_doms_input', x_doms_input)
+        # x_doms_input = tf.concat(input_list, axis=-1)
+        # print('x_doms_input', x_doms_input)
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
