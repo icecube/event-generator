@@ -271,8 +271,17 @@ class StochasticTrackSegmentModel(Source):
 
         zenith = parameter_list[3]
         azimuth = parameter_list[4]
-        energy = parameter_list[5]
-        track_length = parameter_list[7] + 1e-3
+        energy = parameter_list[5] + 1e-3
+        # Ensure positive track length and energy
+        assert_op_energy = tf.Assert(
+            tf.greater_equal(tf.reduce_min(parameter_list[5]), -1e-3),
+            [tf.reduce_min(parameter_list[5])])
+        assert_op_length = tf.Assert(
+            tf.greater_equal(tf.reduce_min(parameter_list[7]), -1e3),
+            [tf.reduce_min(parameter_list[7])])
+        with tf.control_dependencies([assert_op_energy, assert_op_length]):
+            track_length = parameter_list[7] + 1e-1
+        # track_length = parameter_list[7] + 1e-1
         track_lstochasticity = parameter_list[8]
 
         # calculate direction vector of track
@@ -467,26 +476,26 @@ class StochasticTrackSegmentModel(Source):
 
             input_list.append(local_vars)
 
-        # Ensure input is not NaN
-        assert_op = tf.Assert(
-            tf.math.is_finite(tf.reduce_max(tf.concat(input_list, axis=-1))),
-            [
-                tf.reduce_min(track_length),
-                tf.reduce_mean(track_length),
-                tf.reduce_mean(delta_dist_approach_trafo),
-                tf.reduce_mean(energy_before_trafo),
-                tf.reduce_mean(energy_after_trafo),
-                tf.reduce_mean(energy_cherenkov_trafo),
-                tf.reduce_mean(rel_dist_closest_approach),
-                tf.reduce_mean(rel_dist_infinite_approach_trafo),
-                tf.reduce_mean(rel_dist_infinite_approach),
-                tf.reduce_mean(dist_closest_approach),
-            ])
-        with tf.control_dependencies([assert_op]):
-            x_doms_input = tf.concat(input_list, axis=-1)
-            print('x_doms_input', x_doms_input)
-        # x_doms_input = tf.concat(input_list, axis=-1)
-        # print('x_doms_input', x_doms_input)
+        # # Ensure input is not NaN
+        # assert_op = tf.Assert(
+        #     tf.math.is_finite(tf.reduce_max(tf.concat(input_list, axis=-1))),
+        #     [
+        #         tf.reduce_min(track_length),
+        #         tf.reduce_mean(track_length),
+        #         tf.reduce_mean(delta_dist_approach_trafo),
+        #         tf.reduce_mean(energy_before_trafo),
+        #         tf.reduce_mean(energy_after_trafo),
+        #         tf.reduce_mean(energy_cherenkov_trafo),
+        #         tf.reduce_mean(rel_dist_closest_approach),
+        #         tf.reduce_mean(rel_dist_infinite_approach_trafo),
+        #         tf.reduce_mean(rel_dist_infinite_approach),
+        #         tf.reduce_mean(dist_closest_approach),
+        #     ])
+        # with tf.control_dependencies([assert_op]):
+        #     x_doms_input = tf.concat(input_list, axis=-1)
+        #     print('x_doms_input', x_doms_input)
+        x_doms_input = tf.concat(input_list, axis=-1)
+        print('x_doms_input', x_doms_input)
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
