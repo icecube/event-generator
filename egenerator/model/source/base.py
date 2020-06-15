@@ -183,24 +183,24 @@ class Source(Model):
         if name is None:
             name = __name__
 
-        # collect all tensorflow variables before creation
-        variables_before = set([
-            v.ref() for v in tf.compat.v1.global_variables()])
+        # # collect all tensorflow variables before creation
+        # variables_before = set([
+        #     v.ref() for v in tf.compat.v1.global_variables()])
 
         # build architecture: create and save model weights
         # returns parameter_names
         parameter_names = self._build_architecture(config, name=name)
 
-        # collect all tensorflow variables after creation and match
-        variables_after = set([
-            v.ref() for v in tf.compat.v1.global_variables()])
+        # # collect all tensorflow variables after creation and match
+        # variables_after = set([
+        #     v.ref() for v in tf.compat.v1.global_variables()])
 
-        set_diff = variables_after - variables_before
-        model_variables = set([v.ref() for v in self.variables])
-        new_unaccounted_variables = set_diff - model_variables
-        if len(new_unaccounted_variables) > 0:
-            msg = 'Found new variables that are not part of the tf.Module: {}'
-            raise ValueError(msg.format(new_unaccounted_variables))
+        # set_diff = variables_after - variables_before
+        # model_variables = set([v.ref() for v in self.variables])
+        # new_unaccounted_variables = set_diff - model_variables
+        # if len(new_unaccounted_variables) > 0:
+        #     msg = 'Found new variables that are not part of the tf.Module: {}'
+        #     raise ValueError(msg.format(new_unaccounted_variables))
 
         # get names of parameters
         self._untracked_data['name'] = name
