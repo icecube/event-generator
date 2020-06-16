@@ -43,7 +43,7 @@ class SourceManager(BaseModelManager):
             The tensor describing the parameters.
             If minimize_in_trafo_space is True, it is also expected that
             parameters_trafo are given in transformed data space.
-            Shape: [-1, num_params]
+            Shape: [-1, np.sum(fit_paramater_list)]
         data_batch : tuple of tf.Tensor
             The tf.data.Dataset batch.
         loss_module : LossComponent
@@ -60,11 +60,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         reduce_to_scalar : bool, optional
@@ -91,15 +91,18 @@ class SourceManager(BaseModelManager):
         # gather a list of parameters that are to be fitted
         if not np.all(fit_paramater_list):
 
-            seed_index = self.data_handler.tensors.get_index(seed)
+            if isinstance(seed, str):
+                seed_index = self.data_handler.tensors.get_index(seed)
+                seed_tensor = data_batch[seed_index]
+            else:
+                seed_tensor = seed
 
             # transform seed data if necessary
             if minimize_in_trafo_space:
                 seed_trafo = self.data_trafo.transform(
-                    data=data_batch[seed_index],
-                    tensor_name=parameter_tensor_name)
+                    data=seed_tensor, tensor_name=parameter_tensor_name)
             else:
-                seed_trafo = data_batch[seed_index]
+                seed_trafo = seed_tensor
 
             unstacked_params_trafo = tf.unstack(parameters_trafo, axis=1)
             unstacked_seed_trafo = tf.unstack(seed_trafo, axis=1)
@@ -173,11 +176,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         reduce_to_scalar : bool, optional
@@ -196,7 +199,8 @@ class SourceManager(BaseModelManager):
         """
 
         @tf.function(input_signature=input_signature)
-        def parameter_loss_function(parameters_trafo, data_batch):
+        def parameter_loss_function(parameters_trafo, data_batch,
+                                    seed=seed):
 
             loss = self.parameter_loss_function(
                     parameters_trafo=parameters_trafo,
@@ -236,11 +240,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
 
@@ -253,7 +257,8 @@ class SourceManager(BaseModelManager):
         """
 
         @tf.function(input_signature=input_signature)
-        def loss_and_gradients_function(parameters_trafo, data_batch):
+        def loss_and_gradients_function(parameters_trafo, data_batch,
+                                        seed=seed):
 
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(parameters_trafo)
@@ -301,11 +306,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
 
@@ -328,7 +333,8 @@ class SourceManager(BaseModelManager):
             reduce_to_scalar=False)
 
         @tf.function(input_signature=input_signature)
-        def opg_estimate_function(parameters_trafo, data_batch):
+        def opg_estimate_function(parameters_trafo, data_batch,
+                                  seed=seed):
 
             """
             We need to accumulate the Jacobian over colums (xs) in
@@ -358,7 +364,8 @@ class SourceManager(BaseModelManager):
 
                     loss_terms = loss_function(
                         parameters_trafo=parameters_trafo,
-                        data_batch=data_batch)
+                        data_batch=data_batch,
+                        seed=seed)
 
                     loss_terms_concat = tf.concat(
                         values=[tf.reshape(term, [-1]) for term in loss_terms],
@@ -405,11 +412,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
 
@@ -422,7 +429,7 @@ class SourceManager(BaseModelManager):
         """
 
         @tf.function(input_signature=input_signature)
-        def hessian_function(parameters_trafo, data_batch):
+        def hessian_function(parameters_trafo, data_batch, seed=seed):
             loss = self.parameter_loss_function(
                     parameters_trafo=parameters_trafo,
                     data_batch=data_batch,
@@ -477,8 +484,10 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
-            Name of seed tensor
+        seed : str or tf.Tensor
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         jac : bool, optional
@@ -512,11 +521,11 @@ class SourceManager(BaseModelManager):
                                         len(fit_paramater_list)))
 
         # define helper function
-        def func(x, data_batch):
+        def func(x, data_batch, seed):
             # reshape and convert to tensor
             x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
                            param_shape)
-            loss, grad = loss_and_gradients_function(x, data_batch)
+            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
 
@@ -537,13 +546,14 @@ class SourceManager(BaseModelManager):
         tolerance_func = None
         if tolerance_func is not None:
             print('using tolerance_func')
+
             class Callback:
                 def __init__(self, atol=10.1):
                     self._atol = atol
                     self._prev_loss = None
 
                 def __call__(self, xk):
-                    this_loss, _ = func(xk, data_batch)
+                    this_loss, _ = func(xk, data_batch, seed)
                     if self._prev_loss is not None:
                         print('self._prev_loss - this_loss',
                               self._prev_loss - this_loss)
@@ -558,8 +568,11 @@ class SourceManager(BaseModelManager):
             kwargs['callback'] = tolerance_func
 
         # transform seed if minimization is performed in trafo space
-        seed_index = self.data_handler.tensors.get_index(seed)
-        seed_tensor = data_batch[seed_index]
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_tensor = data_batch[seed_index]
+        else:
+            seed_tensor = seed
         if minimize_in_trafo_space:
             seed_tensor = self.data_trafo.transform(
                 data=seed_tensor, tensor_name=parameter_tensor_name)
@@ -577,7 +590,7 @@ class SourceManager(BaseModelManager):
         x0_flat = tf.reshape(x0, [-1])
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
                                    method=method,
-                                   args=(data_batch,), **kwargs)
+                                   args=(data_batch, seed), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
         return best_fit, result
