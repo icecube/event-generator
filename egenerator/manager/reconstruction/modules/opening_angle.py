@@ -29,12 +29,23 @@ class CircularizedAngularUncertainty:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        **settings
+        fit_paramater_list : TYPE
             Description
-
-        Raises
-        ------
-        NotImplementedError
+        seed_tensor_name : TYPE
+            Description
+        reco_key : TYPE
+            Description
+        covariance_key : None, optional
+            Description
+        minimize_in_trafo_space : bool, optional
+            Description
+        parameter_tensor_name : str, optional
+            Description
+        scipy_optimizer_settings : dict, optional
+            Description
+        num_fit_points : int, optional
+            Description
+        random_seed : int, optional
             Description
         """
 

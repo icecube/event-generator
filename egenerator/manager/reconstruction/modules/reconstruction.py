@@ -7,6 +7,7 @@ class Reconstruction:
     def __init__(self, manager, loss_module, function_cache,
                  fit_paramater_list,
                  seed_tensor_name,
+                 seed_from_previous_module=False,
                  minimize_in_trafo_space=True,
                  parameter_tensor_name='x_parameters',
                  reco_optimizer_interface='scipy',
@@ -24,12 +25,47 @@ class Reconstruction:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        **settings
-            Description
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        seed_tensor_name : str
+            This defines the seed for the reconstruction. Depending on the
+            value of `seed_from_previous_module` this defines one of 2 things:
+            `seed_from_previous_module` == True:
+                Name of the previous module from which the 'result' field will
+                be used as the seed tensor.
+            `seed_from_previous_module` == False:
+                Name of the seed tensor which defines that the tensor from the
+                input data batch that will be used as the seed.
+        seed_from_previous_module : bool, optional
+            This defines what `seed_tensor_name` refers to.
+            `seed_from_previous_module` == True:
+                Name of the previous module from which the 'result' field will
+                be used as the seed tensor.
+            `seed_from_previous_module` == False:
+                Name of the seed tensor which defines that the tensor from the
+                input data batch that will be used as the seed.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'.
+        reco_optimizer_interface : str, optional
+            The reconstruction interface to use. Options are 'scipy' and 'tfp'
+            for the scipy minimizer and tensorflow probability minimizers.
+        scipy_optimizer_settings : dict, optional
+            Settings that will be passed on to the scipy.optmize.minimize
+            function.
+        tf_optimizer_settings : dict, optional
+            Settings that will be passed on to the tensorflow probability
+            minimizer.
 
         Raises
         ------
-        NotImplementedError
+        ValueError
             Description
         """
 
@@ -38,12 +74,13 @@ class Reconstruction:
         self.fit_paramater_list = fit_paramater_list
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
+        self.seed_from_previous_reco = seed_from_previous_reco
+
+        if self.seed_from_previous_reco:
+            self.seed_index = manager.data_handler.tensors.get_index(
+                seed_tensor_name)
 
         # parameter input signature
-        # param_index = manager.data_handler.tensors.get_index(
-        #     parameter_tensor_name)
-        self.seed_index = manager.data_handler.tensors.get_index(
-            seed_tensor_name)
         param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
@@ -93,7 +130,7 @@ class Reconstruction:
             loss_module=loss_module,
             fit_paramater_list=fit_paramater_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -107,24 +144,24 @@ class Reconstruction:
 
         # choose reconstruction method depending on the optimizer interface
         if reco_optimizer_interface.lower() == 'scipy':
-            def reconstruction_method(data_batch):
+            def reconstruction_method(data_batch, seed_tensor):
                 return manager.reconstruct_events(
                     data_batch, loss_module,
                     loss_and_gradients_function=loss_and_gradients_function,
                     fit_paramater_list=fit_paramater_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=seed_tensor_name,
+                    seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name,
                     **scipy_optimizer_settings)
 
         elif reco_optimizer_interface.lower() == 'tfp':
-            def reconstruction_method(data_batch):
+            def reconstruction_method(data_batch, seed_tensor):
                 return manager.tf_reconstruct_events(
                     data_batch, loss_module,
                     loss_and_gradients_function=loss_and_gradients_function,
                     fit_paramater_list=fit_paramater_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=seed_tensor_name,
+                    seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name,
                     **tf_optimizer_settings)
         else:
@@ -148,18 +185,27 @@ class Reconstruction:
         TYPE
             Description
         """
-        result_trafo, result_object = self.reconstruction_method(data_batch)
+
+        # get seed: either from seed tensor or from previous results
+        if self.seed_from_previous_reco:
+            seed_tensor = results[self.seed_tensor_name]['result']
+        else:
+            seed_tensor = data_batch[self.seed_index]
+
+        result_trafo, result_object = self.reconstruction_method(
+            data_batch, seed_tensor)
 
         # invert possible transformation and put full hypothesis together
         result = self.get_reco_result_batch(
             result_trafo=result_trafo,
             data_batch=data_batch,
+            seed_tensor=seed_tensor,
             fit_paramater_list=self.fit_paramater_list,
             minimize_in_trafo_space=self.minimize_in_trafo_space,
             parameter_tensor_name=self.parameter_tensor_name)
 
         loss_seed = self.parameter_loss_function(
-            data_batch[self.seed_index], data_batch).numpy()
+            seed_tensor, data_batch).numpy()
         loss_reco = self.parameter_loss_function(result, data_batch).numpy()
 
         result_dict = {
@@ -173,6 +219,7 @@ class Reconstruction:
 
     def get_reco_result_batch(self, result_trafo,
                               data_batch,
+                              seed_tensor,
                               fit_paramater_list,
                               minimize_in_trafo_space,
                               parameter_tensor_name='x_parameters'):
@@ -187,6 +234,8 @@ class Reconstruction:
         result_trafo : TYPE
             Description
         data_batch : TYPE
+            Description
+        seed_tensor : TYPE
             Description
         fit_paramater_list : TYPE
             Description
@@ -203,10 +252,10 @@ class Reconstruction:
         """
         if minimize_in_trafo_space:
             cascade_seed_batch_trafo = self.manager.data_trafo.transform(
-                        data=data_batch[self.seed_index],
+                        data=seed_tensor,
                         tensor_name=parameter_tensor_name).numpy()
         else:
-            cascade_seed_batch_trafo = cascade_seed_batch
+            cascade_seed_batch_trafo = seed_tensor
 
         if np.all(fit_paramater_list):
             cascade_reco_batch = result_trafo

@@ -474,7 +474,7 @@ class SourceManager(BaseModelManager):
             method.
         loss_and_gradients_function : tf.function
             The tensorflow function:
-                f(parameters, data_batch) -> loss, gradients
+                f(parameters, data_batch, seed_tensor) -> loss, gradients
         fit_paramater_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
@@ -488,6 +488,7 @@ class SourceManager(BaseModelManager):
             This specifies the tensor that is being used as a seed for the
             reconstruction. This can either be the name of the data tensor
             within the `data_batch`, or by a tf.Tensor.
+            The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         jac : bool, optional
@@ -576,6 +577,8 @@ class SourceManager(BaseModelManager):
         if minimize_in_trafo_space:
             seed_tensor_trafo = self.data_trafo.transform(
                 data=seed_tensor, tensor_name=parameter_tensor_name)
+        else:
+            seed_tensor_trafo = seed_tensor
 
         # get seed parameters
         if np.all(fit_paramater_list):
@@ -617,7 +620,7 @@ class SourceManager(BaseModelManager):
             method.
         loss_and_gradients_function : tf.function
             The tensorflow function:
-                f(parameters, data_batch) -> loss, gradients
+                f(parameters, data_batch, seed_tensor) -> loss, gradients
         fit_paramater_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
@@ -627,8 +630,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
-            Name of seed tensor
+        seed : str or tf.Tensor
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a tf.Tensor.
+            The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         method : str, optional
@@ -659,25 +665,33 @@ class SourceManager(BaseModelManager):
             raise ValueError('Wrong length of fit_paramater_list: {!r}'.format(
                 len(fit_paramater_list)))
 
+        # Get seed tensor
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_tensor = data_batch[seed_index]
+        else:
+            seed_tensor = seed
+
         # transform seed if minimization is performed in trafo space
-        seed_index = self.data_handler.tensors.get_index(seed)
-        seed_tensor = data_batch[seed_index]
         if minimize_in_trafo_space:
-            seed_tensor = self.data_trafo.transform(
+            seed_tensor_trafo = self.data_trafo.transform(
                 data=seed_tensor, tensor_name=parameter_tensor_name)
+        else:
+            seed_tensor_trafo = seed_tensor
 
         # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = seed_tensor
+            x0 = seed_tensor_trafo
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(seed_tensor, axis=1)
+            unstacked_seed = tf.unstack(seed_tensor_trafo, axis=1)
             tracked_params = [p for p, fit in
                               zip(unstacked_seed, fit_paramater_list) if fit]
             x0 = tf.stack(tracked_params, axis=1)
 
         def const_loss_and_gradients_function(x):
-            loss, grad = loss_and_gradients_function(x, data_batch)
+            loss, grad = loss_and_gradients_function(
+                x, data_batch, seed_tensor)
             loss = tf.reshape(loss, [1])
             return loss, grad
 

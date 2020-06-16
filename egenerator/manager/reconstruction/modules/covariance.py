@@ -24,13 +24,15 @@ class CovarianceMatrix:
             Description
         seed_tensor_name : TYPE
             Description
+        reco_key : TYPE
+            Description
         minimize_in_trafo_space : bool, optional
             Description
         parameter_tensor_name : str, optional
             Description
 
-        Raises
-        ------
+        No Longer Raises
+        ----------------
         NotImplementedError
             Description
         """
