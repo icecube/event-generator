@@ -574,15 +574,15 @@ class SourceManager(BaseModelManager):
         else:
             seed_tensor = seed
         if minimize_in_trafo_space:
-            seed_tensor = self.data_trafo.transform(
+            seed_tensor_trafo = self.data_trafo.transform(
                 data=seed_tensor, tensor_name=parameter_tensor_name)
 
         # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = seed_tensor
+            x0 = seed_tensor_trafo
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(seed_tensor, axis=1)
+            unstacked_seed = tf.unstack(seed_tensor_trafo, axis=1)
             tracked_params = [p for p, fit in
                               zip(unstacked_seed, fit_paramater_list) if fit]
             x0 = tf.stack(tracked_params, axis=1)
@@ -590,7 +590,7 @@ class SourceManager(BaseModelManager):
         x0_flat = tf.reshape(x0, [-1])
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
                                    method=method,
-                                   args=(data_batch, seed), **kwargs)
+                                   args=(data_batch, seed_tensor), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
         return best_fit, result
