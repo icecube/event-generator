@@ -88,17 +88,19 @@ class SourceManager(BaseModelManager):
         for i, name in enumerate(self.data_handler.tensors.names):
             data_batch_dict[name] = data_batch[i]
 
-        seed_index = self.data_handler.tensors.get_index(seed)
-
-        # transform seed data if necessary
-        if minimize_in_trafo_space:
-            seed_trafo = self.data_trafo.transform(
-                data=data_batch[seed_index], tensor_name=parameter_tensor_name)
-        else:
-            seed_trafo = data_batch[seed_index]
-
         # gather a list of parameters that are to be fitted
         if not np.all(fit_paramater_list):
+
+            seed_index = self.data_handler.tensors.get_index(seed)
+
+            # transform seed data if necessary
+            if minimize_in_trafo_space:
+                seed_trafo = self.data_trafo.transform(
+                    data=data_batch[seed_index],
+                    tensor_name=parameter_tensor_name)
+            else:
+                seed_trafo = data_batch[seed_index]
+
             unstacked_params_trafo = tf.unstack(parameters_trafo, axis=1)
             unstacked_seed_trafo = tf.unstack(seed_trafo, axis=1)
             all_params = []
@@ -532,7 +534,7 @@ class SourceManager(BaseModelManager):
 
             kwargs['hess'] = get_hessian
 
-        tolerance_func = False
+        tolerance_func = None
         if tolerance_func is not None:
             print('using tolerance_func')
             class Callback:
