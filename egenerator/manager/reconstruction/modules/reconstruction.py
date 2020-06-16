@@ -49,6 +49,9 @@ class Reconstruction:
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
             dtype=param_dtype)
+        param_signature_full = tf.TensorSpec(
+            shape=[None, len(fit_paramater_list)],
+            dtype=param_dtype)
 
         data_batch_signature = []
         for tensor in manager.data_handler.tensors.list:
@@ -68,7 +71,7 @@ class Reconstruction:
 
         # Get loss function
         loss_settings = dict(
-            input_signature=(param_signature, data_batch_signature),
+            input_signature=(param_signature_full, data_batch_signature),
             loss_module=loss_module,
             fit_paramater_list=[True for f in fit_paramater_list],
             minimize_in_trafo_space=False,
