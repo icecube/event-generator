@@ -75,7 +75,7 @@ class Reconstruction:
             loss_module=loss_module,
             fit_paramater_list=[True for f in fit_paramater_list],
             minimize_in_trafo_space=False,
-            seed=seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
         self.parameter_loss_function = function_cache.get(

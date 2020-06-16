@@ -532,6 +532,29 @@ class SourceManager(BaseModelManager):
 
             kwargs['hess'] = get_hessian
 
+        tolerance_func = False
+        if tolerance_func is not None:
+            print('using tolerance_func')
+            class Callback:
+                def __init__(self, atol=10.1):
+                    self._atol = atol
+                    self._prev_loss = None
+
+                def __call__(self, xk):
+                    this_loss, _ = func(xk, data_batch)
+                    if self._prev_loss is not None:
+                        print('self._prev_loss - this_loss',
+                              self._prev_loss - this_loss)
+                        if (self._prev_loss - this_loss) < self._atol:
+                            return True
+
+                    self._prev_loss = this_loss
+                    return False
+
+            tolerance_func = Callback()
+
+            kwargs['callback'] = tolerance_func
+
         # transform seed if minimization is performed in trafo space
         seed_index = self.data_handler.tensors.get_index(seed)
         seed_tensor = data_batch[seed_index]
