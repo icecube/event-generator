@@ -193,6 +193,31 @@ class Reconstruction:
         else:
             seed_tensor = data_batch[self.seed_index]
 
+        # -------------------
+        # Hack to modify seed
+        # -------------------
+        shape = seed_tensor.numpy().shape
+        dtype = seed_tensor.dtype
+        x0 = seed_tensor.numpy()
+        x_true = data_batch[self.manager.data_handler.tensors.get_index(
+            self.parameter_tensor_name)].numpy()
+
+        # set vertex to MC truth
+        # x0[:, :3] = x_true[:, :3]
+
+        # randomly sample values for systeamtics
+        size = len(x0)
+        x0[:, 7] = np.random.uniform(low=0.9, high=1.1, size=size)
+        x0[:, 8] = np.random.uniform(low=0., high=2., size=size)
+        x0[:, 9] = np.random.uniform(low=0.9, high=1.1, size=size)
+        x0[:, 10] = np.random.uniform(low=-1.0, high=1.0, size=size)
+        x0[:, 11] = np.random.uniform(low=-0.2, high=0.2, size=size)
+        x0[:, 12] = np.random.uniform(low=0.9, high=1.1, size=size)
+        print('New Seed:', x0)
+
+        seed_tensor = tf.reshape(tf.convert_to_tensor(x0, dtype), shape)
+        # -------------------
+
         result_trafo, result_object = self.reconstruction_method(
             data_batch, seed_tensor)
 
