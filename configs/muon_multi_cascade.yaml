@@ -63,6 +63,8 @@ reconstruction_settings: {
                              'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
                             ],
     'seed_missing_value': 1.,
+    'seed_missing_value_dict': {
+    },
     'seed_float_precision': 'float32',
 
     # choose the otpimizer iterface:

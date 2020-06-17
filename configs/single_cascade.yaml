@@ -52,6 +52,8 @@ reconstruction_settings: {
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
                              'energy', 'time'],
     'seed_missing_value': ,
+    'seed_missing_value_dict': {
+    },
     'seed_float_precision': 'float32',
 
     # choose the otpimizer iterface:
