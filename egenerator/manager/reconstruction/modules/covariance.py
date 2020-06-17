@@ -117,14 +117,6 @@ class CovarianceMatrix:
         result_trafo = results[self.reco_key]['result_trafo']
         result_obj = results[self.reco_key]['result_object']
 
-        if result_trafo.shape[1] < np.sum(self.fit_paramater_list):
-
-            # fit was performed on a subset of parameters specified here
-            # we need to recompute trafo result based on all parameters
-            result_trafo = self.manager.data_trafo.transform(
-                data=result_inv,
-                tensor_name=self.parameter_tensor_name)
-
         # get Hessian at reco best fit
         hessian = self.hessian_function(
             parameters_trafo=result_trafo,

@@ -90,9 +90,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           '(if set to True) or if it will be held constant '
                           '(if set to False). Values for unspecified '
                           'parameters will default to '
-                          '`minimize_parameter_default_value`. '
-                          'Note: covariance is computed for all parameters '
-                          'regardless of the settings specified here.',
+                          '`minimize_parameter_default_value`. ',
                           {})
         self.AddParameter('minimize_parameter_default_value',
                           'The default value for parameters not defined in '
@@ -102,9 +100,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           '(if set to True) or if it will be held constant '
                           '(if set to False). Values for unspecified '
                           'parameters will default to '
-                          '`minimize_parameter_default_value`.'
-                          'Note: covariance is computed for all parameters '
-                          'regardless of the settings specified here.',
+                          '`minimize_parameter_default_value`.',
                           True)
         self.AddParameter('reco_optimizer_interface',
                           'The reconstruction interface to use. Options are: '
@@ -242,8 +238,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'CovarianceMatrix',
                 name='covariance',
-                # fit_paramater_list=fit_paramater_list,
-                fit_paramater_list=[True for f in fit_paramater_list],
+                fit_paramater_list=fit_paramater_list,
                 reco_key='reco',
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
@@ -259,8 +254,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'CircularizedAngularUncertainty',
                 name='CircularizedAngularUncertainty',
-                # fit_paramater_list=fit_paramater_list,
-                fit_paramater_list=[True for f in fit_paramater_list],
+                fit_paramater_list=fit_paramater_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
