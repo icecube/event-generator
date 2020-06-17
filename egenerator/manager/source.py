@@ -994,7 +994,7 @@ class SourceManager(BaseModelManager):
         reco_names = []
         for seed_tensor_name in seed_tensor_names:
 
-            for i in range(30):  # hack to test random seeds for systematics
+            for i in range(20):  # hack to test random seeds for systematics
                 reco_name = 'reco_' + seed_tensor_name + '_{:93d}'.format(i)
                 reco_names.append(reco_name)
 
@@ -1015,8 +1015,28 @@ class SourceManager(BaseModelManager):
 
         # chosse best reconstruction
         reco_tray.add_module(
-            'SelectBestReconstruction', name='reco', reco_names=reco_names,
+            # 'SelectBestReconstruction', name='reco', reco_names=reco_names,
+            'SelectBestReconstruction', name='reco_sel', reco_names=reco_names,
         )
+
+        # ----------------------------------------
+        # Hack with full reco on best previous one
+        # ----------------------------------------
+        reco_tray.add_module(
+            'Reconstruction',
+            name='reco',
+            fit_paramater_list=[True for t in fit_paramater_list],
+            seed_tensor_name='reco_sel',
+            seed_from_previous_module=True,
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            parameter_tensor_name=parameter_tensor_name,
+            reco_optimizer_interface=reco_config[
+                'reco_optimizer_interface'],
+            scipy_optimizer_settings=reco_config[
+                'scipy_optimizer_settings'],
+            tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+        )
+        # ----------------------------------------
 
         # add covariance module
         if calculate_covariance_matrix:
