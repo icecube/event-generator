@@ -74,6 +74,7 @@ class Reconstruction:
         self.fit_paramater_list = fit_paramater_list
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
+        self.seed_tensor_name = seed_tensor_name
         self.seed_from_previous_module = seed_from_previous_module
 
         if not self.seed_from_previous_module:
