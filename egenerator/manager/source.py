@@ -994,7 +994,7 @@ class SourceManager(BaseModelManager):
         reco_names = []
         for seed_tensor_name in seed_tensor_names:
 
-            for i in range(20):  # hack to test random seeds for systematics
+            for i in range(17):  # hack to test random seeds for systematics
                 reco_name = 'reco_' + seed_tensor_name + '_{:93d}'.format(i)
                 reco_names.append(reco_name)
 
