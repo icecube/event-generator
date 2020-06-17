@@ -94,7 +94,7 @@ class CircularizedAngularUncertainty:
             dtype=self.param_dtype)
         param_signature_full = tf.TensorSpec(
             shape=[None, len(fit_paramater_list)],
-            dtype=param_dtype)
+            dtype=self.param_dtype)
 
         # data batch input signature
         data_batch_signature = []
