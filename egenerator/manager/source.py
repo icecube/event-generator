@@ -983,21 +983,38 @@ class SourceManager(BaseModelManager):
         # -------------------------
         # Build reconstruction tray
         # -------------------------
+        if isinstance(reco_config['seed'], str):
+            seed_tensor_names = [reco_config['seed']]
+        else:
+            seed_tensor_names = reco_config['seed']
 
         # create reconstruction tray
         reco_tray = ReconstructionTray(manager=self, loss_module=loss_module)
 
         # add reconstruction module
+        reco_names = []
+        for seed_tensor_name in seed_tensor_names:
+            reco_name = 'reco_' + seed_tensor_name
+            reco_names.append(reco_name)
+
+            reco_tray.add_module(
+                'Reconstruction',
+                name=reco_name,
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=seed_tensor_name,
+                seed_from_previous_module=False,
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                reco_optimizer_interface=reco_config[
+                    'reco_optimizer_interface'],
+                scipy_optimizer_settings=reco_config[
+                    'scipy_optimizer_settings'],
+                tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+            )
+
+        # chosse best reconstruction
         reco_tray.add_module(
-            'Reconstruction',
-            name='reco',
-            fit_paramater_list=fit_paramater_list,
-            seed_tensor_name=reco_config['seed'],
-            minimize_in_trafo_space=minimize_in_trafo_space,
-            parameter_tensor_name=parameter_tensor_name,
-            reco_optimizer_interface=reco_config['reco_optimizer_interface'],
-            scipy_optimizer_settings=reco_config['scipy_optimizer_settings'],
-            tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+            'SelectBestReconstruction', name='reco', reco_names=reco_names,
         )
 
         # add covariance module

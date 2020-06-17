@@ -146,8 +146,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.GetParameter('scipy_optimizer_settings')
         self.tf_optimizer_settings = self.GetParameter('tf_optimizer_settings')
 
-        if isinstance(self.seed_keys, (list, tuple)):
-            raise NotImplementedError('Multiple seeds not yet supported')
+        if isinstance(self.seed_keys, str):
+            self.seed_keys = [self.seed_keys]
 
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
@@ -165,7 +165,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             reco_config_dir=None,
             load_labels=False,
             misc_setting_updates={
-                'seed_names': [self.seed_keys],
+                'seed_names': self.seed_keys,
             },
             label_setting_updates={
                 'label_key': self.label_key,
@@ -211,16 +211,26 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             manager=self.manager, loss_module=self.loss_module)
 
         # add reconstruction module
-        self.reco_tray.add_module(
-            'Reconstruction',
-            name='reco',
-            fit_paramater_list=fit_paramater_list,
-            seed_tensor_name=self.seed_keys,
-            minimize_in_trafo_space=self.minimize_in_trafo_space,
-            parameter_tensor_name=parameter_tensor_name,
-            reco_optimizer_interface=self.reco_optimizer_interface,
-            scipy_optimizer_settings=self.scipy_optimizer_settings,
-            tf_optimizer_settings=self.tf_optimizer_settings,
+        reco_names = []
+        for seed_tensor_name in self.seed_keys:
+            reco_name = 'reco_' + seed_tensor_name
+            reco_names.append(reco_name)
+
+            self.reco_tray.add_module(
+                'Reconstruction',
+                name=reco_name,
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=seed_tensor_name,
+                minimize_in_trafo_space=self.minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                reco_optimizer_interface=self.reco_optimizer_interface,
+                scipy_optimizer_settings=self.scipy_optimizer_settings,
+                tf_optimizer_settings=self.tf_optimizer_settings,
+            )
+
+        # chosse best reconstruction
+        reco_tray.add_module(
+            'SelectBestReconstruction', name='reco', reco_names=reco_names,
         )
 
         # add covariance module

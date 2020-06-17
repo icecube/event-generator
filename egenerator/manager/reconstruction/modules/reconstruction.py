@@ -74,9 +74,9 @@ class Reconstruction:
         self.fit_paramater_list = fit_paramater_list
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
-        self.seed_from_previous_reco = seed_from_previous_reco
+        self.seed_from_previous_module = seed_from_previous_module
 
-        if self.seed_from_previous_reco:
+        if self.seed_from_previous_module:
             self.seed_index = manager.data_handler.tensors.get_index(
                 seed_tensor_name)
 
@@ -187,7 +187,7 @@ class Reconstruction:
         """
 
         # get seed: either from seed tensor or from previous results
-        if self.seed_from_previous_reco:
+        if self.seed_from_previous_module:
             seed_tensor = results[self.seed_tensor_name]['result']
         else:
             seed_tensor = data_batch[self.seed_index]
@@ -277,3 +277,55 @@ class Reconstruction:
                 data=cascade_reco_batch,
                 tensor_name=parameter_tensor_name)
         return cascade_reco_batch
+
+
+class SelectBestReconstruction:
+
+    def __init__(self, reco_names):
+        """Initialize reconstruction module and setup tensorflow functions.
+
+        Parameters
+        ----------
+        reco_names : list of str
+            A list of reco names from previous reconstruction modules. The
+            best reconstruction, e.g. lowest reco loss, will be chosen from
+            these reconstructions.
+
+        Raises
+        ------
+        ValueError
+            Description
+        """
+
+        # store settings
+        self.reco_names = reco_names
+
+    def execute(self, data_batch, results):
+        """Execute selection.
+
+        Choose best reconstruction from a list of results
+
+        Parameters
+        ----------
+        data_batch : tuple of tf.Tensors
+            A data batch which consists of a tuple of tf.Tensors.
+        results : dict
+            A dictrionary with the results of previous modules.
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
+        min_loss = float('inf')
+        min_results = None
+
+        for reco_name in self.reco_names:
+            results = results[reco_name]
+
+            # check if it has a lower loss
+            if results['loss_reco'] < min_loss:
+                min_loss = results['loss_reco']
+                min_results = results['loss_reco']
+
+        return min_results
