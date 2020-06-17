@@ -1024,7 +1024,7 @@ class SourceManager(BaseModelManager):
         # ----------------------------------------
         reco_tray.add_module(
             'Reconstruction',
-            name='reco_combined',
+            name='reco',
             fit_paramater_list=[True for t in fit_paramater_list],
             seed_tensor_name='reco_sel',
             seed_from_previous_module=True,
@@ -1035,11 +1035,6 @@ class SourceManager(BaseModelManager):
             scipy_optimizer_settings=reco_config[
                 'scipy_optimizer_settings'],
             tf_optimizer_settings=reco_config['tf_optimizer_settings'],
-        )
-        reco_tray.add_module(
-            # 'SelectBestReconstruction', name='reco', reco_names=reco_names,
-            'SelectBestReconstruction', name='reco',
-            reco_names=['reco_combined'],
         )
         # ----------------------------------------
 
@@ -1164,7 +1159,10 @@ class SourceManager(BaseModelManager):
 
             # get seed from reconstruction result
             if results['reco']['seed_from_previous_module']:
-                raise NotImplementedError
+                # raise NotImplementedError  # before debug test
+                print('\n\n\nWARNING DEBUG TEST\n\n\n\n')
+                seed_index = self.data_handler.tensors.get_index(
+                    results['reco']['seed_tensor_name'])
             else:
                 seed_index = self.data_handler.tensors.get_index(
                     results['reco']['seed_tensor_name'])
