@@ -196,11 +196,15 @@ class Reconstruction:
         # -------------------
         # Hack to modify seed
         # -------------------
-        shape = seed_tensor.numpy().shape
-        dtype = seed_tensor.dtype
-        x0 = seed_tensor.numpy()
+        if self.seed_from_previous_module:
+            shape = seed_tensor.shape
+            x0 = seed_tensor
+        else:
+            shape = seed_tensor.numpy().shape
+            x0 = seed_tensor.numpy()
         x_true = data_batch[self.manager.data_handler.tensors.get_index(
             self.parameter_tensor_name)].numpy()
+        dtype = x_true.dtype
 
         # set vertex to MC truth
         # x0[:, :3] = x_true[:, :3]
