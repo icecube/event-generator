@@ -1162,7 +1162,7 @@ class SourceManager(BaseModelManager):
                 # raise NotImplementedError  # before debug test
                 print('\n\n\nWARNING DEBUG TEST\n\n\n\n')
                 seed_index = self.data_handler.tensors.get_index(
-                    results['reco']['seed_tensor_name'])
+                    seed_tensor_names[0])
             else:
                 seed_index = self.data_handler.tensors.get_index(
                     results['reco']['seed_tensor_name'])
