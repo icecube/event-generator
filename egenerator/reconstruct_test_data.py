@@ -64,7 +64,10 @@ def main(config_files, reco_config_file=None):
     else:
         seed_names = reco_config['seed']
 
-    if seed_names == ['x_parameters']:
+    # remove x_parameters from seed names:
+    seed_names = [name for name in seed_names if name != 'x_parameters']
+
+    if len(seed_names) == 0:
         # The parameter labels are being used as a seed, so we do not need
         # to create a modified misc module
         modified_sub_components = {}
@@ -130,7 +133,7 @@ def main(config_files, reco_config_file=None):
             raise ValueError(msg.format(manager_dir))
 
     else:
-        if seed_names != ['x_parameters']:
+        if len(seed_names) > 0:
             # Model Manager is being built from scratch, so we need to pass
             # the data handler settings with the modified misc module
             config['data_handler_settings']['misc_module'] = \
