@@ -272,16 +272,19 @@ class StochasticTrackSegmentModel(Source):
         zenith = parameter_list[3]
         azimuth = parameter_list[4]
         energy = parameter_list[5] + 1e-3
-        # Ensure positive track length and energy
-        assert_op_energy = tf.Assert(
-            tf.greater_equal(tf.reduce_min(parameter_list[5]), -1e-3),
-            [tf.reduce_min(parameter_list[5])])
-        assert_op_length = tf.Assert(
-            tf.greater_equal(tf.reduce_min(parameter_list[7]), -1e3),
-            [tf.reduce_min(parameter_list[7])])
-        with tf.control_dependencies([assert_op_energy, assert_op_length]):
+
+        if is_training:
+            # Ensure positive track length and energy
+            assert_op_energy = tf.Assert(
+                tf.greater_equal(tf.reduce_min(parameter_list[5]), -1e-3),
+                [tf.reduce_min(parameter_list[5])])
+            assert_op_length = tf.Assert(
+                tf.greater_equal(tf.reduce_min(parameter_list[7]), -1e3),
+                [tf.reduce_min(parameter_list[7])])
+            with tf.control_dependencies([assert_op_energy, assert_op_length]):
+                track_length = parameter_list[7] + 1e-1
+        else:
             track_length = parameter_list[7] + 1e-1
-        # track_length = parameter_list[7] + 1e-1
         track_lstochasticity = parameter_list[8]
 
         # calculate direction vector of track
