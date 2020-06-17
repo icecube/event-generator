@@ -211,7 +211,7 @@ class Reconstruction:
 
         # randomly sample values for systeamtics
         size = len(x0)
-        if np.all(~self.fit_paramater_list[7:]):
+        if np.all(~np.array(self.fit_paramater_list[7:])):
             x0[:, 7] = np.random.uniform(low=0.91, high=1.09, size=size)
             x0[:, 8] = np.random.uniform(low=0.01, high=1.99, size=size)
             x0[:, 9] = np.random.uniform(low=0.91, high=1.09, size=size)
