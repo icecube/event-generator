@@ -214,6 +214,8 @@ class Reconstruction:
             'result_object': result_object,
             'loss_seed': loss_seed,
             'loss_reco': loss_reco,
+            'seed_tensor_name': self.seed_tensor_name,
+            'seed_from_previous_module': self.seed_from_previous_module,
         }
         return result_dict
 

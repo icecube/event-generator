@@ -942,7 +942,6 @@ class SourceManager(BaseModelManager):
         parameter_tensor_name = reco_config['parameter_tensor_name']
         param_index = self.data_handler.tensors.get_index(
                                                         parameter_tensor_name)
-        seed_index = self.data_handler.tensors.get_index(reco_config['seed'])
         param_dtype = test_dataset.element_spec[param_index].dtype
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
@@ -1131,6 +1130,13 @@ class SourceManager(BaseModelManager):
             reco_start_t = timeit.default_timer()
             results = reco_tray.execute(data_batch)
             reco_end_t = timeit.default_timer()
+
+            # get seed from reconstruction result
+            if results['reco']['seed_from_previous_module']:
+                raise NotImplementedError
+            else:
+                seed_index = self.data_handler.tensors.get_index(
+                    results['reco']['seed_tensor_name'])
 
             cascade_reco_batch = results['reco']['result']
             cascade_true_batch = data_batch[param_index].numpy()
