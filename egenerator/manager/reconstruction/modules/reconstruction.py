@@ -332,11 +332,13 @@ class SelectBestReconstruction:
         for reco_name in self.reco_names:
             reco_results = results[reco_name]
 
+            print('Loss: {:3.3f} | {}'.format(
+                reco_results['loss_reco'], reco_name))
+
             # check if it has a lower loss
             if reco_results['loss_reco'] < min_loss:
                 min_loss = reco_results['loss_reco']
                 min_results = reco_results
-                print('Found new best reconstruction:', reco_name, min_loss)
 
         if min_results is None:
 
