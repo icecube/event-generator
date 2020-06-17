@@ -343,10 +343,12 @@ class SelectBestReconstruction:
         if min_results is None:
 
             # something went wrong, did the fit return NaN or inf loss?
-            min_results = {}
+            # For now: just choose last reco_results
+            print('Did not find a minimium, choosing last reco: {}!'.format(
+                reco_name))
+            min_results = reco_results
 
-        else:
-            # rename runtime key of result
-            min_results['reco_runtime'] = min_results.pop('runtime')
+        # rename runtime key of result
+        min_results['reco_runtime'] = min_results.pop('runtime')
 
         return min_results
