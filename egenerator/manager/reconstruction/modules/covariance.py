@@ -47,6 +47,8 @@ class CovarianceMatrix:
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
 
+        self.np_dtype = getattr(np, manager.data_trafo.data['tensors'][
+            parameter_tensor_name].dtype)
         param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
@@ -116,6 +118,10 @@ class CovarianceMatrix:
         result_inv = results[self.reco_key]['result']
         result_trafo = results[self.reco_key]['result_trafo']
         result_obj = results[self.reco_key]['result_object']
+
+        # convert to correct dtype
+        result_inv = result_inv.astype(self.np_dtype)
+        result_trafo = result_trafo.astype(self.np_dtype)
 
         # get Hessian at reco best fit
         hessian = self.hessian_function(
