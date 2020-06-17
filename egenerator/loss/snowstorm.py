@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
-from egenerator.utils.basis_functions import tf_gauss
+from egenerator.utils import basis_functions
 
 
 class SnowstormPriorLossModule(BaseComponent):
@@ -137,7 +137,7 @@ class SnowstormPriorLossModule(BaseComponent):
 
         return configuration, {}, {}
 
-    def uniform_prior_loss(self, values, low, high):
+    def uniform_prior_loss(self, values, low, high, eps=1e-3):
         """Computes a loss for a uniform prior.
 
         Loss is zero for values within bounds and exponentially grows outside.
@@ -150,18 +150,26 @@ class SnowstormPriorLossModule(BaseComponent):
             The lower limit of the uniform prior.
         high : TYPE
             The upper limit of the uniform prior.
+        eps : float, optional
+            This defines the amount before low/high at which the penalty will
+            begin.
+
+        Returns
+        -------
+        TYPE
+            Description
         """
         scale = high - low
-        exp_factor = 5
+        exp_factor = 10
         normalization = np.exp(exp_factor)
 
         def loss_excess(scaled_excess):
             return tf.exp((scaled_excess + 1)*exp_factor) - normalization
 
-        loss = tf.where(values > high,
+        loss = tf.where(values > high - eps,
                         loss_excess((values - high) / scale),
                         tf.zeros_like(values))
-        loss += tf.where(values < low,
+        loss += tf.where(values < low + eps,
                          loss_excess((low - values) / scale),
                          tf.zeros_like(values))
         return loss
@@ -242,12 +250,14 @@ class SnowstormPriorLossModule(BaseComponent):
             fourier_values = parameters[:, start_index:end_index]
 
             fourier_sigmas = tf.expand_dims(self.sigmas, axis=0)
-            fourier_pdf = tf_gauss(fourier_values,
-                                   mu=tf.zeros_like(fourier_sigmas),
-                                   sigma=fourier_sigmas)
+            fourier_log_pdf = basis_functions.tf_log_gauss(
+                fourier_values,
+                mu=tf.zeros_like(fourier_sigmas),
+                sigma=fourier_sigmas,
+            )
 
             # we will use the negative log likelihood as loss
-            fourier_loss = -tf.math.log(fourier_pdf)
+            fourier_loss = -fourier_log_pdf
             loss_terms.append(fourier_loss)
 
         if reduce_to_scalar:
