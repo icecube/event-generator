@@ -281,11 +281,17 @@ class Reconstruction:
 
 class SelectBestReconstruction:
 
-    def __init__(self, reco_names):
+    def __init__(self, manager, loss_module, function_cache, reco_names):
         """Initialize reconstruction module and setup tensorflow functions.
 
         Parameters
         ----------
+        manager : Manager object
+            The SourceManager object.
+        loss_module : LossModule object
+            The LossModule object to use for the reconstruction steps.
+        function_cache : FunctionCache object
+            A cache to store and share created concrete tensorflow functions.
         reco_names : list of str
             A list of reco names from previous reconstruction modules. The
             best reconstruction, e.g. lowest reco loss, will be chosen from
