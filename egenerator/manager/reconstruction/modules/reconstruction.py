@@ -76,7 +76,7 @@ class Reconstruction:
         self.parameter_tensor_name = parameter_tensor_name
         self.seed_from_previous_module = seed_from_previous_module
 
-        if self.seed_from_previous_module:
+        if not self.seed_from_previous_module:
             self.seed_index = manager.data_handler.tensors.get_index(
                 seed_tensor_name)
 
@@ -332,6 +332,15 @@ class SelectBestReconstruction:
             # check if it has a lower loss
             if results['loss_reco'] < min_loss:
                 min_loss = results['loss_reco']
-                min_results = results['loss_reco']
+                min_results = results
+
+        if min_results is None:
+
+            # something went wrong, did the fit return NaN or inf loss?
+            min_results = {}
+
+        else:
+            # rename runtime key of result
+            min_results['reco_runtime'] = min_results.pop('runtime')
 
         return min_results

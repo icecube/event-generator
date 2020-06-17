@@ -59,7 +59,12 @@ def main(config_files, reco_config_file=None):
     # Create misc module
     # ------------------
     reco_config = config['reconstruction_settings']
-    if reco_config['seed'] == 'x_parameters':
+    if isinstance(reco_config['seed'], str):
+        seed_names = [reco_config['seed']]
+    else:
+        seed_names = reco_config['seed']
+
+    if seed_names == ['x_parameters']:
         # The parameter labels are being used as a seed, so we do not need
         # to create a modified misc module
         modified_sub_components = {}
@@ -67,7 +72,7 @@ def main(config_files, reco_config_file=None):
         misc_module = SeedLoaderMiscModule()
         misc_module.configure(
             config_data=None,
-            seed_names=[reco_config['seed']],
+            seed_names=seed_names,
             seed_parameter_names=reco_config['seed_parameter_names'],
             float_precision=reco_config['seed_float_precision'],
             missing_value=reco_config['seed_missing_value'],
@@ -125,14 +130,14 @@ def main(config_files, reco_config_file=None):
             raise ValueError(msg.format(manager_dir))
 
     else:
-        if reco_config['seed'] != 'x_parameters':
+        if seed_names != ['x_parameters']:
             # Model Manager is being built from scratch, so we need to pass
             # the data handler settings with the modified misc module
             config['data_handler_settings']['misc_module'] = \
                 'seed_loader.SeedLoaderMiscModule'
 
             config['data_handler_settings']['misc_settings'] = {
-                'seed_names': [reco_config['seed']],
+                'seed_names': seed_names,
                 'seed_parameter_names': reco_config['seed_parameter_names'],
                 'float_precision': reco_config['seed_float_precision'],
                 'missing_value': reco_config['seed_missing_value'],
