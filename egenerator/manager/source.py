@@ -1021,8 +1021,8 @@ class SourceManager(BaseModelManager):
             reco_tray.add_module(
                 'CovarianceMatrix',
                 name='covariance',
-                fit_paramater_list=fit_paramater_list,
-                seed_tensor_name=reco_config['seed'],
+                # fit_paramater_list=fit_paramater_list,
+                fit_paramater_list=[True for f in fit_paramater_list],
                 reco_key='reco',
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
@@ -1030,13 +1030,17 @@ class SourceManager(BaseModelManager):
 
         # add circularized angular uncertainty estimation module
         if estimate_angular_uncertainty:
+            if calculate_covariance_matrix:
+                covariance_key = 'covariance'
+            else:
+                covariance_key = None
             reco_tray.add_module(
                 'CircularizedAngularUncertainty',
                 name='CircularizedAngularUncertainty',
-                fit_paramater_list=fit_paramater_list,
-                seed_tensor_name=reco_config['seed'],
+                # fit_paramater_list=fit_paramater_list,
+                fit_paramater_list=[True for f in fit_paramater_list],
                 reco_key='reco',
-                # covariance_key='covariance',
+                covariance_key=covariance_key,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
             )

@@ -6,7 +6,6 @@ class CovarianceMatrix:
 
     def __init__(self, manager, loss_module, function_cache,
                  fit_paramater_list,
-                 seed_tensor_name,
                  reco_key,
                  minimize_in_trafo_space=True,
                  parameter_tensor_name='x_parameters',):
@@ -20,22 +19,26 @@ class CovarianceMatrix:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        fit_paramater_list : TYPE
-            Description
-        seed_tensor_name : TYPE
-            Description
-        reco_key : TYPE
-            Description
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        reco_key : str
+            The name of the reconstruction module to use. The covariance
+            matrix will be calculated at the best fit point of the specified
+            reconstruction module.
         minimize_in_trafo_space : bool, optional
-            Description
+            If True, covariance is calculated in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            calculation and inversion.
         parameter_tensor_name : str, optional
-            Description
-
-        No Longer Raises
-        ----------------
-        NotImplementedError
-            Description
+            The name of the parameter tensor to use. Default: 'x_parameters'.
         """
+
+        if not np.all(fit_paramater_list):
+            raise NotImplementedError('Covariance currently only supports '
+                                      'calculation in all parameters')
 
         # store settings
         self.manager = manager
@@ -48,6 +51,9 @@ class CovarianceMatrix:
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
+            dtype=param_dtype)
+        param_signature_full = tf.TensorSpec(
+            shape=[None, len(fit_paramater_list)],
             dtype=param_dtype)
 
         # define data batch tensor specification
@@ -64,11 +70,12 @@ class CovarianceMatrix:
 
         # define function settings
         func_settings = dict(
-            input_signature=(param_signature, data_batch_signature),
+            input_signature=(
+                param_signature, data_batch_signature, param_signature_full),
             loss_module=loss_module,
             fit_paramater_list=fit_paramater_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -106,17 +113,20 @@ class CovarianceMatrix:
             Description
         """
 
+        result_inv = results[self.reco_key]['result']
         result_trafo = results[self.reco_key]['result_trafo']
         result_obj = results[self.reco_key]['result_object']
 
         # get Hessian at reco best fit
         hessian = self.hessian_function(
             parameters_trafo=result_trafo,
-            data_batch=data_batch).numpy().astype('float64')
+            data_batch=data_batch,
+            seed=result_inv).numpy().astype('float64')
 
         opg_estimate = self.opg_estimate_function(
             parameters_trafo=result_trafo,
-            data_batch=data_batch).numpy().astype('float64')
+            data_batch=data_batch,
+            seed=result_inv).numpy().astype('float64')
 
         cov_trafo = np.linalg.inv(hessian)
         cov_sand_trafo = np.matmul(np.matmul(

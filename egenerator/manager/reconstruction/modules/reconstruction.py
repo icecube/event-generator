@@ -336,7 +336,7 @@ class SelectBestReconstruction:
             if reco_results['loss_reco'] < min_loss:
                 min_loss = reco_results['loss_reco']
                 min_results = reco_results
-                print('Found new best reconstruction:', reco_name)
+                print('Found new best reconstruction:', reco_name, min_loss)
 
         if min_results is None:
 
