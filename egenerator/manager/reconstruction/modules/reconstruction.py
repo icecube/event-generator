@@ -211,12 +211,13 @@ class Reconstruction:
 
         # randomly sample values for systeamtics
         size = len(x0)
-        x0[:, 7] = np.random.uniform(low=0.9, high=1.1, size=size)
-        x0[:, 8] = np.random.uniform(low=0., high=2., size=size)
-        x0[:, 9] = np.random.uniform(low=0.9, high=1.1, size=size)
-        x0[:, 10] = np.random.uniform(low=-1.0, high=1.0, size=size)
-        x0[:, 11] = np.random.uniform(low=-0.2, high=0.2, size=size)
-        x0[:, 12] = np.random.uniform(low=0.9, high=1.1, size=size)
+        if np.all(~self.fit_paramater_list[7:]):
+            x0[:, 7] = np.random.uniform(low=0.91, high=1.09, size=size)
+            x0[:, 8] = np.random.uniform(low=0.01, high=1.99, size=size)
+            x0[:, 9] = np.random.uniform(low=0.91, high=1.09, size=size)
+            x0[:, 10] = np.random.uniform(low=-.99, high=0.99, size=size)
+            x0[:, 11] = np.random.uniform(low=-0.19, high=0.19, size=size)
+            x0[:, 12] = np.random.uniform(low=0.91, high=1.09, size=size)
         print('New Seed:', x0)
 
         seed_tensor = tf.reshape(tf.convert_to_tensor(x0, dtype), shape)
