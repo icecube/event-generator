@@ -1024,7 +1024,7 @@ class SourceManager(BaseModelManager):
         # ----------------------------------------
         reco_tray.add_module(
             'Reconstruction',
-            name='reco',
+            name='reco_combined',
             fit_paramater_list=[True for t in fit_paramater_list],
             seed_tensor_name='reco_sel',
             seed_from_previous_module=True,
@@ -1035,6 +1035,11 @@ class SourceManager(BaseModelManager):
             scipy_optimizer_settings=reco_config[
                 'scipy_optimizer_settings'],
             tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+        )
+        reco_tray.add_module(
+            # 'SelectBestReconstruction', name='reco', reco_names=reco_names,
+            'SelectBestReconstruction', name='reco',
+            reco_names=['reco_combined'],
         )
         # ----------------------------------------
 
