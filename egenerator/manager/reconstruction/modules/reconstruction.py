@@ -193,37 +193,22 @@ class Reconstruction:
         else:
             seed_tensor = data_batch[self.seed_index]
 
-        # -------------------
-        # Hack to modify seed
-        # -------------------
-        if self.seed_from_previous_module:
-            shape = seed_tensor.shape
-            x0 = seed_tensor
-        else:
-            shape = seed_tensor.numpy().shape
-            x0 = seed_tensor.numpy()
-        x_true = data_batch[self.manager.data_handler.tensors.get_index(
-            self.parameter_tensor_name)].numpy()
-        dtype = x_true.dtype
+        # # -------------------
+        # # Hack to modify seed
+        # # -------------------
+        # shape = seed_tensor.numpy().shape
+        # dtype = seed_tensor.dtype
+        # x0 = seed_tensor.numpy()
+        # x_true = data_batch[self.manager.data_handler.tensors.get_index(
+        #     self.parameter_tensor_name)].numpy()
 
-        # set vertex to MC truth
+        # # set vertex to MC truth
         # x0[:, :3] = x_true[:, :3]
+        # x0[:, 6] = x_true[:, 6]
+        # print('New Seed:', x0)
 
-        # randomly sample values for systeamtics
-        size = len(x0)
-        if np.all(~np.array(self.fit_paramater_list[7:], dtype=bool)):
-            x0[:, 7] = np.random.uniform(low=0.91, high=1.09, size=size)
-            x0[:, 8] = np.random.uniform(low=0.01, high=1.99, size=size)
-            x0[:, 9] = np.random.uniform(low=0.91, high=1.09, size=size)
-            x0[:, 10] = np.random.uniform(low=-.99, high=0.99, size=size)
-            x0[:, 11] = np.random.uniform(low=-0.19, high=0.19, size=size)
-            x0[:, 12] = np.random.uniform(low=0.91, high=1.09, size=size)
-            print('New Seed:', x0)
-        else:
-            print('Seed:', x0)
-
-        seed_tensor = tf.reshape(tf.convert_to_tensor(x0, dtype), shape)
-        # -------------------
+        # seed_tensor = tf.reshape(tf.convert_to_tensor(x0, dtype), shape)
+        # # -------------------
 
         result_trafo, result_object = self.reconstruction_method(
             data_batch, seed_tensor)
