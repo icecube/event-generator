@@ -585,7 +585,17 @@ class BaseModelManager(Model):
         else:
             capped_gradients = gradients
 
-        self.optimizer.apply_gradients(zip(capped_gradients, variables))
+        # Ensure finite values
+        asserts = []
+        for gradient in capped_gradients:
+            assert_finite = tf.Assert(
+                tf.math.is_finite(tf.reduce_mean(gradient)),
+                [tf.reduce_min(gradient),
+                 tf.reduce_mean(gradient),
+                 tf.reduce_max(gradient)])
+            asserts.append(assert_finite)
+        with tf.control_dependencies(asserts):
+            self.optimizer.apply_gradients(zip(capped_gradients, variables))
 
         return combined_loss
 
