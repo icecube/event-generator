@@ -734,8 +734,12 @@ class SourceManager(BaseModelManager):
         #                       zip(unstacked_seed, fit_paramater_list) if fit]
         #     x0 = tf.stack(tracked_params, axis=1)
 
+        def callback(xk):
+            print(xk)
+
         result = optimize.shgo(func=func, bounds=bounds, options=options,
                                minimizer_kwargs=minimizer_kwargs,
+                               callback=callback,
                                args=(data_batch, seed_tensor), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
