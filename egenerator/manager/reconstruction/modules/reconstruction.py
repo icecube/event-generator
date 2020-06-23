@@ -157,6 +157,17 @@ class Reconstruction:
 
         elif reco_optimizer_interface.lower() == 'tfp':
             def reconstruction_method(data_batch, seed_tensor):
+                return manager.scipy_global_reconstruct_events(
+                    data_batch, loss_module,
+                    loss_and_gradients_function=loss_and_gradients_function,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=seed_tensor,
+                    parameter_tensor_name=parameter_tensor_name,
+                    minimizer_kwargs=scipy_optimizer_settings)
+
+        elif reco_optimizer_interface.lower() == 'tfp':
+            def reconstruction_method(data_batch, seed_tensor):
                 return manager.tf_reconstruct_events(
                     data_batch, loss_module,
                     loss_and_gradients_function=loss_and_gradients_function,

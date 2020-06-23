@@ -534,11 +534,11 @@ class SourceManager(BaseModelManager):
             return loss, grad_flat
 
         if hessian_function is not None:
-            def get_hessian(x, data_batch):
+            def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
                 x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
                                param_shape)
-                hessian = hessian_function(x, data_batch)
+                hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
 
@@ -594,6 +594,147 @@ class SourceManager(BaseModelManager):
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
                                    method=method,
                                    args=(data_batch, seed_tensor), **kwargs)
+
+        best_fit = np.reshape(result.x, param_shape)
+        return best_fit, result
+
+    def scipy_global_reconstruct_events(
+            self, data_batch, loss_module,
+            loss_and_gradients_function,
+            fit_paramater_list,
+            minimize_in_trafo_space=True,
+            seed='x_parameters',
+            parameter_tensor_name='x_parameters',
+            minimizer_kwargs={
+                'method': 'BFGS',
+            },
+            options={},
+            jac=True,
+            hessian_function=None,
+            **kwargs):
+        """Reconstruct events with scipy.optimize.shgo interface.
+
+        Parameters
+        ----------
+        data_batch : tuple of tf.Tensor
+            A tuple of tensors. This is the batch received from the tf.Dataset.
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        loss_and_gradients_function : tf.function
+            The tensorflow function:
+                f(parameters, data_batch, seed_tensor) -> loss, gradients
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str or tf.Tensor
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a tf.Tensor.
+            The tensor should *NOT* be transformed.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
+        minimizer_kwargs : dict, optional
+            A dictionary of options which is passed on to the internal
+            scipy.optimize.minimize minimizer.
+        options : dict, optional
+            A dictionary of options which is passed on to scipy.optimize.shgo.
+        jac : bool, optional
+            Passed on to scipy.optimize.minimize and scipy.optimize.shgo.
+        hessian_function : tf.function, optional
+            The tensorflow function:
+                f(parameters, data_batch) -> hessian
+        **kwargs
+            Keyword arguments that will be passed on to scipy.optimize.shgo
+
+        Returns
+        -------
+        scipy.optimize.minimize results
+            The results of the minimization
+
+        Raises
+        ------
+        ValueError
+            Description
+        """
+        num_fit_params = np.sum(fit_paramater_list, dtype=int)
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        parameter_dtype = getattr(tf, param_tensor.dtype)
+        param_shape = [-1, num_fit_params]
+
+        if (len(fit_paramater_list) != param_tensor.shape[1]):
+            msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
+            raise ValueError(msg.format(param_tensor.shape[1],
+                                        len(fit_paramater_list)))
+
+        minimizer_kwargs['jac'] = jac
+        options['jac'] = jac
+
+        # define helper function
+        def func(x, data_batch, seed):
+            # reshape and convert to tensor
+            x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
+                           param_shape)
+            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
+            loss = loss.numpy().astype('float64')
+            grad = grad.numpy().astype('float64')
+
+            grad_flat = np.reshape(grad, [-1])
+            return loss, grad_flat
+
+        if hessian_function is not None:
+            def get_hessian(x, data_batch, seed):
+                # reshape and convert to tensor
+                x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
+                               param_shape)
+                hessian = hessian_function(x, data_batch, seed=seed)
+                hessian = hessian.numpy().astype('float64')
+                return hessian
+
+            minimizer_kwargs['hess'] = get_hessian
+            options['hess'] = get_hessian
+
+        # get seed tensor
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_tensor = data_batch[seed_index]
+        else:
+            seed_tensor = seed
+
+        # transform seed if minimization is performed in trafo space
+        if minimize_in_trafo_space:
+            seed_tensor_trafo = self.data_trafo.transform(
+                data=seed_tensor, tensor_name=parameter_tensor_name)
+        else:
+            seed_tensor_trafo = seed_tensor
+
+        # For now: add +- 1 in trafo space
+        # ToDo: allow to pass proper boundaries and uncertainties
+        assert minimize_in_trafo_space, 'currently only for trafo space'
+        bounds = np.concatenate((
+            seed_tensor.numpy() - 1, seed_tensor.numpy() + 1)).T
+
+        # # get seed parameters
+        # if np.all(fit_paramater_list):
+        #     x0 = seed_tensor_trafo
+        # else:
+        #     # get seed parameters
+        #     unstacked_seed = tf.unstack(seed_tensor_trafo, axis=1)
+        #     tracked_params = [p for p, fit in
+        #                       zip(unstacked_seed, fit_paramater_list) if fit]
+        #     x0 = tf.stack(tracked_params, axis=1)
+
+        result = optimize.shgo(fun=func, bounds=bounds, options=options,
+                               minimizer_kwargs=minimizer_kwargs,
+                               args=(data_batch, seed_tensor), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
         return best_fit, result
