@@ -732,7 +732,7 @@ class SourceManager(BaseModelManager):
         #                       zip(unstacked_seed, fit_paramater_list) if fit]
         #     x0 = tf.stack(tracked_params, axis=1)
 
-        result = optimize.shgo(fun=func, bounds=bounds, options=options,
+        result = optimize.shgo(func=func, bounds=bounds, options=options,
                                minimizer_kwargs=minimizer_kwargs,
                                args=(data_batch, seed_tensor), **kwargs)
 
