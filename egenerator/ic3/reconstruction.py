@@ -229,7 +229,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             )
 
         # chosse best reconstruction
-        reco_tray.add_module(
+        self.reco_tray.add_module(
             'SelectBestReconstruction', name='reco', reco_names=reco_names,
         )
 
