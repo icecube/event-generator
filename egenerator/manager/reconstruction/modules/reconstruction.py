@@ -155,7 +155,7 @@ class Reconstruction:
                     parameter_tensor_name=parameter_tensor_name,
                     **scipy_optimizer_settings)
 
-        elif reco_optimizer_interface.lower() == 'tfp':
+        elif reco_optimizer_interface.lower() == 'shog':
             def reconstruction_method(data_batch, seed_tensor):
                 return manager.scipy_global_reconstruct_events(
                     data_batch, loss_module,
