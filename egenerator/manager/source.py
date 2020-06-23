@@ -608,7 +608,9 @@ class SourceManager(BaseModelManager):
             minimizer_kwargs={
                 'method': 'BFGS',
             },
-            options={},
+            options={
+                'maxtime': 10,
+            },
             jac=True,
             hessian_function=None,
             **kwargs):
@@ -720,7 +722,7 @@ class SourceManager(BaseModelManager):
         # ToDo: allow to pass proper boundaries and uncertainties
         assert minimize_in_trafo_space, 'currently only for trafo space'
         bounds = np.concatenate((
-            seed_tensor.numpy() - 1, seed_tensor.numpy() + 1)).T
+            seed_tensor_trafo.numpy() - 1, seed_tensor_trafo.numpy() + 1)).T
 
         # # get seed parameters
         # if np.all(fit_paramater_list):
