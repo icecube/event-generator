@@ -1365,7 +1365,9 @@ class SourceManager(BaseModelManager):
 
             # get seed from reconstruction result
             if results['reco']['seed_from_previous_module']:
-                raise NotImplementedError
+                seed_index = self.data_handler.tensors.get_index(
+                    reco_config['seed'][0]) #------------------------------- HACK WRONG!
+                # raise NotImplementedError
             else:
                 seed_index = self.data_handler.tensors.get_index(
                     results['reco']['seed_tensor_name'])
