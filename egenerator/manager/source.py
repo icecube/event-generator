@@ -1176,7 +1176,7 @@ class SourceManager(BaseModelManager):
                     parameter_tensor_name=parameter_tensor_name,
                     reco_optimizer_interface=reco_config[
                         'reco_optimizer_interface'],
-                    scipy_optimizer_settings='scipy_optimizer_settings': {
+                    scipy_optimizer_settings={
                         'method': 'L-BFGS-B',
                         'options': {
                             'ftol': !!float 1e-4,
