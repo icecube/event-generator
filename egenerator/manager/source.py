@@ -1160,7 +1160,7 @@ class SourceManager(BaseModelManager):
             # ---------------------
             reco_random_names = []
             reco_name_random = 'reco_random_' + seed_tensor_name
-            for i in range(3):
+            for i in range(100):
                 reco_name_random_i = 'reco_random_{:04d}'.format(
                     i) + seed_tensor_name
                 reco_random_names.append(reco_name_random_i)
@@ -1181,8 +1181,8 @@ class SourceManager(BaseModelManager):
                         'options': {
                             'ftol': 1e-4,
                             'maxiter': 1000,
-                            'maxcor': 100,
-                            'maxls': 50,
+                            # 'maxcor': 100,
+                            # 'maxls': 50,
                         },
                         'bounds': [
                             [None, None],

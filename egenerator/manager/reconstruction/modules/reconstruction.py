@@ -223,6 +223,7 @@ class Reconstruction:
             x0[:, :3] = np.random.normal(loc=x0[:, :3], scale=5)
             x0[:, 3] = np.random.uniform(low=0., high=np.pi)
             x0[:, 4] = np.random.uniform(low=0., high=2*np.pi)
+            x0[:, 6] = np.random.normal(loc=x0[:, 6], scale=20)
             x0[:, 7] = np.random.uniform(low=0.91, high=1.09)  # Absorption
             x0[:, 8] = np.random.uniform(low=0.01, high=1.99)  # AnisotropyScale
             x0[:, 9] = np.random.uniform(low=0.91, high=1.09)  # DOMEfficiency
