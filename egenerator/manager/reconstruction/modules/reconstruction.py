@@ -210,11 +210,15 @@ class Reconstruction:
         # Hack to modify seed
         # -------------------
         if self.randomize_seed:
-            shape = seed_tensor.numpy().shape
-            dtype = seed_tensor.dtype
-            x0 = seed_tensor.numpy()
-            # x_true = data_batch[self.manager.data_handler.tensors.get_index(
-            #     self.parameter_tensor_name)].numpy()
+            if self.seed_from_previous_module:
+                shape = seed_tensor.shape
+                x0 = np.array(seed_tensor)
+            else:
+                shape = seed_tensor.numpy().shape
+                x0 = seed_tensor.numpy()
+            x_true = data_batch[self.manager.data_handler.tensors.get_index(
+                self.parameter_tensor_name)].numpy()
+            dtype = x_true.dtype
 
             x0[:, :3] = np.random.normal(loc=x0[:, :3], scale=5)
             x0[:, 3] = np.random.uniform(low=0., high=np.pi)
