@@ -301,7 +301,11 @@ class Reconstruction:
         if minimize_in_trafo_space:
             cascade_seed_batch_trafo = self.manager.data_trafo.transform(
                         data=seed_tensor,
-                        tensor_name=parameter_tensor_name).numpy()
+                        tensor_name=parameter_tensor_name)
+            try:
+                cascade_seed_batch_trafo = cascade_seed_batch_trafo.numpy()
+            except AttributeError:
+                pass
         else:
             cascade_seed_batch_trafo = seed_tensor
 
