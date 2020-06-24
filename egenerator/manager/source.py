@@ -575,6 +575,18 @@ class SourceManager(BaseModelManager):
         else:
             seed_tensor = seed
         if minimize_in_trafo_space:
+
+            # transform bounds if provided
+            if 'bounds' in kwargs:
+                bounds = self.data_trafo.transform(
+                    data=np.array(kwargs['bounds']).T,
+                    tensor_name=parameter_tensor_name).T
+                for i, bound in enumerate(bounds):
+                    for j in range(2):
+                        if not np.isfinite(bound[j]):
+                            bounds[i, j] = None
+                kwargs['bounds'] = bounds
+
             seed_tensor_trafo = self.data_trafo.transform(
                 data=seed_tensor, tensor_name=parameter_tensor_name)
         else:
