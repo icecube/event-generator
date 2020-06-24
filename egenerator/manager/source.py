@@ -1160,7 +1160,7 @@ class SourceManager(BaseModelManager):
             # ---------------------
             reco_random_names = []
             reco_name_random = 'reco_random_' + seed_tensor_name
-            for i in range(100):
+            for i in range(3):
                 reco_name_random_i = 'reco_random_{:04d}'.format(
                     i) + seed_tensor_name
                 reco_random_names.append(reco_name_random_i)
