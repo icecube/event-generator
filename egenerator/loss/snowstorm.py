@@ -32,7 +32,7 @@ class SnowstormPriorLossModule(BaseComponent):
     A loss component that is used to compute the loss. The component
     must provide a
     loss_module.get_loss(data_batch_dict, result_tensors, tensors,
-                         parameter_tensor_name='x_parameters')
+                         parameter_tensor_name='x_parameters', **kwargs)
     method.
     """
 
@@ -175,7 +175,8 @@ class SnowstormPriorLossModule(BaseComponent):
         return loss
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
+                 parameter_tensor_name='x_parameters', reduce_to_scalar=True,
+                 **kwargs):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -213,6 +214,8 @@ class SnowstormPriorLossModule(BaseComponent):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        **kwargs
+            Arbitrary keyword arguments.
 
         Returns
         -------

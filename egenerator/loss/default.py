@@ -14,7 +14,7 @@ class DefaultLossModule(BaseComponent):
     A loss component that is used to compute the loss. The component
     must provide a
     loss_module.get_loss(data_batch_dict, result_tensors, tensors,
-                         parameter_tensor_name='x_parameters')
+                         parameter_tensor_name='x_parameters', **kwargs)
     method.
     """
 
@@ -96,7 +96,8 @@ class DefaultLossModule(BaseComponent):
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
                  parameter_tensor_name='x_parameters',
                  reduce_to_scalar=True,
-                 normalize_by_total_charge=True):
+                 normalize_by_total_charge=False,
+                 **kwargs):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -139,6 +140,8 @@ class DefaultLossModule(BaseComponent):
             If True, the loss will be normalized (divided) by the total charge.
             This will make the loss of events with vastly different amounts of
             detected photons be more comparable.
+        **kwargs
+            Arbitrary keyword arguments.
 
         Returns
         -------

@@ -12,7 +12,7 @@ class MultiLossModule(BaseComponent):
 
     A loss component that is used to compute the loss. The component
     must provide a
-    loss_module.get_loss(data_batch_dict, result_tensors, tensors)
+    loss_module.get_loss(data_batch_dict, result_tensors, tensors, **kwargs)
     method.
     """
 
@@ -79,7 +79,9 @@ class MultiLossModule(BaseComponent):
         return configuration, {}, dependent_sub_components
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
+                 parameter_tensor_name='x_parameters',
+                 reduce_to_scalar=True,
+                 **kwargs):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -117,6 +119,9 @@ class MultiLossModule(BaseComponent):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss modules.
 
         Returns
         -------
@@ -137,6 +142,7 @@ class MultiLossModule(BaseComponent):
                 model=model,
                 parameter_tensor_name=parameter_tensor_name,
                 reduce_to_scalar=reduce_to_scalar,
+                **kwargs
             )
             if reduce_to_scalar:
                 if loss is None:

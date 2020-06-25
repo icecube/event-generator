@@ -457,7 +457,8 @@ class BaseModelManager(Model):
 
     @tf.function
     def get_loss(self, data_batch, loss_module, opt_config, is_training,
-                 add_summaries=False, parameter_tensor_name='x_parameters'):
+                 add_summaries=False, parameter_tensor_name='x_parameters',
+                 **kwargs):
         """Get the scalar loss for a batch of data and a given loss component.
 
         Parameters
@@ -480,16 +481,14 @@ class BaseModelManager(Model):
             If True, tensorflow summaries will be calculated and added.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
         tf.Tensor
             The scalar loss.
-
-        Deleted Parameters
-        ------------------
-        step : int, optional
-            The current training step.
         """
         data_batch_dict = {}
         for i, name in enumerate(self.data_handler.tensors.names):
@@ -507,7 +506,8 @@ class BaseModelManager(Model):
                 data_batch_dict, result_tensors,
                 self.data_handler.tensors,
                 model=model,
-                parameter_tensor_name=parameter_tensor_name)
+                parameter_tensor_name=parameter_tensor_name,
+                **kwargs)
 
             reg_loss = self.regularization_loss(
                                         variables=model.trainable_variables,
@@ -533,7 +533,8 @@ class BaseModelManager(Model):
 
     @tf.function
     def perform_training_step(self, data_batch, loss_module, opt_config,
-                              parameter_tensor_name='x_parameters'):
+                              parameter_tensor_name='x_parameters',
+                              **kwargs):
         """Perform one training step
 
         Parameters
@@ -549,6 +550,9 @@ class BaseModelManager(Model):
             The optimization config defining the settings.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -557,9 +561,11 @@ class BaseModelManager(Model):
         """
         with tf.GradientTape() as tape:
             combined_loss = self.get_loss(
-                                data_batch, loss_module, opt_config,
-                                is_training=True,
-                                parameter_tensor_name=parameter_tensor_name)
+                data_batch, loss_module, opt_config,
+                is_training=True,
+                parameter_tensor_name=parameter_tensor_name,
+                **kwargs
+            )
 
         variables = []
         for model in self.models:
@@ -703,7 +709,9 @@ class BaseModelManager(Model):
             function=self.perform_training_step,
             input_signature=(train_dataset.element_spec,),
             loss_module=loss_module,
-            opt_config=opt_config)
+            opt_config=opt_config,
+            **opt_config['additional_loss_module_kwargs']
+        )
 
         get_loss = self.get_concrete_function(
             function=self.get_loss,
@@ -711,7 +719,9 @@ class BaseModelManager(Model):
             loss_module=loss_module,
             opt_config=opt_config,
             is_training=False,
-            add_summaries=True)
+            add_summaries=True,
+            **opt_config['additional_loss_module_kwargs']
+        )
 
         # --------------------------------
         # start loop over training batches

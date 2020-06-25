@@ -34,7 +34,8 @@ class SourceManager(BaseModelManager):
                                 minimize_in_trafo_space=True,
                                 seed=None,
                                 parameter_tensor_name='x_parameters',
-                                reduce_to_scalar=True):
+                                reduce_to_scalar=True,
+                                **kwargs):
         """Compute loss for a chosen set of parameters.
 
         Parameters
@@ -73,6 +74,9 @@ class SourceManager(BaseModelManager):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -134,12 +138,14 @@ class SourceManager(BaseModelManager):
                                 parameter_tensor_name=parameter_tensor_name)
 
             loss_i = loss_module.get_loss(
-                    data_batch_dict,
-                    result_tensors,
-                    self.data_handler.tensors,
-                    model=model,
-                    parameter_tensor_name=parameter_tensor_name,
-                    reduce_to_scalar=reduce_to_scalar)
+                data_batch_dict,
+                result_tensors,
+                self.data_handler.tensors,
+                model=model,
+                parameter_tensor_name=parameter_tensor_name,
+                reduce_to_scalar=reduce_to_scalar,
+                **kwargs
+            )
             if loss is None:
                 loss = loss_i
             else:
@@ -155,7 +161,8 @@ class SourceManager(BaseModelManager):
                                     minimize_in_trafo_space=True,
                                     seed=None,
                                     parameter_tensor_name='x_parameters',
-                                    reduce_to_scalar=True):
+                                    reduce_to_scalar=True,
+                                    **kwargs):
         """Get a function that returns the loss for a chosen set of parameters.
 
         Parameters
@@ -189,6 +196,9 @@ class SourceManager(BaseModelManager):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -210,7 +220,8 @@ class SourceManager(BaseModelManager):
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
                     parameter_tensor_name=parameter_tensor_name,
-                    reduce_to_scalar=reduce_to_scalar)
+                    reduce_to_scalar=reduce_to_scalar,
+                    **kwargs)
             return loss
 
         return parameter_loss_function
@@ -219,7 +230,8 @@ class SourceManager(BaseModelManager):
                                         fit_paramater_list,
                                         minimize_in_trafo_space=True,
                                         seed=None,
-                                        parameter_tensor_name='x_parameters'):
+                                        parameter_tensor_name='x_parameters',
+                                        **kwargs):
         """Get a function that returns the loss and gradients wrt parameters.
 
         Parameters
@@ -247,6 +259,9 @@ class SourceManager(BaseModelManager):
             or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -270,7 +285,8 @@ class SourceManager(BaseModelManager):
                     fit_paramater_list=fit_paramater_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
-                    parameter_tensor_name=parameter_tensor_name)
+                    parameter_tensor_name=parameter_tensor_name,
+                    **kwargs)
 
             grad = tape.gradient(loss, parameters_trafo)
             return loss, grad
@@ -330,7 +346,8 @@ class SourceManager(BaseModelManager):
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=seed,
             parameter_tensor_name=parameter_tensor_name,
-            reduce_to_scalar=False)
+            reduce_to_scalar=False,
+            normalize_by_total_charge=False)
 
         @tf.function(input_signature=input_signature)
         def opg_estimate_function(parameters_trafo, data_batch,
@@ -437,7 +454,9 @@ class SourceManager(BaseModelManager):
                     fit_paramater_list=fit_paramater_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
-                    parameter_tensor_name=parameter_tensor_name)
+                    parameter_tensor_name=parameter_tensor_name,
+                    reduce_to_scalar=False,
+                    normalize_by_total_charge=False)
 
             hessian = tf.hessians(loss, parameters_trafo)[0]
 
