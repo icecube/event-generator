@@ -82,6 +82,21 @@ reconstruction_settings: {
         'method': 'BFGS',
         'options': {
             # 'ftol': !!float 1e-7,
+            # 'bounds': [
+            #     [null, null],
+            #     [null, null],
+            #     [null, null],
+            #     [0, 3.1416],
+            #     [0, 6.2832],
+            #     [0, null],
+            #     [null, null],
+            #     [0.9, 1.1],
+            #     [0., 2.0],
+            #     [0.9, 1.1],
+            #     [-1., 1.],
+            #     [-0.2, 0.2],
+            #     [0.9, 1.1],
+            # ],
         }
     },
 
