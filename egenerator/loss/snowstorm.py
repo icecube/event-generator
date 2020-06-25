@@ -137,8 +137,8 @@ class SnowstormPriorLossModule(BaseComponent):
 
         return configuration, {}, {}
 
-    def uniform_prior_loss(self, values, low, high, eps=0):
-        """Computes a loss for a uniform prior.
+    def uniform_log_prior_loss(self, values, low, high, eps=0):
+        """Computes a loss for a uniform log prior.
 
         Loss is zero for values within bounds and exponentially grows outside.
 
@@ -233,7 +233,7 @@ class SnowstormPriorLossModule(BaseComponent):
         # compute loss for uniform priors
         for name, bounds in self.untracked_data['uniform_parameters'].items():
             values = parameters.params[name]
-            loss_terms.append(self.uniform_prior_loss(values, *bounds))
+            loss_terms.append(self.uniform_log_prior_loss(values, *bounds))
 
         # compute loss for Fourier modes
         num_sigmas = len(self.untracked_data['sigmas'])
