@@ -1158,70 +1158,72 @@ class SourceManager(BaseModelManager):
             # ---------------------
             # --- Random Fast Seeds
             # ---------------------
-            reco_random_names = []
-            reco_name_random = 'reco_random_' + seed_tensor_name
-            for i in range(100):
-                reco_name_random_i = 'reco_random_{:04d}'.format(
-                    i) + seed_tensor_name
-                reco_random_names.append(reco_name_random_i)
+            if 'num_random_seeds' in reco_config:
+                reco_random_names = []
+                reco_name_random = 'reco_random_' + seed_tensor_name
+                for i in range(reco_config['num_random_seeds']):
+                    reco_name_random_i = 'reco_random_{:04d}'.format(
+                        i) + seed_tensor_name
+                    reco_random_names.append(reco_name_random_i)
 
+                    reco_tray.add_module(
+                        'Reconstruction',
+                        name=reco_name_random_i,
+                        fit_paramater_list=fit_paramater_list,
+                        seed_tensor_name=seed_tensor_name,
+                        seed_from_previous_module=False,
+                        randomize_seed=True,
+                        minimize_in_trafo_space=minimize_in_trafo_space,
+                        parameter_tensor_name=parameter_tensor_name,
+                        reco_optimizer_interface=reco_config[
+                            'reco_optimizer_interface'],
+                        scipy_optimizer_settings={
+                            'method': 'L-BFGS-B',
+                            'options': {
+                                'ftol': 1e-4,
+                                'maxiter': 1000,
+                                # 'maxcor': 100,
+                                # 'maxls': 50,
+                            },
+                            'bounds': [
+                                [None, None],
+                                [None, None],
+                                [None, None],
+                                [0, 3.1416],
+                                [0, 6.2832],
+                                [0, None],
+                                [None, None],
+                                [0.9, 1.1],
+                                [0., 2.0],
+                                [0.9, 1.1],
+                                [-1., 1.],
+                                [-0.2, 0.2],
+                                [0.9, 1.1],
+                            ],
+                        },
+                        tf_optimizer_settings=reco_config[
+                            'tf_optimizer_settings'],
+                    )
+                # chose best reconstruction
+                reco_tray.add_module(
+                    'SelectBestReconstruction', name='sel_reco_random',
+                    reco_names=reco_random_names,
+                )
                 reco_tray.add_module(
                     'Reconstruction',
-                    name=reco_name_random_i,
+                    name=reco_name_random,
                     fit_paramater_list=fit_paramater_list,
-                    seed_tensor_name=seed_tensor_name,
-                    seed_from_previous_module=False,
-                    randomize_seed=True,
+                    seed_tensor_name='sel_reco_random',
+                    seed_from_previous_module=True,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     parameter_tensor_name=parameter_tensor_name,
                     reco_optimizer_interface=reco_config[
                         'reco_optimizer_interface'],
-                    scipy_optimizer_settings={
-                        'method': 'L-BFGS-B',
-                        'options': {
-                            'ftol': 1e-4,
-                            'maxiter': 1000,
-                            # 'maxcor': 100,
-                            # 'maxls': 50,
-                        },
-                        'bounds': [
-                            [None, None],
-                            [None, None],
-                            [None, None],
-                            [0, 3.1416],
-                            [0, 6.2832],
-                            [0, None],
-                            [None, None],
-                            [0.9, 1.1],
-                            [0., 2.0],
-                            [0.9, 1.1],
-                            [-1., 1.],
-                            [-0.2, 0.2],
-                            [0.9, 1.1],
-                        ],
-                    },
+                    scipy_optimizer_settings=reco_config[
+                        'scipy_optimizer_settings'],
                     tf_optimizer_settings=reco_config['tf_optimizer_settings'],
                 )
-            # chose best reconstruction
-            reco_tray.add_module(
-                'SelectBestReconstruction', name='sel_reco_random',
-                reco_names=reco_random_names,
-            )
-            reco_tray.add_module(
-                'Reconstruction',
-                name=reco_name_random,
-                fit_paramater_list=fit_paramater_list,
-                seed_tensor_name='sel_reco_random',
-                seed_from_previous_module=True,
-                minimize_in_trafo_space=minimize_in_trafo_space,
-                parameter_tensor_name=parameter_tensor_name,
-                reco_optimizer_interface=reco_config[
-                    'reco_optimizer_interface'],
-                scipy_optimizer_settings=reco_config[
-                    'scipy_optimizer_settings'],
-                tf_optimizer_settings=reco_config['tf_optimizer_settings'],
-            )
-            reco_names.append(reco_name_random)
+                reco_names.append(reco_name_random)
             # ---------------------
 
             reco_tray.add_module(
