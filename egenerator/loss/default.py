@@ -94,7 +94,9 @@ class DefaultLossModule(BaseComponent):
         return configuration, {}, {}
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
+                 parameter_tensor_name='x_parameters',
+                 reduce_to_scalar=True,
+                 normalize_by_total_charge=True):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -133,6 +135,10 @@ class DefaultLossModule(BaseComponent):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        normalize_by_total_charge : bool, optional
+            If True, the loss will be normalized (divided) by the total charge.
+            This will make the loss of events with vastly different amounts of
+            detected photons be more comparable.
 
         Returns
         -------
@@ -146,6 +152,10 @@ class DefaultLossModule(BaseComponent):
         loss_terms = self.loss_function(data_batch_dict=data_batch_dict,
                                         result_tensors=result_tensors,
                                         tensors=tensors)
+
+        if normalize_by_total_charge:
+            total_charge = tf.reduce_sum(data_batch_dict['x_pulses'][:, 0])
+            loss_terms = [loss / total_charge for loss in loss_terms]
 
         if reduce_to_scalar:
             return tf.math.accumulate_n([tf.reduce_sum(loss_term)
