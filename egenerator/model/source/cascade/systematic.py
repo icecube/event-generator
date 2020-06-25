@@ -62,7 +62,7 @@ class SystematicsCascadeModel(Source):
         num_features = 7 + num_snowstorm_params
         num_inputs = 8
         num_sys_inputs = num_snowstorm_params
-        if 'DOMEfficiency' in config['snowstorm_parameter_names']:
+        if 'DOMEfficiency' in parameter_names:
             num_sys_inputs -= 1
 
         if config['add_opening_angle']:
@@ -272,7 +272,7 @@ class SystematicsCascadeModel(Source):
         modified_parameters = tf.stack([cascade_dir_x,
                                         cascade_dir_y,
                                         cascade_dir_z]
-                                       + [x_parameters_expanded[5]]
+                                       + [x_parameters_expanded[5]],
                                        axis=-1)
 
         # put everything together
@@ -374,7 +374,7 @@ class SystematicsCascadeModel(Source):
             dom_charges *= tf.expand_dims(detector.rel_dom_eff, axis=-1)
 
         # scale charges by global DOM efficiency
-        if 'DOMEfficiency' in self.parameters:
+        if 'DOMEfficiency' in self.parameter_names:
             dom_charges *= tf.expand_dims(
                 parameter_list[self.get_index('DOMEfficiency')], axis=-1)
 
@@ -525,9 +525,9 @@ class SystematicsCascadeModel(Source):
         # -------------------------------------------
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
-        if n_models*4 + n_charge != config['num_filters_list'][-1]:
+        if n_models*4 + n_charge != config['num_filters_list_2'][-1]:
             raise ValueError('{!r} != {!r}'.format(
-                n_models*4 + n_charge, config['num_filters_list'][-1]))
+                n_models*4 + n_charge, config['num_filters_list_2'][-1]))
         if n_models <= 1:
             raise ValueError('{!r} !> 1'.format(n_models))
 
