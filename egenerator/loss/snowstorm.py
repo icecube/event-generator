@@ -137,7 +137,7 @@ class SnowstormPriorLossModule(BaseComponent):
 
         return configuration, {}, {}
 
-    def uniform_prior_loss(self, values, low, high, eps=1e-3):
+    def uniform_prior_loss(self, values, low, high, eps=0):
         """Computes a loss for a uniform prior.
 
         Loss is zero for values within bounds and exponentially grows outside.
