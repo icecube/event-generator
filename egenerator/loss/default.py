@@ -158,6 +158,7 @@ class DefaultLossModule(BaseComponent):
 
         if normalize_by_total_charge:
             total_charge = tf.reduce_sum(data_batch_dict['x_pulses'][:, 0])
+            bs = data_batch_dict['x_dom_charge'].get_shape().as_list()[0]
 
             # Note: this depends on the actual loss being used.
             # Here we assume that an additional poisson term for each DOM
@@ -165,7 +166,7 @@ class DefaultLossModule(BaseComponent):
             # terms to the likelhood.
             # ToDo: properly count number of likelihood terms and also properly
             # normalize if loss is composed from multiple individual losses
-            approx_number_of_terms = total_charge + 5160
+            approx_number_of_terms = total_charge + 5160 * bs
             loss_terms = [loss / approx_number_of_terms for loss in loss_terms]
 
         if reduce_to_scalar:
