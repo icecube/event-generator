@@ -158,7 +158,9 @@ class DefaultLossModule(BaseComponent):
 
         if normalize_by_total_charge:
             total_charge = tf.reduce_sum(data_batch_dict['x_pulses'][:, 0])
-            batch_size = tf.shape(data_batch_dict['x_dom_charge'])[0]
+            batch_size = tf.cast(
+                tf.shape(data_batch_dict['x_dom_charge'])[0],
+                dtype=total_charge.dtype)
 
             # Note: this depends on the actual loss being used.
             # Here we assume that an additional poisson term for each DOM
