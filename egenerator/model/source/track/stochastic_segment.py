@@ -540,6 +540,9 @@ class StochasticTrackSegmentModel(Source):
             dom_charges *= tf.expand_dims(
                 parameter_list[self.get_index('DOMEfficiency')], axis=-1)
 
+        # add small constant to make sure dom charges are > 0:
+        dom_charges += 1e-7
+
         tensor_dict['dom_charges'] = dom_charges
 
         # -------------------------------------
