@@ -336,13 +336,13 @@ class SystematicsCascadeModel(Source):
                     x_parameters_expanded[self.get_index(param_name)])
 
         # put systematic parameters together and tile for each DOM
-        modified_sys_parameters = tf.tile(
-            tf.stack(input_list_shared + sys_parameters, axis=-1),
-            [1, 86, 60, 1])
+        modified_sys_parameters = tf.tile(tf.stack(sys_parameters, axis=-1),
+                                          [1, 86, 60, 1])
 
         # combine systematic parameters with output of shared layers
-        x_doms_input2 = tf.concat(
-            [modified_sys_parameters, local_conv_layers[-1]], axis=-1)
+        input_list_shared.append(modified_sys_parameters)
+        input_list_shared.append(local_conv_layers[-1])
+        x_doms_input2 = tf.concat(input_list_shared, axis=-1)
         print('x_doms_input2', x_doms_input2)
 
         # run shared convoluational layers
