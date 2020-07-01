@@ -60,19 +60,22 @@ class SystematicsCascadeModel(Source):
                     parameter_names.append(param_name.format(i))
 
         num_features = 7 + num_snowstorm_params
-        num_inputs = 8
+        num_inputs = 4
         num_sys_inputs = num_snowstorm_params
+
         if 'DOMEfficiency' in parameter_names:
             num_sys_inputs -= 1
 
+        num_shared_inputs = num_sys_inputs + config['num_filters_list'][-1]
+
         if config['add_opening_angle']:
-            num_inputs += 1
+            num_shared_inputs += 1
 
         if config['add_anisotropy_angle']:
-            num_inputs += 1
+            num_shared_inputs += 1
 
         if config['add_dom_coordinates']:
-            num_inputs += 3
+            num_shared_inputs += 3
 
         if config['num_local_vars'] > 0:
             self._untracked_data['local_vars'] = new_weights(
@@ -102,7 +105,6 @@ class SystematicsCascadeModel(Source):
             method_list=config['method_list'],
             )
 
-        num_shared_inputs = num_sys_inputs + config['num_filters_list'][-1]
         self._untracked_data['shared_conv_layer'] = tfs.ConvNdLayers(
             input_shape=[-1, 86, 60, num_shared_inputs],
             filter_size_list=config['filter_size_list_2'],
@@ -279,14 +281,15 @@ class SystematicsCascadeModel(Source):
         params_expanded = tf.tile(modified_parameters,
                                   [1, 86, 60, 1])
 
-        input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
-                      distance]
+        input_list = [dx_normed, dy_normed, dz_normed, distance]
+        input_list_shared = [params_expanded,
+                             dx_normed, dy_normed, dz_normed, distance]
 
         if config['add_opening_angle']:
-            input_list.append(opening_angle_traf)
+            input_list_shared.append(opening_angle_traf)
 
         if config['add_anisotropy_angle']:
-            input_list.append(anisotropy_angle_traf)
+            input_list_shared.append(anisotropy_angle_traf)
 
         if config['add_dom_coordinates']:
 
@@ -300,7 +303,7 @@ class SystematicsCascadeModel(Source):
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
             print('dom_coords', dom_coords)
-            input_list.append(dom_coords)
+            input_list_shared.append(dom_coords)
 
         if config['num_local_vars'] > 0:
 
@@ -333,8 +336,9 @@ class SystematicsCascadeModel(Source):
                     x_parameters_expanded[self.get_index(param_name)])
 
         # put systematic parameters together and tile for each DOM
-        modified_sys_parameters = tf.tile(tf.stack(sys_parameters, axis=-1),
-                                          [1, 86, 60, 1])
+        modified_sys_parameters = tf.tile(
+            tf.stack(input_list_shared + sys_parameters, axis=-1),
+            [1, 86, 60, 1])
 
         # combine systematic parameters with output of shared layers
         x_doms_input2 = tf.concat(
