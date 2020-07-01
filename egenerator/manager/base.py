@@ -813,6 +813,16 @@ class BaseModelManager(Model):
                 self.save_weights(dir_path=save_dir,
                                   num_training_steps=step)
 
+            # -----------------------
+            # Profile steps 90 to 100
+            # -----------------------
+            if step == 90:
+                # start profiler
+                tf.profiler.experimental.start(train_log_dir)
+            if step == 100:
+                # stop profiler
+                tf.profiler.experimental.stop()
+
         # save model
         self.save_weights(dir_path=save_dir,
                           num_training_steps=step,
