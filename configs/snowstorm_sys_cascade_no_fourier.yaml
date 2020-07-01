@@ -444,7 +444,7 @@ model_settings: {
         'num_local_vars': 0,
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
-        'estimate_charge_distribution': 'negative_binomial',
+        'estimate_charge_distribution': False,
         'num_latent_models': 5,
 
         # This is a list of the orderd snowstorm parameters: (name, number)
@@ -458,24 +458,25 @@ model_settings: {
         ],
 
         # First local convolutions
-        'filter_size_list' : [[1, 1]],
-        'num_filters_list' : [20],
-        'method_list' : ['locally_connected'],
+        'filter_size_list' : [[1, 1], [1, 1], [1, 1]],
+        'num_filters_list' : [10, 10, 10],
+        'method_list' : ['locally_connected', 'locally_connected',
+                         'locally_connected'],
         'use_dropout_list' : False,
-        'activation_list' : ['elu'],
+        'activation_list' : ['tanh', 'tanh', 'tanh'],
         'use_batch_norm_list' : False,
         'use_residual_list' : True,
 
         # second shared convolutions
         'filter_size_list_2' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list_2' : [500, 500, 500, 22],
+        'num_filters_list_2' : [500, 500, 500, 21],
         'method_list_2' : ['convolution', 'convolution', 'convolution',
                            'convolution',
                           ],
         'use_dropout_list_2' : False,
         'activation_list_2' : ['elu', 'elu', 'elu', ''],
         'use_batch_norm_list_2' : False,
-        'use_residual_list_2' : True,
+        'use_residual_list_2' : [True, True, True, False],
     },
 }
 
