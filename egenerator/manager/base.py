@@ -630,12 +630,12 @@ class BaseModelManager(Model):
         return concrete_function
 
     def train(self, config, loss_module, num_training_iterations,
-              evaluation_module=None):
+              evaluation_module=None, profile_training=False):
         """Train the model.
 
         Parameters
         ----------
-        config: dict
+        config : dict
             A config describing all of the settings for the training script.
             Amongst others, this config must contain:
 
@@ -660,6 +660,13 @@ class BaseModelManager(Model):
             evaluation metrics on validation batches. The evaluation module
             must implement a method
                 evaluation_module.evaluate(data_batch, result_tensors, tensors)
+        profile_training : bool, optional
+            If true, trainings teps 90 to 100 will be profiled.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
         self.assert_configured(True)
 
@@ -816,12 +823,13 @@ class BaseModelManager(Model):
             # -----------------------
             # Profile steps 90 to 100
             # -----------------------
-            if step == 90:
-                # start profiler
-                tf.profiler.experimental.start(train_log_dir)
-            if step == 100:
-                # stop profiler
-                tf.profiler.experimental.stop()
+            if profile_training:
+                if step == 90:
+                    # start profiler
+                    tf.profiler.experimental.start(train_log_dir)
+                if step == 100:
+                    # stop profiler
+                    tf.profiler.experimental.stop()
 
         # save model
         self.save_weights(dir_path=save_dir,
