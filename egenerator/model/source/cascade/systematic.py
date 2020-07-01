@@ -66,7 +66,7 @@ class SystematicsCascadeModel(Source):
         if 'DOMEfficiency' in parameter_names:
             num_sys_inputs -= 1
 
-        num_shared_inputs = num_sys_inputs + config['num_filters_list'][-1]
+        num_shared_inputs = 8 + num_sys_inputs + config['num_filters_list'][-1]
 
         if config['add_opening_angle']:
             num_shared_inputs += 1
