@@ -292,20 +292,7 @@ loss_module_settings: [
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
-            'loss_function_name': 'unbinned_pulse_time_llh',
-        },
-    },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
-
-        config: {
-            # the float precision to use
-            'float_precision': 'float32',
-            # Add normalization terms to llh if True
-            'add_normalization_term': True,
-            # choose the loss function to use
-            'loss_function_name': 'dom_and_event_charge_pdf',
+            'loss_function_name': 'unbinned_extended_pulse_llh',
         },
     },
     {
