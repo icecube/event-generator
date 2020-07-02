@@ -32,7 +32,7 @@ training_settings: {
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
-        'normalize_by_total_charge': True,
+        'normalize_by_total_charge': False,
     },
 }
 
@@ -305,7 +305,7 @@ loss_module_settings: [
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
-            'loss_function_name': 'negative_binomial_charge_pdf',
+            'loss_function_name': 'dom_and_event_charge_pdf',
         },
     },
     {
