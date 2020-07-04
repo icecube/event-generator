@@ -296,16 +296,17 @@ loss_module_settings: [
         },
     },
     {
-    # The loss module class to use
-    'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
 
-    config: {
-        # the float precision to use
-        'float_precision': 'float32',
-        # Add normalization terms to llh if True
-        'add_normalization_term': True,
-        # choose the loss function to use
-        'loss_function_name': 'negative_binomial_charge_pdf',
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'negative_binomial_charge_pdf',
+        },
     },
     {
         # The loss module class to use
