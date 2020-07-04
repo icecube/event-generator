@@ -124,8 +124,8 @@ class GeneralFilterModule(BaseComponent):
             if isinstance(column, int):
                 # Assume this is an I3VectorDouble
                 with pd.HDFStore(file, 'r') as f:
-                    values = f[key]['item']
-                    indices = f[key]['vector_index']
+                    values = f[key]['item'].values
+                    indices = f[key]['vector_index'].values
                     values = values[indices == column]
             else:
                 # Assume this is an I3MapStringDouble
@@ -179,11 +179,15 @@ class GeneralFilterModule(BaseComponent):
 
         constraints = self.configuration.config['constraints']
         for key, column, op, threshold in constraints:
-            value_table = frame[key]
-            if key in value_table:
-                values = np.atleast_1d(value_table[key])
+            if isinstance(column, int):
+                # Assume `column` is an index in to a vector
+                values = np.atleast_1d(frame[key][column])
             else:
-                values = np.atleast_1d(getattr(value_table, key))
+                value_table = frame[key]
+                if key in value_table:
+                    values = np.atleast_1d(value_table[key])
+                else:
+                    values = np.atleast_1d(getattr(value_table, key))
 
             if op == '>':
                 constraint_mask = values > threshold
