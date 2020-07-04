@@ -120,8 +120,17 @@ class GeneralFilterModule(BaseComponent):
 
         constraints = self.configuration.config['constraints']
         for key, column, op, threshold in constraints:
-            with pd.HDFStore(file, 'r') as f:
-                values = f[key][column]
+
+            if isinstance(column, int):
+                # Assume this is an I3VectorDouble
+                with pd.HDFStore(file, 'r') as f:
+                    values = f[key]['item']
+                    indices = f[key]['vector_index']
+                    values = values[indices == column]
+            else:
+                # Assume this is an I3MapStringDouble
+                with pd.HDFStore(file, 'r') as f:
+                    values = f[key][column]
 
             if op == '>':
                 constraint_mask = values > threshold

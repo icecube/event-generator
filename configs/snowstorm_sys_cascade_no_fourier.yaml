@@ -292,8 +292,20 @@ loss_module_settings: [
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
-            'loss_function_name': 'unbinned_extended_pulse_llh',
+            'loss_function_name': 'unbinned_pulse_time_llh',
         },
+    },
+    {
+    # The loss module class to use
+    'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+    config: {
+        # the float precision to use
+        'float_precision': 'float32',
+        # Add normalization terms to llh if True
+        'add_normalization_term': True,
+        # choose the loss function to use
+        'loss_function_name': 'negative_binomial_charge_pdf',
     },
     {
         # The loss module class to use
@@ -306,8 +318,8 @@ loss_module_settings: [
                 'AnisotropyScale': [0., 2.0],
                 'DOMEfficiency': [0.9, 1.1],
                 'Scattering': [0.9, 1.1],
-                'HoleIceForward_Unified_00': [-1., 1.],
-                'HoleIceForward_Unified_01': [-0.2, 0.2],
+                'HoleIceForward_Unified_00': [-0.65, 0.20],
+                'HoleIceForward_Unified_01': [-0.07, 0.08],
             },
 
             # define fourier component sigmas
@@ -409,6 +421,10 @@ data_handler_settings: {
     'filter_settings':{
         'constraints': [
             # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            ['SnowstormParameters', 3, '>=', -0.65],
+            ['SnowstormParameters', 3, '<=', 0.20],
+            ['SnowstormParameters', 4, '>=', -0.07],
+            ['SnowstormParameters', 4, '<=', 0.08],
         ],
     },
 }
@@ -431,7 +447,7 @@ model_settings: {
         'num_local_vars': 0,
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
-        'estimate_charge_distribution': False,
+        'estimate_charge_distribution': 'negative_binomial',
         'num_latent_models': 5,
 
         # This is a list of the orderd snowstorm parameters: (name, number)
@@ -445,18 +461,18 @@ model_settings: {
         ],
 
         # First local convolutions
-        'filter_size_list' : [[1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [10, 10, 10],
-        'method_list' : ['locally_connected', 'locally_connected',
+        'filter_size_list' : [[1, 1], [1, 1]],
+        'num_filters_list' : [10, 10],
+        'method_list' : ['locally_connected',
                          'locally_connected'],
         'use_dropout_list' : False,
-        'activation_list' : ['tanh', 'tanh', 'tanh'],
+        'activation_list' : ['tanh', 'tanh'],
         'use_batch_norm_list' : False,
         'use_residual_list' : True,
 
         # second shared convolutions
         'filter_size_list_2' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list_2' : [500, 500, 500, 21],
+        'num_filters_list_2' : [300, 300, 300, 22],
         'method_list_2' : ['convolution', 'convolution', 'convolution',
                            'convolution',
                           ],
