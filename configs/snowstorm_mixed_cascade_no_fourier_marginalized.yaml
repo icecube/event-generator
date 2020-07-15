@@ -320,7 +320,7 @@ data_handler_settings: {
     # LabelModule Settings
     # --------------------
     # which label module to use
-    'label_module': 'cascades.CascadeGeneratorLabelModule',
+    'label_module': 'snowstorm_cascades.SnowstormCascadeGeneratorLabelModule',
 
     # settings for the label module
     'label_settings':{
@@ -330,6 +330,8 @@ data_handler_settings: {
         'trafo_log': [False, False, False, False, False, True, False, False],
         'label_key': 'LabelsDeepLearning',
         'additional_labels': ['energy_fraction_hadron'],
+        'snowstorm_key': 'SnowstormParameters',
+        'num_snowstorm_params': 0,
         'float_precision': 'float32',
     },
 
