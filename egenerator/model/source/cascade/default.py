@@ -52,6 +52,11 @@ class DefaultCascadeModel(Source):
         # ---------------------------------------------
         parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
                            'energy', 'time']
+        if 'additional_label_names' in config:
+            parameter_names += config['additional_label_names']
+            num_add_labels = len(config['additional_label_names'])
+        else:
+            num_add_labels = 0
 
         num_snowstorm_params = 0
         if 'snowstorm_parameter_names' in config:
@@ -60,8 +65,7 @@ class DefaultCascadeModel(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_features = 7 + num_snowstorm_params
-        num_inputs = 11 + num_snowstorm_params
+        num_inputs = 11 + num_add_labels + num_snowstorm_params
 
         if config['add_opening_angle']:
             num_inputs += 1
@@ -245,8 +249,7 @@ class DefaultCascadeModel(Source):
                                        axis=-1)
 
         # put everything together
-        params_expanded = tf.tile(modified_parameters,
-                                  [1, 86, 60, 1])
+        params_expanded = tf.tile(modified_parameters, [1, 86, 60, 1])
 
         input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
                       distance]

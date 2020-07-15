@@ -29,6 +29,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
 
     def _configure(self, config_data, shift_cascade_vertex, trafo_log,
                    float_precision, label_key='LabelsDeepLearning',
+                   additional_labels=None,
                    snowstorm_key='SnowstormParameters',
                    num_snowstorm_params=30):
         """Configure Module Class
@@ -53,6 +54,9 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             The float precision as a str.
         label_key : str, optional
             The name of the key under which the labels are saved.
+        additional_labels : list, optional
+            A list of additional labels to load from the label_key.
+            These labels are added before the snowstorm keys if provided.
         snowstorm_key : str, optional
             The name of the key under which the snowstorm parameters are saved.
             If `snowstorm_key` is None, no snowstorm parameters will be loaded.
@@ -114,14 +118,22 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             trafo_log_ext = list(trafo_log)
         trafo_log_ext.extend([False]*num_snowstorm_params)
 
-        data = {}
+        # create a list of label names to load
+        if additional_labels is None:
+            additional_labels = []
+        label_names = [
+            'cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
+            'cascade_azimuth', 'cascade_energy', 'cascade_t',
+        ] + additional_labels
+
+        data = {'label_names': label_names}
         data['label_tensors'] = DataTensorList([DataTensor(
-                                        name='x_parameters',
-                                        shape=[None, 7 + num_snowstorm_params],
-                                        tensor_type='label',
-                                        dtype=float_precision,
-                                        trafo=True,
-                                        trafo_log=trafo_log_ext)])
+            name='x_parameters',
+            shape=[None, len(label_names) + num_snowstorm_params],
+            tensor_type='label',
+            dtype=float_precision,
+            trafo=True,
+            trafo_log=trafo_log_ext)])
 
         if isinstance(config_data, DataTensorList):
             if config_data != data['label_tensors']:
@@ -135,6 +147,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
                           trafo_log=trafo_log,
                           float_precision=float_precision,
                           label_key=label_key,
+                          additional_labels=additional_labels,
                           snowstorm_key=snowstorm_key,
                           num_snowstorm_params=num_snowstorm_params))
         return configuration, data, {}
@@ -174,8 +187,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = f[self.configuration.config['label_key']]
-            for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
-                      'cascade_azimuth', 'cascade_energy', 'cascade_t']:
+            for l in self.data['label_names']:
                 cascade_parameters.append(_labels[l])
 
             snowstorm_key = self.configuration.config['snowstorm_key']
@@ -250,8 +262,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = frame[self.configuration.config['label_key']]
-            for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
-                      'cascade_azimuth', 'cascade_energy', 'cascade_t']:
+            for l in self.data['label_names']:
                 cascade_parameters.append(np.atleast_1d(_labels[l]))
 
             snowstorm_key = self.configuration.config['snowstorm_key']

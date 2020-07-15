@@ -51,6 +51,11 @@ class SystematicsCascadeModel(Source):
         # ---------------------------------------------
         parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
                            'energy', 'time']
+        if 'additional_label_names' in config:
+            parameter_names += config['additional_label_names']
+            num_add_labels = len(config['additional_label_names'])
+        else:
+            num_add_labels = 0
 
         num_snowstorm_params = 0
         if 'snowstorm_parameter_names' in config:
@@ -59,14 +64,16 @@ class SystematicsCascadeModel(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_features = 7 + num_snowstorm_params
         num_inputs = 4
         num_sys_inputs = num_snowstorm_params
 
         if 'DOMEfficiency' in parameter_names:
             num_sys_inputs -= 1
 
-        num_shared_inputs = 8 + num_sys_inputs + config['num_filters_list'][-1]
+        num_shared_inputs = (
+            8 + num_add_labels + num_sys_inputs
+            + config['num_filters_list'][-1]
+        )
 
         if config['add_opening_angle']:
             num_shared_inputs += 1
@@ -278,8 +285,7 @@ class SystematicsCascadeModel(Source):
                                        axis=-1)
 
         # put everything together
-        params_expanded = tf.tile(modified_parameters,
-                                  [1, 86, 60, 1])
+        params_expanded = tf.tile(modified_parameters, [1, 86, 60, 1])
 
         input_list = [dx_normed, dy_normed, dz_normed, distance]
         input_list_shared = [params_expanded,
@@ -328,19 +334,19 @@ class SystematicsCascadeModel(Source):
             keep_prob=config['keep_prob'],
         )
 
-        # gather systematic parameters excluding DOM efficiency
-        sys_parameters = []
+        # gather additional and systematic parameters excluding DOM efficiency
+        add_parameters = []
         for param_name in self.parameter_names[7:]:
             if param_name != 'DOMEfficiency':
-                sys_parameters.append(
+                add_parameters.append(
                     x_parameters_expanded[self.get_index(param_name)])
 
         # put systematic parameters together and tile for each DOM
-        modified_sys_parameters = tf.tile(tf.stack(sys_parameters, axis=-1),
+        modified_add_parameters = tf.tile(tf.stack(add_parameters, axis=-1),
                                           [1, 86, 60, 1])
 
         # combine systematic parameters with output of shared layers
-        input_list_shared.append(modified_sys_parameters)
+        input_list_shared.append(modified_add_parameters)
         input_list_shared.append(local_conv_layers[-1])
         x_doms_input2 = tf.concat(input_list_shared, axis=-1)
         print('x_doms_input2', x_doms_input2)
