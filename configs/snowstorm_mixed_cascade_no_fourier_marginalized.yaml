@@ -394,7 +394,7 @@ model_settings: {
         # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
         'additional_label_names' : [
             'energy_fraction_hadron',
-        ]
+        ],
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],

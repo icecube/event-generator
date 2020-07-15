@@ -431,7 +431,7 @@ model_settings: {
         # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
         'additional_label_names' : [
             'energy_fraction_hadron',
-        ]
+        ],
 
         # This is a list of the orderd snowstorm parameters: (name, number)
         'snowstorm_parameter_names': [
