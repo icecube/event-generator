@@ -130,11 +130,11 @@ data_iterator_settings: {
     'training': {
         'batch_size': 32,
         'num_splits': ,
-        'file_capacity': 2,
-        'batch_capacity': 20,
-        'dataset_capacity': 50,
+        'file_capacity': 5,
+        'batch_capacity': 50,
+        'dataset_capacity': 100,
         'num_jobs': 10,
-        'num_add_files': 3,
+        'num_add_files': 5,
         'num_repetitions': 3,
         'input_data': [
             # Snowstorm datasets
