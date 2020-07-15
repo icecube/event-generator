@@ -43,8 +43,8 @@ reconstruction_settings: {
     'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
 
     # Define which modules to run
-    'calculate_covariance_matrix': True,
-    'estimate_angular_uncertainty': True,
+    'calculate_covariance_matrix': False,
+    'estimate_angular_uncertainty': False,
     'run_mcmc': False,
     'make_1d_llh_scans': False,
 
@@ -160,6 +160,7 @@ data_iterator_settings: {
         'num_splits': ,
         'file_capacity': 2,
         'batch_capacity': 20,
+        'dataset_capacity': 20,
         'num_jobs': 10,
         'num_add_files': 3,
         'num_repetitions': 3,
