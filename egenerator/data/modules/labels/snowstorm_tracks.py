@@ -226,23 +226,24 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             num_params = self.configuration.config['num_snowstorm_params']
             num_events = len(track_parameters[0])
 
-            if snowstorm_key is not None:
-                _snowstorm_params = f[snowstorm_key]
-                params = _snowstorm_params['item']
-                index = _snowstorm_params['vector_index']
-                assert max(index) == num_params - 1
-                assert min(index) == 0
+            if num_params > 0:
+                if snowstorm_key is not None:
+                    _snowstorm_params = f[snowstorm_key]
+                    params = _snowstorm_params['item']
+                    index = _snowstorm_params['vector_index']
+                    assert max(index) == num_params - 1
+                    assert min(index) == 0
 
-                for i in range(num_params):
+                    for i in range(num_params):
 
-                    snowstorm_param = params[index == i]
-                    assert len(snowstorm_param) == num_events
-                    track_parameters.append(snowstorm_param)
+                        snowstorm_param = params[index == i]
+                        assert len(snowstorm_param) == num_events
+                        track_parameters.append(snowstorm_param)
 
-            else:
-                # No Snowstorm key is provided: add dummy values
-                for i in range(num_params):
-                    track_parameters.append(np.ones(num_events))
+                else:
+                    # No Snowstorm key is provided: add dummy values
+                    for i in range(num_params):
+                        track_parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
@@ -296,20 +297,21 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             num_params = self.configuration.config['num_snowstorm_params']
             num_events = len(track_parameters[0])
 
-            if snowstorm_key is not None:
-                _snowstorm_params = frame[snowstorm_key]
-                assert len(_snowstorm_params) == num_params
+            if num_params > 0:
+                if snowstorm_key is not None:
+                    _snowstorm_params = frame[snowstorm_key]
+                    assert len(_snowstorm_params) == num_params
 
-                for i in range(num_params):
+                    for i in range(num_params):
 
-                    snowstorm_param = np.atleast_1d(_snowstorm_params[i])
-                    assert len(snowstorm_param) == num_events
-                    track_parameters.append(snowstorm_param)
+                        snowstorm_param = np.atleast_1d(_snowstorm_params[i])
+                        assert len(snowstorm_param) == num_events
+                        track_parameters.append(snowstorm_param)
 
-            else:
-                # No Snowstorm key is provided: add dummy values
-                for i in range(num_params):
-                    track_parameters.append(np.ones(num_events))
+                else:
+                    # No Snowstorm key is provided: add dummy values
+                    for i in range(num_params):
+                        track_parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
