@@ -294,8 +294,8 @@ loss_module_settings: [
                 'AnisotropyScale': [0., 2.0],
                 'DOMEfficiency': [0.9, 1.1],
                 'Scattering': [0.9, 1.1],
-                'HoleIceForward_Unified_00': [-1., 1.],
-                'HoleIceForward_Unified_01': [-0.2, 0.2],
+                'HoleIceForward_Unified_00': [-0.65, 0.60],
+                'HoleIceForward_Unified_01': [-0.08, 0.08],
             },
 
             # define fourier component sigmas

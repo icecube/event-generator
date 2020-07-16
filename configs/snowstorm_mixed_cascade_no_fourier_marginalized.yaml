@@ -267,6 +267,20 @@ loss_module_settings: [
             'loss_function_name': 'dom_and_event_charge_pdf',
         },
     },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
+        config: {
+
+            # define uniform priors
+            'uniform_parameters': {
+                'energy_fraction_hadron': [0., 1.0],
+            },
+
+            # define fourier component sigmas
+            'sigmas': [],
+        },
+    },
 ]
 
 #---------------------------
