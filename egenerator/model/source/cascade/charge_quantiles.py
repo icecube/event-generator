@@ -497,8 +497,9 @@ class ChargeQuantileCascadeModel(Source):
         pulse_dom_charge_true = tf.gather_nd(dom_charges_true, pulses_ids)
         pulse_dom_charge = tf.gather_nd(dom_charges, pulses_ids)
 
-        # expanded pulse_quantile with shape: [n_pulses, 1]
+        # expanded pulse_quantiles and charges to shape: [n_pulses, 1]
         exp_pulse_quantiles = tf.expand_dims(pulse_quantiles, axis=-1)
+        exp_pulse_charges = tf.expand_dims(pulse_charges, axis=-1)
 
         # transform measured quantiles and total charge
         pulse_dom_charge_true_trafo = 0.1*tf.math.log(pulse_dom_charge_true+1.)
@@ -508,11 +509,14 @@ class ChargeQuantileCascadeModel(Source):
         input_list = [
             tf.log(exp_pulse_quantiles),  # ln(quantiles q_i) --> early import.
             pulse_dom_charge_true_trafo,  # total (true) DOM charge D_i
+            tf.log(exp_pulse_charges / pulse_dom_charge_true),  # rel. fraction
             pulse_latent_vars,
         ]
         if config['add_predicted_charge_to_latent_vars']:
             # total (predicted) DOM charge D_i
             input_list.append(pulse_dom_charge_trafo)
+            # charge fraction of the pulse relative to predicted DOM charge
+            input_list.append(tf.log(exp_pulse_charges / pulse_dom_charge))
 
         # Shape: [n_pulses, n_latent + (2 or 3)]
         quantile_pdf_input = tf.concat(input_list, axis=-1)
