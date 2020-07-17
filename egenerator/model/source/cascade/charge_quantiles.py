@@ -507,9 +507,13 @@ class ChargeQuantileCascadeModel(Source):
 
         # put all information together.
         input_list = [
-            tf.log(exp_pulse_quantiles),  # ln(quantiles q_i) --> early import.
-            pulse_dom_charge_true_trafo,  # total (true) DOM charge D_i
-            tf.log(exp_pulse_charges / pulse_dom_charge_true),  # rel. fraction
+            # ln(quantiles q_i) --> early times are important
+            tf.math.log(exp_pulse_quantiles),
+            # total (true) DOM charge D_i
+            pulse_dom_charge_true_trafo,
+            # rel. charge fraction of pulses wrt total DOM charge
+            # This should help to estimate how accurate the quantile is
+            tf.math.log(exp_pulse_charges / pulse_dom_charge_true),
             pulse_latent_vars,
         ]
         if config['add_predicted_charge_to_latent_vars']:
