@@ -120,7 +120,7 @@ class ChargeQuantileCascadeModel(Source):
         elif config['estimate_charge_distribution'] == 'negative_binomial':
             num_fc_inputs -= 1
 
-        if config['add_predicted_charge_to_latend_vars']:
+        if config['add_predicted_charge_to_latent_vars']:
             num_fc_inputs += 1
 
         self._untracked_data['fully_connected_layer'] = tfs.FCLayers(
