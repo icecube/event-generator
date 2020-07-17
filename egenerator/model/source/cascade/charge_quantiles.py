@@ -506,11 +506,11 @@ class ChargeQuantileCascadeModel(Source):
 
         # put all information together.
         input_list = [
-            pulse_latent_vars,
-            exp_pulse_quantiles,  # quantiles q_i
+            tf.log(exp_pulse_quantiles),  # ln(quantiles q_i) --> early import.
             pulse_dom_charge_true_trafo,  # total (true) DOM charge D_i
+            pulse_latent_vars,
         ]
-        if config['add_predicted_charge_to_latend_vars']:
+        if config['add_predicted_charge_to_latent_vars']:
             # total (predicted) DOM charge D_i
             input_list.append(pulse_dom_charge_trafo)
 
@@ -543,7 +543,7 @@ class ChargeQuantileCascadeModel(Source):
         print('pulse_light_propagation_time', pulse_light_propagation_time)
 
         # scale time range down to avoid big numbers:
-        t_scale = 0.001  # unit: 1./ns
+        t_scale = 0.001  # unit: 1./ns --> time units in us
         average_t_dist = 1000. * t_scale
         t_pdf = t_pdf * t_scale
         pulse_light_propagation_time *= t_scale
