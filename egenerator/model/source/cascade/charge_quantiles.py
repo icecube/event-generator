@@ -520,7 +520,8 @@ class ChargeQuantileCascadeModel(Source):
             # total (predicted) DOM charge D_i
             input_list.append(pulse_dom_charge_trafo)
             # charge fraction of the pulse relative to predicted DOM charge
-            input_list.append(tf.log(exp_pulse_charges / pulse_dom_charge))
+            input_list.append(
+                tf.math.log(exp_pulse_charges / pulse_dom_charge))
 
         # Shape: [n_pulses, n_latent + (2 or 3)]
         quantile_pdf_input = tf.concat(input_list, axis=-1)
