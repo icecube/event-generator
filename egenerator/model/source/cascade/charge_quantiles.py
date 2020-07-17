@@ -578,15 +578,16 @@ class ChargeQuantileCascadeModel(Source):
 
         # add reasonable scaling for parameters assuming the latent vars
         # are distributed normally around zero
-        factor_sigma = 1.0  # units: 1/t_scale
-        factor_mu = 1.0  # units: 1/t_scale
+        factor_sigma = 0.1  # units: 1/t_scale
+        factor_mu = 0.1  # units: 1/t_scale
         factor_r = 0.001
         factor_scale = 1.0
 
         # create correct offset and scaling
         # latent_mu = average_t_dist + factor_mu * latent_mu
-        latent_mu = pulse_light_propagation_time + factor_mu * latent_mu_offset
-        latent_sigma = factor_sigma * latent_sigma
+        latent_mu = pulse_light_propagation_time + factor_mu + (
+            factor_mu * latent_mu_offset)
+        latent_sigma = 0.3 + factor_sigma * latent_sigma
         latent_r = factor_r * latent_r
         latent_scale = 1 + factor_scale * latent_scale
 
