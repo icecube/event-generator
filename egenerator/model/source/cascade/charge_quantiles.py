@@ -113,15 +113,15 @@ class ChargeQuantileCascadeModel(Source):
         # Fully Connected Layers to comput PDF p(t | q_i, D_i)
         # ----------------------------------------------------
 
-        # minus 1 for charge prediction, plus 2 for q_i, D_i
-        num_fc_inputs = config['num_filters_list'][-1] - 1 + 2
+        # minus 1 for charge prediction, plus 3 for q_i, D_i, c_i/D_i
+        num_fc_inputs = config['num_filters_list'][-1] - 1 + 3
         if config['estimate_charge_distribution'] is True:
             num_fc_inputs -= 2
         elif config['estimate_charge_distribution'] == 'negative_binomial':
             num_fc_inputs -= 1
 
         if config['add_predicted_charge_to_latent_vars']:
-            num_fc_inputs += 1
+            num_fc_inputs += 2
 
         self._untracked_data['fully_connected_layer'] = tfs.FCLayers(
             input_shape=[-1, num_fc_inputs],
