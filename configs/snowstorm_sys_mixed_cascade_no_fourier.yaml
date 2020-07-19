@@ -183,9 +183,16 @@ data_iterator_settings: {
             # Snowstorm datasets
             # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30245/egenerator_30245_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
             # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30246/egenerator_30246_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
 
              # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
