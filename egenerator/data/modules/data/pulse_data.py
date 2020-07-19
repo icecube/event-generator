@@ -39,7 +39,7 @@ class PulseDataModule(BaseComponent):
 
     def _configure(self, config_data, pulse_key, dom_exclusions_key,
                    time_exclusions_key, float_precision, add_charge_quantiles,
-                   discard_pulses_from_excluded_doms=False):
+                   discard_pulses_from_excluded_doms):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 

@@ -319,6 +319,7 @@ data_handler_settings: {
         'time_exclusions_key': ,
         'float_precision': 'float32',
         'add_charge_quantiles': True,
+        'discard_pulses_from_excluded_doms': False,
     },
 
     # --------------------
