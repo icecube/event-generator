@@ -781,7 +781,7 @@ class BaseModelManager(Model):
                 loss_training = get_loss_train(data_batch=training_data_batch)
 
                 # get new batch of validation data
-                val_data_batch = next(train_dataset)
+                val_data_batch = next(validation_dataset)
 
                 # compute loss on validation data
                 loss_validation = get_loss_val(data_batch=val_data_batch)
