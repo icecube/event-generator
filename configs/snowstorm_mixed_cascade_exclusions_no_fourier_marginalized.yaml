@@ -16,7 +16,39 @@ unique_name: 'snowstorm_mixed_cascade_exclusions_no_fourier_marginalized'
 training_settings: {
     'optimizer_name': 'Adam',
     'optimizer_settings': {
-        'learning_rate': 0.001,
+        # 'learning_rate': 0.001,
+        'learning_rate': {
+            'full_class_string': 'egenerator.utils.learning_rate.MultiLearningRateScheduler',
+            'settings':{
+                'boundaries': [300000, 600000],
+                'scheduler_settings': [
+                    {
+                    'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
+                    'settings': {
+                        'initial_learning_rate': 0.01,
+                        'end_learning_rate': 0.001,
+                        'decay_steps': 50000,
+                        },
+                    },
+                    {
+                    'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
+                    'settings': {
+                        'initial_learning_rate': 0.001,
+                        'end_learning_rate': 0.001,
+                        'decay_steps': 300000,
+                        },
+                    },
+                    {
+                    'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
+                    'settings': {
+                        'initial_learning_rate': 0.001,
+                        'end_learning_rate': 0.000001,
+                        'decay_steps': 1000000,
+                        },
+                    },
+                ]
+            },
+        },
     },
     'l1_regularization': 0.,
     'l2_regularization': 0.,

@@ -62,13 +62,13 @@ class MultiLearningRateScheduler(tf.optimizers.schedules.LearningRateSchedule):
         if step <= self.boundaries[0]:
             return self.schedulers[0](step)
         if step > self.boundaries[-1]:
-            return self.schedulers[-1](step)
+            return self.schedulers[-1](step - self.boundaries[-1])
 
         for low, high, scheduler in zip(self.boundaries[:-1],
                                         self.boundaries[1:],
                                         self.schedulers[1:-1]):
             if step > low and step <= high:
-                return scheduler(step)
+                return scheduler(step - low)
 
     def get_config(self):
         return {
