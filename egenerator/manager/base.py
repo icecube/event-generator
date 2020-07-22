@@ -680,9 +680,26 @@ class BaseModelManager(Model):
 
         # create optimizer from config
         opt_config = config['training_settings']
+        optimizer_settings = dict(opt_config['optimizer_settings'])
+
+        # create learning rate schedule if learning rate is a dict
+        if 'learning_rate' in optimizer_settings:
+            if isinstance(optimizer_settings['learning_rate'], dict):
+
+                # assume that the learning rate dictionary defines a schedule
+                # In this case the dictionary must have the following keys:
+                #   full_class_string: str
+                #       The full class string of the scheduler class to use.
+                #   settings: dict
+                #       keyword arguments that are passed on to the scheduler
+                #       class.
+                lr_cfg = optimizer_settings.pop('learning_rate')
+                scheduler_class = misc.load_class(lr_cfg['full_class_string'])
+                scheduler = scheduler_class(**lr_cfg['settings'])
+                optimizer_settings['learning_rate'] = scheduler
+
         optimizer = getattr(tf.optimizers, opt_config['optimizer_name'])(
-                                **opt_config['optimizer_settings']
-                                )
+            **optimizer_settings)
         self._untracked_data['optimizer'] = optimizer
 
         # save new training step to model
