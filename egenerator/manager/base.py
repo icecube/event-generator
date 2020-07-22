@@ -457,7 +457,7 @@ class BaseModelManager(Model):
 
     @tf.function
     def get_loss(self, data_batch, loss_module, opt_config, is_training,
-                 add_summaries=False, parameter_tensor_name='x_parameters',
+                 summary_writer=None, parameter_tensor_name='x_parameters',
                  **kwargs):
         """Get the scalar loss for a batch of data and a given loss component.
 
@@ -477,8 +477,9 @@ class BaseModelManager(Model):
             Must be provided if batch normalisation is used.
             True: in training mode
             False: inference mode.
-        add_summaries : bool, optional
-            If True, tensorflow summaries will be calculated and added.
+        summary_writer : tf.summary.SummaryWriter, optional
+            If provied, tensorflow summaries will be calculated and written
+            to the specified summary writer.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         **kwargs
@@ -519,15 +520,16 @@ class BaseModelManager(Model):
                 combined_loss += loss_value + reg_loss
 
             # create summaries if a writer is provided
-            if add_summaries:
-                tf.summary.scalar(
-                    'loss_{:04d}'.format(i), loss_value,
-                    step=tf.cast(model.step, dtype=tf.int64))
-                if (opt_config['l1_regularization'] > 0. or
-                        opt_config['l2_regularization'] > 0.):
+            if summary_writer is not None:
+                with summary_writer.as_default():
                     tf.summary.scalar(
-                        'reg_loss_{:04d}'.format(i), reg_loss,
+                        'loss_{:04d}'.format(i), loss_value,
                         step=tf.cast(model.step, dtype=tf.int64))
+                    if (opt_config['l1_regularization'] > 0. or
+                            opt_config['l2_regularization'] > 0.):
+                        tf.summary.scalar(
+                            'reg_loss_{:04d}'.format(i), reg_loss,
+                            step=tf.cast(model.step, dtype=tf.int64))
 
         return combined_loss
 
@@ -624,8 +626,8 @@ class BaseModelManager(Model):
             A concrete tensorflow function with a fixed input_signature.
         """
         @tf.function(input_signature=input_signature)
-        def concrete_function(data_batch):
-            return function(data_batch, **fixed_objects)
+        def concrete_function(*args):
+            return function(*args, **fixed_objects)
 
         return concrete_function
 
@@ -720,13 +722,23 @@ class BaseModelManager(Model):
             **opt_config['additional_loss_module_kwargs']
         )
 
-        get_loss = self.get_concrete_function(
+        get_loss_train = self.get_concrete_function(
             function=self.get_loss,
             input_signature=(train_dataset.element_spec,),
             loss_module=loss_module,
             opt_config=opt_config,
             is_training=False,
-            add_summaries=True,
+            summary_writer=training_writer,
+            **opt_config['additional_loss_module_kwargs']
+        )
+
+        get_loss_val = self.get_concrete_function(
+            function=self.get_loss,
+            input_signature=(train_dataset.element_spec,),
+            loss_module=loss_module,
+            opt_config=opt_config,
+            is_training=False,
+            summary_writer=validation_writer,
             **opt_config['additional_loss_module_kwargs']
         )
 
@@ -766,15 +778,13 @@ class BaseModelManager(Model):
                 training_data_batch = next(train_dataset)
 
                 # compute loss on training data
-                with training_writer.as_default():
-                    loss_training = get_loss(data_batch=training_data_batch)
+                loss_training = get_loss_train(data_batch=training_data_batch)
 
                 # get new batch of validation data
                 val_data_batch = next(train_dataset)
 
                 # compute loss on validation data
-                with validation_writer.as_default():
-                    loss_validation = get_loss(data_batch=val_data_batch)
+                loss_validation = get_loss_val(data_batch=val_data_batch)
 
                 # check if there is a nan
                 if np.isnan(loss_training) or np.isnan(loss_validation):
