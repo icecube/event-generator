@@ -626,8 +626,8 @@ class BaseModelManager(Model):
             A concrete tensorflow function with a fixed input_signature.
         """
         @tf.function(input_signature=input_signature)
-        def concrete_function(*args):
-            return function(*args, **fixed_objects)
+        def concrete_function(data_batch):
+            return function(data_batch, **fixed_objects)
 
         return concrete_function
 
