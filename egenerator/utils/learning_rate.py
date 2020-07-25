@@ -53,22 +53,37 @@ class MultiLearningRateScheduler(tf.optimizers.schedules.LearningRateSchedule):
         if name is None:
             name = 'MultiLearningRateScheduler'
 
-        self.boundaries = boundaries
+        self.boundaries = tf.convert_to_tensor(boundaries)
         self.scheduler_settings = scheduler_settings
         self.schedulers = schedulers
         self.name = name
 
     def __call__(self, step):
-        if step <= self.boundaries[0]:
-            return self.schedulers[0](step)
-        if step > self.boundaries[-1]:
-            return self.schedulers[-1](step - self.boundaries[-1])
 
-        for low, high, scheduler in zip(self.boundaries[:-1],
-                                        self.boundaries[1:],
-                                        self.schedulers[1:-1]):
-            if step > low and step <= high:
-                return scheduler(step - low)
+        step = tf.convert_to_tensor(step)
+
+        # create a list of (boolean, callable) pairs
+        pred_fn_pairs = []
+
+        pred_fn_pairs.append((
+            step <= self.boundaries[0],
+            lambda: self.schedulers[0](step),
+        ))
+        pred_fn_pairs.append((
+            step > self.boundaries[-1],
+            lambda: self.schedulers[-1](step - self.boundaries[-1]),
+        ))
+        for index in range(len(self.schedulers) - 2):
+            low = self.boundaries[index]
+            high = self.boundaries[index + 1]
+            scheduler = self.schedulers[index + 1]
+
+            pred_fn_pairs.append((
+                step > low and step <= high,
+                lambda step: scheduler(step - low),
+            ))
+
+        return tf.case(pred_fn_pairs, exclusive=True)
 
     def get_config(self):
         return {
