@@ -53,14 +53,14 @@ class MultiLearningRateScheduler(tf.optimizers.schedules.LearningRateSchedule):
         if name is None:
             name = 'MultiLearningRateScheduler'
 
-        self.boundaries = tf.convert_to_tensor(boundaries)
+        self.boundaries = tf.convert_to_tensor(boundaries, dtype=tf.int64)
         self.scheduler_settings = scheduler_settings
         self.schedulers = schedulers
         self.name = name
 
     def __call__(self, step):
 
-        step = tf.convert_to_tensor(step)
+        step = tf.convert_to_tensor(step, dtype=tf.int64)
 
         # create a list of (boolean, callable) pairs
         pred_fn_pairs = []

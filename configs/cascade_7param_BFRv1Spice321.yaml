@@ -315,20 +315,6 @@ loss_module_settings: [
             'loss_function_name': 'negative_binomial_charge_pdf',
         },
     },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
-        config: {
-
-            # define uniform priors
-            'uniform_parameters': {
-                'energy_fraction_hadron': [0., 1.0],
-            },
-
-            # define fourier component sigmas
-            'sigmas': [],
-        },
-    },
 ]
 
 #---------------------------
@@ -390,10 +376,9 @@ data_handler_settings: {
     'label_settings':{
         'shift_cascade_vertex': True,
         # logarithm on labels:
-        # (x, y, z, zenith, azimuth, energy, time, energy_fraction_hadron)?
-        'trafo_log': [False, False, False, False, False, True, False, False],
+        # (x, y, z, zenith, azimuth, energy, time)?
+        'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
-        'additional_labels': ,
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 0,
         'float_precision': 'float32',
