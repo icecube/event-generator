@@ -58,6 +58,7 @@ class MultiLearningRateScheduler(tf.optimizers.schedules.LearningRateSchedule):
         self.schedulers = schedulers
         self.name = name
 
+    @tf.function
     def __call__(self, step):
 
         step = tf.convert_to_tensor(step)
