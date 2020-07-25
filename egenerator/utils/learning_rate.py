@@ -80,7 +80,7 @@ class MultiLearningRateScheduler(tf.optimizers.schedules.LearningRateSchedule):
 
             pred_fn_pairs.append((
                 step > low and step <= high,
-                lambda step: scheduler(step - low),
+                lambda: scheduler(step - low),
             ))
 
         return tf.case(pred_fn_pairs, exclusive=True)
