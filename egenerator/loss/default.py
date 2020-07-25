@@ -789,7 +789,8 @@ class DefaultLossModule(BaseComponent):
         # compute negative binomial charge likelihood over total event charge
         event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
         event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
-        event_charges_variance = tf.reduce_sum(hits_pred, axis=[1, 2])
+        event_charges_variance = tf.reduce_sum(
+            dom_charges_variance, axis=[1, 2])
 
         # compute over-dispersion factor alpha
         # var = mu + alpha*mu**2
