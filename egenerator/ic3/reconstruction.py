@@ -305,7 +305,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         if self.add_covariances:
             for name, value in results['covariance'].items():
                 if name == 'runtime':
-                    result_dict['runtime_covariance'] = value
+                    result_dict['runtime_covariance'] = float(value)
                 else:
                     # frame[self.output_key+'_cov_matrix_'+name] = \
                     #     dataclasses.I3Matrix(value)
@@ -314,17 +314,17 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                             self.manager.models[0].parameter_names):
                         for j, name_j in enumerate(
                                 self.manager.models[0].parameter_names):
-                            cov_dict[name_i+'_'+name_j] = value[i, j]
+                            cov_dict[name_i+'_'+name_j] = float(value[i, j])
                     frame[self.output_key+'_cov_matrix_'+name] = cov_dict
         else:
             # write covariance matrix from minimizer to frame
             pass
 
         if self.add_circular_err:
-            result_dict['circular_unc'] = \
-                results['CircularizedAngularUncertainty']['circular_unc']
-            result_dict['runtime_circular_err'] = \
-                results['CircularizedAngularUncertainty']['runtime']
+            result_dict['circular_unc'] = float(
+                results['CircularizedAngularUncertainty']['circular_unc'])
+            result_dict['runtime_circular_err'] = float(
+                results['CircularizedAngularUncertainty']['runtime'])
 
         # save to frame
         frame[self.output_key] = result_dict
