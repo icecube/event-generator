@@ -191,6 +191,13 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         # ------------------------------
         # Gather Reconstruction Settings
         # ------------------------------
+        # get a list of parameters which are transformed in log-space
+        self.log_names = []
+        parameter_tensor = self.manager.data_trafo.data[
+            'tensors']['x_parameters']
+        for i, name in enumerate(self.manager.models[0].parameter_names):
+            if parameter_tensor.trafo_log[i]:
+                self.log_names.append(name)
 
         # get a list of parameters to fit
         fit_paramater_list = [self.minimize_parameter_default_value
@@ -312,8 +319,17 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     cov_dict = dataclasses.I3MapStringDouble()
                     for i, name_i in enumerate(
                             self.manager.models[0].parameter_names):
+
+                        # adjust name to log_* if it unc. is in log-space
+                        if name_i in self.log_names:
+                                name_i = 'log_' + name_i
                         for j, name_j in enumerate(
                                 self.manager.models[0].parameter_names):
+
+                            # adjust name to log_* if it unc. is in log-space
+                            if name_j in self.log_names:
+                                name_j = 'log_' + name_j
+
                             cov_dict[name_i+'_'+name_j] = float(value[i, j])
                     frame[self.output_key+'_cov_matrix_'+name] = cov_dict
         else:
