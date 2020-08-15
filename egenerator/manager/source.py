@@ -1144,6 +1144,8 @@ class SourceManager(BaseModelManager):
         # ---------------
         calculate_covariance_matrix = \
             reco_config['calculate_covariance_matrix']
+        calculate_goodness_of_fit = \
+            reco_config['calculate_goodness_of_fit']
         estimate_angular_uncertainty = \
             reco_config['estimate_angular_uncertainty']
         run_mcmc = reco_config['run_mcmc']
@@ -1277,6 +1279,22 @@ class SourceManager(BaseModelManager):
                 name='covariance',
                 fit_paramater_list=fit_paramater_list,
                 reco_key='reco',
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+            )
+
+        # add goodness of fit module
+        if calculate_goodness_of_fit:
+            if calculate_covariance_matrix:
+                covariance_key = 'covariance'
+            else:
+                covariance_key = None
+            reco_tray.add_module(
+                'GoodnessOfFit',
+                name='GoodnessOfFit',
+                fit_paramater_list=fit_paramater_list,
+                reco_key='reco',
+                covariance_key=covariance_key,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
             )
