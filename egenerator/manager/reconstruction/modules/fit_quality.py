@@ -1,9 +1,9 @@
 import timeit
 import numpy as np
 import tensorflow as tf
-from scipy import optimize
+# from scipy import optimize
 
-from egenerator.utils import angles, basis_functions
+# from egenerator.utils import angles, basis_functions
 
 
 class GoodnessOfFit:
@@ -87,11 +87,15 @@ class GoodnessOfFit:
         self.reco_key = reco_key
         self.covariance_key = covariance_key
 
+        # get a list of parameters which are transformed in log-space
+        param_tensor = self.manager.data_trafo.data['tensors']['x_parameters']
+        self.log_params = np.array(param_tensor.trafo_log)
+
         # specify a random number generator for reproducibility
         self.rng = np.random.RandomState(random_seed)
 
         # parameter input signature
-        param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
+        param_dtype = getattr(tf, self.manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
@@ -115,6 +119,17 @@ class GoodnessOfFit:
         # --------------------------------------------------
         # get concrete functions for reconstruction and loss
         # --------------------------------------------------
+
+        # get model tensor function
+        model_tensor_settings = {'model_index': 0}
+        self.model_tensor_function = function_cache.get(
+            'model_tensors_function', model_tensor_settings)
+
+        if self.model_tensor_function is None:
+            self.model_tensor_function = manager.get_model_tensors_function(
+                **model_tensor_settings)
+            function_cache.add(
+                self.model_tensor_function, model_tensor_settings)
 
         # Get loss and gradients function
         function_settings = dict(
@@ -184,15 +199,40 @@ class GoodnessOfFit:
         # sample event hypotheses from posterior
         if self.covariance_key is not None:
             cov = results[self.covariance_key]['cov_sand']
+
+            # transform log-parameters to log space
+            result_inv_log = np.array(result_inv)
+            print('self.log_params', self.log_params)
+            print('self.log_params', self.log_params.shape)
+            print('result_inv_log', result_inv_log)
+            print('result_inv_log', result_inv_log.shape)
+            result_inv_log[:, self.log_params] = np.log(
+                1.0 + result_inv_log[:, self.log_params])
             sampled_hypotheses = self.rng.multivariate_normal(
                 mean=result_inv,
                 cov=cov,
                 size=self.num_samples,
             )
+            # revert log-trafo
+            sampled_hypotheses[:, self.log_params] = np.exp(
+                sampled_hypotheses[:, self.log_params]) - 1.0
         else:
             sampled_hypotheses = np.tile(
                 result_inv, reps=[self.num_samples, 1])
 
+        print(sampled_hypotheses)
+        print(sampled_hypotheses.shape)
+
+        # compute expectation from egenerator model
+        result_tensors = self.model_tensor_function(sampled_hypotheses)
+
+        # create empty arrays to store results
+        sample_recos = np.empty_like(sampled_hypotheses)
+        sample_dom_llh = np.empty([self.num_samples, 86, 60])
+
+        Now walk through events and simulate + reconstruct + compute loss
+        for event_id in range(self.num_samples):
+            pass
 
 
 

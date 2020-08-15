@@ -193,10 +193,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         # ------------------------------
         # get a list of parameters which are transformed in log-space
         self.log_names = []
-        parameter_tensor = self.manager.data_trafo.data[
-            'tensors']['x_parameters']
+        param_tensor = self.manager.data_trafo.data['tensors']['x_parameters']
         for i, name in enumerate(self.manager.models[0].parameter_names):
-            if parameter_tensor.trafo_log[i]:
+            if param_tensor.trafo_log[i]:
                 self.log_names.append(name)
 
         # get a list of parameters to fit

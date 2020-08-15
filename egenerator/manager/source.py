@@ -475,6 +475,67 @@ class SourceManager(BaseModelManager):
 
         return hessian_function
 
+    def get_model_tensors_function(self, model_index=0):
+        """Get a tf function that returns the model tensors
+        for a set of parameters.
+
+        Parameters
+        ----------
+        model_index : int, optional
+            The model index for which to obtain the result tensors.
+            This is only relevant if multiple models were defined
+            during construction of the SourceManager object.
+
+        Returns
+        -------
+        tf.function
+            A tensorflow function: f(parameters) -> dict of model tensors
+            that returns a dictionary of tf.Tensor which are computed by
+            the event-generator model.
+        """
+        model = self.models[model_index]
+
+        param_dtype = getattr(
+            tf, self.data_trafo.data['tensors']['x_parameters'].dtype)
+        param_signature = tf.TensorSpec(
+            shape=[None, model.num_parameters], dtype=param_dtype)
+
+        @tf.function(input_signature=(param_signature,))
+        def model_tensors_function(parameters):
+            """Get the model tensors for a given set of parameters.
+
+            Parameters
+            ----------
+            parameters : tf.Tensor
+                The tensor describing the parameters.
+                The parameters are expected to *not* be transformed!
+                Shape: [-1, num_model_parameters]
+
+            Returns
+            -------
+            TYPE
+                Description
+            """
+            # create a dummy data batch dict
+            data_batch_dict = {
+                'x_pulses': tf.convert_to_tensor([[1., 9500.]]),
+                'x_pulses_ids': tf.convert_to_tensor([[0, 0, 0]]),
+                'x_dom_exclusions': tf.ones(
+                    [len(parameters), 86, 60, 1], dtype=tf.bool),
+                'x_dom_charge': tf.ones(
+                    [len(parameters), 86, 60, 1], dtype=param_dtype),
+                'x_parameters': tf.convert_to_tensor(
+                    parameters, dtype=param_dtype),
+            }
+            result_tensors = model.get_tensors(
+                data_batch_dict,
+                is_training=False,
+                parameter_tensor_name='x_parameters')
+
+            return result_tensors
+
+        return model_tensors_function
+
     def reconstruct_events(self, data_batch, loss_module,
                            loss_and_gradients_function,
                            fit_paramater_list,
