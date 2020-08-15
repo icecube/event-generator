@@ -845,7 +845,7 @@ class BaseComponent(object):
 
         # write data
         with open(data_file_path, 'wb') as handle:
-            pickle.dump(self.data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.data, handle, protocol=2)
 
         # walk through dependent sub components and save these as well
         for name, sub_component in self.sub_components.items():

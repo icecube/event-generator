@@ -303,6 +303,11 @@ class SourceManager(BaseModelManager):
         The outer product of gradients (OPG) estimate can be used in connection
         with the inverse Hessian matrix in order to obtain a robust estimate
         for the covariance matrix.
+        It is also relevant for extended maximum likelhoods for which the
+        inverse covariance matrix (in the asymptotic limit) of the orginal
+        (unextended) likelihood is not given by the
+        Hessian (second order derivatives) as in standard MLE, but by a product
+        of first oder derivates (OPG estimate).
 
         Parameters
         ----------
