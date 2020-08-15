@@ -5,7 +5,7 @@ import timeit
 
 from icecube import dataclasses, icetray
 
-from egenerator.ic3.configurator import I3ManagerConfigurator
+from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.utils import basis_functions
 
 
@@ -115,7 +115,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # --------------------------------------------------
         # Build and configure SourceManager and extrac Model
         # --------------------------------------------------
-        self.manager_configurator = I3ManagerConfigurator(
+        self.manager_configurator = ManagerConfigurator(
             manager_dirs=[self.model_dir],
             num_threads=self.num_threads,
         )

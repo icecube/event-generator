@@ -1,7 +1,7 @@
 import os
 from icecube import dataclasses, icetray
 
-from egenerator.ic3.configurator import I3ManagerConfigurator
+from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.manager.reconstruction.tray import ReconstructionTray
 
 
@@ -160,7 +160,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 manager_dirs.append(name)
 
         # Build and configure SourceManager
-        self.manager_configurator = I3ManagerConfigurator(
+        self.manager_configurator = ManagerConfigurator(
             manager_dirs=manager_dirs,
             reco_config_dir=None,
             load_labels=False,
