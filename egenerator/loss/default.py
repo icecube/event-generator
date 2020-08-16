@@ -328,7 +328,7 @@ class DefaultLossModule(BaseComponent):
                                                     event_charges_pred + eps)
 
         if sort_loss_terms:
-            loss_doms = tf.tensor_scatter_add(
+            loss_doms = tf.tensor_scatter_nd_add(
                 llh_poisson,
                 indices=data_batch_dict['x_pulses_ids'],
                 updates=time_log_likelihood,
@@ -347,7 +347,7 @@ class DefaultLossModule(BaseComponent):
             if sort_loss_terms:
                 loss_terms[1] += norm_events
                 loss_terms[2] += norm_doms
-                loss_terms[2] = tf.tensor_scatter_add(
+                loss_terms[2] = tf.tensor_scatter_nd_add(
                     loss_terms[2],
                     indices=data_batch_dict['x_pulses_ids'],
                     updates=norm_pulses,
@@ -440,7 +440,7 @@ class DefaultLossModule(BaseComponent):
             loss_terms = [
                 None,
                 None,
-                tf.tensor_scatter_add(
+                tf.tensor_scatter_nd_add(
                     tf.zeros_like(data_batch_dict['x_dom_charge'][..., 0]),
                     indices=data_batch_dict['x_pulses_ids'],
                     updates=time_loss,
@@ -454,7 +454,7 @@ class DefaultLossModule(BaseComponent):
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
             if sort_loss_terms:
-                loss_terms[2] = tf.tensor_scatter_add(
+                loss_terms[2] = tf.tensor_scatter_nd_add(
                     loss_terms[2],
                     indices=data_batch_dict['x_pulses_ids'],
                     updates=self.log_faculty(pulse_charges),
@@ -569,7 +569,7 @@ class DefaultLossModule(BaseComponent):
         time_loss = -pulse_charges * pulse_log_pdf_values
 
         if sort_loss_terms:
-            loss_doms = tf.tensor_scatter_add(
+            loss_doms = tf.tensor_scatter_nd_add(
                 -llh_charge,
                 indices=data_batch_dict['x_pulses_ids'],
                 updates=time_loss,
@@ -586,7 +586,7 @@ class DefaultLossModule(BaseComponent):
             norm_doms = self.log_faculty(hits_true)
             if sort_loss_terms:
                 loss_terms[2] += norm_doms
-                loss_terms[2] = tf.tensor_scatter_add(
+                loss_terms[2] = tf.tensor_scatter_nd_add(
                     loss_terms[2],
                     indices=data_batch_dict['x_pulses_ids'],
                     updates=norm_pulses,
@@ -709,7 +709,7 @@ class DefaultLossModule(BaseComponent):
             loss_terms = [
                 None,
                 None,
-                tf.tensor_scatter_add(
+                tf.tensor_scatter_nd_add(
                     tf.zeros_like(data_batch_dict['x_dom_charge'][..., 0]),
                     indices=data_batch_dict['x_pulses_ids'],
                     updates=time_loss,
