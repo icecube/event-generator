@@ -352,7 +352,9 @@ class SourceManager(BaseModelManager):
             seed=seed,
             parameter_tensor_name=parameter_tensor_name,
             reduce_to_scalar=False,
-            normalize_by_total_charge=False)
+            normalize_by_total_charge=False,
+            sort_loss_terms=False,
+        )
 
         @tf.function(input_signature=input_signature)
         def opg_estimate_function(parameters_trafo, data_batch,
@@ -453,15 +455,17 @@ class SourceManager(BaseModelManager):
         @tf.function(input_signature=input_signature)
         def hessian_function(parameters_trafo, data_batch, seed=seed):
             loss = self.parameter_loss_function(
-                    parameters_trafo=parameters_trafo,
-                    data_batch=data_batch,
-                    loss_module=loss_module,
-                    fit_paramater_list=fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=seed,
-                    parameter_tensor_name=parameter_tensor_name,
-                    reduce_to_scalar=False,
-                    normalize_by_total_charge=False)
+                parameters_trafo=parameters_trafo,
+                data_batch=data_batch,
+                loss_module=loss_module,
+                fit_paramater_list=fit_paramater_list,
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                seed=seed,
+                parameter_tensor_name=parameter_tensor_name,
+                reduce_to_scalar=True,
+                normalize_by_total_charge=False,
+                sort_loss_terms=False,
+            )
 
             hessian = tf.hessians(loss, parameters_trafo)[0]
 
@@ -495,10 +499,14 @@ class SourceManager(BaseModelManager):
         """
         model = self.models[model_index]
 
+        pulse_dtype = getattr(
+            tf, self.data_trafo.data['tensors']['x_pulses'].dtype)
         param_dtype = getattr(
             tf, self.data_trafo.data['tensors']['x_parameters'].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, model.num_parameters], dtype=param_dtype)
+        x_pulses_shape = self.data_trafo.data['tensors']['x_pulses'].shape
+        assert len(x_pulses_shape) == 2
 
         @tf.function(input_signature=(param_signature,))
         def model_tensors_function(parameters):
@@ -518,7 +526,7 @@ class SourceManager(BaseModelManager):
             """
             # create a dummy data batch dict
             data_batch_dict = {
-                'x_pulses': tf.convert_to_tensor([[1., 9500.]]),
+                'x_pulses': tf.ones([1, x_pulses_shape[1]], dtype=pulse_dtype),
                 'x_pulses_ids': tf.convert_to_tensor([[0, 0, 0]]),
                 'x_dom_exclusions': tf.ones(
                     [len(parameters), 86, 60, 1], dtype=tf.bool),

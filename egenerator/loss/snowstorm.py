@@ -176,6 +176,7 @@ class SnowstormPriorLossModule(BaseComponent):
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
                  parameter_tensor_name='x_parameters', reduce_to_scalar=True,
+                 sort_loss_terms=False,
                  **kwargs):
         """Get the scalar loss for a given data batch and result tensors.
 
@@ -214,6 +215,15 @@ class SnowstormPriorLossModule(BaseComponent):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
         **kwargs
             Arbitrary keyword arguments.
 
@@ -262,6 +272,23 @@ class SnowstormPriorLossModule(BaseComponent):
             # we will use the negative log likelihood as loss
             fourier_loss = -fourier_log_pdf
             loss_terms.append(fourier_loss)
+
+        if sort_loss_terms:
+            event_loss = None
+            for loss_term in loss_terms:
+                if (loss_term.shape) > 1:
+                    loss_term = tf.reduce_sum(loss_term, axis=1)
+                if event_loss is None:
+                    event_loss = loss_term
+                else:
+                    event_loss += loss_term
+
+            dom_tensor = data_batch_dict['x_dom_charge'][..., 0]
+            loss_terms = [
+                tf.zeros_like(dom_tensor[0, 0, 0]),
+                event_loss,
+                tf.zeros_like(dom_tensor),
+            ]
 
         if reduce_to_scalar:
             return tf.math.accumulate_n([tf.reduce_sum(loss_term)
