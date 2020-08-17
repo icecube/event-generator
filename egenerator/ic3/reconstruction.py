@@ -403,7 +403,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 # loop through DOMs and fill values
                 for string in range(86):
                     for om in range(60):
-                        om_key = icetray.OMKey(string, om)
+                        om_key = icetray.OMKey(string+1, om+1)
                         map_pvalue1[om_key] = float(dom_p_value1[string, om])
                         map_pvalue2[om_key] = float(dom_p_value2[string, om])
 
