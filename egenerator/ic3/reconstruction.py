@@ -298,7 +298,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 fit_paramater_list=fit_paramater_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
-                minimize_in_trafo_space=minimize_in_trafo_space,
+                minimize_in_trafo_space=self.minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
                 **self.goodness_of_fit_settings
             )
