@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def get_reco_result_batch(self, result_trafo,
+def get_reco_result_batch(result_trafo,
                           seed_tensor,
                           fit_paramater_list,
                           minimize_in_trafo_space,
