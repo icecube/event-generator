@@ -383,11 +383,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             if self.goodness_of_fit_settings['reconstruct_samples']:
                 self.write_cov_matrix(
                   frame,
-                  cov=results['sample_reco_cov'],
+                  cov=results['GoodnessOfFit']['sample_reco_cov'],
                   cov_name='goodness_of_fit')
                 for i, n in enumerate(self.manager.models[0].parameter_names):
                     result_dict[n+'_sample_reco_bias'] = float(
-                        results['sample_reco_bias'][i])
+                        results['GoodnessOfFit']['sample_reco_bias'][i])
 
             # write per DOM p-values to frame
             if self.goodness_of_fit_settings['add_per_dom_calculation']:
