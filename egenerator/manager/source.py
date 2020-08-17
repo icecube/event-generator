@@ -1433,6 +1433,9 @@ class SourceManager(BaseModelManager):
         cov_zen_azi_list = []
         cov_fit_zen_azi_list = []
         circular_unc_list = []
+        event_p_value_1 = []
+        event_p_value_2 = []
+        std_devs_samples = []
 
         event_counter = 0
         for data_batch in test_dataset:
@@ -1517,6 +1520,18 @@ class SourceManager(BaseModelManager):
                     os.path.splitext(reco_config['reco_output_file'])[0],
                     event_counter)
                 # np.save(cov_file, np.stack([cov, cov_fit]))
+
+            # ---------------
+            # Goodness of Fit
+            # ---------------
+            if calculate_goodness_of_fit:
+                event_p_value_1.append(
+                    results['GoodnessOfFit']['event_p_value_1sided'])
+                event_p_value_2.append(
+                    results['GoodnessOfFit']['event_p_value_2sided'])
+                if 'sample_reco_cov' in results['GoodnessOfFit']:
+                    cov = results['GoodnessOfFit']['sample_reco_cov']
+                    std_devs_samples.append(np.sqrt(np.diag(cov)))
 
             # -------------------
             # Angular Uncertainty
@@ -1695,6 +1710,15 @@ class SourceManager(BaseModelManager):
 
         if estimate_angular_uncertainty:
             df_reco['circular_unc'] = circular_unc_list
+
+        if calculate_goodness_of_fit:
+            df_reco['event_p_value_1sided'] = event_p_value_1
+            df_reco['event_p_value_2sided'] = event_p_value_2
+            if 'sample_reco_cov' in results['GoodnessOfFit']:
+                for index, param_name in enumerate(
+                        self.models[0].parameter_names):
+                    df_reco[param_name + '_unc_samples'] = (
+                        std_devs_samples[: index])
 
         df_reco['loss_true'] = loss_true_list
         df_reco['loss_reco'] = loss_reco_list

@@ -1,9 +1,9 @@
 import timeit
 import numpy as np
 import tensorflow as tf
-# from scipy import optimize
 
-# from egenerator.utils import angles, basis_functions
+from egenerator.utils import basis_functions
+from egenerator.manager.reconstruction.modules.utils import trafo
 
 
 class GoodnessOfFit:
@@ -14,9 +14,13 @@ class GoodnessOfFit:
                  covariance_key=None,
                  minimize_in_trafo_space=True,
                  parameter_tensor_name='x_parameters',
-                 scipy_optimizer_settings={'method': 'L-BFGS-B'},
-                 num_samples=100,
+                 scipy_optimizer_settings={
+                    'method': 'L-BFGS-B',
+                    'options': {'ftol': 1e-6},
+                 },
+                 num_samples=50,
                  reconstruct_samples=True,
+                 add_per_dom_calculation=True,
                  random_seed=42):
         """Initialize module and setup tensorflow functions.
 
@@ -72,6 +76,9 @@ class GoodnessOfFit:
             If False, the sampled events are not reconstructed and the best fit
             point is set to the truth. Note: this will result in a bias of
             obtained likelihood values.
+        add_per_dom_calculation : bool, optional
+            If True, a goodness of fit value is calculated for every DOM in
+            addition to the total event goodness of fit value.
         random_seed : int, optional
             A random seed for the numpy Random State which is used to sample
             the random opening angles (delta psi).
@@ -84,6 +91,7 @@ class GoodnessOfFit:
         self.parameter_tensor_name = parameter_tensor_name
         self.num_samples = num_samples
         self.reconstruct_samples = reconstruct_samples
+        self.add_per_dom_calculation = add_per_dom_calculation
         self.reco_key = reco_key
         self.covariance_key = covariance_key
 
@@ -94,15 +102,24 @@ class GoodnessOfFit:
         # specify a random number generator for reproducibility
         self.rng = np.random.RandomState(random_seed)
 
+        # get indices of data tensors
+        self.x_pulses_index = self.manager.data_handler.tensors.get_index(
+            'x_pulses')
+        self.x_pulses_ids_index = self.manager.data_handler.tensors.get_index(
+            'x_pulses_ids')
+
+        # get indices of parameters
+        self.param_time_index = self.manager.models[0].get_index('time')
+
         # parameter input signature
-        param_dtype = getattr(tf, self.manager.data_trafo.data['tensors'][
+        self.param_dtype = getattr(tf, self.manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
-            dtype=param_dtype)
+            dtype=self.param_dtype)
         param_signature_full = tf.TensorSpec(
             shape=[None, len(fit_paramater_list)],
-            dtype=param_dtype)
+            dtype=self.param_dtype)
 
         data_batch_signature = []
         for tensor in manager.data_handler.tensors.list:
@@ -120,7 +137,9 @@ class GoodnessOfFit:
         # get concrete functions for reconstruction and loss
         # --------------------------------------------------
 
+        # -------------------------
         # get model tensor function
+        # -------------------------
         model_tensor_settings = {'model_index': 0}
         self.model_tensor_function = function_cache.get(
             'model_tensors_function', model_tensor_settings)
@@ -131,7 +150,33 @@ class GoodnessOfFit:
             function_cache.add(
                 self.model_tensor_function, model_tensor_settings)
 
+        # ---------------------------
+        # Get parameter loss function
+        # ---------------------------
+        loss_settings = dict(
+            input_signature=(
+                param_signature, data_batch_signature, param_signature_full),
+            loss_module=loss_module,
+            fit_paramater_list=fit_paramater_list,
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            seed=None,
+            parameter_tensor_name=parameter_tensor_name,
+            reduce_to_scalar=not self.add_per_dom_calculation,
+            sort_loss_terms=self.add_per_dom_calculation,
+            normalize_by_total_charge=True,
+        )
+
+        self.loss_function = function_cache.get(
+            'parameter_loss_function', loss_settings)
+
+        if self.loss_function is None:
+            self.loss_function = manager.get_parameter_loss_function(
+                **loss_settings)
+            function_cache.add(self.loss_function, loss_settings)
+
+        # -------------------------------
         # Get loss and gradients function
+        # -------------------------------
         function_settings = dict(
             input_signature=(
                 param_signature, data_batch_signature, param_signature_full),
@@ -142,16 +187,6 @@ class GoodnessOfFit:
             parameter_tensor_name=parameter_tensor_name,
         )
 
-        # Get parameter loss function
-        self.loss_function = function_cache.get(
-            'parameter_loss_function', function_settings)
-
-        if self.loss_function is None:
-            self.loss_function = manager.get_parameter_loss_function(
-                **function_settings)
-            function_cache.add(self.loss_function, function_settings)
-
-        # Get loss and gradients function
         loss_and_gradients_function = function_cache.get(
             'loss_and_gradients_function', function_settings)
 
@@ -159,6 +194,7 @@ class GoodnessOfFit:
             loss_and_gradients_function = \
                 manager.get_loss_and_gradients_function(**function_settings)
             function_cache.add(loss_and_gradients_function, function_settings)
+        # -------------------------------
 
         # choose reconstruction method depending on the optimizer interface
         def reconstruction_method(data_batch, seed_tensor):
@@ -189,6 +225,9 @@ class GoodnessOfFit:
             Description
         """
 
+        # start time
+        t_0 = timeit.default_timer()
+
         result_trafo = results[self.reco_key]['result_trafo']
         result_inv = results[self.reco_key]['result']
 
@@ -196,23 +235,23 @@ class GoodnessOfFit:
         assert len(result_inv) == 1
         result_inv = result_inv[0]
 
+        # --------------------------------------
         # sample event hypotheses from posterior
+        # --------------------------------------
         if self.covariance_key is not None:
             cov = results[self.covariance_key]['cov_sand']
 
             # transform log-parameters to log space
             result_inv_log = np.array(result_inv)
-            print('self.log_params', self.log_params)
-            print('self.log_params', self.log_params.shape)
-            print('result_inv_log', result_inv_log)
-            print('result_inv_log', result_inv_log.shape)
-            result_inv_log[:, self.log_params] = np.log(
-                1.0 + result_inv_log[:, self.log_params])
+            result_inv_log[self.log_params] = np.log(
+                1.0 + result_inv_log[self.log_params])
+
             sampled_hypotheses = self.rng.multivariate_normal(
-                mean=result_inv,
+                mean=result_inv_log,
                 cov=cov,
                 size=self.num_samples,
             )
+
             # revert log-trafo
             sampled_hypotheses[:, self.log_params] = np.exp(
                 sampled_hypotheses[:, self.log_params]) - 1.0
@@ -220,158 +259,333 @@ class GoodnessOfFit:
             sampled_hypotheses = np.tile(
                 result_inv, reps=[self.num_samples, 1])
 
-        print(sampled_hypotheses)
-        print(sampled_hypotheses.shape)
-
+        # -----------------------------------------
         # compute expectation from egenerator model
+        # -----------------------------------------
         result_tensors = self.model_tensor_function(sampled_hypotheses)
 
+        # draw total charge per DOM and cascade
+        dom_charges = self.rng.poisson(result_tensors['dom_charges'].numpy())
+
+        source_times = sampled_hypotheses[:, self.param_time_index]
+
+        # get cumuluative sum of mixture model contributions
+        cum_scale = np.cumsum(
+            result_tensors['latent_var_scale'].numpy(), axis=-1)
+
+        latent_var_mu = result_tensors['latent_var_mu'].numpy()
+        latent_var_sigma = result_tensors['latent_var_sigma'].numpy()
+        latent_var_r = result_tensors['latent_var_r'].numpy()
+
+        # for numerical stability:
+        cum_scale[..., -1] = 1.00000001
+
+        # ---------------------------------
+        # Iterate through individual events
+        # ---------------------------------
+
         # create empty arrays to store results
-        sample_recos = np.empty_like(sampled_hypotheses)
-        sample_dom_llh = np.empty([self.num_samples, 86, 60])
+        sample_recos_trafo = np.empty_like(sampled_hypotheses)
+        sample_event_llh = np.empty(self.num_samples)
+        if self.add_per_dom_calculation:
+            sample_dom_llh = np.empty([self.num_samples, 86, 60])
 
-        Now walk through events and simulate + reconstruct + compute loss
+        # calculate time needed for each step
+        t_sampling = 0.
+        t_reconstruction = 0.
+        t_loss = 0.
+
+        # Now walk through events: simulate + reconstruct + compute loss
         for event_id in range(self.num_samples):
-            pass
 
+            # -----------------------------
+            # simulate event: sample pulses
+            # -----------------------------
+            t_1 = timeit.default_timer()
 
+            # figure out if charge quantile also needs to be added
+            data_module = self.manager.data_handler.data_module
+            add_charge_quantiles = data_module.configuration.config[
+                'add_charge_quantiles']
 
+            x_pulses, x_pulses_ids = self.sample_event_pulses(
+                rng=self.rng,
+                dom_charges=dom_charges[event_id],
+                cum_scale=cum_scale[event_id],
+                source_time=source_times[event_id],
+                latent_mu=latent_var_mu[event_id],
+                latent_sigma=latent_var_sigma[event_id],
+                latent_r=latent_var_r[event_id],
+                add_charge_quantiles=add_charge_quantiles)
 
+            # create data_batch_dict based on these new pulses
+            data_batch_new = [t for t in data_batch]
+            data_batch_new[self.x_pulses_index] = x_pulses
+            data_batch_new[self.x_pulses_ids_index] = x_pulses_ids
+            data_batch_new = tuple(data_batch_new)
+            tf_seed_tensor = tf.convert_to_tensor(
+                np.expand_dims(sampled_hypotheses[event_id], axis=0),
+                self.param_dtype)
 
+            t_2 = timeit.default_timer()
 
-        # The following assumes that result is the full hypothesis
-        assert np.all(self.fit_paramater_list)
+            # -----------------------------------------------
+            # reconstruct event based on the simulated pulses
+            # -----------------------------------------------
+            if self.reconstruct_samples:
+                sample_result_trafo, res_obj = self.reconstruction_method(
+                    data_batch_new, tf_seed_tensor)
+            else:
+                if self.minimize_in_trafo_space:
+                    sample_result_trafo = self.manager.data_trafo.transform(
+                        data=tf_seed_tensor.numpy(),
+                        tensor_name=self.parameter_tensor_name)
+                else:
+                    sample_result_trafo = tf_seed_tensor.numpy()
 
-        result_trafo = results[self.reco_key]['result_trafo']
-        result_inv = results[self.reco_key]['result']
+            assert len(sample_result_trafo) == 1
+            sample_recos_trafo[event_id] = sample_result_trafo[0]
+            t_3 = timeit.default_timer()
 
-        # calculate delta degrees of freedom
-        ddof = len(result_inv[0]) - 2
+            # ---------------------------------------------------
+            # compute log likelihood for each DOM and total event
+            # ---------------------------------------------------
+            sample_loss = self.loss_function(
+                parameters_trafo=sample_result_trafo,
+                data_batch=data_batch_new,
+                seed=tf_seed_tensor)
 
-        # define reconstruction method
-        def reconstruct_at_angle(zeniths, azimuths):
-            data_batch_combined = [t for t in data_batch]
-            seed_tensor = np.array(result_inv)
-            unc_results_list = []
-            unc_loss_list = []
-            for zen, azi in zip(zeniths, azimuths):
+            if self.add_per_dom_calculation:
+                # we need to sort through and compute loss for each DOM
+                sample_dom_llh[event_id] = sample_loss[2].numpy()[0]
+                sample_event_llh[event_id] = (
+                    np.sum(sample_loss[2].numpy()[0])
+                    + sample_loss[1].numpy()[0] + sample_loss[0].numpy())
+            else:
+                # we just have the scalar loss for the whole event
+                sample_event_llh[event_id] = sample_loss.numpy()
+            t_4 = timeit.default_timer()
 
-                # put together seed tensor and new data batch
-                seed_tensor[:, self.zenith_index] = zen
-                seed_tensor[:, self.azimuth_index] = azi
-                tf_seed_tensor = tf.convert_to_tensor(
-                    seed_tensor, self.param_dtype)
+            # accumulate times
+            t_sampling += t_2 - t_1
+            t_reconstruction += t_3 - t_2
+            t_loss += t_4 - t_3
+            # print('Sample loop took: {:3.3f}s'.format(t_4 - t_1))
+            # print('\t Pulse Sampling: {:3.3f}s'.format(t_2 - t_1))
+            # print('\t Reconstruction: {:3.3f}s'.format(t_3 - t_2))
+            # print('\t Loss Calculation: {:3.3f}s'.format(t_4 - t_3))
 
-                # reconstruct (while keeping azimuth and zenith fixed)
-                unc_result, result_obj = self.unc_reconstruction_method(
-                    tuple(data_batch_combined), tf_seed_tensor)
+        # invert possible transformation and put full hypothesis together
+        sample_recos = trafo.get_reco_result_batch(
+            result_trafo=sample_recos_trafo,
+            seed_tensor=sampled_hypotheses,
+            fit_paramater_list=self.fit_paramater_list,
+            minimize_in_trafo_space=self.minimize_in_trafo_space,
+            data_trafo=self.manager.data_trafo,
+            parameter_tensor_name=self.parameter_tensor_name)
+        sample_diff = sampled_hypotheses - sample_recos
+        sample_reco_bias = np.mean(sample_diff, axis=0)
+        sample_reco_cov = np.cov(sample_diff.T)
 
-                # get loss
-                unc_loss = self.unc_loss_function(
-                    parameters_trafo=unc_result,
-                    data_batch=tuple(data_batch_combined),
-                    seed=tf_seed_tensor).numpy()
-
-                # append data
-                unc_results_list.append(unc_result)
-                unc_loss_list.append(unc_loss)
-
-            unc_results = np.concatenate(unc_results_list, axis=0)
-            unc_losses = np.array(unc_loss_list)
-
-            return unc_results, unc_losses
-
-        # start timer
-        unc_start_t = timeit.default_timer()
-
-        # get loss of reco best fit
-        unc_loss_best = self.loss_function(
+        # compute loss for actual data
+        data_loss = self.loss_function(
             parameters_trafo=result_trafo,
             data_batch=data_batch,
-            seed=result_inv).numpy()
+            seed=tf_seed_tensor)
 
-        # define zenith and azimuth of reconstruction result
-        result_zenith = result_inv[:, self.zenith_index]
-        result_azimuth = result_inv[:, self.azimuth_index]
-
-        # ------------------------
-        # get scale of uncertainty
-        # ------------------------
-        def bisection_step(low, high, target=0.99, ddof=5):
-            center = low + (high - low) / 2.
-            zen, azi = angles.get_delta_psi_vector(
-                zenith=result_zenith,
-                azimuth=result_azimuth,
-                delta_psi=[center],
-                random_service=self.rng)
-            unc_results, unc_losses = reconstruct_at_angle(zen, azi)
-
-            # calculate cdf value assuming Wilk's Theorem
-            cdf_value = chi2(ddof).cdf(2*(unc_losses - unc_loss_best))
-
-            # pack values together
-            values = ([center], zen, azi, unc_results,
-                      unc_losses, cdf_value)
-            if cdf_value > target:
-                high = center
-            else:
-                low = center
-            return low, high, values
-
-        if self.covariance_key is not None:
-            cov_sand_fit = results[self.covariance_key]['cov_sand_fit']
-
-            stds = np.sqrt(np.diag(cov_sand_fit))
-            circ_sigma = np.sqrt((
-                stds[self.zenith_index]**2 +
-                stds[self.azimuth_index]**2 *
-                np.sin(result_zenith)**2) / 2.)[0]
-
-            unc_upper_bound = min(89.9, 3*np.rad2deg(circ_sigma))
+        if self.add_per_dom_calculation:
+            data_dom_llh = data_loss[2].numpy()[0]
+            data_event_llh = (
+                np.sum(data_loss[2].numpy()[0])
+                + data_loss[1].numpy()[0] + data_loss[0].numpy())
         else:
-            num_unc_scale_steps = 4
-            lower_bound = 0.
-            upper_bound = 90.
-            for i in range(num_unc_scale_steps):
-                lower_bound, upper_bound, values = bisection_step(
-                    lower_bound, upper_bound, ddof=ddof)
-            unc_upper_bound = min(89.9, values[0][0])
+            data_event_llh = data_loss
 
-        print('Upper bound: {} | ddof: {}'.format(unc_upper_bound, ddof))
-        # ------------------------
+        # ---------------------------------------------------------
+        # compare to test-statistic distribution to compute p-value
+        # ---------------------------------------------------------
+        event_p_value1, event_p_value2 = self.compute_p_value(
+            sample_event_llh, data_event_llh)
 
-        # generate random vectors at different opening angles delta psi
-        delta_psi = self.rng.uniform(1, unc_upper_bound,
-                                     size=self.num_samples)
-        delta_psi = np.linspace(0, unc_upper_bound, self.num_samples)
-        zen, azi = angles.get_delta_psi_vector(
-            zenith=result_zenith,
-            azimuth=result_azimuth,
-            delta_psi=delta_psi,
-            random_service=self.rng)
+        if self.add_per_dom_calculation:
+            dom_p_value1 = np.empty_like(data_dom_llh)
+            dom_p_value2 = np.empty_like(data_dom_llh)
 
-        # reconstruct at chosen angles
-        unc_results, unc_losses = reconstruct_at_angle(zen, azi)
+            # walk through DOMs
+            for string in range(86):
+                for om in range(60):
+                    p_value1, p_value2 = self.compute_p_value(
+                        sample_dom_llh[:, string, om],
+                        data_dom_llh[string, om],
+                    )
+                    dom_p_value1[string, om] = p_value1
+                    dom_p_value2[string, om] = p_value2
 
-        # calculate delta_log_prob
-        delta_loss = unc_losses - unc_loss_best
+        print('data_event_llh', data_event_llh)
+        print(
+            'sample_event_llh',
+            np.min(sample_event_llh),
+            np.mean(sample_event_llh),
+            np.max(sample_event_llh),
+        )
+        print('event_p_value one-sided', event_p_value1)
+        print('event_p_value two-sided', event_p_value2)
 
-        # fit chi2 CDF and estimate circularized uncertainty
-        circular_unc_deg = self.get_circularized_estimate(
-            delta_psi, delta_loss, x0=5., ddof=ddof)
+        # Calculate elapsed time
+        t_5 = timeit.default_timer()
+        t_p_value = t_5 - t_4
+        print('GoodnessOfFit elapsed time: {:3.3f}s'.format(t_5 - t_0))
+        print('\t Pulse Sampling: {:3.3f}s'.format(t_sampling))
+        print('\t Reconstruction: {:3.3f}s'.format(t_reconstruction))
+        print('\t Loss Calculation: {:3.3f}s'.format(t_loss))
+        print('\t P-Value Calculation: {:3.3f}s'.format(t_p_value))
 
-        # end timer
-        unc_end_t = timeit.default_timer()
-
-        print('delta_loss', delta_loss)
-        print('Uncertainty estimation took: {:3.3f}s'.format(
-            unc_end_t - unc_start_t))
-
+        # -----------------------------------------
+        # write everything to the result dictionary
+        # -----------------------------------------
         results = {
-            'delta_psi': delta_psi,
-            'delta_loss': delta_loss,
-            'circular_unc': np.deg2rad(circular_unc_deg),
-            'circular_unc_deg': circular_unc_deg,
+            'event_p_value_1sided': event_p_value1,
+            'event_p_value_2sided': event_p_value2,
+            'num_samples': self.num_samples,
+            'sampled_hypotheses': sampled_hypotheses,
         }
+        if self.add_per_dom_calculation:
+            results['dom_p_value1'] = dom_p_value1
+            results['dom_p_value2'] = dom_p_value2
+        if self.reconstruct_samples:
+            results.update({
+                'sample_recos': sample_recos,
+                'sample_reco_bias': sample_reco_bias,
+                'sample_reco_cov': sample_reco_cov,
+            })
 
         return results
+
+    def compute_p_value(self, sample_llh, data_llh):
+        """Compute the p-value for a given ts-distribution `sample_llh`.
+
+        Parameters
+        ----------
+        sample_llh : array_like
+            The test-statistic distribution.
+        data_llh : float
+            The test-statistic value for which to compute the one and two
+            sided p-values
+
+        Returns
+        -------
+        float
+            1-sided p-value
+        float
+            2-sided p-value
+        """
+        num_samples = len(sample_llh)
+        half_num = num_samples/2.
+        sample_llh_sorted = np.sort(sample_llh)
+        idx = np.searchsorted(sample_llh_sorted, data_llh)
+        p_value1 = float(num_samples - idx) / num_samples
+        p_value2 = (half_num - abs(half_num - idx)) / (half_num)
+
+        return p_value1, p_value2
+
+    def sample_event_pulses(self, rng, dom_charges, cum_scale, source_time,
+                            latent_mu, latent_sigma, latent_r,
+                            add_charge_quantiles=False):
+        """Sample pulses from PDF and create a I3RecoPulseSeriesMap
+
+        Parameters
+        ----------
+        rng : RandomService
+            The random number service to use.
+        dom_charges : array_like
+            The sampled charges at each DOM.
+            Shape: [86, 60, 1]
+        cum_scale : array_like
+            The cumulative sum of latent scales for each mixture model comp.
+            Shape: [86, 60]
+        source_time : float
+            The time of the source.
+        latent_mu : array_like
+            The latent mus of the AG mixture model.
+            Shape: [86, 60]
+        latent_sigma : array_like
+            The latent sigmas of the AG mixture model.
+            Shape: [86, 60]
+        latent_r : array_like
+            The latent rs of the AG mixture model.
+            Shape: [86, 60]
+        add_charge_quantiles : bool, optional
+            If True, charge quantiles are added to the pulses.
+
+        Returns
+        -------
+        array_like
+            The sampled pulses.
+            Shape: [n_pulses, 2 or 3]
+        array_like
+            The ids of the sampled pulses.
+            Shape: [n_pulses, 3]
+        """
+
+        # this is meant to run for a single event, make sure this is true
+        assert len(dom_charges.shape) == 3
+
+        x_pulses = []
+        x_pulses_ids = []
+
+        # walk through DOMs
+        for string in range(86):
+            for om in range(60):
+
+                num_pe = dom_charges[string, om, 0]
+                if num_pe <= 0:
+                    continue
+
+                # we will uniformly choose the charge and then correct
+                # again to obtain correct total charge
+                # ToDo: figure out actual chage distribution of pulses!
+                pulse_charges = rng.uniform(0.25, 1.75, size=num_pe)
+                pulse_charges *= num_pe / np.sum(pulse_charges)
+
+                # for each pulse, draw 2 random numbers which we will need
+                # to figure out which mixtue model component to choose
+                # and at what time the pulse gets injected
+                rngs = rng.uniform(size=(num_pe, 2))
+
+                idx = np.searchsorted(cum_scale[string, om], rngs[:, 0])
+
+                # get parameters for chosen asymmetric gaussian
+                pulse_mu = latent_mu[string, om, idx]
+                pulse_sigma = latent_sigma[string, om, idx]
+                pulse_r = latent_r[string, om, idx]
+
+                # caclulate time of pulse
+                pulse_times = basis_functions.asymmetric_gauss_ppf(
+                    rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r)
+
+                # fix scale
+                pulse_times *= 1000.
+
+                # fix offset
+                pulse_times += source_time
+
+                # sort pulses in time
+                sorted_indices = np.argsort(pulse_times)
+                pulse_times = pulse_times[sorted_indices]
+                pulse_charges = pulse_charges[sorted_indices]
+
+                # append pulses
+                pulse_elements = [pulse_charges, pulse_times]
+                if add_charge_quantiles:
+                    pulse_elements.append(
+                        np.cumsum(pulse_charges) / np.sum(pulse_charges))
+                pulses = np.stack(pulse_elements, axis=1)
+                pulses_ids = np.tile((0, string, om), reps=[num_pe, 1])
+
+                x_pulses.append(pulses)
+                x_pulses_ids.append(pulses_ids)
+
+        x_pulses = np.concatenate(x_pulses)
+        x_pulses_ids = np.concatenate(x_pulses_ids)
+
+        return x_pulses, x_pulses_ids
