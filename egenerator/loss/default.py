@@ -901,7 +901,9 @@ class DefaultLossModule(BaseComponent):
             Charge PDF Likelihood.
             List of tensors defining the terms of the log likelihood
         """
-        eps = 1e-7
+
+        # underneath 5e-5 the log_negative_binomial function becomes unstable
+        eps = 5e-5
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
 

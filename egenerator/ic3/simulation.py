@@ -276,8 +276,14 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         """
 
         # draw total charge per DOM and cascade
-        dom_charges = self.random_service.poisson(
-            result_tensors['dom_charges'].numpy())
+        dom_charges = basis_functions.sample_from_negative_binomial(
+            rng=self.random_service,
+            mu=result_tensors['dom_charges'].numpy(),
+            alpha_or_var=result_tensors['dom_charges_variance'].numpy(),
+            param_is_alpha=False,
+        )
+        # dom_charges = self.random_service.poisson(
+        #     result_tensors['dom_charges'].numpy())
         dom_charges_total = np.sum(dom_charges, axis=0)
         num_cascades = dom_charges.shape[0]
 

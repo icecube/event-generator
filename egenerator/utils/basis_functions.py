@@ -251,7 +251,9 @@ def tf_log_negative_binomial(x, mu, alpha, add_normalization_term=False):
 
         Var(x) = mu + alpha*mu**2
 
-    Alpha must be greater than zero.
+    [https://arxiv.org/pdf/1704.04110.pdf page 4]
+
+    Alpha must be greater than zero (best if >5e-5 due to numerical issues).
 
     Parameters
     ----------
@@ -282,12 +284,115 @@ def tf_log_negative_binomial(x, mu, alpha, add_normalization_term=False):
     gamma_terms = tf.math.lgamma(x + inv_alpha) - tf.math.lgamma(inv_alpha)
 
     if add_normalization_term:
-        gamma_terms -= tf.math.gamma(x + 1.)
+        gamma_terms -= tf.math.lgamma(x + 1.)
 
     term1 = -inv_alpha * tf.math.log(1. + alpha_mu)
     term2 = x * tf.math.log(alpha_mu / (1. + alpha_mu))
 
     return gamma_terms + term1 + term2
+
+
+def log_negative_binomial(x, mu, alpha, add_normalization_term=False):
+    """Computes the logarithm of the negative binomial PDF
+
+    The parameterization chosen here is defined by the mean mu and
+    the over-dispersion factor alpha.
+
+        Var(x) = mu + alpha*mu**2
+
+    [https://arxiv.org/pdf/1704.04110.pdf page 4]
+
+    Alpha must be greater than zero (best if >5e-5 due to numerical issues).
+
+    Note: alternatively scipy.stats.nbinom can be used
+        def negative_binomial(x, mu, alpha):
+            sigma2 = mu + alpha*mu**2
+            p = 1 - (sigma2 - mu) / sigma2  # need 1-p here
+            r = (mu**2 ) / (sigma2 - mu)
+            return nbinom(r, p).pmf(x)
+
+    Parameters
+    ----------
+    x : array_like
+        The input values.
+    mu : array_like
+        Mean of the distribution.
+        Must be greater equal zero.
+    alpha : array_like
+        The over-dispersion parameter.
+        Must be greater zero.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+        Note: this term is not required for minimization and the negative
+        binomial distribution only has a proper normalization for integer x.
+        For real-valued x the negative binomial is not properly normalized and
+        hence adding the normalization term does not help.
+
+    Returns
+    -------
+    array_like
+        Logarithm of the negative binomal PDF evaluated at x.
+    """
+    inv_alpha = 1./alpha
+    alpha_mu = alpha*mu
+
+    # compute gamma terms
+    gamma_terms = special.gammaln(x + inv_alpha) - special.gammaln(inv_alpha)
+
+    if add_normalization_term:
+        gamma_terms -= special.gammaln(x + 1.)
+
+    term1 = -inv_alpha * np.log(1. + alpha_mu)
+    term2 = x * np.log(alpha_mu / (1. + alpha_mu))
+
+    return gamma_terms + term1 + term2
+
+
+def sample_from_negative_binomial(rng, mu, alpha_or_var, param_is_alpha,
+                                  size=None):
+    """Sample points from the negative binomial distribution.
+
+    The parameterization chosen here is defined by the mean mu and
+    the over-dispersion factor alpha (or via the variance).
+
+        Var(x) = mu + alpha*mu**2
+
+    [https://arxiv.org/pdf/1704.04110.pdf page 4]
+
+    Alpha must be greater than zero.
+
+    Parameters
+    ----------
+    rng : RandomState
+        The random number generator to use.
+    mu : array_like
+        Mean of the distribution.
+        Must be greater equal zero.
+    alpha_or_var : array_like
+        if param_is_alpha == True:
+            The over-dispersion parameter.
+            Must be greater zero.
+        if param_is_alpha == False:
+            The expected variance.
+            Must be greater zero.
+    param_is_alpha : bool
+        If True, the parameter passed as `alpha_or_var` is alpha.
+        If False, the parameter passed as `alpha_or_var` is the variance.
+    size : int or array_like, optional
+        The shape of random numbers to sample.
+
+    Returns
+    -------
+    array_like
+        The sampled points from the negative binomial distribution.
+    """
+    if param_is_alpha:
+        var = mu + alpha_or_var*mu**2
+    else:
+        var = alpha_or_var
+    p = 1 - (var - mu) / var
+    r = (mu**2) / (var - mu)
+    return rng.negative_binomial(r, p, size=size)
 
 
 def tf_rayleigh(x, sigma):

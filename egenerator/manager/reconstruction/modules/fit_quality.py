@@ -265,7 +265,8 @@ class GoodnessOfFit:
         result_tensors = self.model_tensor_function(sampled_hypotheses)
 
         # draw total charge per DOM and cascade
-        dom_charges = self.rng.poisson(result_tensors['dom_charges'].numpy())
+        dom_charges = self.sample_num_pe(result_tensors)
+        # dom_charges = self.rng.poisson(result_tensors['dom_charges'].numpy())
 
         source_times = sampled_hypotheses[:, self.param_time_index]
 
@@ -487,6 +488,27 @@ class GoodnessOfFit:
         p_value2 = (half_num - abs(half_num - idx)) / (half_num)
 
         return p_value1, p_value2
+
+    def sample_num_pe(self, result_tensors):
+        """Sample number of PE for each DOM.
+
+        Parameters
+        ----------
+        result_tensors : dict of tf.Tensor
+            The dictionary of result tensors from the event-generator model.
+
+        Returns
+        -------
+        array_like
+            The number of PE for each DOM
+        """
+        dom_charges = basis_functions.sample_from_negative_binomial(
+            rng=self.rng,
+            mu=result_tensors['dom_charges'].numpy(),
+            alpha_or_var=result_tensors['dom_charges_variance'].numpy(),
+            param_is_alpha=False,
+        )
+        return dom_charges
 
     def sample_event_pulses(self, rng, dom_charges, cum_scale, source_time,
                             latent_mu, latent_sigma, latent_r,
