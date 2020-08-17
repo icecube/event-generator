@@ -1436,6 +1436,7 @@ class SourceManager(BaseModelManager):
         event_p_value_1 = []
         event_p_value_2 = []
         std_devs_samples = []
+        sample_reco_bias = []
 
         event_counter = 0
         for data_batch in test_dataset:
@@ -1530,6 +1531,8 @@ class SourceManager(BaseModelManager):
                 event_p_value_2.append(
                     results['GoodnessOfFit']['event_p_value_2sided'])
                 if 'sample_reco_cov' in results['GoodnessOfFit']:
+                    bias = results['GoodnessOfFit']['sample_reco_bias']
+                    sample_reco_bias.append(bias)
                     cov = results['GoodnessOfFit']['sample_reco_cov']
                     std_devs_samples.append(np.sqrt(np.diag(cov)))
 
@@ -1715,10 +1718,13 @@ class SourceManager(BaseModelManager):
             df_reco['event_p_value_1sided'] = event_p_value_1
             df_reco['event_p_value_2sided'] = event_p_value_2
             if 'sample_reco_cov' in results['GoodnessOfFit']:
+                std_devs_samples = np.stack(std_devs_samples, axis=0)
                 for index, param_name in enumerate(
                         self.models[0].parameter_names):
                     df_reco[param_name + '_unc_samples'] = (
                         std_devs_samples[: index])
+                    df_reco[param_name + '_sample_reco_bias'] = (
+                        sample_reco_bias[: index])
 
         df_reco['loss_true'] = loss_true_list
         df_reco['loss_reco'] = loss_reco_list

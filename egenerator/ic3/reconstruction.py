@@ -60,6 +60,22 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'Add calculation of covariance matrices via Hessian '
                           'matrix evaluated at the best fit point.',
                           False)
+        self.AddParameter('add_goodness_of_fit',
+                          'Add calculation of goodness of fit. Points are '
+                          'sampled from the fitted posterior and reconstructed'
+                          '. The llh of these points is then used to construct'
+                          ' a test-statistic. This test-statistic distribution'
+                          ' is used to obtain a p-value for the goodness '
+                          'of the fit, e.g. it is tested if the llh of the '
+                          'best fit position of the data event matches. If it '
+                          'does not this can indicate that the fit found a '
+                          'local minimum, or that the provided data event '
+                          'is not well described by the chosen model. '
+                          'Note: if `add_covariances` is True, then the '
+                          'computed covariance matrix will be used to define '
+                          'the posterior for the sampling, otherwise the '
+                          'samples will simply be set to the best fit point.',
+                          False)
         self.AddParameter('label_key',
                           'Only relevant if labels are being loaded. '
                           'The key from which to load labels.',
@@ -116,6 +132,19 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           ' to "tfp". '
                           'Defines settings for tensorflow optimizer',
                           {'method': 'bfgs_minimize', 'x_tolerance': 0.001})
+        self.AddParameter('goodness_of_fit_settings',
+                          'Only relevant if `add_goodness_of_fit` is set '
+                          ' to "True". '
+                          'Defines settings for goodness of fit calculation.',
+                          {
+                              'scipy_optimizer_settings': {
+                                  'method': 'L-BFGS-B',
+                                  'options': {'ftol': 1e-6},
+                              },
+                              'num_samples': 50,
+                              'reconstruct_samples': True,
+                              'add_per_dom_calculation': True,
+                          })
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -129,6 +158,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.time_exclusions_key = self.GetParameter('time_exclusions_key')
         self.add_circular_err = self.GetParameter('add_circular_err')
         self.add_covariances = self.GetParameter('add_covariances')
+        self.add_goodness_of_fit = self.GetParameter('add_goodness_of_fit')
         self.label_key = self.GetParameter('label_key')
         self.snowstorm_key = self.GetParameter('snowstorm_key')
         self.num_threads = self.GetParameter('num_threads')
@@ -145,6 +175,13 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.scipy_optimizer_settings = \
             self.GetParameter('scipy_optimizer_settings')
         self.tf_optimizer_settings = self.GetParameter('tf_optimizer_settings')
+        self.goodness_of_fit_settings = \
+            self.GetParameter('goodness_of_fit_settings')
+
+        if 'reconstruct_samples' not in self.goodness_of_fit_settings:
+            self.goodness_of_fit_settings['reconstruct_samples'] = True
+        if 'add_per_dom_calculation' not in self.goodness_of_fit_settings:
+            self.goodness_of_fit_settings['add_per_dom_calculation'] = True
 
         if isinstance(self.seed_keys, str):
             self.seed_keys = [self.seed_keys]
@@ -250,6 +287,22 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 parameter_tensor_name=parameter_tensor_name,
             )
 
+        if self.add_goodness_of_fit:
+            if self.add_covariances:
+                covariance_key = 'covariance'
+            else:
+                covariance_key = None
+            reco_tray.add_module(
+                'GoodnessOfFit',
+                name='GoodnessOfFit',
+                fit_paramater_list=fit_paramater_list,
+                reco_key='reco',
+                covariance_key=covariance_key,
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                **self.goodness_of_fit_settings
+            )
+
         # add circularized angular uncertainty estimation module
         if self.add_circular_err:
             if self.add_covariances:
@@ -313,27 +366,47 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 if name == 'runtime':
                     result_dict['runtime_covariance'] = float(value)
                 else:
-                    # frame[self.output_key+'_cov_matrix_'+name] = \
-                    #     dataclasses.I3Matrix(value)
-                    cov_dict = dataclasses.I3MapStringDouble()
-                    for i, name_i in enumerate(
-                            self.manager.models[0].parameter_names):
-
-                        # adjust name to log_* if it unc. is in log-space
-                        if name_i in self.log_names:
-                                name_i = 'log_' + name_i
-                        for j, name_j in enumerate(
-                                self.manager.models[0].parameter_names):
-
-                            # adjust name to log_* if it unc. is in log-space
-                            if name_j in self.log_names:
-                                name_j = 'log_' + name_j
-
-                            cov_dict[name_i+'_'+name_j] = float(value[i, j])
-                    frame[self.output_key+'_cov_matrix_'+name] = cov_dict
+                    self.write_cov_matrix(frame, cov=value, cov_name=name)
         else:
             # write covariance matrix from minimizer to frame
             pass
+
+        # write goodness of fit variables to frame
+        if self.add_goodness_of_fit:
+            result_dict['goodness_of_fit_1sided'] = float(
+                results['GoodnessOfFit']['event_p_value_1sided'])
+            result_dict['goodness_of_fit_2sided'] = float(
+                results['GoodnessOfFit']['event_p_value_2sided'])
+            if self.goodness_of_fit_settings['reconstruct_samples']:
+                self.write_cov_matrix(
+                  frame,
+                  cov=result_dict['sample_reco_cov'],
+                  cov_name='goodness_of_fit')
+                for i, n in enumerate(self.manager.models[0].parameter_names):
+                    result_dict[n+'_sample_reco_bias'] = float(
+                        results['sample_reco_bias'][i])
+
+            # write per DOM p-values to frame
+            if self.goodness_of_fit_settings['add_per_dom_calculation']:
+
+                # create containers
+                map_pvalue1 = dataclasses.I3MapKeyDouble()
+                map_pvalue2 = dataclasses.I3MapKeyDouble()
+
+                # extract data from results dict
+                dom_p_value1 = results['GoodnessOfFit']['dom_p_value1']
+                dom_p_value2 = results['GoodnessOfFit']['dom_p_value2']
+
+                # loop through DOMs and fill values
+                for string in range(86):
+                    for om in range(60):
+                        om_key = icetray.OMKey(string, om)
+                        map_pvalue1[om_key] = dom_p_value1[string, om]
+                        map_pvalue2[om_key] = dom_p_value2[string, om]
+
+                # write to frame
+                frame[self.output_key+'_GoodnessOfFit_1sided'] = dom_p_value1
+                frame[self.output_key+'_GoodnessOfFit_2sided'] = dom_p_value2
 
         if self.add_circular_err:
             result_dict['circular_unc'] = float(
@@ -347,3 +420,36 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         # push frame to next modules
         self.PushFrame(frame)
+
+    def write_cov_matrix(self, frame, cov, cov_name):
+        """Write covariance matrix to the frame.
+
+        Parameters
+        ----------
+        frame : i3Frame
+            The current I3Frame.
+        cov : array_like
+            The covariance matrix.
+        cov_name : str
+            The name of the covariance matrix.
+            It will be saved to: self.output_key + '_cov_matrix_' + cov_name
+        """
+        # frame[self.output_key+'_cov_matrix_'+name] = \
+        #     dataclasses.I3Matrix(value)
+        cov_dict = dataclasses.I3MapStringDouble()
+        for i, name_i in enumerate(
+                self.manager.models[0].parameter_names):
+
+            # adjust name to log_* if it unc. is in log-space
+            if name_i in self.log_names:
+                name_i = 'log_' + name_i
+            for j, name_j in enumerate(
+                    self.manager.models[0].parameter_names[i:]):
+                j = j + i
+
+                # adjust name to log_* if it unc. is in log-space
+                if name_j in self.log_names:
+                    name_j = 'log_' + name_j
+
+                cov_dict[name_i+'_'+name_j] = float(cov[i, j])
+        frame[self.output_key+'_cov_matrix_'+cov_name] = cov_dict
