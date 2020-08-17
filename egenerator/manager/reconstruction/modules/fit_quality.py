@@ -272,7 +272,7 @@ class GoodnessOfFit:
         # draw total charge per DOM and cascade
         dom_charges = self.sample_num_pe(result_tensors)
         # dom_charges = self.rng.poisson(result_tensors['dom_charges'].numpy())
-        event_charges = np.sum(dom_charges, axis=[1, 2])
+        event_charges = np.sum(dom_charges, axis=(1, 2))
 
         source_times = sampled_hypotheses[:, self.param_time_index]
 
@@ -414,7 +414,7 @@ class GoodnessOfFit:
             eps = 1.
             sample_event_llh /= event_charges + eps
             data_event_llh /= np.sum(
-                data_batch['x_dom_charge'], axis=[1, 2, 3]) + eps
+                data_batch['x_dom_charge'], axis=(1, 2, 3)) + eps
 
             if self.add_per_dom_calculation:
                 data_dom_llh /= data_batch['x_dom_charge'][..., 0] + eps
