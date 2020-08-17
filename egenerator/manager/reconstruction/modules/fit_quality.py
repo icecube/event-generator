@@ -421,6 +421,15 @@ class GoodnessOfFit:
                     dom_p_value1[string, om] = p_value1
                     dom_p_value2[string, om] = p_value2
 
+        # Calculate elapsed time
+        t_5 = timeit.default_timer()
+        t_p_value = t_5 - t_4
+        print('GoodnessOfFit elapsed time: {:3.3f}s'.format(t_5 - t_0))
+        print('\t Pulse Sampling: {:3.3f}s'.format(t_sampling))
+        print('\t Reconstruction: {:3.3f}s'.format(t_reconstruction))
+        print('\t Loss Calculation: {:3.3f}s'.format(t_loss))
+        print('\t P-Value Calculation: {:3.3f}s'.format(t_p_value))
+
         print('data_event_llh', data_event_llh)
         print(
             'sample_event_llh',
@@ -430,15 +439,6 @@ class GoodnessOfFit:
         )
         print('event_p_value one-sided', event_p_value1)
         print('event_p_value two-sided', event_p_value2)
-
-        # Calculate elapsed time
-        t_5 = timeit.default_timer()
-        t_p_value = t_5 - t_4
-        print('GoodnessOfFit elapsed time: {:3.3f}s'.format(t_5 - t_0))
-        print('\t Pulse Sampling: {:3.3f}s'.format(t_sampling))
-        print('\t Reconstruction: {:3.3f}s'.format(t_reconstruction))
-        print('\t Loss Calculation: {:3.3f}s'.format(t_loss))
-        print('\t P-Value Calculation: {:3.3f}s'.format(t_p_value))
 
         # -----------------------------------------
         # write everything to the result dictionary

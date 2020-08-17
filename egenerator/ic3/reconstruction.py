@@ -359,6 +359,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             result_dict['x'], result_dict['y'], result_dict['z'])
         particle.dir = dataclasses.I3Direction(
             result_dict['zenith'], result_dict['azimuth'])
+        # set particle shape to infinite track even though this is not
+        # necessarily true. This will allow for visualization in steamshovel
+        particle.shape = dataclasses.ParticleShape.InfiniteTrack
 
         # write covariance Matrices to frame
         if self.add_covariances:
