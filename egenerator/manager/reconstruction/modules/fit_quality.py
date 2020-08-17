@@ -112,6 +112,8 @@ class GoodnessOfFit:
             'x_pulses')
         self.x_pulses_ids_index = self.manager.data_handler.tensors.get_index(
             'x_pulses_ids')
+        self.x_dom_charge_index = self.manager.data_handler.tensors.get_index(
+            'x_dom_charge')
 
         # get indices of parameters
         self.param_time_index = self.manager.models[0].get_index('time')
@@ -412,12 +414,12 @@ class GoodnessOfFit:
         # Normalize likelihood values by total event and DOM charge
         if self.normalize_by_total_charge:
             eps = 1.
+            data_x_dom_charge = data_batch[self.x_dom_charge_index]
             sample_event_llh /= event_charges + eps
-            data_event_llh /= np.sum(
-                data_batch['x_dom_charge'], axis=(1, 2, 3)) + eps
+            data_event_llh /= np.sum(data_x_dom_charge, axis=(1, 2, 3)) + eps
 
             if self.add_per_dom_calculation:
-                data_dom_llh /= data_batch['x_dom_charge'][..., 0] + eps
+                data_dom_llh /= data_x_dom_charge[..., 0] + eps
                 sample_dom_llh /= dom_charges[..., 0] + eps
 
         # ---------------------------------------------------------
