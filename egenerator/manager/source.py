@@ -1723,9 +1723,9 @@ class SourceManager(BaseModelManager):
                 for index, param_name in enumerate(
                         self.models[0].parameter_names):
                     df_reco[param_name + '_unc_samples'] = (
-                        std_devs_samples[: index])
+                        std_devs_samples[:, index])
                     df_reco[param_name + '_sample_reco_bias'] = (
-                        sample_reco_bias[: index])
+                        sample_reco_bias[:, index])
 
         df_reco['loss_true'] = loss_true_list
         df_reco['loss_reco'] = loss_reco_list

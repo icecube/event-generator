@@ -292,7 +292,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 covariance_key = 'covariance'
             else:
                 covariance_key = None
-            reco_tray.add_module(
+            self.reco_tray.add_module(
                 'GoodnessOfFit',
                 name='GoodnessOfFit',
                 fit_paramater_list=fit_paramater_list,
