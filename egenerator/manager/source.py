@@ -1719,6 +1719,7 @@ class SourceManager(BaseModelManager):
             df_reco['event_p_value_2sided'] = event_p_value_2
             if 'sample_reco_cov' in results['GoodnessOfFit']:
                 std_devs_samples = np.stack(std_devs_samples, axis=0)
+                sample_reco_bias = np.stack(sample_reco_bias, axis=0)
                 for index, param_name in enumerate(
                         self.models[0].parameter_names):
                     df_reco[param_name + '_unc_samples'] = (
