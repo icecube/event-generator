@@ -404,12 +404,12 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 for string in range(86):
                     for om in range(60):
                         om_key = icetray.OMKey(string, om)
-                        map_pvalue1[om_key] = dom_p_value1[string, om]
-                        map_pvalue2[om_key] = dom_p_value2[string, om]
+                        map_pvalue1[om_key] = float(dom_p_value1[string, om])
+                        map_pvalue2[om_key] = float(dom_p_value2[string, om])
 
                 # write to frame
-                frame[self.output_key+'_GoodnessOfFit_1sided'] = dom_p_value1
-                frame[self.output_key+'_GoodnessOfFit_2sided'] = dom_p_value2
+                frame[self.output_key+'_GoodnessOfFit_1sided'] = map_pvalue1
+                frame[self.output_key+'_GoodnessOfFit_2sided'] = map_pvalue2
 
         if self.add_circular_err:
             result_dict['circular_unc'] = float(
