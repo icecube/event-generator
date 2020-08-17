@@ -144,6 +144,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                               'num_samples': 50,
                               'reconstruct_samples': True,
                               'add_per_dom_calculation': True,
+                              'normalize_by_total_charge': True,
                           })
 
     def Configure(self):

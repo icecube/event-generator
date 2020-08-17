@@ -21,6 +21,7 @@ class GoodnessOfFit:
                  num_samples=50,
                  reconstruct_samples=True,
                  add_per_dom_calculation=True,
+                 normalize_by_total_charge=True,
                  random_seed=42):
         """Initialize module and setup tensorflow functions.
 
@@ -79,6 +80,9 @@ class GoodnessOfFit:
         add_per_dom_calculation : bool, optional
             If True, a goodness of fit value is calculated for every DOM in
             addition to the total event goodness of fit value.
+        normalize_by_total_charge : bool, optional
+            If True, normalize likelihood by total event charge or by total DOM
+            charge for the per DOM likelihood values.
         random_seed : int, optional
             A random seed for the numpy Random State which is used to sample
             the random opening angles (delta psi).
@@ -94,6 +98,7 @@ class GoodnessOfFit:
         self.add_per_dom_calculation = add_per_dom_calculation
         self.reco_key = reco_key
         self.covariance_key = covariance_key
+        self.normalize_by_total_charge = normalize_by_total_charge
 
         # get a list of parameters which are transformed in log-space
         param_tensor = self.manager.data_trafo.data['tensors']['x_parameters']
@@ -163,7 +168,7 @@ class GoodnessOfFit:
             parameter_tensor_name=parameter_tensor_name,
             reduce_to_scalar=not self.add_per_dom_calculation,
             sort_loss_terms=self.add_per_dom_calculation,
-            normalize_by_total_charge=True,
+            normalize_by_total_charge=False,  # we want to normalize per DOM
         )
 
         self.loss_function = function_cache.get(
@@ -267,6 +272,7 @@ class GoodnessOfFit:
         # draw total charge per DOM and cascade
         dom_charges = self.sample_num_pe(result_tensors)
         # dom_charges = self.rng.poisson(result_tensors['dom_charges'].numpy())
+        event_charges = np.sum(dom_charges, axis=[1, 2])
 
         source_times = sampled_hypotheses[:, self.param_time_index]
 
@@ -365,6 +371,7 @@ class GoodnessOfFit:
             else:
                 # we just have the scalar loss for the whole event
                 sample_event_llh[event_id] = sample_loss.numpy()
+
             t_4 = timeit.default_timer()
 
             # accumulate times
@@ -401,6 +408,17 @@ class GoodnessOfFit:
                 + data_loss[1].numpy()[0] + data_loss[0].numpy())
         else:
             data_event_llh = data_loss
+
+        # Normalize likelihood values by total event and DOM charge
+        if self.normalize_by_total_charge:
+            eps = 1.
+            sample_event_llh /= event_charges + eps
+            data_event_llh /= np.sum(
+                data_batch['x_dom_charge'], axis=[1, 2, 3]) + eps
+
+            if self.add_per_dom_calculation:
+                data_dom_llh /= data_batch['x_dom_charge'][..., 0] + eps
+                sample_dom_llh /= dom_charges + eps
 
         # ---------------------------------------------------------
         # compare to test-statistic distribution to compute p-value
