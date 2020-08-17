@@ -21,7 +21,7 @@ class GoodnessOfFit:
                  num_samples=50,
                  reconstruct_samples=True,
                  add_per_dom_calculation=True,
-                 normalize_by_total_charge=True,
+                 normalize_by_total_charge=False,
                  random_seed=42):
         """Initialize module and setup tensorflow functions.
 
