@@ -386,12 +386,13 @@ def sample_from_negative_binomial(rng, mu, alpha_or_var, param_is_alpha,
     array_like
         The sampled points from the negative binomial distribution.
     """
+    eps = 1e-6
     if param_is_alpha:
         var = mu + alpha_or_var*mu**2
     else:
         var = alpha_or_var
     p = 1 - (var - mu) / var
-    r = (mu**2) / (var - mu)
+    r = (mu**2) / (var - mu + eps)
     return rng.negative_binomial(r, p, size=size)
 
 
