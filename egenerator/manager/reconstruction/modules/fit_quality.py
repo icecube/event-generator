@@ -21,7 +21,7 @@ class GoodnessOfFit:
                  num_samples=50,
                  reconstruct_samples=True,
                  add_per_dom_calculation=True,
-                 normalize_by_total_charge=False,
+                 normalize_by_total_charge=True,
                  random_seed=42):
         """Initialize module and setup tensorflow functions.
 
@@ -421,7 +421,11 @@ class GoodnessOfFit:
             data_event_llh /= np.sum(data_event_charge) + eps
 
             if self.add_per_dom_calculation:
-                data_dom_llh /= data_event_charge[..., 0] + eps
+                # Normalize each DOM by its charge
+                # data_dom_llh /= data_event_charge[..., 0] + eps
+                # sample_dom_llh /= dom_charges[..., 0] + eps
+                # Normalize each DOM by total event charge
+                data_dom_llh /= event_charges + eps
                 sample_dom_llh /= dom_charges[..., 0] + eps
 
         # ---------------------------------------------------------
@@ -471,6 +475,11 @@ class GoodnessOfFit:
             'event_p_value_2sided': event_p_value2,
             'num_samples': self.num_samples,
             'sampled_hypotheses': sampled_hypotheses,
+            'loss_sample_min': np.min(sample_event_llh),
+            'loss_sample_max': np.max(sample_event_llh),
+            'loss_sample_mean': np.mean(sample_event_llh),
+            'loss_sample_median': np.median(sample_event_llh),
+            'loss_sample_std': np.std(sample_event_llh),
         }
         if self.add_per_dom_calculation:
             results['dom_p_value1'] = dom_p_value1

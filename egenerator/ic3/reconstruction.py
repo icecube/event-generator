@@ -381,6 +381,16 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 results['GoodnessOfFit']['event_p_value_1sided'])
             result_dict['goodness_of_fit_2sided'] = float(
                 results['GoodnessOfFit']['event_p_value_2sided'])
+            result_dict['goodness_loss_sample_min'] = float(
+                results['GoodnessOfFit']['loss_sample_min'])
+            result_dict['goodness_loss_sample_max'] = float(
+                results['GoodnessOfFit']['loss_sample_max'])
+            result_dict['goodness_loss_sample_mean'] = float(
+                results['GoodnessOfFit']['loss_sample_mean'])
+            result_dict['goodness_loss_sample_median'] = float(
+                results['GoodnessOfFit']['loss_sample_median'])
+            result_dict['goodness_loss_sample_std'] = float(
+                results['GoodnessOfFit']['loss_sample_std'])
             if self.goodness_of_fit_settings['reconstruct_samples']:
                 self.write_cov_matrix(
                   frame,
