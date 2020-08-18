@@ -391,6 +391,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 results['GoodnessOfFit']['loss_sample_median'])
             result_dict['goodness_loss_sample_std'] = float(
                 results['GoodnessOfFit']['loss_sample_std'])
+            result_dict['goodness_loss_data_fit'] = float(
+                results['GoodnessOfFit']['loss_data_fit'])
             if self.goodness_of_fit_settings['reconstruct_samples']:
                 self.write_cov_matrix(
                   frame,

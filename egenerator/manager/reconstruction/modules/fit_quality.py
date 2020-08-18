@@ -481,6 +481,7 @@ class GoodnessOfFit:
             'loss_sample_mean': np.mean(sample_event_llh),
             'loss_sample_median': np.median(sample_event_llh),
             'loss_sample_std': np.std(sample_event_llh),
+            'loss_data_fit': data_event_llh,
         }
         if self.add_per_dom_calculation:
             results['dom_p_value1'] = dom_p_value1
