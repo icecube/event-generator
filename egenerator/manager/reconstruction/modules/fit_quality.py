@@ -425,8 +425,8 @@ class GoodnessOfFit:
                 # data_dom_llh /= data_event_charge[..., 0] + eps
                 # sample_dom_llh /= dom_charges[..., 0] + eps
                 # Normalize each DOM by total event charge
-                data_dom_llh /= event_charges + eps
-                sample_dom_llh /= dom_charges[..., 0] + eps
+                data_dom_llh /= np.sum(data_event_charge) + eps
+                sample_dom_llh /= event_charges + eps
 
         # ---------------------------------------------------------
         # compare to test-statistic distribution to compute p-value
