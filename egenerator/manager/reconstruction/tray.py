@@ -67,8 +67,8 @@ class ReconstructionTray:
             egenerator.manager.reconstruction.modules.{module}
         name : str, optional
             The name under which to save the results for this reconstruction
-            module. This must be a unique name and cannot match any of the other
-            added modules. If none is provided, the module name will be:
+            module. This must be a unique name and cannot match any of the
+            other added modules. If none is provided, the module name will be:
                 module_{index:04d}
         **settings
             An arbitrary number of keyword arguments that will be passed on
@@ -97,7 +97,6 @@ class ReconstructionTray:
         self.modules.append(module)
         self.module_names.append(name)
 
-    @tf.function
     def execute(self, data_batch):
         """Execute reconstruction models for a given batch of data.
 
