@@ -352,6 +352,21 @@ class BaseDataHandler(BaseComponent):
         """
         num_events, data = self.get_data_from_frame(frame, *args, **kwargs)
 
+        return self.convert_data_to_tensor(data)
+
+    def convert_data_to_tensor(self, data):
+        """Convert a data batch to a tensor batch
+
+        Parameters
+        ----------
+        data : tuple of array_like
+            The data batch to be converted.
+
+        Returns
+        -------
+        tuple of tf.Tensor
+            The data batch represented as a tuple of tf.Tensor.
+        """
         data_tensors = []
         for i, tensor in enumerate(self.tensors.list):
             if tensor.exists:
