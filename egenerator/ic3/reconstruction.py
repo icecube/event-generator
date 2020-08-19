@@ -1,4 +1,6 @@
 import os
+import tensorflow as tf
+
 from icecube import dataclasses, icetray
 
 from egenerator.utils.configurator import ManagerConfigurator
@@ -325,6 +327,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     minimize_in_trafo_space=self.minimize_in_trafo_space,
                     parameter_tensor_name=parameter_tensor_name,
                 )
+
+        # finalize graph: at this point the graph creation should be completed
+        self.tf_graph.finalize()
 
     def Physics(self, frame):
         """Apply Event-Generator model to physics frames.

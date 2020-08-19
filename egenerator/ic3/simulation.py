@@ -218,6 +218,9 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             dataclasses.I3Particle.NuTauBar,
         ]
 
+        # finalize graph: at this point the graph creation should be completed
+        self.tf_graph.finalize()
+
     def DAQ(self, frame):
         """Apply Event-Generator model to physics frames.
 
