@@ -112,17 +112,13 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         else:
             self.model_dir = self.model_name
 
-        # Create a new tensorflow graph for this instance of Event-Generator
-        self.tf_graph = tf.Graph()
-
         # --------------------------------------------------
         # Build and configure SourceManager and extrac Model
         # --------------------------------------------------
-        with self.tf_graph.as_default():
-            self.manager_configurator = ManagerConfigurator(
-                manager_dirs=[self.model_dir],
-                num_threads=self.num_threads,
-            )
+        self.manager_configurator = ManagerConfigurator(
+            manager_dirs=[self.model_dir],
+            num_threads=self.num_threads,
+        )
         self.manager = self.manager_configurator.manager
 
         for model in self.manager.models:
@@ -171,8 +167,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         #     return result_tensors
         # ---- TO DELETE [END] -----------------
-        with self.tf_graph.as_default():
-            self.get_model_tensors = self.manager.get_model_tensors_function()
+        self.get_model_tensors = self.manager.get_model_tensors_function()
 
         # ---------------------------------------------------
         # Define which particles are simulated by which Model
@@ -217,9 +212,6 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             dataclasses.I3Particle.NuMuBar,
             dataclasses.I3Particle.NuTauBar,
         ]
-
-        # finalize graph: at this point the graph creation should be completed
-        self.tf_graph.finalize()
 
     def DAQ(self, frame):
         """Apply Event-Generator model to physics frames.

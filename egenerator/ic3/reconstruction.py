@@ -199,29 +199,25 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             else:
                 manager_dirs.append(name)
 
-        # Create a new tensorflow graph for this instance of Event-Generator
-        self.tf_graph = tf.Graph()
-
         # Build and configure SourceManager
-        with self.tf_graph.as_default():
-            self.manager_configurator = ManagerConfigurator(
-                manager_dirs=manager_dirs,
-                reco_config_dir=None,
-                load_labels=False,
-                misc_setting_updates={
-                    'seed_names': self.seed_keys,
-                },
-                label_setting_updates={
-                    'label_key': self.label_key,
-                    'snowstorm_key': self.snowstorm_key,
-                },
-                data_setting_updates={
-                    'pulse_key': self.pulse_key,
-                    'dom_exclusions_key': self.dom_exclusions_key,
-                    'time_exclusions_key': self.time_exclusions_key,
-                },
-                num_threads=self.num_threads,
-            )
+        self.manager_configurator = ManagerConfigurator(
+            manager_dirs=manager_dirs,
+            reco_config_dir=None,
+            load_labels=False,
+            misc_setting_updates={
+                'seed_names': self.seed_keys,
+            },
+            label_setting_updates={
+                'label_key': self.label_key,
+                'snowstorm_key': self.snowstorm_key,
+            },
+            data_setting_updates={
+                'pulse_key': self.pulse_key,
+                'dom_exclusions_key': self.dom_exclusions_key,
+                'time_exclusions_key': self.time_exclusions_key,
+            },
+            num_threads=self.num_threads,
+        )
         self.manager = self.manager_configurator.manager
         self.loss_module = self.manager_configurator.loss_module
 
@@ -256,80 +252,76 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         # Build reconstruction tray
         # -------------------------
 
-        with self.tf_graph.as_default():
-            # create reconstruction tray
-            self.reco_tray = ReconstructionTray(
-                manager=self.manager, loss_module=self.loss_module)
+        # create reconstruction tray
+        self.reco_tray = ReconstructionTray(
+            manager=self.manager, loss_module=self.loss_module)
 
-            # add reconstruction module
-            reco_names = []
-            for seed_tensor_name in self.seed_keys:
-                reco_name = 'reco_' + seed_tensor_name
-                reco_names.append(reco_name)
+        # add reconstruction module
+        reco_names = []
+        for seed_tensor_name in self.seed_keys:
+            reco_name = 'reco_' + seed_tensor_name
+            reco_names.append(reco_name)
 
-                self.reco_tray.add_module(
-                    'Reconstruction',
-                    name=reco_name,
-                    fit_paramater_list=fit_paramater_list,
-                    seed_tensor_name=seed_tensor_name,
-                    minimize_in_trafo_space=self.minimize_in_trafo_space,
-                    parameter_tensor_name=parameter_tensor_name,
-                    reco_optimizer_interface=self.reco_optimizer_interface,
-                    scipy_optimizer_settings=self.scipy_optimizer_settings,
-                    tf_optimizer_settings=self.tf_optimizer_settings,
-                )
-
-            # chosse best reconstruction
             self.reco_tray.add_module(
-                'SelectBestReconstruction', name='reco', reco_names=reco_names,
+                'Reconstruction',
+                name=reco_name,
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=seed_tensor_name,
+                minimize_in_trafo_space=self.minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                reco_optimizer_interface=self.reco_optimizer_interface,
+                scipy_optimizer_settings=self.scipy_optimizer_settings,
+                tf_optimizer_settings=self.tf_optimizer_settings,
             )
 
-            # add covariance module
+        # chosse best reconstruction
+        self.reco_tray.add_module(
+            'SelectBestReconstruction', name='reco', reco_names=reco_names,
+        )
+
+        # add covariance module
+        if self.add_covariances:
+            self.reco_tray.add_module(
+                'CovarianceMatrix',
+                name='covariance',
+                fit_paramater_list=fit_paramater_list,
+                reco_key='reco',
+                minimize_in_trafo_space=self.minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+            )
+
+        if self.add_goodness_of_fit:
             if self.add_covariances:
-                self.reco_tray.add_module(
-                    'CovarianceMatrix',
-                    name='covariance',
-                    fit_paramater_list=fit_paramater_list,
-                    reco_key='reco',
-                    minimize_in_trafo_space=self.minimize_in_trafo_space,
-                    parameter_tensor_name=parameter_tensor_name,
-                )
+                covariance_key = 'covariance'
+            else:
+                covariance_key = None
+            self.reco_tray.add_module(
+                'GoodnessOfFit',
+                name='GoodnessOfFit',
+                fit_paramater_list=fit_paramater_list,
+                reco_key='reco',
+                covariance_key=covariance_key,
+                minimize_in_trafo_space=self.minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                **self.goodness_of_fit_settings
+            )
 
-            if self.add_goodness_of_fit:
-                if self.add_covariances:
-                    covariance_key = 'covariance'
-                else:
-                    covariance_key = None
-                self.reco_tray.add_module(
-                    'GoodnessOfFit',
-                    name='GoodnessOfFit',
-                    fit_paramater_list=fit_paramater_list,
-                    reco_key='reco',
-                    covariance_key=covariance_key,
-                    minimize_in_trafo_space=self.minimize_in_trafo_space,
-                    parameter_tensor_name=parameter_tensor_name,
-                    **self.goodness_of_fit_settings
-                )
+        # add circularized angular uncertainty estimation module
+        if self.add_circular_err:
+            if self.add_covariances:
+                covariance_key = 'covariance'
+            else:
+                covariance_key = None
 
-            # add circularized angular uncertainty estimation module
-            if self.add_circular_err:
-                if self.add_covariances:
-                    covariance_key = 'covariance'
-                else:
-                    covariance_key = None
-
-                self.reco_tray.add_module(
-                    'CircularizedAngularUncertainty',
-                    name='CircularizedAngularUncertainty',
-                    fit_paramater_list=fit_paramater_list,
-                    reco_key='reco',
-                    covariance_key=covariance_key,
-                    minimize_in_trafo_space=self.minimize_in_trafo_space,
-                    parameter_tensor_name=parameter_tensor_name,
-                )
-
-        # finalize graph: at this point the graph creation should be completed
-        self.tf_graph.finalize()
+            self.reco_tray.add_module(
+                'CircularizedAngularUncertainty',
+                name='CircularizedAngularUncertainty',
+                fit_paramater_list=fit_paramater_list,
+                reco_key='reco',
+                covariance_key=covariance_key,
+                minimize_in_trafo_space=self.minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+            )
 
     def Physics(self, frame):
         """Apply Event-Generator model to physics frames.

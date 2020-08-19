@@ -96,6 +96,7 @@ class ReconstructionTray:
         self.modules.append(module)
         self.module_names.append(name)
 
+    @tf.function
     def execute(self, data_batch):
         """Execute reconstruction models for a given batch of data.
 
