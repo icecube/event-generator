@@ -57,16 +57,7 @@ class CovarianceMatrix:
             dtype=param_dtype)
 
         # define data batch tensor specification
-        data_batch_signature = []
-        for tensor in manager.data_handler.tensors.list:
-            if tensor.exists:
-                shape = tf.TensorShape(tensor.shape)
-            else:
-                shape = tf.TensorShape(None)
-            data_batch_signature.append(tf.TensorSpec(
-                shape=shape,
-                dtype=getattr(tf, tensor.dtype)))
-        data_batch_signature = tuple(data_batch_signature)
+        data_batch_signature = manager.data_handler.get_data_set_signature()
 
         # define function settings
         func_settings = dict(
@@ -102,8 +93,8 @@ class CovarianceMatrix:
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensors
-            A data batch which consists of a tuple of tf.Tensors.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
 

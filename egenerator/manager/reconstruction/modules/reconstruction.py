@@ -95,17 +95,7 @@ class Reconstruction:
             shape=[None, len(fit_paramater_list)],
             dtype=param_dtype)
 
-        data_batch_signature = []
-        for tensor in manager.data_handler.tensors.list:
-            if tensor.exists:
-                shape = tf.TensorShape(tensor.shape)
-            else:
-                shape = tf.TensorShape(None)
-            data_batch_signature.append(tf.TensorSpec(
-                shape=shape,
-                dtype=getattr(tf, tensor.dtype)))
-
-        data_batch_signature = tuple(data_batch_signature)
+        data_batch_signature = manager.data_handler.get_data_set_signature()
 
         # --------------------------------------------------
         # get concrete functions for reconstruction and loss
@@ -191,8 +181,8 @@ class Reconstruction:
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensors
-            A data batch which consists of a tuple of tf.Tensors.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
 
@@ -212,15 +202,10 @@ class Reconstruction:
         # Hack to modify seed
         # -------------------
         if self.randomize_seed:
-            if self.seed_from_previous_module:
-                shape = seed_tensor.shape
-                x0 = np.array(seed_tensor)
-            else:
-                shape = seed_tensor.numpy().shape
-                x0 = seed_tensor.numpy()
+            shape = seed_tensor.shape
+            x0 = np.array(seed_tensor)
             x_true = data_batch[self.manager.data_handler.tensors.get_index(
                 self.parameter_tensor_name)].numpy()
-            dtype = x_true.dtype
 
             x0[:, :3] = np.random.normal(loc=x0[:, :3], scale=5)
             x0[:, 3] = np.random.uniform(low=0., high=np.pi)
@@ -238,7 +223,7 @@ class Reconstruction:
             # x0[:, 6] = x_true[:, 6]
             print('New Seed:', x0)
 
-            seed_tensor = tf.reshape(tf.convert_to_tensor(x0, dtype), shape)
+            seed_tensor = x0
         # -------------------
 
         result_trafo, result_object = self.reconstruction_method(
@@ -326,6 +311,7 @@ class SelectBestReconstruction:
             if reco_results['loss_reco'] < min_loss:
                 min_loss = reco_results['loss_reco']
                 min_results = reco_results
+        min_results = dict(reco_results)
 
         if min_results is None:
 

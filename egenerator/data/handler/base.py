@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 import os
 import time
 import multiprocessing
@@ -304,6 +303,10 @@ class BaseDataHandler(BaseComponent):
     def get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame.
 
+        Note: 'None' data tensors (tensors that do not exist,
+        e.g. tensor.exists == False) are replaced with a single item of the
+        corresponding type.
+
         Parameters
         ----------
         frame : I3Frame
@@ -327,7 +330,15 @@ class BaseDataHandler(BaseComponent):
         if num_events is None and data is None:
             return None, None
         self._check_data_structure(data)
-        return num_events, data
+
+        data_tensors = []
+        for i, tensor in enumerate(self.tensors.list):
+            if tensor.exists:
+                data_tensors.append(data[i])
+            else:
+                data_tensors.append(getattr(np, tensor.dtype)())
+
+        return num_events, tuple(data_tensors)
 
     def get_tensor_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame and convert it to tf tensors.
@@ -1105,6 +1116,24 @@ class BaseDataHandler(BaseComponent):
                         output_types=output_types,
                         output_shapes=output_shapes
                         ).prefetch(dataset_capacity)
+
+    def get_data_set_signature(self):
+        """Get tensorflow specification of dataset batch
+
+        Returns
+        -------
+        tuple of tf.TensorSpec
+            The tensorflow specification of the dataset batch.
+        """
+        spec = []
+        for tensor in self.tensors.list:
+            if tensor.exists:
+                shape = tf.TensorShape(tensor.shape)
+            else:
+                shape = tf.TensorShape(None)
+            spec.append(
+                tf.TensorSpec(shape=shape, dtype=getattr(tf, tensor.dtype)))
+        return tuple(spec)
 
     def kill(self):
         """Kill Multiprocessing queues and workers

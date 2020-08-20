@@ -333,7 +333,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         """
 
         # get data batch
-        data_batch = self.manager.data_handler.get_tensor_from_frame(frame)
+        n, data_batch = self.manager.data_handler.get_data_from_frame(frame)
+        assert n == 1, "Currently only 1-event at a time is supported"
 
         # reconstruct data
         results = self.reco_tray.execute(data_batch)
@@ -349,7 +350,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         result_dict = dataclasses.I3MapStringDouble()
         for i, name in enumerate(self.manager.models[0].parameter_names):
             result_dict[name] = float(best_fit[i])
-        result_dict['runtime_reconstruction'] = results['reco']['runtime']
+        for name in self.reco_tray.module_names:
+            result_dict['runtime_' + name] = results[name]['runtime']
         result_dict['minimization_success'] = best_fit_obj.success
         result_dict['loss_reco'] = float(results['reco']['loss_reco'])
         result_dict['loss_seed'] = float(results['reco']['loss_seed'])

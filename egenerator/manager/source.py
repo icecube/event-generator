@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 import os
 import logging
 import tensorflow as tf
@@ -7,7 +6,6 @@ import numpy as np
 import pandas as pd
 import timeit
 from scipy import optimize
-from scipy.stats import chi2
 
 from egenerator import misc
 from egenerator.utils import angles, basis_functions
@@ -558,8 +556,8 @@ class SourceManager(BaseModelManager):
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensor
-            A tuple of tensors. This is the batch received from the tf.Dataset.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
             must provide a
@@ -577,10 +575,10 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str or tf.Tensor
+        seed : str or array_like
             This specifies the tensor that is being used as a seed for the
             reconstruction. This can either be the name of the data tensor
-            within the `data_batch`, or by a tf.Tensor.
+            within the `data_batch`, or by a separate tensor.
             The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
@@ -606,7 +604,6 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
@@ -617,8 +614,8 @@ class SourceManager(BaseModelManager):
         # define helper function
         def func(x, data_batch, seed):
             # reshape and convert to tensor
-            x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
-                           param_shape)
+            x = np.reshape(x, param_shape)
+            seed = np.reshape(seed, param_shape)
             loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
@@ -629,44 +626,44 @@ class SourceManager(BaseModelManager):
         if hessian_function is not None:
             def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
-                x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
-                               param_shape)
+                x = np.reshape(x, param_shape)
+                seed = np.reshape(seed, param_shape)
                 hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
 
             kwargs['hess'] = get_hessian
 
-        tolerance_func = None
-        if tolerance_func is not None:
-            print('using tolerance_func')
+        # tolerance_func = None
+        # if tolerance_func is not None:
+        #     print('using tolerance_func')
 
-            class Callback:
-                def __init__(self, atol=10.1):
-                    self._atol = atol
-                    self._prev_loss = None
+        #     class Callback:
+        #         def __init__(self, atol=10.1):
+        #             self._atol = atol
+        #             self._prev_loss = None
 
-                def __call__(self, xk):
-                    this_loss, _ = func(xk, data_batch, seed)
-                    if self._prev_loss is not None:
-                        print('self._prev_loss - this_loss',
-                              self._prev_loss - this_loss)
-                        if (self._prev_loss - this_loss) < self._atol:
-                            return True
+        #         def __call__(self, xk):
+        #             this_loss, _ = func(xk, data_batch, seed)
+        #             if self._prev_loss is not None:
+        #                 print('self._prev_loss - this_loss',
+        #                       self._prev_loss - this_loss)
+        #                 if (self._prev_loss - this_loss) < self._atol:
+        #                     return True
 
-                    self._prev_loss = this_loss
-                    return False
+        #             self._prev_loss = this_loss
+        #             return False
 
-            tolerance_func = Callback()
+        #     tolerance_func = Callback()
 
-            kwargs['callback'] = tolerance_func
+        #     kwargs['callback'] = tolerance_func
 
         # transform seed if minimization is performed in trafo space
         if isinstance(seed, str):
             seed_index = self.data_handler.tensors.get_index(seed)
-            seed_tensor = data_batch[seed_index]
+            seed_array = data_batch[seed_index]
         else:
-            seed_tensor = seed
+            seed_array = seed
         if minimize_in_trafo_space:
 
             # transform bounds if provided
@@ -680,25 +677,22 @@ class SourceManager(BaseModelManager):
                             bounds[i, j] = None
                 kwargs['bounds'] = bounds
 
-            seed_tensor_trafo = self.data_trafo.transform(
-                data=seed_tensor, tensor_name=parameter_tensor_name)
+            seed_array_trafo = self.data_trafo.transform(
+                data=seed_array, tensor_name=parameter_tensor_name)
         else:
-            seed_tensor_trafo = seed_tensor
+            seed_array_trafo = seed_array
 
         # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = seed_tensor_trafo
+            x0 = seed_array_trafo
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(seed_tensor_trafo, axis=1)
-            tracked_params = [p for p, fit in
-                              zip(unstacked_seed, fit_paramater_list) if fit]
-            x0 = tf.stack(tracked_params, axis=1)
+            x0 = seed_array_trafo[:, fit_paramater_list]
 
-        x0_flat = tf.reshape(x0, [-1])
+        x0_flat = np.reshape(x0, [-1])
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
                                    method=method,
-                                   args=(data_batch, seed_tensor), **kwargs)
+                                   args=(data_batch, seed_array), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
         return best_fit, result
@@ -723,8 +717,8 @@ class SourceManager(BaseModelManager):
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensor
-            A tuple of tensors. This is the batch received from the tf.Dataset.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
             must provide a
@@ -742,10 +736,10 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str or tf.Tensor
+        seed : str or array_like
             This specifies the tensor that is being used as a seed for the
             reconstruction. This can either be the name of the data tensor
-            within the `data_batch`, or by a tf.Tensor.
+            within the `data_batch`, or by a separate tensor.
             The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
@@ -774,7 +768,6 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
@@ -788,8 +781,8 @@ class SourceManager(BaseModelManager):
         # define helper function
         def func(x, data_batch, seed):
             # reshape and convert to tensor
-            x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
-                           param_shape)
+            x = np.reshape(x, param_shape)
+            seed = np.reshape(seed, param_shape)
             loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
@@ -800,8 +793,8 @@ class SourceManager(BaseModelManager):
         if hessian_function is not None:
             def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
-                x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
-                               param_shape)
+                x = np.reshape(x, param_shape)
+                seed = np.reshape(seed, param_shape)
                 hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
@@ -812,32 +805,21 @@ class SourceManager(BaseModelManager):
         # get seed tensor
         if isinstance(seed, str):
             seed_index = self.data_handler.tensors.get_index(seed)
-            seed_tensor = data_batch[seed_index]
+            seed_array = data_batch[seed_index]
         else:
-            seed_tensor = seed
+            seed_array = seed
 
         # transform seed if minimization is performed in trafo space
         if minimize_in_trafo_space:
-            seed_tensor_trafo = self.data_trafo.transform(
-                data=seed_tensor, tensor_name=parameter_tensor_name)
+            seed_array_trafo = self.data_trafo.transform(
+                data=seed_array, tensor_name=parameter_tensor_name)
         else:
-            seed_tensor_trafo = seed_tensor
+            seed_array_trafo = seed_array
 
         # For now: add +- 1 in trafo space
         # ToDo: allow to pass proper boundaries and uncertainties
         assert minimize_in_trafo_space, 'currently only for trafo space'
-        bounds = np.concatenate((
-            seed_tensor_trafo.numpy() - 1, seed_tensor_trafo.numpy() + 1)).T
-
-        # # get seed parameters
-        # if np.all(fit_paramater_list):
-        #     x0 = seed_tensor_trafo
-        # else:
-        #     # get seed parameters
-        #     unstacked_seed = tf.unstack(seed_tensor_trafo, axis=1)
-        #     tracked_params = [p for p, fit in
-        #                       zip(unstacked_seed, fit_paramater_list) if fit]
-        #     x0 = tf.stack(tracked_params, axis=1)
+        bounds = np.concatenate((seed_array_trafo - 1, seed_array_trafo + 1)).T
 
         def callback(xk):
             print(xk)
@@ -845,7 +827,7 @@ class SourceManager(BaseModelManager):
         result = optimize.shgo(func=func, bounds=bounds, options=options,
                                minimizer_kwargs=minimizer_kwargs,
                                callback=callback,
-                               args=(data_batch, seed_tensor), **kwargs)
+                               args=(data_batch, seed_array), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
         return best_fit, result
@@ -863,8 +845,8 @@ class SourceManager(BaseModelManager):
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensor
-            A tuple of tensors. This is the batch received from the tf.Dataset.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
             must provide a
@@ -882,10 +864,10 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str or tf.Tensor
+        seed : str or array_like
             This specifies the tensor that is being used as a seed for the
             reconstruction. This can either be the name of the data tensor
-            within the `data_batch`, or by a tf.Tensor.
+            within the `data_batch`, or by a separate tensor.
             The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
@@ -920,30 +902,35 @@ class SourceManager(BaseModelManager):
         # Get seed tensor
         if isinstance(seed, str):
             seed_index = self.data_handler.tensors.get_index(seed)
-            seed_tensor = data_batch[seed_index]
+            seed_array = data_batch[seed_index]
         else:
-            seed_tensor = seed
+            seed_array = seed
 
         # transform seed if minimization is performed in trafo space
         if minimize_in_trafo_space:
-            seed_tensor_trafo = self.data_trafo.transform(
-                data=seed_tensor, tensor_name=parameter_tensor_name)
+            seed_array_trafo = self.data_trafo.transform(
+                data=seed_array, tensor_name=parameter_tensor_name)
         else:
-            seed_tensor_trafo = seed_tensor
+            seed_array_trafo = seed_array
 
         # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = seed_tensor_trafo
+            x0 = seed_array_trafo
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(seed_tensor_trafo, axis=1)
-            tracked_params = [p for p, fit in
-                              zip(unstacked_seed, fit_paramater_list) if fit]
-            x0 = tf.stack(tracked_params, axis=1)
+            x0 = seed_array_trafo[:, fit_paramater_list]
+
+        # convert to tensors
+        seed_array = tf.reshape(tf.convert_to_tensor(
+            seed_array, dtype=parameter_dtype), param_shape)
+        data_batch = self.data_handler.convert_data_to_tensor(data_batch)
 
         def const_loss_and_gradients_function(x):
+            # convert to tensors
+            x = tf.reshape(tf.convert_to_tensor(
+                x, dtype=parameter_dtype), param_shape)
             loss, grad = loss_and_gradients_function(
-                x, data_batch, seed_tensor)
+                x, data_batch, seed_array)
             loss = tf.reshape(loss, [1])
             return loss, grad
 
@@ -1187,22 +1174,22 @@ class SourceManager(BaseModelManager):
             os.makedirs(directory)
             self._logger.info('Creating directory: {!r}'.format(directory))
 
-        test_dataset = iter(self.data_handler.get_tf_dataset(
-            **config['data_iterator_settings']['test']))
+        test_dataset = self.data_handler.get_batch_generator(
+            **config['data_iterator_settings']['test'])
 
         # parameter input signature
         parameter_tensor_name = reco_config['parameter_tensor_name']
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        param_dtype = getattr(tf, param_tensor.dtype)
         param_index = self.data_handler.tensors.get_index(
                                                         parameter_tensor_name)
-        param_dtype = test_dataset.element_spec[param_index].dtype
-        param_signature = tf.TensorSpec(
-            shape=[None, np.sum(fit_paramater_list, dtype=int)],
-            dtype=param_dtype)
+
+        data_set_spec = self.data_handler.get_data_set_signature()
 
         # get concrete function to compute loss
         get_loss = self.get_concrete_function(
             function=self.get_loss,
-            input_signature=(test_dataset.element_spec,),
+            input_signature=(data_set_spec,),
             loss_module=loss_module,
             opt_config={'l1_regularization': 0., 'l2_regularization': 0},
             is_training=False,
@@ -1441,38 +1428,6 @@ class SourceManager(BaseModelManager):
         event_counter = 0
         for data_batch in test_dataset:
 
-            # # -------------------
-            # # Hack to modify seed
-            # # -------------------
-            # seed_index = self.data_handler.tensors.get_index(
-            #     seed_tensor_names[0])
-            # x0 = data_batch[seed_index]
-            # seed_shape = x0.numpy().shape
-            # # x0 = np.random.normal(loc=x0.numpy()[0],
-            # #                       scale=[300, 300, 300, 0.5, 0.5, 100, 1000],
-            # #                       size=[1, 7])
-            # # x0[0, 5] = 100
-
-            # # set snowstorm params to expectation
-            # x0 = x0.numpy()
-
-            # # # all snowstorm variations
-            # # x0[:, 7:10] = 1.0
-            # # x0[:, 10] = -0.5
-            # # x0[:, 11:36] = 0.
-            # # x0[:, 36] = 1.0
-
-            # # wihtout ft
-            # x0[:, 7:10] = 1.0
-            # x0[:, 10] = 0.
-            # x0[:, 11] = 0.
-
-            # x0 = tf.reshape(tf.convert_to_tensor(x0, param_dtype), seed_shape)
-            # new_batch = [b for b in data_batch]
-            # new_batch[seed_index] = x0
-            # data_batch = tuple(new_batch)
-            # # -------------------
-
             # ---------------------------
             # Execute reconstruction tray
             # ---------------------------
@@ -1490,8 +1445,8 @@ class SourceManager(BaseModelManager):
                     results['reco']['seed_tensor_name'])
 
             cascade_reco_batch = results['reco']['result']
-            cascade_true_batch = data_batch[param_index].numpy()
-            cascade_seed_batch = data_batch[seed_index].numpy()
+            cascade_true_batch = data_batch[param_index]
+            cascade_seed_batch = data_batch[seed_index]
 
             # -----------------
             # Covariance-Matrix
@@ -1629,14 +1584,13 @@ class SourceManager(BaseModelManager):
                     cascade_true_batch):
 
                 data_batch_seed = list(data_batch)
-                data_batch_seed[param_index] = tf.reshape(
-                            cascade_seed, [-1, self.models[0].num_parameters])
+                data_batch_seed[param_index] = np.reshape(
+                    cascade_seed, [-1, self.models[0].num_parameters])
                 data_batch_seed = tuple(data_batch_seed)
 
                 data_batch_reco = list(data_batch)
-                data_batch_reco[param_index] = tf.reshape(tf.convert_to_tensor(
-                                    cascade_reco, dtype=param_signature.dtype),
-                                [-1, self.models[0].num_parameters])
+                data_batch_reco[param_index] = np.reshape(
+                    cascade_reco, [-1, self.models[0].num_parameters])
                 data_batch_reco = tuple(data_batch_reco)
 
                 loss_true = get_loss(data_batch).numpy()

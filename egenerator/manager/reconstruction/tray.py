@@ -102,8 +102,8 @@ class ReconstructionTray:
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensors
-            A data batch which consists of a tuple of tf.Tensors.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         """
 
         # create a container for the results
