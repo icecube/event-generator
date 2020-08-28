@@ -85,6 +85,62 @@ def log_gauss(x, mu, sigma):
     return -0.5*((x - mu) / sigma)**2 - np.log(sigma) - norm
 
 
+def tf_log_asymmetric_gauss(x, mu, sigma, r):
+    """Asymmetric Log Gaussian PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+    r : tf.Tensor
+        The asymmetry of the Gaussian.
+
+    Returns
+    -------
+    tf.Tensor
+        The asymmetric Gaussian PDF evaluated at x
+    """
+    norm = tf.math.log(2. / (tf.sqrt(2*np.pi*sigma**2) * (r+1)))
+    exp = tf.where(
+        x < mu,
+       -0.5*((x - mu) / sigma)**2,
+       -0.5*((x - mu) / (sigma*r))**2,
+    )
+    return norm + exp
+
+
+def log_asymmetric_gauss(x, mu, sigma, r):
+    """Asymmetric Log Gaussian PDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    mu : array_like
+        Mu parameter of Gaussian.
+    sigma : array_like
+        Sigma parameter of Gaussian.
+    r : array_like
+        The asymmetry of the Gaussian.
+
+    Returns
+    -------
+    array_like
+        The asymmetric Gaussian PDF evaluated at x
+    """
+    norm = np.log(2. / (np.sqrt(2*np.pi*sigma**2) * (r+1)))
+    exp = np.where(
+        x < mu,
+       -0.5*((x - mu) / sigma)**2,
+       -0.5*((x - mu) / (sigma*r))**2,
+    )
+    return norm + exp
+
+
 def tf_asymmetric_gauss(x, mu, sigma, r):
     """Asymmetric Gaussian PDF
 
