@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
+from scipy.optimize import LbfgsInvHessProduct
+
 
 class CovarianceMatrix:
 
@@ -123,6 +125,9 @@ class CovarianceMatrix:
         cov_sand_trafo = np.matmul(np.matmul(
             cov_trafo, opg_estimate), cov_trafo)
         if hasattr(result_obj, 'hess_inv'):
+            if isinstance(result_obj.hess_inv, LbfgsInvHessProduct):
+                result_obj.hess_inv = result_obj.hess_inv.todense()
+
             cov_sand_fit_trafo = np.matmul(
                 np.matmul(result_obj.hess_inv, opg_estimate),
                 result_obj.hess_inv)
