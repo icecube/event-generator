@@ -403,7 +403,6 @@ class SourceManager(BaseModelManager):
             opg_estimate = tf.linalg.matmul(kernel_fprop, kernel_fprop,
                                             transpose_b=True)
             print('opg_estimate', opg_estimate)
-            tf.print('opg_estimate shape', tf.shape(opg_estimate))
 
             return tf.reduce_sum(opg_estimate, axis=0)
 
