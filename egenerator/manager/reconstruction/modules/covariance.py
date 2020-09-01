@@ -121,7 +121,14 @@ class CovarianceMatrix:
             data_batch=data_batch,
             seed=result_inv).numpy().astype('float64')
 
-        cov_trafo = np.linalg.inv(hessian)
+        try:
+            cov_trafo = np.linalg.inv(hessian)
+        except np.linalg.LinAlgError as e:
+            print('e')
+            print('Hessian is a singular matrix and cannot be inverted!')
+            print('Setting covariance matrix to NaNs!')
+            cov_trafo = np.zeros_like(hessian) * float('nan')
+
         cov_sand_trafo = np.matmul(np.matmul(
             cov_trafo, opg_estimate), cov_trafo)
         if hasattr(result_obj, 'hess_inv'):
