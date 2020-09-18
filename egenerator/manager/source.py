@@ -686,8 +686,7 @@ class SourceManager(BaseModelManager):
             x0 = seed_array_trafo
         else:
             # get seed parameters
-            x0 = tf.boolean_mask(
-                seed_array_trafo, mask=fit_paramater_list, axis=1)
+            x0 = seed_array_trafo[:, fit_paramater_list]
 
         x0_flat = np.reshape(x0, [-1])
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
@@ -918,8 +917,7 @@ class SourceManager(BaseModelManager):
             x0 = seed_array_trafo
         else:
             # get seed parameters
-            x0 = tf.boolean_mask(
-                seed_array_trafo, mask=fit_paramater_list, axis=1)
+            x0 = seed_array_trafo[:, fit_paramater_list]
 
         # convert to tensors
         seed_array = tf.reshape(tf.convert_to_tensor(

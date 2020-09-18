@@ -208,7 +208,7 @@ class CircularizedAngularUncertainty:
 
                 # reconstruct (while keeping azimuth and zenith fixed)
                 unc_result, result_obj = self.unc_reconstruction_method(
-                    tuple(data_batch_combined), tf_seed_tensor)
+                    tuple(data_batch_combined), seed_tensor)
 
                 # get loss
                 unc_loss = self.unc_loss_function(
