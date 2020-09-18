@@ -604,6 +604,7 @@ class SourceManager(BaseModelManager):
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         param_shape = [-1, num_fit_params]
+        param_shape_full = [-1, len(fit_paramater_list)]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
             msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
@@ -614,7 +615,7 @@ class SourceManager(BaseModelManager):
         def func(x, data_batch, seed):
             # reshape and convert to tensor
             x = np.reshape(x, param_shape)
-            seed = np.reshape(seed, param_shape)
+            seed = np.reshape(seed, param_shape_full)
             loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
@@ -626,7 +627,7 @@ class SourceManager(BaseModelManager):
             def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
                 x = np.reshape(x, param_shape)
-                seed = np.reshape(seed, param_shape)
+                seed = np.reshape(seed, param_shape_full)
                 hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
@@ -768,6 +769,7 @@ class SourceManager(BaseModelManager):
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         param_shape = [-1, num_fit_params]
+        param_shape_full = [-1, len(fit_paramater_list)]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
             msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
@@ -781,7 +783,7 @@ class SourceManager(BaseModelManager):
         def func(x, data_batch, seed):
             # reshape and convert to tensor
             x = np.reshape(x, param_shape)
-            seed = np.reshape(seed, param_shape)
+            seed = np.reshape(seed, param_shape_full)
             loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
@@ -793,7 +795,7 @@ class SourceManager(BaseModelManager):
             def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
                 x = np.reshape(x, param_shape)
-                seed = np.reshape(seed, param_shape)
+                seed = np.reshape(seed, param_shape_full)
                 hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
@@ -893,6 +895,7 @@ class SourceManager(BaseModelManager):
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
+        param_shape_full = [-1, len(fit_paramater_list)]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
             raise ValueError('Wrong length of fit_paramater_list: {!r}'.format(
@@ -921,7 +924,7 @@ class SourceManager(BaseModelManager):
 
         # convert to tensors
         seed_array = tf.reshape(tf.convert_to_tensor(
-            seed_array, dtype=parameter_dtype), param_shape)
+            seed_array, dtype=parameter_dtype), param_shape_full)
         data_batch = self.data_handler.convert_data_to_tensor(data_batch)
 
         def const_loss_and_gradients_function(x):
