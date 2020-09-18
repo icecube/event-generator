@@ -241,7 +241,7 @@ class CircularizedAngularUncertainty:
         # ------------------------
         # get scale of uncertainty
         # ------------------------
-        def bisection_step(low, high, target=0.99, ddof=5):
+        def bisection_step(low, high, target=0.95, ddof=5):
             center = low + (high - low) / 2.
             zen, azi = angles.get_delta_psi_vector(
                 zenith=result_zenith,
@@ -271,7 +271,7 @@ class CircularizedAngularUncertainty:
                 stds[self.azimuth_index]**2 *
                 np.sin(result_zenith)**2) / 2.)[0]
 
-            unc_upper_bound = min(89.9, 3*np.rad2deg(circ_sigma))
+            unc_upper_bound = min(89.9, 2*np.rad2deg(circ_sigma))
         else:
             num_unc_scale_steps = 4
             lower_bound = 0.
