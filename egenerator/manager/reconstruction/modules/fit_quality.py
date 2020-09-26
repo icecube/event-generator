@@ -404,7 +404,7 @@ class GoodnessOfFit:
         # Normalize likelihood values by total event and DOM charge
         if self.normalize_by_total_charge:
             eps = 1.
-            data_x_dom_charge = data_batch[self.x_dom_charge_index].numpy()
+            data_x_dom_charge = data_batch[self.x_dom_charge_index]
             assert len(data_x_dom_charge) == 1
             data_event_charge = data_x_dom_charge[0]
             sample_event_llh /= event_charges + eps
