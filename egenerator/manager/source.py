@@ -9,6 +9,7 @@ from scipy import optimize
 
 from egenerator import misc
 from egenerator.utils import angles, basis_functions
+from egenerator.utils.spherical_opt import spherical_opt
 from egenerator.manager.component import Configuration
 from egenerator.manager.base import BaseModelManager
 from egenerator.manager.reconstruction.tray import ReconstructionTray
@@ -695,6 +696,135 @@ class SourceManager(BaseModelManager):
                                    args=(data_batch, seed_array), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
+        return best_fit, result
+
+    def reconstruct_events_spherical_opt(self, data_batch, loss_module,
+                                         loss_function,
+                                         fit_paramater_list,
+                                         minimize_in_trafo_space=True,
+                                         seed='x_parameters',
+                                         parameter_tensor_name='x_parameters',
+                                         batch_size=1,
+                                         **kwargs):
+        """Reconstruct events with scipy.optimize.minimize interface.
+
+        Parameters
+        ----------
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        loss_function : tf.function
+            The tensorflow function:
+                f(parameters, data_batch, seed_tensor) -> loss
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str or array_like
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a separate tensor.
+            The tensor should *NOT* be transformed.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
+        batch_size : int, optional
+            The batch size to use for spherical optimizer.
+        **kwargs
+            Keyword arguments that will be passed on to scipy.optimize.minimize
+
+        Returns
+        -------
+        scipy.optimize.minimize results
+            The results of the minimization
+
+        Raises
+        ------
+        ValueError
+            Description
+        """
+        num_fit_params = np.sum(fit_paramater_list, dtype=int)
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        param_shape = [-1, num_fit_params]
+        param_shape_full = [-1, len(fit_paramater_list)]
+
+        if (len(fit_paramater_list) != param_tensor.shape[1]):
+            msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
+            raise ValueError(msg.format(param_tensor.shape[1],
+                                        len(fit_paramater_list)))
+
+        # define helper function
+        def func(x, data_batch, seed):
+            # reshape and convert to tensor
+            x = np.reshape(x, param_shape)
+            seed = np.reshape(seed, param_shape_full)
+            if batch_size == 1:
+                loss = loss_function(x, data_batch, seed=seed)
+            else:
+                scalar, event, dom = loss_function(x, data_batch, seed=seed)
+                loss = (
+                    scalar.numpy().astype('float64') / len(event.numpy()) +
+                    event.numpy().astype('float64') +
+                    np.sum(dom.numpy().astype('float64'), axis=(1, 2))
+                )
+            return loss
+
+        # transform seed if minimization is performed in trafo space
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_array = data_batch[seed_index]
+        else:
+            seed_array = seed
+        if minimize_in_trafo_space:
+            seed_array_trafo = self.data_trafo.transform(
+                data=seed_array, tensor_name=parameter_tensor_name)
+        else:
+            seed_array_trafo = seed_array
+
+        # get seed parameters
+        if np.all(fit_paramater_list):
+            x0 = seed_array_trafo
+        else:
+            # get seed parameters
+            x0 = seed_array_trafo[:, fit_paramater_list]
+
+        # get spherical indices
+        if minimize_in_trafo_space or not np.all(fit_paramater_list):
+            spherical_indices = tuple()
+        else:
+            print('Using spherical indices for CRS2 Optimization!')
+            spherical_indices = [
+                [self.models[0].get_index('azimuth'),
+                 self.models[0].get_index('zenith')],
+            ]
+
+        # ----------------------
+        # HACK TO ADD MORE SEEDS
+        # ----------------------
+        x0 = np.tile(x0, (batch_size*20, 1))
+        x0[1:] = np.random.normal(x0[1:], scale=[[10, 10, 10, 1, 1, 100, 10]])
+        # ----------------------
+
+        result = spherical_opt(
+            func=lambda x: func(x, data_batch, seed_array),
+            spherical_indices=spherical_indices,
+            initial_points=x0, method='CRS2',
+            batch_size=batch_size,
+            **kwargs
+        )
+        print('success', result['success'])
+        print('n_calls', result['n_calls'])
+        print('nit', result['nit'])
+
+        best_fit = np.reshape(result['x'], param_shape)
         return best_fit, result
 
     def scipy_global_reconstruct_events(
