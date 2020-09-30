@@ -44,6 +44,7 @@ training_settings: {
                         'initial_learning_rate': 0.001,
                         'end_learning_rate': 0.000001,
                         'decay_steps': 1000000,
+                        'power': 2,
                         },
                     },
                 ]
@@ -456,6 +457,7 @@ model_settings: {
                 'scale_charge': True,
                 'scale_charge_by_relative_dom_efficiency': True,
                 'scale_charge_by_global_dom_efficiency': False,
+                'prevent_mixture_component_swapping': True,
                 'estimate_charge_distribution': 'negative_binomial',
                 'num_latent_models': 10,
 
