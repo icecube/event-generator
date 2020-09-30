@@ -5,7 +5,7 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
-from egenerator.utils.basis_functions import tf_gauss
+from egenerator.utils import basis_functions
 
 
 class SnowstormPriorLossModule(BaseComponent):
@@ -32,7 +32,7 @@ class SnowstormPriorLossModule(BaseComponent):
     A loss component that is used to compute the loss. The component
     must provide a
     loss_module.get_loss(data_batch_dict, result_tensors, tensors,
-                         parameter_tensor_name='x_parameters')
+                         parameter_tensor_name='x_parameters', **kwargs)
     method.
     """
 
@@ -137,8 +137,8 @@ class SnowstormPriorLossModule(BaseComponent):
 
         return configuration, {}, {}
 
-    def uniform_prior_loss(self, values, low, high):
-        """Computes a loss for a uniform prior.
+    def uniform_log_prior_loss(self, values, low, high, eps=0):
+        """Computes a loss for a uniform log prior.
 
         Loss is zero for values within bounds and exponentially grows outside.
 
@@ -150,24 +150,34 @@ class SnowstormPriorLossModule(BaseComponent):
             The lower limit of the uniform prior.
         high : TYPE
             The upper limit of the uniform prior.
+        eps : float, optional
+            This defines the amount before low/high at which the penalty will
+            begin.
+
+        Returns
+        -------
+        TYPE
+            Description
         """
         scale = high - low
-        exp_factor = 5
+        exp_factor = 10
         normalization = np.exp(exp_factor)
 
         def loss_excess(scaled_excess):
             return tf.exp((scaled_excess + 1)*exp_factor) - normalization
 
-        loss = tf.where(values > high,
+        loss = tf.where(values > high - eps,
                         loss_excess((values - high) / scale),
                         tf.zeros_like(values))
-        loss += tf.where(values < low,
+        loss += tf.where(values < low + eps,
                          loss_excess((low - values) / scale),
                          tf.zeros_like(values))
         return loss
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
+                 parameter_tensor_name='x_parameters', reduce_to_scalar=True,
+                 sort_loss_terms=False,
+                 **kwargs):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -205,6 +215,17 @@ class SnowstormPriorLossModule(BaseComponent):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
+        **kwargs
+            Arbitrary keyword arguments.
 
         Returns
         -------
@@ -225,7 +246,7 @@ class SnowstormPriorLossModule(BaseComponent):
         # compute loss for uniform priors
         for name, bounds in self.untracked_data['uniform_parameters'].items():
             values = parameters.params[name]
-            loss_terms.append(self.uniform_prior_loss(values, *bounds))
+            loss_terms.append(self.uniform_log_prior_loss(values, *bounds))
 
         # compute loss for Fourier modes
         num_sigmas = len(self.untracked_data['sigmas'])
@@ -242,13 +263,32 @@ class SnowstormPriorLossModule(BaseComponent):
             fourier_values = parameters[:, start_index:end_index]
 
             fourier_sigmas = tf.expand_dims(self.sigmas, axis=0)
-            fourier_pdf = tf_gauss(fourier_values,
-                                   mu=tf.zeros_like(fourier_sigmas),
-                                   sigma=fourier_sigmas)
+            fourier_log_pdf = basis_functions.tf_log_gauss(
+                fourier_values,
+                mu=tf.zeros_like(fourier_sigmas),
+                sigma=fourier_sigmas,
+            )
 
             # we will use the negative log likelihood as loss
-            fourier_loss = -tf.math.log(fourier_pdf)
+            fourier_loss = -fourier_log_pdf
             loss_terms.append(fourier_loss)
+
+        if sort_loss_terms:
+            event_loss = None
+            for loss_term in loss_terms:
+                if (loss_term.shape) > 1:
+                    loss_term = tf.reduce_sum(loss_term, axis=1)
+                if event_loss is None:
+                    event_loss = loss_term
+                else:
+                    event_loss += loss_term
+
+            dom_tensor = data_batch_dict['x_dom_charge'][..., 0]
+            loss_terms = [
+                tf.zeros_like(dom_tensor[0, 0, 0]),
+                event_loss,
+                tf.zeros_like(dom_tensor),
+            ]
 
         if reduce_to_scalar:
             return tf.math.accumulate_n([tf.reduce_sum(loss_term)

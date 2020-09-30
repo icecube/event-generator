@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 import os
 import logging
 import tensorflow as tf
@@ -7,7 +6,6 @@ import numpy as np
 import pandas as pd
 import timeit
 from scipy import optimize
-from scipy.stats import chi2
 
 from egenerator import misc
 from egenerator.utils import angles, basis_functions
@@ -34,7 +32,8 @@ class SourceManager(BaseModelManager):
                                 minimize_in_trafo_space=True,
                                 seed=None,
                                 parameter_tensor_name='x_parameters',
-                                reduce_to_scalar=True):
+                                reduce_to_scalar=True,
+                                **kwargs):
         """Compute loss for a chosen set of parameters.
 
         Parameters
@@ -43,7 +42,7 @@ class SourceManager(BaseModelManager):
             The tensor describing the parameters.
             If minimize_in_trafo_space is True, it is also expected that
             parameters_trafo are given in transformed data space.
-            Shape: [-1, num_params]
+            Shape: [-1, np.sum(fit_paramater_list)]
         data_batch : tuple of tf.Tensor
             The tf.data.Dataset batch.
         loss_module : LossComponent
@@ -60,11 +59,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         reduce_to_scalar : bool, optional
@@ -73,6 +72,9 @@ class SourceManager(BaseModelManager):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -91,15 +93,18 @@ class SourceManager(BaseModelManager):
         # gather a list of parameters that are to be fitted
         if not np.all(fit_paramater_list):
 
-            seed_index = self.data_handler.tensors.get_index(seed)
+            if isinstance(seed, str):
+                seed_index = self.data_handler.tensors.get_index(seed)
+                seed_tensor = data_batch[seed_index]
+            else:
+                seed_tensor = seed
 
             # transform seed data if necessary
             if minimize_in_trafo_space:
                 seed_trafo = self.data_trafo.transform(
-                    data=data_batch[seed_index],
-                    tensor_name=parameter_tensor_name)
+                    data=seed_tensor, tensor_name=parameter_tensor_name)
             else:
-                seed_trafo = data_batch[seed_index]
+                seed_trafo = seed_tensor
 
             unstacked_params_trafo = tf.unstack(parameters_trafo, axis=1)
             unstacked_seed_trafo = tf.unstack(seed_trafo, axis=1)
@@ -131,12 +136,14 @@ class SourceManager(BaseModelManager):
                                 parameter_tensor_name=parameter_tensor_name)
 
             loss_i = loss_module.get_loss(
-                    data_batch_dict,
-                    result_tensors,
-                    self.data_handler.tensors,
-                    model=model,
-                    parameter_tensor_name=parameter_tensor_name,
-                    reduce_to_scalar=reduce_to_scalar)
+                data_batch_dict,
+                result_tensors,
+                self.data_handler.tensors,
+                model=model,
+                parameter_tensor_name=parameter_tensor_name,
+                reduce_to_scalar=reduce_to_scalar,
+                **kwargs
+            )
             if loss is None:
                 loss = loss_i
             else:
@@ -152,7 +159,8 @@ class SourceManager(BaseModelManager):
                                     minimize_in_trafo_space=True,
                                     seed=None,
                                     parameter_tensor_name='x_parameters',
-                                    reduce_to_scalar=True):
+                                    reduce_to_scalar=True,
+                                    **kwargs):
         """Get a function that returns the loss for a chosen set of parameters.
 
         Parameters
@@ -173,11 +181,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         reduce_to_scalar : bool, optional
@@ -186,6 +194,9 @@ class SourceManager(BaseModelManager):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -196,7 +207,8 @@ class SourceManager(BaseModelManager):
         """
 
         @tf.function(input_signature=input_signature)
-        def parameter_loss_function(parameters_trafo, data_batch):
+        def parameter_loss_function(parameters_trafo, data_batch,
+                                    seed=seed):
 
             loss = self.parameter_loss_function(
                     parameters_trafo=parameters_trafo,
@@ -206,7 +218,8 @@ class SourceManager(BaseModelManager):
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
                     parameter_tensor_name=parameter_tensor_name,
-                    reduce_to_scalar=reduce_to_scalar)
+                    reduce_to_scalar=reduce_to_scalar,
+                    **kwargs)
             return loss
 
         return parameter_loss_function
@@ -215,7 +228,8 @@ class SourceManager(BaseModelManager):
                                         fit_paramater_list,
                                         minimize_in_trafo_space=True,
                                         seed=None,
-                                        parameter_tensor_name='x_parameters'):
+                                        parameter_tensor_name='x_parameters',
+                                        **kwargs):
         """Get a function that returns the loss and gradients wrt parameters.
 
         Parameters
@@ -236,13 +250,16 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -253,7 +270,8 @@ class SourceManager(BaseModelManager):
         """
 
         @tf.function(input_signature=input_signature)
-        def loss_and_gradients_function(parameters_trafo, data_batch):
+        def loss_and_gradients_function(parameters_trafo, data_batch,
+                                        seed=seed):
 
             with tf.GradientTape(watch_accessed_variables=False) as tape:
                 tape.watch(parameters_trafo)
@@ -265,7 +283,8 @@ class SourceManager(BaseModelManager):
                     fit_paramater_list=fit_paramater_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
-                    parameter_tensor_name=parameter_tensor_name)
+                    parameter_tensor_name=parameter_tensor_name,
+                    **kwargs)
 
             grad = tape.gradient(loss, parameters_trafo)
             return loss, grad
@@ -282,6 +301,11 @@ class SourceManager(BaseModelManager):
         The outer product of gradients (OPG) estimate can be used in connection
         with the inverse Hessian matrix in order to obtain a robust estimate
         for the covariance matrix.
+        It is also relevant for extended maximum likelhoods for which the
+        inverse covariance matrix (in the asymptotic limit) of the orginal
+        (unextended) likelihood is not given by the
+        Hessian (second order derivatives) as in standard MLE, but by a product
+        of first oder derivates (OPG estimate).
 
         Parameters
         ----------
@@ -301,11 +325,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
 
@@ -325,10 +349,14 @@ class SourceManager(BaseModelManager):
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=seed,
             parameter_tensor_name=parameter_tensor_name,
-            reduce_to_scalar=False)
+            reduce_to_scalar=False,
+            normalize_by_total_charge=False,
+            sort_loss_terms=False,
+        )
 
         @tf.function(input_signature=input_signature)
-        def opg_estimate_function(parameters_trafo, data_batch):
+        def opg_estimate_function(parameters_trafo, data_batch,
+                                  seed=seed):
 
             """
             We need to accumulate the Jacobian over colums (xs) in
@@ -358,7 +386,8 @@ class SourceManager(BaseModelManager):
 
                     loss_terms = loss_function(
                         parameters_trafo=parameters_trafo,
-                        data_batch=data_batch)
+                        data_batch=data_batch,
+                        seed=seed)
 
                     loss_terms_concat = tf.concat(
                         values=[tf.reshape(term, [-1]) for term in loss_terms],
@@ -374,7 +403,6 @@ class SourceManager(BaseModelManager):
             opg_estimate = tf.linalg.matmul(kernel_fprop, kernel_fprop,
                                             transpose_b=True)
             print('opg_estimate', opg_estimate)
-            tf.print('opg_estimate shape', tf.shape(opg_estimate))
 
             return tf.reduce_sum(opg_estimate, axis=0)
 
@@ -405,11 +433,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
+        seed : str or tf.Tensor, optional
             If a fit_paramater_list is provided with at least one 'False'
-            entry, the seed name must also be provided.
-            The seed is the name of the data tensor by which the reconstruction
-            is seeded.
+            entry, the seed must also be provided. The seed may either be
+            provided as the name of the data tensor within the `data_batch`,
+            or by explicitly passing a tf.Tensor.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
 
@@ -422,15 +450,19 @@ class SourceManager(BaseModelManager):
         """
 
         @tf.function(input_signature=input_signature)
-        def hessian_function(parameters_trafo, data_batch):
+        def hessian_function(parameters_trafo, data_batch, seed=seed):
             loss = self.parameter_loss_function(
-                    parameters_trafo=parameters_trafo,
-                    data_batch=data_batch,
-                    loss_module=loss_module,
-                    fit_paramater_list=fit_paramater_list,
-                    minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=seed,
-                    parameter_tensor_name=parameter_tensor_name)
+                parameters_trafo=parameters_trafo,
+                data_batch=data_batch,
+                loss_module=loss_module,
+                fit_paramater_list=fit_paramater_list,
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                seed=seed,
+                parameter_tensor_name=parameter_tensor_name,
+                reduce_to_scalar=True,
+                normalize_by_total_charge=False,
+                sort_loss_terms=False,
+            )
 
             hessian = tf.hessians(loss, parameters_trafo)[0]
 
@@ -443,6 +475,71 @@ class SourceManager(BaseModelManager):
             return hessian
 
         return hessian_function
+
+    def get_model_tensors_function(self, model_index=0):
+        """Get a tf function that returns the model tensors
+        for a set of parameters.
+
+        Parameters
+        ----------
+        model_index : int, optional
+            The model index for which to obtain the result tensors.
+            This is only relevant if multiple models were defined
+            during construction of the SourceManager object.
+
+        Returns
+        -------
+        tf.function
+            A tensorflow function: f(parameters) -> dict of model tensors
+            that returns a dictionary of tf.Tensor which are computed by
+            the event-generator model.
+        """
+        model = self.models[model_index]
+
+        pulse_dtype = getattr(
+            tf, self.data_trafo.data['tensors']['x_pulses'].dtype)
+        param_dtype = getattr(
+            tf, self.data_trafo.data['tensors']['x_parameters'].dtype)
+        param_signature = tf.TensorSpec(
+            shape=[None, model.num_parameters], dtype=param_dtype)
+        x_pulses_shape = self.data_trafo.data['tensors']['x_pulses'].shape
+        assert len(x_pulses_shape) == 2
+
+        @tf.function(input_signature=(param_signature,))
+        def model_tensors_function(parameters):
+            """Get the model tensors for a given set of parameters.
+
+            Parameters
+            ----------
+            parameters : tf.Tensor
+                The tensor describing the parameters.
+                The parameters are expected to *not* be transformed!
+                Shape: [-1, num_model_parameters]
+
+            Returns
+            -------
+            TYPE
+                Description
+            """
+            # create a dummy data batch dict
+            data_batch_dict = {
+                'x_pulses': tf.ones([1, x_pulses_shape[1]], dtype=pulse_dtype),
+                'x_pulses_ids': tf.convert_to_tensor([[0, 0, 0]]),
+                'x_dom_exclusions': tf.ones(
+                    [len(parameters), 86, 60, 1], dtype=tf.bool),
+                'x_dom_charge': tf.ones(
+                    [len(parameters), 86, 60, 1], dtype=param_dtype),
+                'x_parameters': tf.convert_to_tensor(
+                    parameters, dtype=param_dtype),
+            }
+            result_tensors = model.get_tensors(
+                data_batch_dict,
+                is_training=False,
+                parameter_tensor_name='x_parameters')
+
+            return result_tensors
+
+        return model_tensors_function
 
     def reconstruct_events(self, data_batch, loss_module,
                            loss_and_gradients_function,
@@ -458,8 +555,8 @@ class SourceManager(BaseModelManager):
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensor
-            A tuple of tensors. This is the batch received from the tf.Dataset.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
             must provide a
@@ -467,7 +564,7 @@ class SourceManager(BaseModelManager):
             method.
         loss_and_gradients_function : tf.function
             The tensorflow function:
-                f(parameters, data_batch) -> loss, gradients
+                f(parameters, data_batch, seed_tensor) -> loss, gradients
         fit_paramater_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
@@ -477,8 +574,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
-            Name of seed tensor
+        seed : str or array_like
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a separate tensor.
+            The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         jac : bool, optional
@@ -503,8 +603,8 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
+        param_shape_full = [-1, len(fit_paramater_list)]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
             msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
@@ -512,11 +612,11 @@ class SourceManager(BaseModelManager):
                                         len(fit_paramater_list)))
 
         # define helper function
-        def func(x, data_batch):
+        def func(x, data_batch, seed):
             # reshape and convert to tensor
-            x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
-                           param_shape)
-            loss, grad = loss_and_gradients_function(x, data_batch)
+            x = np.reshape(x, param_shape)
+            seed = np.reshape(seed, param_shape_full)
+            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
 
@@ -524,60 +624,211 @@ class SourceManager(BaseModelManager):
             return loss, grad_flat
 
         if hessian_function is not None:
-            def get_hessian(x, data_batch):
+            def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
-                x = tf.reshape(tf.convert_to_tensor(x, dtype=parameter_dtype),
-                               param_shape)
-                hessian = hessian_function(x, data_batch)
+                x = np.reshape(x, param_shape)
+                seed = np.reshape(seed, param_shape_full)
+                hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
 
             kwargs['hess'] = get_hessian
 
-        tolerance_func = None
-        if tolerance_func is not None:
-            print('using tolerance_func')
-            class Callback:
-                def __init__(self, atol=10.1):
-                    self._atol = atol
-                    self._prev_loss = None
+        # tolerance_func = None
+        # if tolerance_func is not None:
+        #     print('using tolerance_func')
 
-                def __call__(self, xk):
-                    this_loss, _ = func(xk, data_batch)
-                    if self._prev_loss is not None:
-                        print('self._prev_loss - this_loss',
-                              self._prev_loss - this_loss)
-                        if (self._prev_loss - this_loss) < self._atol:
-                            return True
+        #     class Callback:
+        #         def __init__(self, atol=10.1):
+        #             self._atol = atol
+        #             self._prev_loss = None
 
-                    self._prev_loss = this_loss
-                    return False
+        #         def __call__(self, xk):
+        #             this_loss, _ = func(xk, data_batch, seed)
+        #             if self._prev_loss is not None:
+        #                 print('self._prev_loss - this_loss',
+        #                       self._prev_loss - this_loss)
+        #                 if (self._prev_loss - this_loss) < self._atol:
+        #                     return True
 
-            tolerance_func = Callback()
+        #             self._prev_loss = this_loss
+        #             return False
 
-            kwargs['callback'] = tolerance_func
+        #     tolerance_func = Callback()
+
+        #     kwargs['callback'] = tolerance_func
 
         # transform seed if minimization is performed in trafo space
-        seed_index = self.data_handler.tensors.get_index(seed)
-        seed_tensor = data_batch[seed_index]
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_array = data_batch[seed_index]
+        else:
+            seed_array = seed
         if minimize_in_trafo_space:
-            seed_tensor = self.data_trafo.transform(
-                data=seed_tensor, tensor_name=parameter_tensor_name)
+
+            # transform bounds if provided
+            if 'bounds' in kwargs:
+                bounds = self.data_trafo.transform(
+                    data=np.array(kwargs['bounds']).T,
+                    tensor_name=parameter_tensor_name).T
+                for i, bound in enumerate(bounds):
+                    for j in range(2):
+                        if not np.isfinite(bound[j]):
+                            bounds[i, j] = None
+                kwargs['bounds'] = bounds
+
+            seed_array_trafo = self.data_trafo.transform(
+                data=seed_array, tensor_name=parameter_tensor_name)
+        else:
+            seed_array_trafo = seed_array
 
         # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = seed_tensor
+            x0 = seed_array_trafo
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(seed_tensor, axis=1)
-            tracked_params = [p for p, fit in
-                              zip(unstacked_seed, fit_paramater_list) if fit]
-            x0 = tf.stack(tracked_params, axis=1)
+            x0 = seed_array_trafo[:, fit_paramater_list]
 
-        x0_flat = tf.reshape(x0, [-1])
+        x0_flat = np.reshape(x0, [-1])
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
                                    method=method,
-                                   args=(data_batch,), **kwargs)
+                                   args=(data_batch, seed_array), **kwargs)
+
+        best_fit = np.reshape(result.x, param_shape)
+        return best_fit, result
+
+    def scipy_global_reconstruct_events(
+            self, data_batch, loss_module,
+            loss_and_gradients_function,
+            fit_paramater_list,
+            minimize_in_trafo_space=True,
+            seed='x_parameters',
+            parameter_tensor_name='x_parameters',
+            minimizer_kwargs={
+                'method': 'BFGS',
+            },
+            options={
+                'maxtime': 10,
+            },
+            jac=True,
+            hessian_function=None,
+            **kwargs):
+        """Reconstruct events with scipy.optimize.shgo interface.
+
+        Parameters
+        ----------
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
+        loss_module : LossComponent
+            A loss component that is used to compute the loss. The component
+            must provide a
+            loss_module.get_loss(data_batch_dict, result_tensors)
+            method.
+        loss_and_gradients_function : tf.function
+            The tensorflow function:
+                f(parameters, data_batch, seed_tensor) -> loss, gradients
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        minimize_in_trafo_space : bool, optional
+            If True, minimization is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            minimization.
+        seed : str or array_like
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a separate tensor.
+            The tensor should *NOT* be transformed.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
+        minimizer_kwargs : dict, optional
+            A dictionary of options which is passed on to the internal
+            scipy.optimize.minimize minimizer.
+        options : dict, optional
+            A dictionary of options which is passed on to scipy.optimize.shgo.
+        jac : bool, optional
+            Passed on to scipy.optimize.minimize and scipy.optimize.shgo.
+        hessian_function : tf.function, optional
+            The tensorflow function:
+                f(parameters, data_batch) -> hessian
+        **kwargs
+            Keyword arguments that will be passed on to scipy.optimize.shgo
+
+        Returns
+        -------
+        scipy.optimize.minimize results
+            The results of the minimization
+
+        Raises
+        ------
+        ValueError
+            Description
+        """
+        num_fit_params = np.sum(fit_paramater_list, dtype=int)
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        param_shape = [-1, num_fit_params]
+        param_shape_full = [-1, len(fit_paramater_list)]
+
+        if (len(fit_paramater_list) != param_tensor.shape[1]):
+            msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
+            raise ValueError(msg.format(param_tensor.shape[1],
+                                        len(fit_paramater_list)))
+
+        minimizer_kwargs['jac'] = jac
+        options['jac'] = jac
+
+        # define helper function
+        def func(x, data_batch, seed):
+            # reshape and convert to tensor
+            x = np.reshape(x, param_shape)
+            seed = np.reshape(seed, param_shape_full)
+            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
+            loss = loss.numpy().astype('float64')
+            grad = grad.numpy().astype('float64')
+
+            grad_flat = np.reshape(grad, [-1])
+            return loss, grad_flat
+
+        if hessian_function is not None:
+            def get_hessian(x, data_batch, seed):
+                # reshape and convert to tensor
+                x = np.reshape(x, param_shape)
+                seed = np.reshape(seed, param_shape_full)
+                hessian = hessian_function(x, data_batch, seed=seed)
+                hessian = hessian.numpy().astype('float64')
+                return hessian
+
+            minimizer_kwargs['hess'] = get_hessian
+            options['hess'] = get_hessian
+
+        # get seed tensor
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_array = data_batch[seed_index]
+        else:
+            seed_array = seed
+
+        # transform seed if minimization is performed in trafo space
+        if minimize_in_trafo_space:
+            seed_array_trafo = self.data_trafo.transform(
+                data=seed_array, tensor_name=parameter_tensor_name)
+        else:
+            seed_array_trafo = seed_array
+
+        # For now: add +- 1 in trafo space
+        # ToDo: allow to pass proper boundaries and uncertainties
+        assert minimize_in_trafo_space, 'currently only for trafo space'
+        bounds = np.concatenate((seed_array_trafo - 1, seed_array_trafo + 1)).T
+
+        def callback(xk):
+            print(xk)
+
+        result = optimize.shgo(func=func, bounds=bounds, options=options,
+                               minimizer_kwargs=minimizer_kwargs,
+                               callback=callback,
+                               args=(data_batch, seed_array), **kwargs)
 
         best_fit = np.reshape(result.x, param_shape)
         return best_fit, result
@@ -595,8 +846,8 @@ class SourceManager(BaseModelManager):
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensor
-            A tuple of tensors. This is the batch received from the tf.Dataset.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         loss_module : LossComponent
             A loss component that is used to compute the loss. The component
             must provide a
@@ -604,7 +855,7 @@ class SourceManager(BaseModelManager):
             method.
         loss_and_gradients_function : tf.function
             The tensorflow function:
-                f(parameters, data_batch) -> loss, gradients
+                f(parameters, data_batch, seed_tensor) -> loss, gradients
         fit_paramater_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
@@ -614,8 +865,11 @@ class SourceManager(BaseModelManager):
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str, optional
-            Name of seed tensor
+        seed : str or array_like
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a separate tensor.
+            The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         method : str, optional
@@ -641,30 +895,44 @@ class SourceManager(BaseModelManager):
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
+        param_shape_full = [-1, len(fit_paramater_list)]
 
         if (len(fit_paramater_list) != param_tensor.shape[1]):
             raise ValueError('Wrong length of fit_paramater_list: {!r}'.format(
                 len(fit_paramater_list)))
 
+        # Get seed tensor
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_array = data_batch[seed_index]
+        else:
+            seed_array = seed
+
         # transform seed if minimization is performed in trafo space
-        seed_index = self.data_handler.tensors.get_index(seed)
-        seed_tensor = data_batch[seed_index]
         if minimize_in_trafo_space:
-            seed_tensor = self.data_trafo.transform(
-                data=seed_tensor, tensor_name=parameter_tensor_name)
+            seed_array_trafo = self.data_trafo.transform(
+                data=seed_array, tensor_name=parameter_tensor_name)
+        else:
+            seed_array_trafo = seed_array
 
         # get seed parameters
         if np.all(fit_paramater_list):
-            x0 = seed_tensor
+            x0 = seed_array_trafo
         else:
             # get seed parameters
-            unstacked_seed = tf.unstack(seed_tensor, axis=1)
-            tracked_params = [p for p, fit in
-                              zip(unstacked_seed, fit_paramater_list) if fit]
-            x0 = tf.stack(tracked_params, axis=1)
+            x0 = seed_array_trafo[:, fit_paramater_list]
+
+        # convert to tensors
+        seed_array = tf.reshape(tf.convert_to_tensor(
+            seed_array, dtype=parameter_dtype), param_shape_full)
+        data_batch = self.data_handler.convert_data_to_tensor(data_batch)
 
         def const_loss_and_gradients_function(x):
-            loss, grad = loss_and_gradients_function(x, data_batch)
+            # convert to tensors
+            x = tf.reshape(tf.convert_to_tensor(
+                x, dtype=parameter_dtype), param_shape)
+            loss, grad = loss_and_gradients_function(
+                x, data_batch, seed_array)
             loss = tf.reshape(loss, [1])
             return loss, grad
 
@@ -908,23 +1176,22 @@ class SourceManager(BaseModelManager):
             os.makedirs(directory)
             self._logger.info('Creating directory: {!r}'.format(directory))
 
-        test_dataset = iter(self.data_handler.get_tf_dataset(
-            **config['data_iterator_settings']['test']))
+        test_dataset = self.data_handler.get_batch_generator(
+            **config['data_iterator_settings']['test'])
 
         # parameter input signature
         parameter_tensor_name = reco_config['parameter_tensor_name']
+        param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        param_dtype = getattr(tf, param_tensor.dtype)
         param_index = self.data_handler.tensors.get_index(
                                                         parameter_tensor_name)
-        seed_index = self.data_handler.tensors.get_index(reco_config['seed'])
-        param_dtype = test_dataset.element_spec[param_index].dtype
-        param_signature = tf.TensorSpec(
-            shape=[None, np.sum(fit_paramater_list, dtype=int)],
-            dtype=param_dtype)
+
+        data_set_spec = self.data_handler.get_data_set_signature()
 
         # get concrete function to compute loss
         get_loss = self.get_concrete_function(
             function=self.get_loss,
-            input_signature=(test_dataset.element_spec,),
+            input_signature=(data_set_spec,),
             loss_module=loss_module,
             opt_config={'l1_regularization': 0., 'l2_regularization': 0},
             is_training=False,
@@ -935,6 +1202,8 @@ class SourceManager(BaseModelManager):
         # ---------------
         calculate_covariance_matrix = \
             reco_config['calculate_covariance_matrix']
+        calculate_goodness_of_fit = \
+            reco_config['calculate_goodness_of_fit']
         estimate_angular_uncertainty = \
             reco_config['estimate_angular_uncertainty']
         run_mcmc = reco_config['run_mcmc']
@@ -956,21 +1225,109 @@ class SourceManager(BaseModelManager):
         # -------------------------
         # Build reconstruction tray
         # -------------------------
+        if isinstance(reco_config['seed'], str):
+            seed_tensor_names = [reco_config['seed']]
+        else:
+            seed_tensor_names = reco_config['seed']
 
         # create reconstruction tray
         reco_tray = ReconstructionTray(manager=self, loss_module=loss_module)
 
         # add reconstruction module
+        reco_names = []
+        for seed_tensor_name in seed_tensor_names:
+            reco_name = 'reco_' + seed_tensor_name
+            reco_names.append(reco_name)
+
+            # ---------------------
+            # --- Random Fast Seeds
+            # ---------------------
+            if 'num_random_seeds' in reco_config:
+                reco_random_names = []
+                reco_name_random = 'reco_random_' + seed_tensor_name
+                for i in range(reco_config['num_random_seeds']):
+                    reco_name_random_i = 'reco_random_{:04d}'.format(
+                        i) + seed_tensor_name
+                    reco_random_names.append(reco_name_random_i)
+
+                    reco_tray.add_module(
+                        'Reconstruction',
+                        name=reco_name_random_i,
+                        fit_paramater_list=fit_paramater_list,
+                        seed_tensor_name=seed_tensor_name,
+                        seed_from_previous_module=False,
+                        randomize_seed=True,
+                        minimize_in_trafo_space=minimize_in_trafo_space,
+                        parameter_tensor_name=parameter_tensor_name,
+                        reco_optimizer_interface=reco_config[
+                            'reco_optimizer_interface'],
+                        scipy_optimizer_settings={
+                            'method': 'L-BFGS-B',
+                            'options': {
+                                'ftol': 1e-4,
+                                'maxiter': 1000,
+                                # 'maxcor': 100,
+                                # 'maxls': 50,
+                            },
+                            'bounds': [
+                                [None, None],
+                                [None, None],
+                                [None, None],
+                                [0, 3.1416],
+                                [0, 6.2832],
+                                [0, None],
+                                [None, None],
+                                [0.9, 1.1],
+                                [0., 2.0],
+                                [0.9, 1.1],
+                                [-1., 1.],
+                                [-0.2, 0.2],
+                                [0.9, 1.1],
+                            ],
+                        },
+                        tf_optimizer_settings=reco_config[
+                            'tf_optimizer_settings'],
+                    )
+                # chose best reconstruction
+                reco_tray.add_module(
+                    'SelectBestReconstruction', name='sel_reco_random',
+                    reco_names=reco_random_names,
+                )
+                reco_tray.add_module(
+                    'Reconstruction',
+                    name=reco_name_random,
+                    fit_paramater_list=fit_paramater_list,
+                    seed_tensor_name='sel_reco_random',
+                    seed_from_previous_module=True,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    parameter_tensor_name=parameter_tensor_name,
+                    reco_optimizer_interface=reco_config[
+                        'reco_optimizer_interface'],
+                    scipy_optimizer_settings=reco_config[
+                        'scipy_optimizer_settings'],
+                    tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+                )
+                reco_names.append(reco_name_random)
+            # ---------------------
+
+            reco_tray.add_module(
+                'Reconstruction',
+                name=reco_name,
+                fit_paramater_list=fit_paramater_list,
+                seed_tensor_name=seed_tensor_name,
+                seed_from_previous_module=False,
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                reco_optimizer_interface=reco_config[
+                    'reco_optimizer_interface'],
+                scipy_optimizer_settings=reco_config[
+                    'scipy_optimizer_settings'],
+                tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+            )
+
+        # chosse best reconstruction
         reco_tray.add_module(
-            'Reconstruction',
-            name='reco',
-            fit_paramater_list=fit_paramater_list,
-            seed_tensor_name=reco_config['seed'],
-            minimize_in_trafo_space=minimize_in_trafo_space,
-            parameter_tensor_name=parameter_tensor_name,
-            reco_optimizer_interface=reco_config['reco_optimizer_interface'],
-            scipy_optimizer_settings=reco_config['scipy_optimizer_settings'],
-            tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+            'SelectBestReconstruction', name='reco', reco_names=reco_names,
         )
 
         # add covariance module
@@ -979,21 +1336,39 @@ class SourceManager(BaseModelManager):
                 'CovarianceMatrix',
                 name='covariance',
                 fit_paramater_list=fit_paramater_list,
-                seed_tensor_name=reco_config['seed'],
                 reco_key='reco',
+                minimize_in_trafo_space=minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+            )
+
+        # add goodness of fit module
+        if calculate_goodness_of_fit:
+            if calculate_covariance_matrix:
+                covariance_key = 'covariance'
+            else:
+                covariance_key = None
+            reco_tray.add_module(
+                'GoodnessOfFit',
+                name='GoodnessOfFit',
+                fit_paramater_list=fit_paramater_list,
+                reco_key='reco',
+                covariance_key=covariance_key,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
             )
 
         # add circularized angular uncertainty estimation module
         if estimate_angular_uncertainty:
+            if calculate_covariance_matrix:
+                covariance_key = 'covariance'
+            else:
+                covariance_key = None
             reco_tray.add_module(
                 'CircularizedAngularUncertainty',
                 name='CircularizedAngularUncertainty',
                 fit_paramater_list=fit_paramater_list,
-                seed_tensor_name=reco_config['seed'],
                 reco_key='reco',
-                # covariance_key='covariance',
+                covariance_key=covariance_key,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
             )
@@ -1047,39 +1422,13 @@ class SourceManager(BaseModelManager):
         cov_zen_azi_list = []
         cov_fit_zen_azi_list = []
         circular_unc_list = []
+        event_p_value_1 = []
+        event_p_value_2 = []
+        std_devs_samples = []
+        sample_reco_bias = []
 
         event_counter = 0
         for data_batch in test_dataset:
-
-            # # -------------------
-            # # Hack to modify seed
-            # # -------------------
-            # x0 = data_batch[seed_index]
-            # seed_shape = x0.numpy().shape
-            # # x0 = np.random.normal(loc=x0.numpy()[0],
-            # #                       scale=[300, 300, 300, 0.5, 0.5, 100, 1000],
-            # #                       size=[1, 7])
-            # # x0[0, 5] = 100
-
-            # # set snowstorm params to expectation
-            # x0 = x0.numpy()
-
-            # # # all snowstorm variations
-            # # x0[:, 7:10] = 1.0
-            # # x0[:, 10] = -0.5
-            # # x0[:, 11:36] = 0.
-            # # x0[:, 36] = 1.0
-
-            # # wihtout ft
-            # x0[:, 7:10] = 1.0
-            # x0[:, 10] = 0.
-            # x0[:, 11] = 0.
-
-            # x0 = tf.reshape(tf.convert_to_tensor(x0, param_dtype), seed_shape)
-            # new_batch = [b for b in data_batch]
-            # new_batch[seed_index] = x0
-            # data_batch = tuple(new_batch)
-            # # -------------------
 
             # ---------------------------
             # Execute reconstruction tray
@@ -1088,9 +1437,18 @@ class SourceManager(BaseModelManager):
             results = reco_tray.execute(data_batch)
             reco_end_t = timeit.default_timer()
 
+            # get seed from reconstruction result
+            if results['reco']['seed_from_previous_module']:
+                seed_index = self.data_handler.tensors.get_index(
+                    reco_config['seed'][0]) #------------------------------- HACK WRONG!
+                # raise NotImplementedError
+            else:
+                seed_index = self.data_handler.tensors.get_index(
+                    results['reco']['seed_tensor_name'])
+
             cascade_reco_batch = results['reco']['result']
-            cascade_true_batch = data_batch[param_index].numpy()
-            cascade_seed_batch = data_batch[seed_index].numpy()
+            cascade_true_batch = data_batch[param_index]
+            cascade_seed_batch = data_batch[seed_index]
 
             # -----------------
             # Covariance-Matrix
@@ -1120,6 +1478,20 @@ class SourceManager(BaseModelManager):
                     os.path.splitext(reco_config['reco_output_file'])[0],
                     event_counter)
                 # np.save(cov_file, np.stack([cov, cov_fit]))
+
+            # ---------------
+            # Goodness of Fit
+            # ---------------
+            if calculate_goodness_of_fit:
+                event_p_value_1.append(
+                    results['GoodnessOfFit']['event_p_value_1sided'])
+                event_p_value_2.append(
+                    results['GoodnessOfFit']['event_p_value_2sided'])
+                if 'sample_reco_cov' in results['GoodnessOfFit']:
+                    bias = results['GoodnessOfFit']['sample_reco_bias']
+                    sample_reco_bias.append(bias)
+                    cov = results['GoodnessOfFit']['sample_reco_cov']
+                    std_devs_samples.append(np.sqrt(np.diag(cov)))
 
             # -------------------
             # Angular Uncertainty
@@ -1214,14 +1586,13 @@ class SourceManager(BaseModelManager):
                     cascade_true_batch):
 
                 data_batch_seed = list(data_batch)
-                data_batch_seed[param_index] = tf.reshape(
-                            cascade_seed, [-1, self.models[0].num_parameters])
+                data_batch_seed[param_index] = np.reshape(
+                    cascade_seed, [-1, self.models[0].num_parameters])
                 data_batch_seed = tuple(data_batch_seed)
 
                 data_batch_reco = list(data_batch)
-                data_batch_reco[param_index] = tf.reshape(tf.convert_to_tensor(
-                                    cascade_reco, dtype=param_signature.dtype),
-                                [-1, self.models[0].num_parameters])
+                data_batch_reco[param_index] = np.reshape(
+                    cascade_reco, [-1, self.models[0].num_parameters])
                 data_batch_reco = tuple(data_batch_reco)
 
                 loss_true = get_loss(data_batch).numpy()
@@ -1298,6 +1669,19 @@ class SourceManager(BaseModelManager):
 
         if estimate_angular_uncertainty:
             df_reco['circular_unc'] = circular_unc_list
+
+        if calculate_goodness_of_fit:
+            df_reco['event_p_value_1sided'] = event_p_value_1
+            df_reco['event_p_value_2sided'] = event_p_value_2
+            if 'sample_reco_cov' in results['GoodnessOfFit']:
+                std_devs_samples = np.stack(std_devs_samples, axis=0)
+                sample_reco_bias = np.stack(sample_reco_bias, axis=0)
+                for index, param_name in enumerate(
+                        self.models[0].parameter_names):
+                    df_reco[param_name + '_unc_samples'] = (
+                        std_devs_samples[:, index])
+                    df_reco[param_name + '_sample_reco_bias'] = (
+                        sample_reco_bias[:, index])
 
         df_reco['loss_true'] = loss_true_list
         df_reco['loss_reco'] = loss_reco_list

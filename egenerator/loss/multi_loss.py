@@ -12,7 +12,7 @@ class MultiLossModule(BaseComponent):
 
     A loss component that is used to compute the loss. The component
     must provide a
-    loss_module.get_loss(data_batch_dict, result_tensors, tensors)
+    loss_module.get_loss(data_batch_dict, result_tensors, tensors, **kwargs)
     method.
     """
 
@@ -79,7 +79,10 @@ class MultiLossModule(BaseComponent):
         return configuration, {}, dependent_sub_components
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
+                 parameter_tensor_name='x_parameters',
+                 reduce_to_scalar=True,
+                 sort_loss_terms=False,
+                 **kwargs):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -117,6 +120,18 @@ class MultiLossModule(BaseComponent):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss modules.
 
         Returns
         -------
@@ -137,6 +152,8 @@ class MultiLossModule(BaseComponent):
                 model=model,
                 parameter_tensor_name=parameter_tensor_name,
                 reduce_to_scalar=reduce_to_scalar,
+                sort_loss_terms=sort_loss_terms,
+                **kwargs
             )
             if reduce_to_scalar:
                 if loss is None:
@@ -144,7 +161,16 @@ class MultiLossModule(BaseComponent):
                 else:
                     loss += loss_i
             else:
-                loss_terms.extend(loss_i)
+                if sort_loss_terms:
+                    assert len(loss_i) == 3, (loss_module, loss_i)
+
+                    if loss_terms == []:
+                        loss_terms = loss_i
+                    else:
+                        for term_index in range(3):
+                            loss_terms[term_index] += loss_i[term_index]
+                else:
+                    loss_terms.extend(loss_i)
 
         if reduce_to_scalar:
             return loss

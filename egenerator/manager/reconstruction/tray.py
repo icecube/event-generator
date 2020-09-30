@@ -1,3 +1,4 @@
+import tensorflow as tf
 import timeit
 from egenerator import misc
 
@@ -66,8 +67,8 @@ class ReconstructionTray:
             egenerator.manager.reconstruction.modules.{module}
         name : str, optional
             The name under which to save the results for this reconstruction
-            module. This must be a unique name and cannot match any of the other
-            added modules. If none is provided, the module name will be:
+            module. This must be a unique name and cannot match any of the
+            other added modules. If none is provided, the module name will be:
                 module_{index:04d}
         **settings
             An arbitrary number of keyword arguments that will be passed on
@@ -101,8 +102,8 @@ class ReconstructionTray:
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensors
-            A data batch which consists of a tuple of tf.Tensors.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         """
 
         # create a container for the results

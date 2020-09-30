@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'snowstorm_cascade_no_fourier_flasher'
+unique_name: 'snowstorm_mixed_cascade_no_fourier_marginalized'
 
 
 #------------------
@@ -32,7 +32,7 @@ training_settings: {
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
-        'normalize_by_total_charge': True,
+        'normalize_by_total_charge': False,
     },
 }
 
@@ -40,7 +40,7 @@ training_settings: {
 # Reconstruction settings
 #------------------------
 reconstruction_settings: {
-    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_snowstorm_cascade_no_fourier_flasher.hdf5',
+    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
 
     # Define which modules to run
     'calculate_covariance_matrix': False,
@@ -51,24 +51,16 @@ reconstruction_settings: {
     # define which tensor to use as parameter_tensor (default: x_parameters)
     'parameter_tensor_name': 'x_parameters',
     # define seed (to seed from MC truth choose: 'x_parameters')
-    'seed': 'x_parameters',
+    'seed': 'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
                              'energy', 'time',
-                             'Absorption', 'AnisotropyScale', 'DOMEfficiency',
-                             'HoleIceForward_Unified_00',
-                             'HoleIceForward_Unified_01',
-                             'Scattering',
+                             'energy_fraction_hadron',
                          ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
-        'Absorption': 1.,
-        'AnisotropyScale': 1.,
-        'DOMEfficiency': 1.,
-        'HoleIceForward_Unified_00': 0.,
-        'HoleIceForward_Unified_01': 0.,
-        'Scattering': 1.,
+        'energy_fraction_hadron': 0.5,
     },
     'seed_float_precision': 'float32',
 
@@ -98,34 +90,12 @@ reconstruction_settings: {
     # is held constant.
     # Set default value which will apply to all parameters, except if stated
     # otherwise in the 'minimize_parameter_dict'
-    'minimize_parameter_default_value': False,
+    'minimize_parameter_default_value': True,
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
-        'Absorption': True,
-        'AnisotropyScale': True,
-        'DOMEfficiency': True,
-        'HoleIceForward_Unified_00': True,
-        'HoleIceForward_Unified_01': True,
-        'Scattering': True,
+
     },
-
-    # # An alternative label module may be defined that will be loaded instead
-    # 'modified_label_module': {
-    #     'label_module': 'snowstorm_cascades.SnowstormCascadeGeneratorLabelModule',
-
-    #     # settings for the label module
-    #     'label_settings':{
-    #         'shift_cascade_vertex': True,
-    #         # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
-    #         'trafo_log': [False, False, False, False, False, True, False],
-    #         'label_key': 'LabelsDeepLearning',
-    #         'snowstorm_key': , #'SnowstormParameters',
-    #         'num_snowstorm_params': 30,
-    #         'float_precision': 'float32',
-    #     },
-    # },
-
 }
 
 #-----------------------
@@ -160,14 +130,30 @@ data_iterator_settings: {
     'training': {
         'batch_size': 32,
         'num_splits': ,
-        'file_capacity': 2,
-        'batch_capacity': 20,
+        'file_capacity': 5,
+        'batch_capacity': 50,
+        'dataset_capacity': 100,
         'num_jobs': 10,
-        'num_add_files': 3,
+        'num_add_files': 5,
         'num_repetitions': 3,
         'input_data': [
-            # Snowstorm dataset with fixed cascade without Fourier Components
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99008/egenerator_99008_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # Snowstorm datasets
+            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30245/egenerator_30245_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30246/egenerator_30246_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
+
+             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
         ],
     },
 
@@ -182,7 +168,9 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99008/egenerator_99008_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
         ],
     },
 
@@ -197,8 +185,14 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            # Snowstorm dataset with fixed cascade without Fourier Components
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99008/egenerator_99008_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+
+            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+
+             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
         ],
     },
 
@@ -214,8 +208,36 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-            # Snowstorm dataset with fixed cascade without Fourier Components
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99008/egenerator_99008_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*1000.hdf5',
+            # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*1000*.hdf5',
+            # # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*1000*.hdf5',
+
+            # # NuGen -- L5MonopodFit4 vertex
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+
+            # # Egenerator NuGen SpiceLea Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/5/egenerator_NuE_low_energy_IC86_2013_l5_lea_run_000040*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/27/egenerator_NuE_medium_energy_IC86_2013_l5_lea_run_0002600*.hdf5',
+
+            # # Egenerator NuGen Spice3.2 Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_0000400*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/egenerator_test_data/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_00004000.hdf5',
+
+            # MESE NuGen NuE l5 Benchmark Datasets
+            # Spice3.2.1 variable
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99900/egenerator_99900_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # Spice3.2.1 const
+            # '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99901/egenerator_99901_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea variable
+            #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea const
+            #'/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # Spice3.2.1 variable no fourier
+            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
         ],
     },
 }
@@ -236,7 +258,20 @@ loss_module_settings: [
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
-            'loss_function_name': 'unbinned_extended_pulse_llh',
+            'loss_function_name': 'unbinned_pulse_time_llh',
+        },
+    },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'dom_and_event_charge_pdf',
         },
     },
     {
@@ -246,12 +281,7 @@ loss_module_settings: [
 
             # define uniform priors
             'uniform_parameters': {
-                'Absorption': [0.9, 1.1],
-                'AnisotropyScale': [0., 2.0],
-                'DOMEfficiency': [0.9, 1.1],
-                'Scattering': [0.9, 1.1],
-                'HoleIceForward_Unified_00': [-1., 1.],
-                'HoleIceForward_Unified_01': [-0.2, 0.2],
+                'energy_fraction_hadron': [0., 1.0],
             },
 
             # define fourier component sigmas
@@ -279,8 +309,8 @@ evaluation_module_settings: {
 data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
-    'num_batches': 50,
-    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_flasher_pulse_data',
+    'num_batches': 5000,
+    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_mixed_cascade_no_fourier_marginalized_pulse_data',
 }
 
 #----------------------
@@ -318,11 +348,13 @@ data_handler_settings: {
     # settings for the label module
     'label_settings':{
         'shift_cascade_vertex': True,
-        # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
-        'trafo_log': [False, False, False, False, False, True, False],
+        # logarithm on labels:
+        # (x, y, z, zenith, azimuth, energy, time, energy_fraction_hadron)?
+        'trafo_log': [False, False, False, False, False, True, False, False],
         'label_key': 'LabelsDeepLearning',
+        'additional_labels': ['energy_fraction_hadron'],
         'snowstorm_key': 'SnowstormParameters',
-        'num_snowstorm_params': 6,
+        'num_snowstorm_params': 0,
         'float_precision': 'float32',
     },
 
@@ -354,6 +386,10 @@ data_handler_settings: {
     'filter_settings':{
         'constraints': [
             # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            ['SnowstormParameters', 3, '>=', -0.65],
+            ['SnowstormParameters', 3, '<=', 0.60],
+            ['SnowstormParameters', 4, '>=', -0.08],
+            ['SnowstormParameters', 4, '<=', 0.08],
         ],
     },
 }
@@ -375,23 +411,19 @@ model_settings: {
         'num_local_vars': 0,
         'scale_charge': True,
         'scale_charge_by_relative_dom_efficiency': True,
-        'scale_charge_by_global_dom_efficiency': True,
-        'estimate_charge_distribution': False,
+        'scale_charge_by_global_dom_efficiency': False,
+        'estimate_charge_distribution': 'negative_binomial',
         'num_latent_models': 5,
 
-        # This is a list of the orderd snowstorm parameters: (name, number)
-        'snowstorm_parameter_names': [
-            ['Absorption', 1],
-            ['AnisotropyScale', 1],
-            ['DOMEfficiency', 1],
-            ['HoleIceForward_Unified_{:02d}', 2],
-            # ['IceWavePlusModes_{:02d}', 24],
-            ['Scattering', 1],
+        # This is a list of labels in addition to
+        # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
+        'additional_label_names' : [
+            'energy_fraction_hadron',
         ],
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [25, 500, 500, 500, 21],
+        'num_filters_list' : [25, 500, 500, 500, 22],
         'method_list' : ['locally_connected',
                          'convolution', 'convolution', 'convolution',
                          'convolution',

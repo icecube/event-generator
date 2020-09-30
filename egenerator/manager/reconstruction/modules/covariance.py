@@ -1,12 +1,13 @@
 import numpy as np
 import tensorflow as tf
 
+from scipy.optimize import LbfgsInvHessProduct
+
 
 class CovarianceMatrix:
 
     def __init__(self, manager, loss_module, function_cache,
                  fit_paramater_list,
-                 seed_tensor_name,
                  reco_key,
                  minimize_in_trafo_space=True,
                  parameter_tensor_name='x_parameters',):
@@ -20,20 +21,26 @@ class CovarianceMatrix:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        fit_paramater_list : TYPE
-            Description
-        seed_tensor_name : TYPE
-            Description
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        reco_key : str
+            The name of the reconstruction module to use. The covariance
+            matrix will be calculated at the best fit point of the specified
+            reconstruction module.
         minimize_in_trafo_space : bool, optional
-            Description
+            If True, covariance is calculated in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            calculation and inversion.
         parameter_tensor_name : str, optional
-            Description
-
-        Raises
-        ------
-        NotImplementedError
-            Description
+            The name of the parameter tensor to use. Default: 'x_parameters'.
         """
+
+        if not np.all(fit_paramater_list):
+            raise NotImplementedError('Covariance currently only supports '
+                                      'calculation in all parameters')
 
         # store settings
         self.manager = manager
@@ -47,26 +54,21 @@ class CovarianceMatrix:
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
             dtype=param_dtype)
+        param_signature_full = tf.TensorSpec(
+            shape=[None, len(fit_paramater_list)],
+            dtype=param_dtype)
 
         # define data batch tensor specification
-        data_batch_signature = []
-        for tensor in manager.data_handler.tensors.list:
-            if tensor.exists:
-                shape = tf.TensorShape(tensor.shape)
-            else:
-                shape = tf.TensorShape(None)
-            data_batch_signature.append(tf.TensorSpec(
-                shape=shape,
-                dtype=getattr(tf, tensor.dtype)))
-        data_batch_signature = tuple(data_batch_signature)
+        data_batch_signature = manager.data_handler.get_data_set_signature()
 
         # define function settings
         func_settings = dict(
-            input_signature=(param_signature, data_batch_signature),
+            input_signature=(
+                param_signature, data_batch_signature, param_signature_full),
             loss_module=loss_module,
             fit_paramater_list=fit_paramater_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -93,8 +95,8 @@ class CovarianceMatrix:
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensors
-            A data batch which consists of a tuple of tf.Tensors.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
 
@@ -104,22 +106,35 @@ class CovarianceMatrix:
             Description
         """
 
+        result_inv = results[self.reco_key]['result']
         result_trafo = results[self.reco_key]['result_trafo']
         result_obj = results[self.reco_key]['result_object']
 
         # get Hessian at reco best fit
         hessian = self.hessian_function(
             parameters_trafo=result_trafo,
-            data_batch=data_batch).numpy().astype('float64')
+            data_batch=data_batch,
+            seed=result_inv).numpy().astype('float64')
 
         opg_estimate = self.opg_estimate_function(
             parameters_trafo=result_trafo,
-            data_batch=data_batch).numpy().astype('float64')
+            data_batch=data_batch,
+            seed=result_inv).numpy().astype('float64')
 
-        cov_trafo = np.linalg.inv(hessian)
+        try:
+            cov_trafo = np.linalg.inv(hessian)
+        except np.linalg.LinAlgError as e:
+            print('e')
+            print('Hessian is a singular matrix and cannot be inverted!')
+            print('Setting covariance matrix to NaNs!')
+            cov_trafo = np.zeros_like(hessian) * float('nan')
+
         cov_sand_trafo = np.matmul(np.matmul(
             cov_trafo, opg_estimate), cov_trafo)
         if hasattr(result_obj, 'hess_inv'):
+            if isinstance(result_obj.hess_inv, LbfgsInvHessProduct):
+                result_obj.hess_inv = result_obj.hess_inv.todense()
+
             cov_sand_fit_trafo = np.matmul(
                 np.matmul(result_obj.hess_inv, opg_estimate),
                 result_obj.hess_inv)

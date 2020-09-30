@@ -20,7 +20,7 @@ training_settings: {
     },
     'l1_regularization': 0.,
     'l2_regularization': 0.,
-    'clip_gradients_value': ,
+    'clip_gradients_value': 1000.,
     'remove_nan_gradients': False,
 
     'validation_frequency': 100,
@@ -29,6 +29,11 @@ training_settings: {
 
     # Number of training iterations to train the model for
     'num_training_iterations': 1000000,
+
+    # Additional keywords to the loss module used for training
+    'additional_loss_module_kwargs': {
+        'normalize_by_total_charge': True,
+    },
 }
 
 #----------------.-------
@@ -340,6 +345,7 @@ data_handler_settings: {
         'time_exclusions_key': ,
         'float_precision': 'float32',
         'add_charge_quantiles': False,
+        'discard_pulses_from_excluded_doms': False,
     },
 
     # --------------------

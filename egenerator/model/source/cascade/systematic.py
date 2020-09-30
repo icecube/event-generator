@@ -8,22 +8,9 @@ from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles
-# from egenerator.manager.component import Configuration, BaseComponent
 
 
-class ChargeQuantileCascadeModel(Source):
-
-    """This Cascade model predicts quantile time PDFs
-
-    The pdf is dependent on the charge quantile (fraction of total DOM charge)
-    of the pulse and the total measured (true) charge D_i at the DOM:
-        Pulse PDF: p(t_i | q_i, D_i) for the i-th pulse
-    The pulse PDF p(t_i | q_i, D_i) is estimated via a mixture model of
-    asymmetric Gaussians.
-    Note: for high charge DOMs, the pulse PDF is not dependent on noise hits
-    and is therefore very Gaussian shaped and in this case could be
-    approximated by a single Gaussian.
-    """
+class SystematicsCascadeModel(Source):
 
     def __init__(self, logger=None):
         """Instantiate Source class
@@ -34,7 +21,7 @@ class ChargeQuantileCascadeModel(Source):
             The logger to use.
         """
         self._logger = logger or logging.getLogger(__name__)
-        super(ChargeQuantileCascadeModel, self).__init__(logger=self._logger)
+        super(SystematicsCascadeModel, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -64,6 +51,11 @@ class ChargeQuantileCascadeModel(Source):
         # ---------------------------------------------
         parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
                            'energy', 'time']
+        if 'additional_label_names' in config:
+            parameter_names += config['additional_label_names']
+            num_add_labels = len(config['additional_label_names'])
+        else:
+            num_add_labels = 0
 
         num_snowstorm_params = 0
         if 'snowstorm_parameter_names' in config:
@@ -72,14 +64,25 @@ class ChargeQuantileCascadeModel(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_features = 7 + num_snowstorm_params
-        num_inputs = 11 + num_snowstorm_params
+        num_inputs = 4
+        num_sys_inputs = num_snowstorm_params
+
+        if 'DOMEfficiency' in parameter_names:
+            num_sys_inputs -= 1
+
+        num_shared_inputs = (
+            8 + num_add_labels + num_sys_inputs
+            + config['num_filters_list'][-1]
+        )
 
         if config['add_opening_angle']:
-            num_inputs += 1
+            num_shared_inputs += 1
+
+        if config['add_anisotropy_angle']:
+            num_shared_inputs += 1
 
         if config['add_dom_coordinates']:
-            num_inputs += 3
+            num_shared_inputs += 3
 
         if config['num_local_vars'] > 0:
             self._untracked_data['local_vars'] = new_weights(
@@ -87,10 +90,10 @@ class ChargeQuantileCascadeModel(Source):
                     name='local_dom_input_variables')
             num_inputs += config['num_local_vars']
 
-        # -------------------------------------------
-        # convolutional hex3d layers over X_IC86 data
-        # -------------------------------------------
-        self._untracked_data['conv_hex3d_layer'] = tfs.ConvNdLayers(
+        # -------------------------------------
+        # convolutional layers over X_IC86 data
+        # -------------------------------------
+        self._untracked_data['local_conv_layer'] = tfs.ConvNdLayers(
             input_shape=[-1, 86, 60, num_inputs],
             filter_size_list=config['filter_size_list'],
             num_filters_list=config['num_filters_list'],
@@ -109,28 +112,24 @@ class ChargeQuantileCascadeModel(Source):
             method_list=config['method_list'],
             )
 
-        # ----------------------------------------------------
-        # Fully Connected Layers to comput PDF p(t | q_i, D_i)
-        # ----------------------------------------------------
-
-        # minus 1 for charge prediction, plus 3 for q_i, D_i, c_i/D_i
-        num_fc_inputs = config['num_filters_list'][-1] - 1 + 3
-        if config['estimate_charge_distribution'] is True:
-            num_fc_inputs -= 2
-        elif config['estimate_charge_distribution'] == 'negative_binomial':
-            num_fc_inputs -= 1
-
-        if config['add_predicted_charge_to_latent_vars']:
-            num_fc_inputs += 2
-
-        self._untracked_data['fully_connected_layer'] = tfs.FCLayers(
-            input_shape=[-1, num_fc_inputs],
-            fc_sizes=config['fc_num_filters_list'],
-            use_dropout_list=config['fc_use_dropout_list'],
-            activation_list=config['fc_activation_list'],
-            use_batch_normalisation_list=config['fc_use_batch_norm_list'],
-            use_residual_list=config['fc_use_residual_list'],
-        )
+        self._untracked_data['shared_conv_layer'] = tfs.ConvNdLayers(
+            input_shape=[-1, 86, 60, num_shared_inputs],
+            filter_size_list=config['filter_size_list_2'],
+            num_filters_list=config['num_filters_list_2'],
+            pooling_type_list=None,
+            pooling_strides_list=[1, 1, 1, 1],
+            pooling_ksize_list=[1, 1, 1, 1],
+            use_dropout_list=config['use_dropout_list_2'],
+            padding_list='SAME',
+            strides_list=[1, 1, 1, 1],
+            use_batch_normalisation_list=config['use_batch_norm_list_2'],
+            activation_list=config['activation_list_2'],
+            use_residual_list=config['use_residual_list_2'],
+            hex_zero_out_list=False,
+            dilation_rate_list=None,
+            hex_num_rotations_list=1,
+            method_list=config['method_list_2'],
+            )
 
         return parameter_names
 
@@ -197,7 +196,6 @@ class ChargeQuantileCascadeModel(Source):
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
 
-        pulse_quantiles = pulses[:, 2]
         pulse_times = pulses[:, 1]
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
@@ -234,12 +232,7 @@ class ChargeQuantileCascadeModel(Source):
         dy = tf.expand_dims(dy, axis=-1)
         dz = tf.expand_dims(dz, axis=-1)
 
-        # shape: [-1, 86, 60, 1]
         distance = tf.sqrt(dx**2 + dy**2 + dz**2)
-
-        # calculte time it takes for unscattered light to propagate to DOM
-        c_ice = 0.22103046286329384  # meter / ns
-        light_propagation_time = distance / c_ice
 
         # calculate observation angle
         dx_normed = dx / distance
@@ -263,6 +256,12 @@ class ChargeQuantileCascadeModel(Source):
                                          )
         opening_angle = tf.expand_dims(opening_angle, axis=-1)
 
+        # calculate anisotropy angle (azimuth angle of displacement vector)
+        anisotropy_angle = tf.math.mod(
+            tf.math.atan2(-dy_normed, -dx_normed) + 2*np.pi,
+            2 * np.pi,
+        )
+
         # transform dx, dy, dz, distance, zenith, azimuth to correct scale
         params_mean = self.data_trafo.data[parameter_tensor_name+'_mean']
         params_std = self.data_trafo.data[parameter_tensor_name+'_std']
@@ -271,29 +270,32 @@ class ChargeQuantileCascadeModel(Source):
         distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
         opening_angle_traf = ((opening_angle - params_mean[3]) /
                               (norm_const + params_std[3]))
+        anisotropy_angle_traf = ((anisotropy_angle - params_mean[4]) /
+                                 (norm_const + params_std[4]))
 
         x_parameters_expanded = tf.unstack(tf.reshape(
                                                 parameters_trafo,
                                                 [-1, 1, 1, num_features]),
                                            axis=-1)
 
-        modified_parameters = tf.stack(x_parameters_expanded[:3]
-                                       + [cascade_dir_x,
-                                          cascade_dir_y,
-                                          cascade_dir_z]
-                                       + [x_parameters_expanded[5]]
-                                       + x_parameters_expanded[7:],
+        modified_parameters = tf.stack([cascade_dir_x,
+                                        cascade_dir_y,
+                                        cascade_dir_z]
+                                       + [x_parameters_expanded[5]],
                                        axis=-1)
 
         # put everything together
-        params_expanded = tf.tile(modified_parameters,
-                                  [1, 86, 60, 1])
+        params_expanded = tf.tile(modified_parameters, [1, 86, 60, 1])
 
-        input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
-                      distance]
+        input_list = [dx_normed, dy_normed, dz_normed, distance]
+        input_list_shared = [params_expanded,
+                             dx_normed, dy_normed, dz_normed, distance]
 
         if config['add_opening_angle']:
-            input_list.append(opening_angle_traf)
+            input_list_shared.append(opening_angle_traf)
+
+        if config['add_anisotropy_angle']:
+            input_list_shared.append(anisotropy_angle_traf)
 
         if config['add_dom_coordinates']:
 
@@ -307,7 +309,7 @@ class ChargeQuantileCascadeModel(Source):
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
             print('dom_coords', dom_coords)
-            input_list.append(dom_coords)
+            input_list_shared.append(dom_coords)
 
         if config['num_local_vars'] > 0:
 
@@ -321,12 +323,40 @@ class ChargeQuantileCascadeModel(Source):
         x_doms_input = tf.concat(input_list, axis=-1)
         print('x_doms_input', x_doms_input)
 
-        # -------------------------------------------
-        # convolutional hex3d layers over X_IC86 data
-        # -------------------------------------------
-        conv_hex3d_layers = self._untracked_data['conv_hex3d_layer'](
-                                        x_doms_input, is_training=is_training,
-                                        keep_prob=config['keep_prob'])
+        # -------------------------------------
+        # convolutional layers over X_IC86 data
+        # -------------------------------------
+
+        # run local convolution layers
+        local_conv_layers = self._untracked_data['local_conv_layer'](
+            x_doms_input,
+            is_training=is_training,
+            keep_prob=config['keep_prob'],
+        )
+
+        # gather additional and systematic parameters excluding DOM efficiency
+        add_parameters = []
+        for param_name in self.parameter_names[7:]:
+            if param_name != 'DOMEfficiency':
+                add_parameters.append(
+                    x_parameters_expanded[self.get_index(param_name)])
+
+        # put systematic parameters together and tile for each DOM
+        modified_add_parameters = tf.tile(tf.stack(add_parameters, axis=-1),
+                                          [1, 86, 60, 1])
+
+        # combine systematic parameters with output of shared layers
+        input_list_shared.append(modified_add_parameters)
+        input_list_shared.append(local_conv_layers[-1])
+        x_doms_input2 = tf.concat(input_list_shared, axis=-1)
+        print('x_doms_input2', x_doms_input2)
+
+        # run shared convoluational layers
+        conv_layers = self._untracked_data['shared_conv_layer'](
+            x_doms_input2,
+            is_training=is_training,
+            keep_prob=config['keep_prob'],
+        )
 
         # -------------------------------------------
         # Get expected charge at DOM
@@ -339,8 +369,7 @@ class ChargeQuantileCascadeModel(Source):
             n_charge = 1
 
         # the result of the convolution layers are the latent variables
-        dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
-                                           axis=-1)
+        dom_charges_trafo = tf.expand_dims(conv_layers[-1][..., 0], axis=-1)
 
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
@@ -355,7 +384,7 @@ class ChargeQuantileCascadeModel(Source):
             dom_charges *= tf.expand_dims(detector.rel_dom_eff, axis=-1)
 
         # scale charges by global DOM efficiency
-        if config['scale_charge_by_global_dom_efficiency']:
+        if 'DOMEfficiency' in self.parameter_names:
             dom_charges *= tf.expand_dims(
                 parameter_list[self.get_index('DOMEfficiency')], axis=-1)
 
@@ -368,9 +397,9 @@ class ChargeQuantileCascadeModel(Source):
         # get charge distribution uncertainties
         # -------------------------------------
         if config['estimate_charge_distribution'] is True:
-            sigma_scale_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 1],
+            sigma_scale_trafo = tf.expand_dims(conv_layers[-1][..., 1],
                                                axis=-1)
-            dom_charges_r_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 2],
+            dom_charges_r_trafo = tf.expand_dims(conv_layers[-1][..., 2],
                                                  axis=-1)
 
             # create correct offset and scaling
@@ -449,8 +478,7 @@ class ChargeQuantileCascadeModel(Source):
 
             Alpha must be greater than zero.
             """
-            alpha_trafo = tf.expand_dims(
-                conv_hex3d_layers[-1][..., 1], axis=-1)
+            alpha_trafo = tf.expand_dims(conv_layers[-1][..., 1], axis=-1)
 
             # create correct offset and force positive and min values
             # The over-dispersion parameterized by alpha must be greater zero
@@ -471,6 +499,13 @@ class ChargeQuantileCascadeModel(Source):
 
             print('dom_charges_llh', dom_charges_llh)
 
+            # tf.print(
+            #     'dom_charges_alpha',
+            #     tf.reduce_min(dom_charges_alpha),
+            #     tf.reduce_mean(dom_charges_alpha),
+            #     tf.reduce_max(dom_charges_alpha),
+            # )
+
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_alpha'] = dom_charges_alpha
             tensor_dict['dom_charges_unc'] = dom_charges_unc
@@ -481,58 +516,6 @@ class ChargeQuantileCascadeModel(Source):
             # Poisson Distribution: variance is equal to expected charge
             tensor_dict['dom_charges_unc'] = tf.sqrt(dom_charges)
             tensor_dict['dom_charges_variance'] = dom_charges
-
-        # ----------------------------------------------------------
-        # Fully Connected Layers to for p(t_i | q_i, D_i) calulation
-        # ----------------------------------------------------------
-
-        # get latent dimension prior to p(t_i | q_i, D_i) calulation
-        # shape: [-1, 86, 60, n_latent]
-        latend_vars = conv_hex3d_layers[-1][..., n_charge:]
-
-        # shape: [n_pulses, n_latent]
-        pulse_latent_vars = tf.gather_nd(latend_vars, pulses_ids)
-
-        # Total charge D_i of DOM. Shape: [n_pulses, 1]
-        pulse_dom_charge_true = tf.gather_nd(dom_charges_true, pulses_ids)
-        pulse_dom_charge = tf.gather_nd(dom_charges, pulses_ids)
-
-        # expanded pulse_quantiles and charges to shape: [n_pulses, 1]
-        exp_pulse_quantiles = tf.expand_dims(pulse_quantiles, axis=-1)
-        exp_pulse_charges = tf.expand_dims(pulse_charges, axis=-1)
-
-        # transform measured quantiles and total charge
-        pulse_dom_charge_true_trafo = 0.1*tf.math.log(pulse_dom_charge_true+1.)
-        pulse_dom_charge_trafo = 0.1*tf.math.log(pulse_dom_charge + 1.)
-
-        # put all information together.
-        input_list = [
-            # ln(quantiles q_i) --> early times are important
-            tf.math.log(exp_pulse_quantiles),
-            # total (true) DOM charge D_i
-            pulse_dom_charge_true_trafo,
-            # rel. charge fraction of pulses wrt total DOM charge
-            # This should help to estimate how accurate the quantile is
-            tf.math.log(exp_pulse_charges / pulse_dom_charge_true),
-            pulse_latent_vars,
-        ]
-        if config['add_predicted_charge_to_latent_vars']:
-            # total (predicted) DOM charge D_i
-            input_list.append(pulse_dom_charge_trafo)
-            # charge fraction of the pulse relative to predicted DOM charge
-            input_list.append(
-                tf.math.log(exp_pulse_charges / pulse_dom_charge))
-
-        # Shape: [n_pulses, n_latent + (2 or 3)]
-        quantile_pdf_input = tf.concat(input_list, axis=-1)
-        print('quantile_pdf_input', quantile_pdf_input)
-
-        # now apply fully connected layers to compute p(t | q_i, D_i)
-        fc_layers = self._untracked_data['fully_connected_layer'](
-            quantile_pdf_input,
-            is_training=is_training,
-            keep_prob=config['keep_prob'],
-        )
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF
@@ -545,50 +528,42 @@ class ChargeQuantileCascadeModel(Source):
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
         t_pdf = tf.ensure_shape(t_pdf, [None, 1])
 
-        # get light propagation time of unscattered light for each pulse
-        # shape: [n_pulses, 1]
-        pulse_light_propagation_time = tf.gather_nd(light_propagation_time,
-                                                    pulses_ids)
-        print('pulse_light_propagation_time', pulse_light_propagation_time)
-
         # scale time range down to avoid big numbers:
-        t_scale = 0.001  # unit: 1./ns --> time units in us
+        t_scale = 0.001  # 1./ns
         average_t_dist = 1000. * t_scale
         t_pdf = t_pdf * t_scale
-        pulse_light_propagation_time *= t_scale
 
         # -------------------------------------------
         # Gather latent vars of mixture model
         # -------------------------------------------
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
-        if n_models*4 != config['fc_num_filters_list'][-1]:
+        if n_models*4 + n_charge != config['num_filters_list_2'][-1]:
             raise ValueError('{!r} != {!r}'.format(
-                n_models*4, config['fc_num_filters_list'][-1]))
-        if n_models < 1:
-            raise ValueError('{!r} < 1'.format(n_models))
+                n_models*4 + n_charge, config['num_filters_list_2'][-1]))
+        if n_models <= 1:
+            raise ValueError('{!r} !> 1'.format(n_models))
 
-        out_layer = fc_layers[-1]
-
-        # shape: [n_pulses, n_models]
-        latent_mu_offset = out_layer[..., 0*n_models:1*n_models]
-        latent_sigma = out_layer[..., 1*n_models:2*n_models]
-        latent_r = out_layer[..., 2*n_models:3*n_models]
-        latent_scale = out_layer[..., 3*n_models:4*n_models]
+        out_layer = conv_layers[-1]
+        latent_mu = out_layer[...,
+                              n_charge + 0*n_models:n_charge + 1*n_models]
+        latent_sigma = out_layer[...,
+                                 n_charge + 1*n_models:n_charge + 2*n_models]
+        latent_r = out_layer[..., n_charge + 2*n_models:n_charge + 3*n_models]
+        latent_scale = out_layer[...,
+                                 n_charge + 3*n_models:n_charge + 4*n_models]
 
         # add reasonable scaling for parameters assuming the latent vars
         # are distributed normally around zero
-        factor_sigma = 0.1  # units: 1/t_scale
-        factor_mu = 0.1  # units: 1/t_scale
-        factor_r = 0.001
-        factor_scale = 1.0
+        factor_sigma = 1.  # ns
+        factor_mu = 1.  # ns
+        factor_r = 1.
+        factor_scale = 1.
 
         # create correct offset and scaling
-        # latent_mu = average_t_dist + factor_mu * latent_mu
-        latent_mu = pulse_light_propagation_time + factor_mu + (
-            factor_mu * latent_mu_offset)
-        latent_sigma = 0.3 + factor_sigma * latent_sigma
-        latent_r = factor_r * latent_r
+        latent_mu = average_t_dist + factor_mu * latent_mu
+        latent_sigma = 2 + factor_sigma * latent_sigma
+        latent_r = 1 + factor_r * latent_r
         latent_scale = 1 + factor_scale * latent_scale
 
         # force positive and min values
@@ -599,52 +574,44 @@ class ChargeQuantileCascadeModel(Source):
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
 
-        tensor_dict['quantile_latent_var_mu'] = latent_mu
-        tensor_dict['quantile_latent_var_sigma'] = latent_sigma
-        tensor_dict['quantile_latent_var_r'] = latent_r
-        tensor_dict['quantile_latent_var_scale'] = latent_scale
+        tensor_dict['latent_var_mu'] = latent_mu
+        tensor_dict['latent_var_sigma'] = latent_sigma
+        tensor_dict['latent_var_r'] = latent_r
+        tensor_dict['latent_var_scale'] = latent_scale
+
+        # get latent vars for each pulse
+        pulse_latent_mu = tf.gather_nd(latent_mu, pulses_ids)
+        pulse_latent_sigma = tf.gather_nd(latent_sigma, pulses_ids)
+        pulse_latent_r = tf.gather_nd(latent_r, pulses_ids)
+        pulse_latent_scale = tf.gather_nd(latent_scale, pulses_ids)
 
         # ensure shapes
-        pulse_latent_mu = tf.ensure_shape(latent_mu, [None, n_models])
-        pulse_latent_sigma = tf.ensure_shape(latent_sigma, [None, n_models])
-        pulse_latent_r = tf.ensure_shape(latent_r, [None, n_models])
-        pulse_latent_scale = tf.ensure_shape(latent_scale, [None, n_models])
+        pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])
+        pulse_latent_sigma = tf.ensure_shape(pulse_latent_sigma,
+                                             [None, n_models])
+        pulse_latent_r = tf.ensure_shape(pulse_latent_r, [None, n_models])
+        pulse_latent_scale = tf.ensure_shape(pulse_latent_scale,
+                                             [None, n_models])
 
-        mu_offset = factor_mu * latent_mu_offset / t_scale
-        mask = tf.ones_like(mu_offset)*exp_pulse_quantiles < 0.5
-        tf.print('pulse_latent_mu offset',
-                 tf.reduce_min(mu_offset[mask]),
-                 tf.reduce_mean(mu_offset[mask]),
-                 tf.reduce_max(mu_offset[mask]),
-                 )
-        tf.print('pulse_latent_sigma',
-                 tf.reduce_min(pulse_latent_sigma[mask]),
-                 tf.reduce_mean(pulse_latent_sigma[mask]),
-                 tf.reduce_max(pulse_latent_sigma[mask]),
-                 )
-        tf.print('pulse_latent_r',
-                 tf.reduce_min(pulse_latent_r[mask]),
-                 tf.reduce_mean(pulse_latent_r[mask]),
-                 tf.reduce_max(pulse_latent_r[mask]),
-                 )
-        tf.print('pulse_latent_scale',
-                 tf.reduce_min(pulse_latent_scale[mask]),
-                 tf.reduce_mean(pulse_latent_scale[mask]),
-                 tf.reduce_max(pulse_latent_scale[mask]),
-                 )
+        print('latent_mu', latent_mu)
+        print('pulse_latent_mu', pulse_latent_mu)
+        print('latent_scale', latent_scale)
+        print('pulse_latent_scale', pulse_latent_scale)
+
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
 
         # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
-        quantile_pdf_values = basis_functions.tf_asymmetric_gauss(
+        pulse_pdf_values = basis_functions.tf_asymmetric_gauss(
                     x=t_pdf, mu=pulse_latent_mu, sigma=pulse_latent_sigma,
                     r=pulse_latent_r) * pulse_latent_scale
 
         # new shape: [n_pulses]
-        quantile_pdf_values = tf.reduce_sum(quantile_pdf_values, axis=-1)
+        pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
+        print('pulse_pdf_values', pulse_pdf_values)
 
-        tensor_dict['pulse_quantile_pdf'] = quantile_pdf_values
+        tensor_dict['pulse_pdf'] = pulse_pdf_values
         # -------------------------------------------
 
         return tensor_dict

@@ -457,7 +457,8 @@ class BaseModelManager(Model):
 
     @tf.function
     def get_loss(self, data_batch, loss_module, opt_config, is_training,
-                 add_summaries=False, parameter_tensor_name='x_parameters'):
+                 summary_writer=None, parameter_tensor_name='x_parameters',
+                 **kwargs):
         """Get the scalar loss for a batch of data and a given loss component.
 
         Parameters
@@ -476,20 +477,19 @@ class BaseModelManager(Model):
             Must be provided if batch normalisation is used.
             True: in training mode
             False: inference mode.
-        add_summaries : bool, optional
-            If True, tensorflow summaries will be calculated and added.
+        summary_writer : tf.summary.SummaryWriter, optional
+            If provied, tensorflow summaries will be calculated and written
+            to the specified summary writer.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
         tf.Tensor
             The scalar loss.
-
-        Deleted Parameters
-        ------------------
-        step : int, optional
-            The current training step.
         """
         data_batch_dict = {}
         for i, name in enumerate(self.data_handler.tensors.names):
@@ -507,7 +507,8 @@ class BaseModelManager(Model):
                 data_batch_dict, result_tensors,
                 self.data_handler.tensors,
                 model=model,
-                parameter_tensor_name=parameter_tensor_name)
+                parameter_tensor_name=parameter_tensor_name,
+                **kwargs)
 
             reg_loss = self.regularization_loss(
                                         variables=model.trainable_variables,
@@ -519,21 +520,23 @@ class BaseModelManager(Model):
                 combined_loss += loss_value + reg_loss
 
             # create summaries if a writer is provided
-            if add_summaries:
-                tf.summary.scalar(
-                    'loss_{:04d}'.format(i), loss_value,
-                    step=tf.cast(model.step, dtype=tf.int64))
-                if (opt_config['l1_regularization'] > 0. or
-                        opt_config['l2_regularization'] > 0.):
+            if summary_writer is not None:
+                with summary_writer.as_default():
                     tf.summary.scalar(
-                        'reg_loss_{:04d}'.format(i), reg_loss,
+                        'loss_{:04d}'.format(i), loss_value,
                         step=tf.cast(model.step, dtype=tf.int64))
+                    if (opt_config['l1_regularization'] > 0. or
+                            opt_config['l2_regularization'] > 0.):
+                        tf.summary.scalar(
+                            'reg_loss_{:04d}'.format(i), reg_loss,
+                            step=tf.cast(model.step, dtype=tf.int64))
 
         return combined_loss
 
     @tf.function
     def perform_training_step(self, data_batch, loss_module, opt_config,
-                              parameter_tensor_name='x_parameters'):
+                              parameter_tensor_name='x_parameters',
+                              **kwargs):
         """Perform one training step
 
         Parameters
@@ -549,6 +552,9 @@ class BaseModelManager(Model):
             The optimization config defining the settings.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        **kwargs
+            Arbitrary keyword arguments. These will be passed on to
+            the get_loss function of the loss module.
 
         Returns
         -------
@@ -557,9 +563,11 @@ class BaseModelManager(Model):
         """
         with tf.GradientTape() as tape:
             combined_loss = self.get_loss(
-                                data_batch, loss_module, opt_config,
-                                is_training=True,
-                                parameter_tensor_name=parameter_tensor_name)
+                data_batch, loss_module, opt_config,
+                is_training=True,
+                parameter_tensor_name=parameter_tensor_name,
+                **kwargs
+            )
 
         variables = []
         for model in self.models:
@@ -585,7 +593,17 @@ class BaseModelManager(Model):
         else:
             capped_gradients = gradients
 
-        self.optimizer.apply_gradients(zip(capped_gradients, variables))
+        # Ensure finite values
+        asserts = []
+        for gradient in capped_gradients:
+            assert_finite = tf.Assert(
+                tf.math.is_finite(tf.reduce_mean(gradient)),
+                [tf.reduce_min(gradient),
+                 tf.reduce_mean(gradient),
+                 tf.reduce_max(gradient)])
+            asserts.append(assert_finite)
+        with tf.control_dependencies(asserts):
+            self.optimizer.apply_gradients(zip(capped_gradients, variables))
 
         return combined_loss
 
@@ -614,12 +632,12 @@ class BaseModelManager(Model):
         return concrete_function
 
     def train(self, config, loss_module, num_training_iterations,
-              evaluation_module=None):
+              evaluation_module=None, profile_training=False):
         """Train the model.
 
         Parameters
         ----------
-        config: dict
+        config : dict
             A config describing all of the settings for the training script.
             Amongst others, this config must contain:
 
@@ -644,6 +662,13 @@ class BaseModelManager(Model):
             evaluation metrics on validation batches. The evaluation module
             must implement a method
                 evaluation_module.evaluate(data_batch, result_tensors, tensors)
+        profile_training : bool, optional
+            If true, trainings teps 90 to 100 will be profiled.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
         self.assert_configured(True)
 
@@ -655,9 +680,26 @@ class BaseModelManager(Model):
 
         # create optimizer from config
         opt_config = config['training_settings']
+        optimizer_settings = dict(opt_config['optimizer_settings'])
+
+        # create learning rate schedule if learning rate is a dict
+        if 'learning_rate' in optimizer_settings:
+            if isinstance(optimizer_settings['learning_rate'], dict):
+
+                # assume that the learning rate dictionary defines a schedule
+                # In this case the dictionary must have the following keys:
+                #   full_class_string: str
+                #       The full class string of the scheduler class to use.
+                #   settings: dict
+                #       keyword arguments that are passed on to the scheduler
+                #       class.
+                lr_cfg = optimizer_settings.pop('learning_rate')
+                scheduler_class = misc.load_class(lr_cfg['full_class_string'])
+                scheduler = scheduler_class(**lr_cfg['settings'])
+                optimizer_settings['learning_rate'] = scheduler
+
         optimizer = getattr(tf.optimizers, opt_config['optimizer_name'])(
-                                **opt_config['optimizer_settings']
-                                )
+            **optimizer_settings)
         self._untracked_data['optimizer'] = optimizer
 
         # save new training step to model
@@ -693,15 +735,29 @@ class BaseModelManager(Model):
             function=self.perform_training_step,
             input_signature=(train_dataset.element_spec,),
             loss_module=loss_module,
-            opt_config=opt_config)
+            opt_config=opt_config,
+            **opt_config['additional_loss_module_kwargs']
+        )
 
-        get_loss = self.get_concrete_function(
+        get_loss_train = self.get_concrete_function(
             function=self.get_loss,
             input_signature=(train_dataset.element_spec,),
             loss_module=loss_module,
             opt_config=opt_config,
             is_training=False,
-            add_summaries=True)
+            summary_writer=training_writer,
+            **opt_config['additional_loss_module_kwargs']
+        )
+
+        get_loss_val = self.get_concrete_function(
+            function=self.get_loss,
+            input_signature=(train_dataset.element_spec,),
+            loss_module=loss_module,
+            opt_config=opt_config,
+            is_training=False,
+            summary_writer=validation_writer,
+            **opt_config['additional_loss_module_kwargs']
+        )
 
         # --------------------------------
         # start loop over training batches
@@ -739,15 +795,13 @@ class BaseModelManager(Model):
                 training_data_batch = next(train_dataset)
 
                 # compute loss on training data
-                with training_writer.as_default():
-                    loss_training = get_loss(data_batch=training_data_batch)
+                loss_training = get_loss_train(data_batch=training_data_batch)
 
                 # get new batch of validation data
-                val_data_batch = next(train_dataset)
+                val_data_batch = next(validation_dataset)
 
                 # compute loss on validation data
-                with validation_writer.as_default():
-                    loss_validation = get_loss(data_batch=val_data_batch)
+                loss_validation = get_loss_val(data_batch=val_data_batch)
 
                 # check if there is a nan
                 if np.isnan(loss_training) or np.isnan(loss_validation):
@@ -792,6 +846,17 @@ class BaseModelManager(Model):
             if step % opt_config['save_frequency'] == 0 and step != 0:
                 self.save_weights(dir_path=save_dir,
                                   num_training_steps=step)
+
+            # -----------------------
+            # Profile steps 90 to 100
+            # -----------------------
+            if profile_training:
+                if step == 90:
+                    # start profiler
+                    tf.profiler.experimental.start(train_log_dir)
+                if step == 100:
+                    # stop profiler
+                    tf.profiler.experimental.stop()
 
         # save model
         self.save_weights(dir_path=save_dir,

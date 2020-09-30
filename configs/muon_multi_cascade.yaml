@@ -29,6 +29,11 @@ training_settings: {
 
     # Number of training iterations to train the model for
     'num_training_iterations': 1000000,
+
+    # Additional keywords to the loss module used for training
+    'additional_loss_module_kwargs': {
+        'normalize_by_total_charge': True,
+    },
 }
 
 #----------------.-------
@@ -63,6 +68,8 @@ reconstruction_settings: {
                              'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd', 'd',
                             ],
     'seed_missing_value': 1.,
+    'seed_missing_value_dict': {
+    },
     'seed_float_precision': 'float32',
 
     # choose the otpimizer iterface:
@@ -310,6 +317,7 @@ data_handler_settings: {
         'time_exclusions_key': ,
         'float_precision': 'float32',
         'add_charge_quantiles': False,
+        'discard_pulses_from_excluded_doms': False,
     },
 
     # --------------------

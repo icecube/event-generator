@@ -5,7 +5,7 @@ import timeit
 
 from icecube import dataclasses, icetray
 
-from egenerator.ic3.configurator import I3ManagerConfigurator
+from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.utils import basis_functions
 
 
@@ -115,7 +115,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # --------------------------------------------------
         # Build and configure SourceManager and extrac Model
         # --------------------------------------------------
-        self.manager_configurator = I3ManagerConfigurator(
+        self.manager_configurator = ManagerConfigurator(
             manager_dirs=[self.model_dir],
             num_threads=self.num_threads,
         )
@@ -146,27 +146,28 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 raise KeyError('Unknown parameter name:', name)
 
         # Create concrete tensorflow function to obtain DOM expectations
-        self.param_dtype = getattr(
-            tf, self.manager.data_trafo.data['tensors']['x_parameters'].dtype)
-        param_signature = tf.TensorSpec(
-            shape=[None, self.model.num_parameters], dtype=self.param_dtype)
+        # ---- TO DELETE [START] ----------------
+        # self.param_dtype = getattr(
+        #     tf, self.manager.data_trafo.data['tensors']['x_parameters'].dtype)
+        # param_signature = tf.TensorSpec(
+        #     shape=[None, self.model.num_parameters], dtype=self.param_dtype)
 
-        @tf.function(input_signature=(param_signature,))
-        def get_dom_expectation(parameter_tensor):
-            data_batch_dict = {
-                'x_pulses': tf.convert_to_tensor([[1., 9500.]]),
-                'x_pulses_ids': tf.convert_to_tensor([[0, 0, 0]]),
-                'x_dom_charge': None,
-                'x_parameters': parameter_tensor,
-            }
-            result_tensors = model.get_tensors(
-                data_batch_dict,
-                is_training=False,
-                parameter_tensor_name='x_parameters')
+        # @tf.function(input_signature=(param_signature,))
+        # def get_model_tensors(parameter_tensor):
+        #     data_batch_dict = {
+        #         'x_pulses': tf.convert_to_tensor([[1., 9500.]]),
+        #         'x_pulses_ids': tf.convert_to_tensor([[0, 0, 0]]),
+        #         'x_dom_charge': None,
+        #         'x_parameters': parameter_tensor,
+        #     }
+        #     result_tensors = model.get_tensors(
+        #         data_batch_dict,
+        #         is_training=False,
+        #         parameter_tensor_name='x_parameters')
 
-            return result_tensors
-
-        self.get_dom_expectation = get_dom_expectation
+        #     return result_tensors
+        # ---- TO DELETE [END] -----------------
+        self.get_model_tensors = self.manager.get_model_tensors_function()
 
         # ---------------------------------------------------
         # Define which particles are simulated by which Model
@@ -237,7 +238,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         t_1 = timeit.default_timer()
 
         # get result tensors from model
-        result_tensors = self.get_dom_expectation(cascade_sources)
+        result_tensors = self.get_model_tensors(cascade_sources)
 
         # timer after NN evaluation
         t_2 = timeit.default_timer()
@@ -276,8 +277,14 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         """
 
         # draw total charge per DOM and cascade
-        dom_charges = self.random_service.poisson(
-            result_tensors['dom_charges'].numpy())
+        dom_charges = basis_functions.sample_from_negative_binomial(
+            rng=self.random_service,
+            mu=result_tensors['dom_charges'].numpy(),
+            alpha_or_var=result_tensors['dom_charges_variance'].numpy(),
+            param_is_alpha=False,
+        )
+        # dom_charges = self.random_service.poisson(
+        #     result_tensors['dom_charges'].numpy())
         dom_charges_total = np.sum(dom_charges, axis=0)
         num_cascades = dom_charges.shape[0]
 

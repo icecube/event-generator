@@ -378,7 +378,7 @@ class MultiSource(Source):
         pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
                                           pulses_ids)
 
-        pulse_pdf /= pulse_weight_total
+        pulse_pdf /= (pulse_weight_total + 1e-6)
 
         result_tensors = {
             'dom_charges': dom_charges,

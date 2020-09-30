@@ -11,7 +11,6 @@ class CircularizedAngularUncertainty:
 
     def __init__(self, manager, loss_module, function_cache,
                  fit_paramater_list,
-                 seed_tensor_name,
                  reco_key,
                  covariance_key=None,
                  minimize_in_trafo_space=True,
@@ -29,13 +28,39 @@ class CircularizedAngularUncertainty:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        **settings
-            Description
-
-        Raises
-        ------
-        NotImplementedError
-            Description
+        fit_paramater_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized.
+        reco_key : str
+            The name of the reconstruction module to use. The covariance
+            matrix will be calculated at the best fit point of the specified
+            reconstruction module.
+        covariance_key : str, optional
+            The name of the covariance matrix module to use. The covariance
+            is used to estimate the range of delta psi from which to sample.
+            If None is provided, the range will be estimated by performing
+            a bisection search to find the appropriate range for delta psi.
+        minimize_in_trafo_space : bool, optional
+            If True, covariance is calculated in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            calculation and inversion.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'.
+        scipy_optimizer_settings : dict, optional
+            Settings that will be passed on to the scipy.optmize.minimize
+            function.
+        num_fit_points : int, optional
+            This defines the number of delta psi (opening angles) to randomly
+            sample. These points are used as a seed to the reconstruction
+            and minimized. The delta log likelihood is then computed compared
+            to the best fit and a Rayleigh CDF is fitted to this distribution.
+            The more point, the more accurate the result, but also the longer
+            it takes.
+        random_seed : int, optional
+            A random seed for the numpy Random State which is used to sample
+            the random opening angles (delta psi).
         """
 
         # store settings
@@ -58,8 +83,6 @@ class CircularizedAngularUncertainty:
         self.unc_fit_paramater_list[self.azimuth_index] = False
 
         # parameter input signature
-        self.seed_index = manager.data_handler.tensors.get_index(
-            seed_tensor_name)
         self.param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
 
@@ -69,18 +92,12 @@ class CircularizedAngularUncertainty:
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_paramater_list, dtype=int)],
             dtype=self.param_dtype)
+        param_signature_full = tf.TensorSpec(
+            shape=[None, len(fit_paramater_list)],
+            dtype=self.param_dtype)
 
         # data batch input signature
-        data_batch_signature = []
-        for tensor in manager.data_handler.tensors.list:
-            if tensor.exists:
-                shape = tf.TensorShape(tensor.shape)
-            else:
-                shape = tf.TensorShape(None)
-            data_batch_signature.append(tf.TensorSpec(
-                shape=shape,
-                dtype=getattr(tf, tensor.dtype)))
-        data_batch_signature = tuple(data_batch_signature)
+        data_batch_signature = manager.data_handler.get_data_set_signature()
 
         # --------------------------------------------------
         # get concrete functions for reconstruction and loss
@@ -88,11 +105,12 @@ class CircularizedAngularUncertainty:
 
         # get normal parameter loss function
         func_settings = dict(
-            input_signature=(param_signature, data_batch_signature),
+            input_signature=(
+                param_signature, data_batch_signature, param_signature_full),
             loss_module=loss_module,
             fit_paramater_list=fit_paramater_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -107,11 +125,15 @@ class CircularizedAngularUncertainty:
 
         # get specific functions for uncertainty estimation
         function_settings = dict(
-            input_signature=(unc_param_signature, data_batch_signature),
+            input_signature=(
+                unc_param_signature,
+                data_batch_signature,
+                param_signature_full
+            ),
             loss_module=loss_module,
             fit_paramater_list=self.unc_fit_paramater_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -133,13 +155,13 @@ class CircularizedAngularUncertainty:
                 manager.get_parameter_loss_function(**function_settings)
             function_cache.add(self.unc_loss_function, function_settings)
 
-        def unc_reconstruction_method(data_batch):
+        def unc_reconstruction_method(data_batch, seed_tensor):
             return manager.reconstruct_events(
                 data_batch, loss_module,
                 loss_and_gradients_function=loss_and_gradients_function,
                 fit_paramater_list=self.unc_fit_paramater_list,
                 minimize_in_trafo_space=minimize_in_trafo_space,
-                seed=seed_tensor_name,
+                seed=seed_tensor,
                 parameter_tensor_name=parameter_tensor_name,
                 **scipy_optimizer_settings)
 
@@ -150,8 +172,8 @@ class CircularizedAngularUncertainty:
 
         Parameters
         ----------
-        data_batch : tuple of tf.Tensors
-            A data batch which consists of a tuple of tf.Tensors.
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
 
@@ -181,17 +203,18 @@ class CircularizedAngularUncertainty:
                 # put together seed tensor and new data batch
                 seed_tensor[:, self.zenith_index] = zen
                 seed_tensor[:, self.azimuth_index] = azi
-                data_batch_combined[self.seed_index] = tf.convert_to_tensor(
+                tf_seed_tensor = tf.convert_to_tensor(
                     seed_tensor, self.param_dtype)
 
                 # reconstruct (while keeping azimuth and zenith fixed)
                 unc_result, result_obj = self.unc_reconstruction_method(
-                    tuple(data_batch_combined))
+                    tuple(data_batch_combined), seed_tensor)
 
                 # get loss
                 unc_loss = self.unc_loss_function(
                     parameters_trafo=unc_result,
-                    data_batch=tuple(data_batch_combined)).numpy()
+                    data_batch=tuple(data_batch_combined),
+                    seed=tf_seed_tensor).numpy()
 
                 # append data
                 unc_results_list.append(unc_result)
@@ -208,7 +231,8 @@ class CircularizedAngularUncertainty:
         # get loss of reco best fit
         unc_loss_best = self.loss_function(
             parameters_trafo=result_trafo,
-            data_batch=data_batch).numpy()
+            data_batch=data_batch,
+            seed=result_inv).numpy()
 
         # define zenith and azimuth of reconstruction result
         result_zenith = result_inv[:, self.zenith_index]
@@ -217,7 +241,7 @@ class CircularizedAngularUncertainty:
         # ------------------------
         # get scale of uncertainty
         # ------------------------
-        def bisection_step(low, high, target=0.99, ddof=5):
+        def bisection_step(low, high, target=0.95, ddof=5):
             center = low + (high - low) / 2.
             zen, azi = angles.get_delta_psi_vector(
                 zenith=result_zenith,
@@ -239,15 +263,15 @@ class CircularizedAngularUncertainty:
             return low, high, values
 
         if self.covariance_key is not None:
-            cov_sand_fit = results[self.covariance_key]['cov_sand_fit']
+            cov_sand = results[self.covariance_key]['cov_sand']
 
-            stds = np.sqrt(np.diag(cov_sand_fit))
+            stds = np.sqrt(np.diag(cov_sand))
             circ_sigma = np.sqrt((
                 stds[self.zenith_index]**2 +
                 stds[self.azimuth_index]**2 *
                 np.sin(result_zenith)**2) / 2.)[0]
 
-            unc_upper_bound = min(89.9, 3*np.rad2deg(circ_sigma))
+            unc_upper_bound = min(89.9, 2*np.rad2deg(circ_sigma))
         else:
             num_unc_scale_steps = 4
             lower_bound = 0.

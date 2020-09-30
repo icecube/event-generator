@@ -271,17 +271,20 @@ class StochasticTrackSegmentModel(Source):
 
         zenith = parameter_list[3]
         azimuth = parameter_list[4]
-        energy = parameter_list[5] + 1e-3
-        # Ensure positive track length and energy
-        assert_op_energy = tf.Assert(
-            tf.greater_equal(tf.reduce_min(parameter_list[5]), -1e-3),
-            [tf.reduce_min(parameter_list[5])])
-        assert_op_length = tf.Assert(
-            tf.greater_equal(tf.reduce_min(parameter_list[7]), -1e3),
-            [tf.reduce_min(parameter_list[7])])
-        with tf.control_dependencies([assert_op_energy, assert_op_length]):
-            track_length = parameter_list[7] + 1e-1
-        # track_length = parameter_list[7] + 1e-1
+        energy = parameter_list[5] + 1e-1
+
+        if is_training:
+            # Ensure positive track length and energy
+            assert_op_energy = tf.Assert(
+                tf.greater_equal(tf.reduce_min(parameter_list[5]), -1e-3),
+                [tf.reduce_min(parameter_list[5])])
+            assert_op_length = tf.Assert(
+                tf.greater_equal(tf.reduce_min(parameter_list[7]), -1e3),
+                [tf.reduce_min(parameter_list[7])])
+            with tf.control_dependencies([assert_op_energy, assert_op_length]):
+                track_length = parameter_list[7] + 1.
+        else:
+            track_length = parameter_list[7] + 1.
         track_lstochasticity = parameter_list[8]
 
         # calculate direction vector of track
@@ -354,7 +357,7 @@ class StochasticTrackSegmentModel(Source):
         dz = tf.expand_dims(dz, axis=-1)
 
         # shape: [-1, 86, 60, 1]
-        distance = tf.sqrt(dx**2 + dy**2 + dz**2)
+        distance = tf.sqrt(dx**2 + dy**2 + dz**2) + 1e-1
 
         # calculate distance on track of cherenkov position
         cherenkov_angle = np.arccos(1./1.3195)
@@ -477,24 +480,26 @@ class StochasticTrackSegmentModel(Source):
             input_list.append(local_vars)
 
         # # Ensure input is not NaN
-        # assert_op = tf.Assert(
-        #     tf.math.is_finite(tf.reduce_max(tf.concat(input_list, axis=-1))),
-        #     [
-        #         tf.reduce_min(track_length),
-        #         tf.reduce_mean(track_length),
-        #         tf.reduce_mean(delta_dist_approach_trafo),
-        #         tf.reduce_mean(energy_before_trafo),
-        #         tf.reduce_mean(energy_after_trafo),
-        #         tf.reduce_mean(energy_cherenkov_trafo),
-        #         tf.reduce_mean(rel_dist_closest_approach),
-        #         tf.reduce_mean(rel_dist_infinite_approach_trafo),
-        #         tf.reduce_mean(rel_dist_infinite_approach),
-        #         tf.reduce_mean(dist_closest_approach),
-        #     ])
-        # with tf.control_dependencies([assert_op]):
-        #     x_doms_input = tf.concat(input_list, axis=-1)
-        #     print('x_doms_input', x_doms_input)
-        x_doms_input = tf.concat(input_list, axis=-1)
+        if is_training:
+            assert_op = tf.Assert(
+                tf.math.is_finite(tf.reduce_mean(
+                    tf.concat(input_list, axis=-1))),
+                [
+                    tf.reduce_min(track_length),
+                    tf.reduce_mean(track_length),
+                    tf.reduce_mean(delta_dist_approach_trafo),
+                    tf.reduce_mean(energy_before_trafo),
+                    tf.reduce_mean(energy_after_trafo),
+                    tf.reduce_mean(energy_cherenkov_trafo),
+                    tf.reduce_mean(rel_dist_closest_approach),
+                    tf.reduce_mean(rel_dist_infinite_approach_trafo),
+                    tf.reduce_mean(rel_dist_infinite_approach),
+                    tf.reduce_mean(dist_closest_approach),
+                ])
+            with tf.control_dependencies([assert_op]):
+                x_doms_input = tf.concat(input_list, axis=-1)
+        else:
+            x_doms_input = tf.concat(input_list, axis=-1)
         print('x_doms_input', x_doms_input)
 
         # -------------------------------------------
@@ -534,6 +539,9 @@ class StochasticTrackSegmentModel(Source):
         if config['scale_charge_by_global_dom_efficiency']:
             dom_charges *= tf.expand_dims(
                 parameter_list[self.get_index('DOMEfficiency')], axis=-1)
+
+        # add small constant to make sure dom charges are > 0:
+        dom_charges += 1e-7
 
         tensor_dict['dom_charges'] = dom_charges
 
@@ -756,7 +764,18 @@ class StochasticTrackSegmentModel(Source):
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
         print('pulse_pdf_values', pulse_pdf_values)
 
-        tensor_dict['pulse_pdf'] = pulse_pdf_values
+        if is_training:
+            # Ensure finite values
+            asserts = []
+            for name, tensor in tensor_dict.items():
+                assert_finite = tf.Assert(
+                    tf.math.is_finite(tf.reduce_mean(tensor)),
+                    [name, tf.reduce_mean(tensor)])
+                asserts.append(assert_finite)
+            with tf.control_dependencies(asserts):
+                tensor_dict['pulse_pdf'] = pulse_pdf_values
+        else:
+            tensor_dict['pulse_pdf'] = pulse_pdf_values
         # -------------------------------------------
 
         return tensor_dict

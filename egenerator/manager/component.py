@@ -546,7 +546,7 @@ class BaseComponent(object):
                 '_setattr_tracking', '_tf_api_names', '_tf_api_names_v1',
                 'name', 'name_scope', 'submodules', 'trainable_variables',
                 'variables', '_name_scope', '_self_name_based_restores',
-                '_self_setattr_tracking',
+                '_self_setattr_tracking', '_self_saveable_object_factories',
                 '_self_unconditional_checkpoint_dependencies',
                 '_self_unconditional_deferred_dependencies',
                 '_self_unconditional_dependency_names', '_self_update_uid']
@@ -845,7 +845,7 @@ class BaseComponent(object):
 
         # write data
         with open(data_file_path, 'wb') as handle:
-            pickle.dump(self.data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.data, handle, protocol=2)
 
         # walk through dependent sub components and save these as well
         for name, sub_component in self.sub_components.items():

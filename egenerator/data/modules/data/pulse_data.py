@@ -38,7 +38,8 @@ class PulseDataModule(BaseComponent):
         super(PulseDataModule, self).__init__(logger=logger)
 
     def _configure(self, config_data, pulse_key, dom_exclusions_key,
-                   time_exclusions_key, float_precision, add_charge_quantiles):
+                   time_exclusions_key, float_precision, add_charge_quantiles,
+                   discard_pulses_from_excluded_doms):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -62,6 +63,9 @@ class PulseDataModule(BaseComponent):
             is the fraction of cumulative charge collected at the DOM:
                 quantile_i = 1./D * sum_{j=0}^{j=i} charge_j
             with the DOM's total charge D.
+        discard_pulses_from_excluded_doms : bool, optional
+            If True, pulses on excluded DOMs are discarded. The pulses are
+            discarded after the charge at the DOM is collected.
 
         Returns
         -------
@@ -176,9 +180,13 @@ class PulseDataModule(BaseComponent):
             settings=dict(config_data=config_data,
                           float_precision=float_precision,
                           add_charge_quantiles=add_charge_quantiles),
-            mutable_settings=dict(pulse_key=pulse_key,
-                                  dom_exclusions_key=dom_exclusions_key,
-                                  time_exclusions_key=time_exclusions_key),
+            mutable_settings=dict(
+                pulse_key=pulse_key,
+                dom_exclusions_key=dom_exclusions_key,
+                time_exclusions_key=time_exclusions_key,
+                discard_pulses_from_excluded_doms=(
+                    discard_pulses_from_excluded_doms
+                )),
             )
         return configuration, data, {}
 
@@ -319,6 +327,23 @@ class PulseDataModule(BaseComponent):
                     continue
                 index = event_dict[(row[1:5])]
                 x_dom_exclusions[index, string-1, dom-1, 0] = False
+
+            if self.configuration.config['discard_pulses_from_excluded_doms']:
+
+                # compute flat indices
+                dim1 = x_dom_exclusions.shape[1]
+                dim2 = x_dom_exclusions.shape[2]
+                flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
+                                x_pulses_ids[:, 1]*dim2 +  # string
+                                x_pulses_ids[:, 2])  # DOM
+
+                # flatten dom charges
+                flat_exclusions = x_dom_exclusions.flatten()
+
+                # discard pulses coming from excluded DOMs
+                mask = flat_exclusions[flat_indices]
+                x_pulses = x_pulses[mask]
+                x_pulses_ids = x_pulses_ids[mask]
 
         # put everything together and make sure the order is correct
         data_dict = {
@@ -467,6 +492,23 @@ class PulseDataModule(BaseComponent):
 
                 index = 0
                 x_dom_exclusions[index, string-1, dom-1, 0] = False
+
+            if self.configuration.config['discard_pulses_from_excluded_doms']:
+
+                # compute flat indices
+                dim1 = x_dom_exclusions.shape[1]
+                dim2 = x_dom_exclusions.shape[2]
+                flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
+                                x_pulses_ids[:, 1]*dim2 +  # string
+                                x_pulses_ids[:, 2])  # DOM
+
+                # flatten dom charges
+                flat_exclusions = x_dom_exclusions.flatten()
+
+                # discard pulses coming from excluded DOMs
+                mask = flat_exclusions[flat_indices]
+                x_pulses = x_pulses[mask]
+                x_pulses_ids = x_pulses_ids[mask]
 
         # put everything together and make sure the order is correct
         data_dict = {

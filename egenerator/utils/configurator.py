@@ -1,6 +1,5 @@
 import os
 import tensorflow as tf
-from copy import deepcopy
 
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
@@ -9,7 +8,7 @@ from egenerator.utils.build_components import build_loss_module
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
-class I3ManagerConfigurator:
+class ManagerConfigurator:
 
     def __init__(self, manager_dirs,
                  reco_config_dir=None,
@@ -52,6 +51,9 @@ class I3ManagerConfigurator:
         ValueError
             Description
         """
+        if isinstance(manager_dirs, str):
+            manager_dirs = [manager_dirs]
+
         if reco_config_dir is None:
             reco_config_dir = [manager_dirs[0]]
         else:
@@ -72,17 +74,17 @@ class I3ManagerConfigurator:
 
         # read in reconstruction config file
         setup_manager = SetupManager([reco_config_file])
-        config = setup_manager.get_config()
+        self.config = setup_manager.get_config()
 
         # ------------------
         # Create loss module
         # ------------------
-        self.loss_module = build_loss_module(config)
+        self.loss_module = build_loss_module(self.config)
 
         # ------------------
         # Create misc module
         # ------------------
-        reco_config = config['reconstruction_settings']
+        reco_config = self.config['reconstruction_settings']
         if ('seed_names' in misc_setting_updates and
                 misc_setting_updates['seed_names'] != ['x_parameters']):
             misc_module = SeedLoaderMiscModule()
@@ -167,14 +169,14 @@ class I3ManagerConfigurator:
             model_manger,  _, data_handler, data_transformer = build_manager(
                 config_i,
                 restore=True,
-                modified_sub_components=deepcopy(modified_sub_components),
+                modified_sub_components=modified_sub_components,
                 allow_rebuild_base_sources=False,
             )
             models.extend(model_manger.models)
 
         # build manager object
         manager, models, data_handler, data_transformer = build_manager(
-                                config,
+                                self.config,
                                 restore=False,
                                 models=models,
                                 data_handler=data_handler,

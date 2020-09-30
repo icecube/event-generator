@@ -14,7 +14,7 @@ class DefaultLossModule(BaseComponent):
     A loss component that is used to compute the loss. The component
     must provide a
     loss_module.get_loss(data_batch_dict, result_tensors, tensors,
-                         parameter_tensor_name='x_parameters')
+                         parameter_tensor_name='x_parameters', **kwargs)
     method.
     """
 
@@ -94,7 +94,11 @@ class DefaultLossModule(BaseComponent):
         return configuration, {}, {}
 
     def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters', reduce_to_scalar=True):
+                 parameter_tensor_name='x_parameters',
+                 reduce_to_scalar=True,
+                 normalize_by_total_charge=False,
+                 sort_loss_terms=False,
+                 **kwargs):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -133,6 +137,21 @@ class DefaultLossModule(BaseComponent):
             If False, a list of tensors will be returned that contain the terms
             of the log likelihood. Note that each of the returend tensors may
             have a different shape.
+        normalize_by_total_charge : bool, optional
+            If True, the loss will be normalized (divided) by the total charge.
+            This will make the loss of events with vastly different amounts of
+            detected photons be more comparable.
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
+        **kwargs
+            Arbitrary keyword arguments.
 
         Returns
         -------
@@ -143,9 +162,43 @@ class DefaultLossModule(BaseComponent):
             else:
                 List of tensors defining the terms of the log likelihood
         """
+        # sanity check
+        if reduce_to_scalar and sort_loss_terms:
+            raise ValueError(
+                'Both sort_loss_terms and reduce_to_scalar are set to True. '
+                'Sorting of loss terms is unecessary when reducing to scalar')
+
         loss_terms = self.loss_function(data_batch_dict=data_batch_dict,
                                         result_tensors=result_tensors,
-                                        tensors=tensors)
+                                        tensors=tensors,
+                                        sort_loss_terms=sort_loss_terms)
+
+        # fill Nones with zeros of appropriate shape if sort_loss_terms
+        if sort_loss_terms:
+            assert len(loss_terms) == 3, loss_terms
+
+            dom_tensor = data_batch_dict['x_dom_charge'][..., 0]
+            if loss_terms[0] is None:
+                loss_terms[0] = tf.zeros_like(dom_tensor[0, 0, 0])
+            if loss_terms[1] is None:
+                loss_terms[1] = tf.zeros_like(dom_tensor[:, 0, 0])
+            if loss_terms[2] is None:
+                loss_terms[2] = tf.zeros_like(dom_tensor)
+
+        if normalize_by_total_charge:
+            total_charge = tf.reduce_sum(data_batch_dict['x_pulses'][:, 0])
+            batch_size = tf.cast(
+                tf.shape(data_batch_dict['x_dom_charge'])[0],
+                dtype=total_charge.dtype)
+
+            # Note: this depends on the actual loss being used.
+            # Here we assume that an additional poisson term for each DOM
+            # is used as well. This adds ~5160 (minus exclusions) additional
+            # terms to the likelhood.
+            # ToDo: properly count number of likelihood terms and also properly
+            # normalize if loss is composed from multiple individual losses
+            approx_number_of_terms = total_charge + 5160 * batch_size
+            loss_terms = [loss / approx_number_of_terms for loss in loss_terms]
 
         if reduce_to_scalar:
             return tf.math.accumulate_n([tf.reduce_sum(loss_term)
@@ -169,7 +222,7 @@ class DefaultLossModule(BaseComponent):
         return tf.math.lgamma(tf.clip_by_value(x + 1, 2, float('inf')))
 
     def unbinned_extended_pulse_llh(self, data_batch_dict, result_tensors,
-                                    tensors):
+                                    tensors, sort_loss_terms):
         """Unbinned extended poisson likelhood for data pulses.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -201,6 +254,15 @@ class DefaultLossModule(BaseComponent):
                              Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
 
         Returns
         -------
@@ -265,22 +327,40 @@ class DefaultLossModule(BaseComponent):
         llh_event = event_charges_pred - event_charges_true * tf.math.log(
                                                     event_charges_pred + eps)
 
-        loss_terms = [llh_poisson, time_log_likelihood, llh_event]
+        if sort_loss_terms:
+            loss_doms = tf.tensor_scatter_nd_add(
+                llh_poisson,
+                indices=data_batch_dict['x_pulses_ids'],
+                updates=time_log_likelihood,
+            )
+            loss_terms = [None, llh_event, loss_doms]
+        else:
+            loss_terms = [llh_poisson, time_log_likelihood, llh_event]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            norm_pulses = tf.reduce_sum(self.log_faculty(pulse_charges))
-            norm_doms = tf.reduce_sum(self.log_faculty(dom_charges_true))
-            norm_events = tf.reduce_sum(self.log_faculty(event_charges_true))
-            norm = norm_pulses + norm_doms + norm_events
-            loss_terms.append(norm)
+            norm_pulses = self.log_faculty(pulse_charges)
+            norm_doms = self.log_faculty(dom_charges_true)
+            norm_events = self.log_faculty(event_charges_true)
+            if sort_loss_terms:
+                loss_terms[1] += norm_events
+                loss_terms[2] += norm_doms
+                loss_terms[2] = tf.tensor_scatter_nd_add(
+                    loss_terms[2],
+                    indices=data_batch_dict['x_pulses_ids'],
+                    updates=norm_pulses,
+                )
+            else:
+                loss_terms.append(norm_pulses)
+                loss_terms.append(norm_doms)
+                loss_terms.append(norm_events)
 
         return loss_terms
 
     def unbinned_pulse_time_llh(self, data_batch_dict,
-                                result_tensors, tensors):
+                                result_tensors, tensors, sort_loss_terms):
         """Unbinned Pulse Time likelhood.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -312,6 +392,15 @@ class DefaultLossModule(BaseComponent):
                              Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
 
         Returns
         -------
@@ -347,18 +436,37 @@ class DefaultLossModule(BaseComponent):
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
         time_loss = -pulse_charges * pulse_log_pdf_values
 
-        loss_terms = [time_loss]
+        if sort_loss_terms:
+            loss_terms = [
+                None,
+                None,
+                tf.tensor_scatter_nd_add(
+                    tf.zeros_like(data_batch_dict['x_dom_charge'][..., 0]),
+                    indices=data_batch_dict['x_pulses_ids'],
+                    updates=time_loss,
+                ),
+            ]
+        else:
+            loss_terms = [time_loss]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            loss_terms.append(tf.reduce_sum(self.log_faculty(pulse_charges)))
+            if sort_loss_terms:
+                loss_terms[2] = tf.tensor_scatter_nd_add(
+                    loss_terms[2],
+                    indices=data_batch_dict['x_pulses_ids'],
+                    updates=self.log_faculty(pulse_charges),
+                )
+            else:
+                loss_terms.append(self.log_faculty(pulse_charges))
 
         return loss_terms
 
     def unbinned_pulse_and_dom_charge_pdf(self, data_batch_dict,
-                                          result_tensors, tensors):
+                                          result_tensors, tensors,
+                                          sort_loss_terms):
         """Unbinned extended poisson likelhood with DOM charge PDF.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -397,6 +505,15 @@ class DefaultLossModule(BaseComponent):
                              Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
 
         Returns
         -------
@@ -451,20 +568,37 @@ class DefaultLossModule(BaseComponent):
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
         time_loss = -pulse_charges * pulse_log_pdf_values
 
-        loss_terms = [-llh_charge, time_loss]
+        if sort_loss_terms:
+            loss_doms = tf.tensor_scatter_nd_add(
+                -llh_charge,
+                indices=data_batch_dict['x_pulses_ids'],
+                updates=time_loss,
+            )
+            loss_terms = [None, None, loss_doms]
+        else:
+            loss_terms = [-llh_charge, time_loss]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            norm_pulses = tf.reduce_sum(self.log_faculty(pulse_charges))
-            norm_doms = tf.reduce_sum(self.log_faculty(hits_true))
-            loss_terms.append(norm_pulses + norm_doms)
+            norm_pulses = self.log_faculty(pulse_charges)
+            norm_doms = self.log_faculty(hits_true)
+            if sort_loss_terms:
+                loss_terms[2] += norm_doms
+                loss_terms[2] = tf.tensor_scatter_nd_add(
+                    loss_terms[2],
+                    indices=data_batch_dict['x_pulses_ids'],
+                    updates=norm_pulses,
+                )
+            else:
+                loss_terms.append(norm_pulses)
+                loss_terms.append(norm_doms)
 
         return loss_terms
 
     def unbinned_charge_quantile_pdf(self, data_batch_dict, result_tensors,
-                                     tensors):
+                                     tensors, sort_loss_terms):
         """Unbinned Pulse Quantile PDF.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -503,6 +637,15 @@ class DefaultLossModule(BaseComponent):
                     Shape: [-1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
 
         Returns
         -------
@@ -562,7 +705,18 @@ class DefaultLossModule(BaseComponent):
                     time_loss
                 )
 
-        loss_terms = [time_loss]
+        if sort_loss_terms:
+            loss_terms = [
+                None,
+                None,
+                tf.tensor_scatter_nd_add(
+                    tf.zeros_like(data_batch_dict['x_dom_charge'][..., 0]),
+                    indices=data_batch_dict['x_pulses_ids'],
+                    updates=time_loss,
+                ),
+            ]
+        else:
+            loss_terms = [time_loss]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
@@ -575,7 +729,7 @@ class DefaultLossModule(BaseComponent):
         return loss_terms
 
     def dom_and_event_charge_pdf(self, data_batch_dict, result_tensors,
-                                 tensors):
+                                 tensors, sort_loss_terms):
         """Charge PDF (estimated by Model)
 
         This is a likelihood over the total event charge in addition to the
@@ -614,6 +768,15 @@ class DefaultLossModule(BaseComponent):
                     Shape: [-1, 86, 60, 1]
         tensors : DataTensorList
             The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
 
         Returns
         -------
@@ -663,7 +826,14 @@ class DefaultLossModule(BaseComponent):
             sigma=event_charges_unc,
         )
 
-        loss_terms = [-llh_charge, -llh_event]
+        if sort_loss_terms:
+            loss_terms = [
+                None,
+                -llh_event,
+                -llh_charge,
+            ]
+        else:
+            loss_terms = [-llh_charge, -llh_event]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
@@ -675,7 +845,7 @@ class DefaultLossModule(BaseComponent):
         return loss_terms
 
     def negative_binomial_charge_pdf(self, data_batch_dict, result_tensors,
-                                     tensors):
+                                     tensors, sort_loss_terms):
         """Negative Binomial Charge PDF
 
         This is a likelihood over the total event charge in addition to the
@@ -715,6 +885,15 @@ class DefaultLossModule(BaseComponent):
                     Shape: [-1, 86, 60]
         tensors : DataTensorList
             The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
 
         Returns
         -------
@@ -722,7 +901,9 @@ class DefaultLossModule(BaseComponent):
             Charge PDF Likelihood.
             List of tensors defining the terms of the log likelihood
         """
-        eps = 1e-7
+
+        # underneath 5e-5 the log_negative_binomial function becomes unstable
+        eps = 5e-5
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
 
@@ -765,7 +946,8 @@ class DefaultLossModule(BaseComponent):
         # compute negative binomial charge likelihood over total event charge
         event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
         event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
-        event_charges_variance = tf.reduce_sum(hits_pred, axis=[1, 2])
+        event_charges_variance = tf.reduce_sum(
+            dom_charges_variance, axis=[1, 2])
 
         # compute over-dispersion factor alpha
         # var = mu + alpha*mu**2
@@ -783,7 +965,14 @@ class DefaultLossModule(BaseComponent):
             alpha=event_charges_alpha,
         )
 
-        loss_terms = [-llh_charge, -llh_event]
+        if sort_loss_terms:
+            loss_terms = [
+                None,
+                -llh_event,
+                -llh_charge,
+            ]
+        else:
+            loss_terms = [-llh_charge, -llh_event]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
