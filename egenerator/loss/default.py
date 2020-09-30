@@ -321,21 +321,15 @@ class DefaultLossModule(BaseComponent):
         llh_poisson = (dom_charges_pred -
                        dom_charges_true * tf.math.log(dom_charges_pred + eps))
 
-        # Poisson loss over total event charge
-        event_charges_true = tf.reduce_sum(dom_charges_true, axis=[1, 2])
-        event_charges_pred = tf.reduce_sum(dom_charges_pred, axis=[1, 2])
-        llh_event = event_charges_pred - event_charges_true * tf.math.log(
-                                                    event_charges_pred + eps)
-
         if sort_loss_terms:
             loss_doms = tf.tensor_scatter_nd_add(
                 llh_poisson,
                 indices=data_batch_dict['x_pulses_ids'],
                 updates=time_log_likelihood,
             )
-            loss_terms = [None, llh_event, loss_doms]
+            loss_terms = [None, None, loss_doms]
         else:
-            loss_terms = [llh_poisson, time_log_likelihood, llh_event]
+            loss_terms = [llh_poisson, time_log_likelihood]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
@@ -343,19 +337,16 @@ class DefaultLossModule(BaseComponent):
         if self.configuration.config['config']['add_normalization_term']:
             norm_pulses = self.log_faculty(pulse_charges)
             norm_doms = self.log_faculty(dom_charges_true)
-            norm_events = self.log_faculty(event_charges_true)
             if sort_loss_terms:
-                loss_terms[1] += norm_events
-                loss_terms[2] += norm_doms
                 loss_terms[2] = tf.tensor_scatter_nd_add(
                     loss_terms[2],
                     indices=data_batch_dict['x_pulses_ids'],
                     updates=norm_pulses,
                 )
+                loss_terms[2] += norm_doms
             else:
                 loss_terms.append(norm_pulses)
                 loss_terms.append(norm_doms)
-                loss_terms.append(norm_events)
 
         return loss_terms
 
@@ -368,7 +359,7 @@ class DefaultLossModule(BaseComponent):
         the time pdf is calculated for all pulses.
 
         This is similar to `unbinned_extended_pulse_llh`. Major differences:
-            - No additional likelihood terms for DOM or event charge
+            - No additional likelihood terms for DOM charge
 
         Parameters
         ----------
@@ -476,7 +467,6 @@ class DefaultLossModule(BaseComponent):
         This is similar to `unbinned_extended_pulse_llh`. Major differences:
             - No Poisson Likelihood is assumed here. Instead, the model
               estimates the charge PDF for each DOM
-            - No additional likelihood term is added for total event charge
 
         Parameters
         ----------
@@ -738,6 +728,7 @@ class DefaultLossModule(BaseComponent):
         for the DOMs: `dom_charges_log_pdf_values`.
         The uncertainty on the total event charge is computed by accumulating
         the uncertainties in quadrature.
+        Note: this likelihood double-counts the charge information.
 
         Parameters
         ----------
@@ -812,8 +803,6 @@ class DefaultLossModule(BaseComponent):
             hits_true = hits_true * mask_valid
             hits_pred = hits_pred * mask_valid
             dom_charges_variance = dom_charges_variance * mask_valid
-        else:
-            mask_valid = tf.ones_like(llh_charge)
 
         # Compute Gaussian likelihood over total event charge
         event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
@@ -848,12 +837,11 @@ class DefaultLossModule(BaseComponent):
                                      tensors, sort_loss_terms):
         """Negative Binomial Charge PDF
 
-        This is a likelihood over the total event charge in addition to the
-        charge measured at each DOM. A negative binomial distribution
-        is used to calculate the charge likelihood. This allows for the
-        inclusion of over-dispersion in contrast to the simple Poisson
-        Likelihood. The model must provide the dom charges and variances
-        thereof: `dom_charges`, `dom_charges_variance`.
+        This is a likelihood over the charge measured at each DOM. A negative
+        binomial distribution is used to calculate the charge likelihood. This
+        allows for the inclusion of over-dispersion in contrast to the simple
+        Poisson Likelihood. The model must provide the dom charges and
+        variances thereof: `dom_charges`, `dom_charges_variance`.
         This loss pairs well with a loss for the time PDF such
         as `unbinned_pulse_time_llh`.
 
@@ -937,6 +925,101 @@ class DefaultLossModule(BaseComponent):
                 tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
                 dtype=dtype)
             llh_charge = llh_charge * mask_valid
+
+        if sort_loss_terms:
+            loss_terms = [
+                None,
+                None,
+                -llh_charge,
+            ]
+        else:
+            loss_terms = [-llh_charge]
+
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
+            # total event charge is properly normalized due to the used gauss
+            pass
+
+        return loss_terms
+
+    def negative_binomial_event_charge_pdf(
+            self, data_batch_dict, result_tensors, tensors, sort_loss_terms):
+        """Negative Binomial Event Charge PDF
+
+        This is a likelihood over the total event charge. A negative binomial
+        distribution is used to calculate the charge likelihood. This allows
+        for the inclusion of over-dispersion in contrast to the simple Poisson
+        Likelihood. The model must provide the dom charges and variances
+        thereof: `dom_charges`, `dom_charges_variance`.
+        This loss should not be used in connection with per-DOM charge
+        likelihoods, as the charge information would be double counted.
+        This loss pairs well with a loss for the normalized DOM charge PDF such
+        as `normalized_dom_charge_pdf`.
+
+        Parameters
+        ----------
+        data_batch_dict : dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
+        result_tensors : dict of tf.Tensor
+            A dictionary of output tensors.
+            This  dictionary must at least contain:
+
+                'dom_charges': the predicted charge at each DOM
+                               Shape: [-1, 86, 60, 1]
+                'dom_charges_variance':
+                    the predicted variance on the charge at each DOM.
+                    This assumes the underlying distribution is a negative
+                    binomial distribution.
+                    Shape: [-1, 86, 60]
+        tensors : DataTensorList
+            The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
+
+        Returns
+        -------
+        List of tf.tensor
+            Charge PDF Likelihood.
+            List of tensors defining the terms of the log likelihood
+        """
+
+        # underneath 5e-5 the log_negative_binomial function becomes unstable
+        eps = 5e-5
+        dtype = getattr(
+            tf, self.configuration.config['config']['float_precision'])
+
+        # shape: [n_batch, 86, 60]
+        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
+        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        dom_charges_variance = tf.squeeze(
+            result_tensors['dom_charges_variance'], axis=-1)
+
+        # mask out dom exclusions
+        if ('x_dom_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+            mask_valid = tf.cast(
+                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
+                dtype=dtype)
             hits_true = hits_true * mask_valid
             hits_pred = hits_pred * mask_valid
             dom_charges_variance = dom_charges_variance * mask_valid
@@ -969,16 +1052,121 @@ class DefaultLossModule(BaseComponent):
             loss_terms = [
                 None,
                 -llh_event,
-                -llh_charge,
+                None,
             ]
         else:
-            loss_terms = [-llh_charge, -llh_event]
+            loss_terms = [-llh_event]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
             # total event charge is properly normalized due to the used gauss
+            pass
+
+        return loss_terms
+
+    def normalized_dom_charge_pdf(self, data_batch_dict, result_tensors,
+                                  tensors, sort_loss_terms):
+        """Normalized DOM Charge PDF
+
+        This is a likelihood over the normalized DOM charge PDF, e.g. this
+        likelihood is insensitive to the overall event charge normalization.
+        The DOM PDF is calculated based on the expected fractional event charge
+        at each DOM. The model must provide the dom charges key:
+        `dom_charges`. Note that the variance on the expected charge
+        (`dom_charges_variance`) is not taken into account here. The likelihood
+        basically assumes that each DOM has the same uncertainty on the charge.
+        This loss pairs well with a loss for the time PDF such
+        as `unbinned_pulse_time_llh`.
+        In addition, it can be transformed to an 'extended' likelihood by
+        adding a likelihood over the event charge normalization, such as
+        `negative_binomial_event_charge_pdf`.
+
+        Parameters
+        ----------
+        data_batch_dict : dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
+        result_tensors : dict of tf.Tensor
+            A dictionary of output tensors.
+            This  dictionary must at least contain:
+
+                'dom_charges': the predicted charge at each DOM
+                               Shape: [-1, 86, 60, 1]
+                'dom_charges_variance':
+                    the predicted variance on the charge at each DOM.
+                    This assumes the underlying distribution is a negative
+                    binomial distribution.
+                    Shape: [-1, 86, 60]
+        tensors : DataTensorList
+            The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
+
+        Returns
+        -------
+        List of tf.tensor
+            Charge PDF Likelihood.
+            List of tensors defining the terms of the log likelihood
+        """
+
+        # underneath 5e-5 the log_negative_binomial function becomes unstable
+        eps = 5e-5
+        dtype = getattr(
+            tf, self.configuration.config['config']['float_precision'])
+
+        # shape: [n_batch, 86, 60]
+        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
+        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        dom_charges_variance = tf.squeeze(
+            result_tensors['dom_charges_variance'], axis=-1)
+
+        # shape: [n_batch, 1, 1]
+        event_total = tf.reduce_sum(hits_pred, axis=[1, 2], keepdims=True)
+
+        # shape: [n_batch, 86, 60]
+        dom_pdf = hits_pred / event_total
+        llh_dom = hits_true * tf.math.log(dom_pdf + eps)
+
+        # mask out dom exclusions
+        if ('x_dom_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+            mask_valid = tf.cast(
+                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
+                dtype=dtype)
+            llh_dom = llh_dom * mask_valid
+
+        if sort_loss_terms:
+            loss_terms = [
+                None,
+                None,
+                -llh_dom,
+            ]
+        else:
+            loss_terms = [-llh_dom]
+
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config['config']['add_normalization_term']:
             pass
 
         return loss_terms
