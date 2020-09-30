@@ -161,10 +161,10 @@ data_iterator_settings: {
         'batch_size': 32,
         'num_splits': 4,
         'file_capacity': 10,
-        'batch_capacity': 100,
+        'batch_capacity': 500,
         'dataset_capacity': 100,
         'num_jobs': 10,
-        'num_add_files': 10,
+        'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
             # Snowstorm EM datasets
@@ -219,10 +219,10 @@ data_iterator_settings: {
     'validation': {
         'batch_size': 32,
         'num_splits': ,
-        'file_capacity': 1,
-        'batch_capacity': 3,
-        'num_jobs': 1,
-        'num_add_files': 10,
+        'file_capacity': 5,
+        'batch_capacity': 10,
+        'num_jobs': 2,
+        'num_add_files': 5,
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
