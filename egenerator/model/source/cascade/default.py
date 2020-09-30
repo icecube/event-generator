@@ -514,11 +514,12 @@ class DefaultCascadeModel(Source):
 
             # swap latent variables of components, such that these are ordered
             # in time. This puts a constrained on the model and reduces
-            # the permutation options and should thus facilitate training
-            sorted_indices = tf.argsort(latent_mu, axis=-1)
-            latent_sigma = tf.gather(latent_sigma, sorted_indices)
-            latent_scale = tf.gather(latent_scale, sorted_indices)
-            latent_r = tf.gather(latent_r, sorted_indices)
+            # the permutation options and should thus facilitate training.
+            # We could keep the latent_mu in place and sort the other
+            # components accordingly. An equivalent alternative is to keep
+            # the other components in place and to simply sort the latent_mu.
+            latent_mu = tf.ensure_shape(
+                tf.sort(latent_mu, axis=-1), shape=[None, 86, 60, n_models])
 
         tensor_dict['latent_var_mu'] = latent_mu
         tensor_dict['latent_var_sigma'] = latent_sigma
