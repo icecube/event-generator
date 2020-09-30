@@ -170,6 +170,34 @@ class Reconstruction:
                     seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name,
                     **tf_optimizer_settings)
+
+        elif reco_optimizer_interface.lower() == 'spherical_opt':
+
+            func_loss_settings = dict(function_settings)
+
+            batch_size = 1
+            if batch_size > 1:
+                func_loss_settings['reduce_to_scalar'] = False
+                func_loss_settings['sort_loss_terms'] = True
+
+            # get concrete loss function
+            loss_function = function_cache.get(
+                'parameter_loss_function', func_loss_settings)
+
+            if loss_function is None:
+                loss_function = manager.get_parameter_loss_function(
+                    **func_loss_settings)
+                function_cache.add(loss_function, func_loss_settings)
+
+            def reconstruction_method(data_batch, seed_tensor):
+                return manager.reconstruct_events_spherical_opt(
+                    data_batch, loss_module,
+                    loss_function=loss_function,
+                    fit_paramater_list=fit_paramater_list,
+                    minimize_in_trafo_space=minimize_in_trafo_space,
+                    seed=seed_tensor,
+                    parameter_tensor_name=parameter_tensor_name)
+
         else:
             raise ValueError('Unknown interface {!r}. Options are {!r}'.format(
                 reco_optimizer_interface, ['scipy', 'tfp']))
