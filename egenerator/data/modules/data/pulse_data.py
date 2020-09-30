@@ -144,6 +144,10 @@ class PulseDataModule(BaseComponent):
                                   vector_info={'type': 'index',
                                                'reference': 'x_pulses'},
                                   dtype='int32')
+        x_time_window = DataTensor(name='x_time_window',
+                                   shape=[None, 2],
+                                   tensor_type='data',
+                                   dtype=float_precision)
         x_time_exclusions = DataTensor(
                             name='x_time_exclusions',
                             shape=[None, 2],
@@ -164,7 +168,7 @@ class PulseDataModule(BaseComponent):
         data = {}
         data['data_tensors'] = DataTensorList([
             x_dom_charge, x_dom_exclusions, x_pulses, x_pulses_ids,
-            x_time_exclusions, x_time_exclusions_ids])
+            x_time_window, x_time_exclusions, x_time_exclusions_ids])
 
         data['np_float_precision'] = getattr(np, float_precision)
 
@@ -272,6 +276,12 @@ class PulseDataModule(BaseComponent):
                             dtype=self.data['np_float_precision'])
         x_pulses_ids = np.empty((num_pulses, 3), dtype=np.int32)
 
+        # create array for time data
+        x_time_window = np.empty(
+            [size, 2],  dtype=self.data['np_float_precision'])
+        x_time_window[:, 0] = float('inf')
+        x_time_window[:, 1] = -float('inf')
+
         # get pulse information
         for pulse_index, row in enumerate(pulses.itertuples()):
             string = row[6]
@@ -299,6 +309,12 @@ class PulseDataModule(BaseComponent):
 
             # gather pulse ids (batch index, string, dom)
             x_pulses_ids[pulse_index] = [index, string-1, dom-1]
+
+            # update time window
+            if row[10] > x_time_window[index, 1]:
+                x_time_window[index, 1] = row[10]
+            if row[10] < x_time_window[index, 0]:
+                x_time_window[index, 0] = row[10]
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
@@ -351,6 +367,7 @@ class PulseDataModule(BaseComponent):
             'x_dom_exclusions': x_dom_exclusions,
             'x_pulses': x_pulses,
             'x_pulses_ids': x_pulses_ids,
+            'x_time_window': x_time_window,
             'x_time_exclusions': x_time_exclusions,
             'x_time_exclusions_ids': x_time_exclusions_ids,
         }
@@ -422,6 +439,12 @@ class PulseDataModule(BaseComponent):
             x_time_exclusions = None
             x_time_exclusions_ids = None
 
+        # create array for time data
+        x_time_window = np.empty(
+            [size, 2],  dtype=self.data['np_float_precision'])
+        x_time_window[:, 0] = float('inf')
+        x_time_window[:, 1] = -float('inf')
+
         add_charge_quantiles = \
             self.configuration.config['add_charge_quantiles']
 
@@ -459,6 +482,12 @@ class PulseDataModule(BaseComponent):
 
                 # gather pulse ids (batch index, string, dom)
                 x_pulses_ids.append([index, string-1, dom-1])
+
+                # update time window
+                if pulse.time > x_time_window[index, 1]:
+                    x_time_window[index, 1] = pulse.time
+                if pulse.time < x_time_window[index, 0]:
+                    x_time_window[index, 0] = pulse.time
 
         x_pulses = np.array(x_pulses, dtype=self.data['np_float_precision'])
         x_pulses_ids = np.array(x_pulses_ids, dtype=np.int32)
@@ -516,6 +545,7 @@ class PulseDataModule(BaseComponent):
             'x_dom_exclusions': x_dom_exclusions,
             'x_pulses': x_pulses,
             'x_pulses_ids': x_pulses_ids,
+            'x_time_window': x_time_window,
             'x_time_exclusions': x_time_exclusions,
             'x_time_exclusions_ids': x_time_exclusions_ids,
         }
