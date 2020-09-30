@@ -162,7 +162,7 @@ data_iterator_settings: {
         'num_splits': 4,
         'file_capacity': 10,
         'batch_capacity': 500,
-        'dataset_capacity': 100,
+        'dataset_capacity': 500,
         'num_jobs': 10,
         'num_add_files': 20,
         'num_repetitions': 3,
@@ -218,9 +218,10 @@ data_iterator_settings: {
     # The validation data iterator
     'validation': {
         'batch_size': 32,
-        'num_splits': ,
+        'num_splits': 4,
         'file_capacity': 5,
         'batch_capacity': 10,
+        'dataset_capacity': 10,
         'num_jobs': 2,
         'num_add_files': 5,
         'num_repetitions': 1,
