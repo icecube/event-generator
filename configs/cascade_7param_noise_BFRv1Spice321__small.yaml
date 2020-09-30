@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'cascade_7param_noise_BFRv1Spice321'
+unique_name: 'cascade_7param_noise_BFRv1Spice321__small'
 
 
 #------------------
@@ -459,7 +459,7 @@ model_settings: {
                 'scale_charge_by_global_dom_efficiency': False,
                 'prevent_mixture_component_swapping': True,
                 'estimate_charge_distribution': 'negative_binomial',
-                'num_latent_models': 10,
+                'num_latent_models': 5,
 
                 # This is a list of labels in addition to
                 # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
@@ -467,14 +467,14 @@ model_settings: {
                 ],
 
                 # First convolutions
-                'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [25, 500, 500, 500, 42],
+                'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1]],
+                'num_filters_list' : [25, 200, 200, 22],
                 'method_list' : ['locally_connected',
-                                 'convolution', 'convolution', 'convolution',
+                                 'convolution', 'convolution',
                                  'convolution',
                                  ],
                 'use_dropout_list' : False,
-                'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
+                'activation_list' : ['elu', 'elu', 'elu', ''],
                 'use_batch_norm_list' : False,
                 'use_residual_list' : True,
             },
