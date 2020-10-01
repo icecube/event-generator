@@ -62,7 +62,7 @@ class IndependentMultiSource(MultiSource):
         parameters = []
         for cascade in sorted(sources.keys()):
             base = sources[cascade]
-            for variable in sorted(base_sources[base].parameter_names):
+            for variable in base_sources[base].parameter_names:
                 parameters.append(cascade + '_' + variable)
         return parameters, sources
 
