@@ -338,12 +338,12 @@ class DefaultLossModule(BaseComponent):
             norm_pulses = self.log_faculty(pulse_charges)
             norm_doms = self.log_faculty(dom_charges_true)
             if sort_loss_terms:
+                loss_terms[2] = norm_doms
                 loss_terms[2] = tf.tensor_scatter_nd_add(
                     loss_terms[2],
                     indices=data_batch_dict['x_pulses_ids'],
                     updates=norm_pulses,
                 )
-                loss_terms[2] += norm_doms
             else:
                 loss_terms.append(norm_pulses)
                 loss_terms.append(norm_doms)

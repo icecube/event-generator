@@ -161,7 +161,7 @@ data_iterator_settings: {
     # The training data iterator
     'training': {
         'batch_size': 32,
-        'num_splits': 4,
+        'num_splits': ,
         'file_capacity': 10,
         'batch_capacity': 500,
         'dataset_capacity': 500,
@@ -220,7 +220,7 @@ data_iterator_settings: {
     # The validation data iterator
     'validation': {
         'batch_size': 32,
-        'num_splits': 4,
+        'num_splits': ,
         'file_capacity': 5,
         'batch_capacity': 10,
         'dataset_capacity': 10,
