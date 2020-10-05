@@ -236,6 +236,18 @@ class PulseDataModule(BaseComponent):
             else:
                 dom_exclusions = None
 
+            if self.data['time_exclusions_exist']:
+                try:
+                    time_exclusions = \
+                        f[self.configuration.config['time_exclusions_key']]
+                except KeyError:
+                    msg = 'Could not find time exclusion key {!r}'
+                    self._logger.warning(msg.format(
+                        self.configuration.config['time_exclusions_key']))
+                    time_exclusions = None
+            else:
+                time_exclusions = None
+
         except Exception as e:
             self._logger.warning('Skipping file: {} due to {}'.format(file, e))
             return None, None
@@ -258,8 +270,10 @@ class PulseDataModule(BaseComponent):
             x_dom_exclusions = None
 
         if self.data['time_exclusions_exist']:
-            raise NotImplementedError(
-                'Time window exclusions not yet implemented!')
+            num_tws = len(pulses['Event'])
+            x_time_exclusions = np.empty(
+                (num_tws, 2), dtype=self.data['np_float_precision'])
+            x_time_exclusions_ids = np.empty((num_tws, 3), dtype=np.int32)
         else:
             x_time_exclusions = None
             x_time_exclusions_ids = None
@@ -282,7 +296,9 @@ class PulseDataModule(BaseComponent):
         x_time_window[:, 0] = float('inf')
         x_time_window[:, 1] = -float('inf')
 
+        # ---------------------
         # get pulse information
+        # ---------------------
         for pulse_index, row in enumerate(pulses.itertuples()):
             string = row[6]
             dom = row[7]
@@ -332,7 +348,30 @@ class PulseDataModule(BaseComponent):
             # calculate quantiles
             x_pulses[:, 2] /= flat_charges[flat_indices]
 
+        # -------------------
+        # get time exclusions
+        # -------------------
+        if time_exclusions is not None:
+            for tw_index, row in enumerate(time_exclusions.itertuples()):
+                string = row[6]
+                dom = row[7]
+                if dom > 60:
+                    self._logger.warning(
+                        'skipping tw: {} {}'.format(string, dom))
+                    continue
+                index = event_dict[(row[1:5])]
+
+                # t_start (pulse time): row[10], t_end (pulse width): row[11]
+
+                # (t_start, t_end)
+                x_time_exclusions[tw_index] = [row[10], row[11]]
+
+                # gather pulse ids (batch index, string, dom)
+                x_time_exclusions_ids[tw_index] = [index, string-1, dom-1]
+
+        # ------------------
         # get dom exclusions
+        # ------------------
         if dom_exclusions is not None:
             for row in dom_exclusions.itertuples():
                 string = row[7]
@@ -420,6 +459,19 @@ class PulseDataModule(BaseComponent):
         else:
             dom_exclusions = None
 
+        # get time window exclusions
+        if self.data['time_exclusions_exist']:
+            try:
+                time_exclusions = \
+                    frame[self.configuration.config['time_exclusions_key']]
+            except KeyError:
+                msg = 'Could not find time window exclusion key {!r}'
+                self._logger.warning(msg.format(
+                    self.configuration.config['time_exclusions_key']))
+                time_exclusions = None
+        else:
+            time_exclusions = None
+
         # number of events in batch (one frame at a time)
         size = 1
 
@@ -433,8 +485,8 @@ class PulseDataModule(BaseComponent):
             x_dom_exclusions = None
 
         if self.data['time_exclusions_exist']:
-            raise NotImplementedError(
-                'Time window exclusions not yet implemented!')
+            x_time_exclusions = []
+            x_time_exclusions_ids = []
         else:
             x_time_exclusions = None
             x_time_exclusions_ids = None
@@ -451,7 +503,9 @@ class PulseDataModule(BaseComponent):
         x_pulses = []
         x_pulses_ids = []
 
+        # ---------------------
         # get pulse information
+        # ---------------------
         for omkey, pulse_list in pulses.items():
 
             string = omkey.string
@@ -508,7 +562,37 @@ class PulseDataModule(BaseComponent):
             # calculate quantiles
             x_pulses[:, 2] /= flat_charges[flat_indices]
 
+        # -------------------
+        # get time exclusions
+        # -------------------
+        if time_exclusions is not None:
+            for omkey, tw_list in time_exclusions.items():
+
+                string = omkey.string
+                dom = omkey.om
+
+                if dom > 60:
+                    self._logger.warning(
+                        'skipping time window: {} {}'.format(string, dom))
+                    continue
+
+                for tw in tw_list:
+                    index = 0
+
+                    # (t_start, t_end)
+                    x_time_exclusions.append([tw.start, tw.stop])
+
+                    # gather pulse ids (batch index, string, dom)
+                    x_time_exclusions_ids.append([index, string-1, dom-1])
+
+            x_time_exclusions = np.array(
+                x_time_exclusions, dtype=self.data['np_float_precision'])
+            x_time_exclusions_ids = np.array(
+                x_time_exclusions_ids, dtype=np.int32)
+
+        # ------------------
         # get dom exclusions
+        # ------------------
         if dom_exclusions is not None:
             for omkey in dom_exclusions:
                 string = omkey.string
