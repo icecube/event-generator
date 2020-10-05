@@ -218,6 +218,14 @@ rel_dom_eff_without_bad_doms = [
     [1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 0.0, 0.0, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35, 1.35],
 ]
 
+# BadDomsList based off of:
+# /cvmfs/icecube.opensciencegrid.org/data/GCD/
+# GeoCalibDetectorStatus_AVG_55697-57531_PASS2_SPE_withScaledNoise.i3.gz
+# which was used to create most of the egenerator simulation
+# Note: ideally the simulation should be created without exclusions
+# and then this hardcoding of specific bad DOMs should be removed
+bad_doms_mask = np.array(rel_dom_eff_without_bad_doms) != 0.
+
 # Dictionary with hexagonal coordinates for every string
 # Assumes the detector is centered around (0,0), which means
 # negative indices are possible.
