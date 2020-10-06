@@ -325,9 +325,9 @@ class DefaultCascadeModel(Source):
                 x_time_exclusions - tf.expand_dims(tw_cascade_t, axis=-1),
                 axis=-1,
             )
-            tf.print(t_exclusions, 't_exclusions_offset')
             t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
             print('t_exclusions', t_exclusions)
+            tf.print(t_exclusions, 't_exclusions_offset')
 
         # new shape: [None, 1]
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
@@ -412,6 +412,7 @@ class DefaultCascadeModel(Source):
         if time_exclusions_exist:
 
             # get latent vars for each time window
+            tf.print(x_time_exclusions_ids, 'x_time_exclusions_ids')
             tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
             tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
             tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
