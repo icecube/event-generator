@@ -266,7 +266,7 @@ class PulseDataModule(BaseComponent):
                                 dtype=self.data['np_float_precision'])
 
         if self.data['dom_exclusions_exist']:
-            x_dom_exclusions = np.array(detector.bad_doms_mask)
+            x_dom_exclusions = np.array(detector.bad_doms_mask[..., None])
         else:
             x_dom_exclusions = None
 
@@ -481,7 +481,7 @@ class PulseDataModule(BaseComponent):
                                 dtype=self.data['np_float_precision'])
 
         if self.data['dom_exclusions_exist']:
-            x_dom_exclusions = np.array(detector.bad_doms_mask)
+            x_dom_exclusions = np.array(detector.bad_doms_mask[..., None])
         else:
             x_dom_exclusions = None
 
