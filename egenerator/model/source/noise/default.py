@@ -166,7 +166,7 @@ class DefaultNoiseModel(Source):
         # ----------------------------
         if time_exclusions_exist:
 
-            # limit exclusions windows to read out window
+            # limit exclusion windows to read out window
             # shape: [n_tw, 2]
             t_min = tf.gather(time_window[:, 0], indices=x_time_excl_batch_id)
             t_max = tf.gather(time_window[:, 1], indices=x_time_excl_batch_id)
@@ -176,14 +176,9 @@ class DefaultNoiseModel(Source):
                 tf.expand_dims(t_min, axis=-1),
                 tf.expand_dims(t_max, axis=-1),
             )
-            tf.print(tw_reduced, 'noise: tw_reduced')
-            tf.print(tf.shape(tw_reduced), 'noise: tw_reduced')
 
             # now calculate exclusions cdf
             # shape: [n_tw]
-            tf.print(livetime, 'noise: livetime')
-            tf.print(tf.shape(livetime), 'noise: livetime')
-            tf.print(tf.shape(tw_livetime), 'noise: tw_livetime')
             tw_cdf_exclusion = (
                 tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime
             tf.print(
@@ -194,25 +189,23 @@ class DefaultNoiseModel(Source):
             )
 
             # accumulate time window exclusions for each event
-            # shape: [n_batch, 1]
-            tf.print(tw_cdf_exclusion, 'noise: tw_cdf_exclusion')
-            tf.print(dom_pdf_constant, 'noise: dom_pdf_constant')
-            tf.print(tf.shape(tw_cdf_exclusion), 'noise: tw_cdf_exclusion')
-            tf.print(tf.shape(dom_pdf_constant), 'noise: dom_pdf_constant')
-            tf.print(tf.shape(x_time_excl_batch_id), 'noise: x_time_excl_batch_id')
-            event_cdf_exclusion = tf.tensor_scatter_nd_add(
-                tf.zeros_like(dom_pdf_constant),
-                indices=tf.expand_dims(x_time_excl_batch_id, axis=-1),
+            # shape: [n_batch, 86, 60, 1]
+            dom_cdf_exclusion = tf.tensor_scatter_nd_add(
+                tf.tile(tf.zeros_like(dom_pdf_constant),  [1, 86, 60, 1]),
+                indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
 
-            tf.print(event_cdf_exclusion, 'noise: event_cdf_exclusion')
-            # shape: [n_batch, 1, 1, 1]
-            dom_cdf_exclusion = tf.reshape(
-                event_cdf_exclusion, [-1, 1, 1, 1])
+            tf.print(
+                tf.reduce_min(dom_cdf_exclusion),
+                tf.reduce_mean(dom_cdf_exclusion),
+                tf.reduce_max(dom_cdf_exclusion),
+                'noise: dom_cdf_exclusion',
+            )
 
+            # we only have one model, so no need to actually sum up components
             # shape: [n_batch, 86, 60, 1]
-            dom_cdf_exclusion_sum = tf.tile(dom_cdf_exclusion,  [1, 86, 60, 1])
+            dom_cdf_exclusion_sum = dom_cdf_exclusion
 
         # ----------------------------
 
