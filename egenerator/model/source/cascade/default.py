@@ -163,6 +163,15 @@ class DefaultCascadeModel(Source):
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
 
+        tensors = self.data_trafo.data['tensors']
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            time_exclusions_exist = True
+            x_time_exclusions = data_batch_dict['x_time_exclusions']
+            x_time_exclusions_ids = data_batch_dict['x_time_exclusions_ids']
+        else:
+            time_exclusions_exist = False
+
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
 
@@ -291,6 +300,135 @@ class DefaultCascadeModel(Source):
                                         keep_prob=config['keep_prob'])
 
         # -------------------------------------------
+        # Get times at which to evaluate DOM PDF
+        # -------------------------------------------
+
+        # offset PDF evaluation times with cascade vertex time
+        t_pdf = pulse_times - tf.gather(parameters[:, 6],
+                                        indices=pulse_batch_id)
+        if time_exclusions_exist:
+            # offset time exclusions
+            t_exclusions = x_time_exclusions - tf.gather(
+                parameters[:, 6, None], indices=x_time_exclusions_ids[:, 0])
+            t_exclusions = tf.expand_dims(t_exclusions, axis=-1)
+            t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
+
+        # new shape: [None, 1]
+        t_pdf = tf.expand_dims(t_pdf, axis=-1)
+        t_pdf = tf.ensure_shape(t_pdf, [None, 1])
+
+        # scale time range down to avoid big numbers:
+        t_scale = 0.001  # 1./ns
+        average_t_dist = 1000. * t_scale
+        t_pdf = t_pdf * t_scale
+        if time_exclusions_exist:
+            t_exclusions = t_exclusions * t_scale
+
+        # -------------------------------------------
+        # Gather latent vars of mixture model
+        # -------------------------------------------
+        # check if we have the right amount of filters in the latent dimension
+        n_models = config['num_latent_models']
+        if n_models*4 + n_charge != config['num_filters_list'][-1]:
+            raise ValueError('{!r} != {!r}'.format(
+                n_models*4 + n_charge, config['num_filters_list'][-1]))
+        if n_models <= 1:
+            raise ValueError('{!r} !> 1'.format(n_models))
+
+        out_layer = conv_hex3d_layers[-1]
+        latent_mu = out_layer[...,
+                              n_charge + 0*n_models:n_charge + 1*n_models]
+        latent_sigma = out_layer[...,
+                                 n_charge + 1*n_models:n_charge + 2*n_models]
+        latent_r = out_layer[..., n_charge + 2*n_models:n_charge + 3*n_models]
+        latent_scale = out_layer[...,
+                                 n_charge + 3*n_models:n_charge + 4*n_models]
+
+        # add reasonable scaling for parameters assuming the latent vars
+        # are distributed normally around zero
+        factor_sigma = 1.  # ns
+        factor_mu = 1.  # ns
+        factor_r = 1.
+        factor_scale = 1.
+
+        # create correct offset and scaling
+        latent_mu = average_t_dist + factor_mu * latent_mu
+        latent_sigma = 2 + factor_sigma * latent_sigma
+        latent_r = 1 + factor_r * latent_r
+        latent_scale = 1 + factor_scale * latent_scale
+
+        # force positive and min values
+        latent_scale = tf.nn.elu(latent_scale) + 1.00001
+        latent_r = tf.nn.elu(latent_r) + 1.001
+        latent_sigma = tf.nn.elu(latent_sigma) + 1.001
+
+        # normalize scale to sum to 1
+        latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
+
+        # Sort mixture model components in time if desired
+        if ('prevent_mixture_component_swapping' in config and
+                config['prevent_mixture_component_swapping']):
+
+            # swap latent variables of components, such that these are ordered
+            # in time. This puts a constrained on the model and reduces
+            # the permutation options and should thus facilitate training.
+            # We could keep the latent_mu in place and sort the other
+            # components accordingly. An equivalent alternative is to keep
+            # the other components in place and to simply sort the latent_mu.
+            latent_mu = tf.ensure_shape(
+                tf.sort(latent_mu, axis=-1), shape=[None, 86, 60, n_models])
+
+        tensor_dict['latent_var_mu'] = latent_mu
+        tensor_dict['latent_var_sigma'] = latent_sigma
+        tensor_dict['latent_var_r'] = latent_r
+        tensor_dict['latent_var_scale'] = latent_scale
+
+        # -------------------------
+        # Calculate Time Exclusions
+        # -------------------------
+        if time_exclusions_exist:
+
+            # get latent vars for each time window
+            tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
+            tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
+            tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
+            tw_latent_scale = tf.gather_nd(latent_scale, x_time_exclusions_ids)
+
+            # ensure shapes
+            tw_latent_mu = tf.ensure_shape(tw_latent_mu, [None, n_models])
+            tw_latent_sigma = tf.ensure_shape(
+                tw_latent_sigma, [None, n_models])
+            tw_latent_r = tf.ensure_shape(tw_latent_r, [None, n_models])
+            tw_latent_scale = tf.ensure_shape(
+                tw_latent_scale, [None, n_models])
+
+            # [n_tw, 1] * [n_tw, n_models] = [n_tw, n_models]
+            tw_cdf_start = basis_functions.tf_asymmetric_gauss_cdf(
+                x=t_exclusions[:, 0], mu=tw_latent_mu, sigma=tw_latent_sigma,
+                r=tw_latent_r) * tw_latent_scale
+            tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
+                x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
+                r=tw_latent_r) * tw_latent_scale
+            tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
+
+            # accumulate time window exclusions for each DOM and MM component
+            # shape: [None, 86, 60, n_models]
+            dom_cdf_exclusion = tf.zeros_like(latent_mu)
+
+            dom_cdf_exclusion = tf.tensor_scatter_nd_add(
+                dom_cdf_exclusion,
+                indices=x_time_exclusions_ids,
+                updates=tw_cdf_exclusion,
+            )
+
+            # Shape: [None, 86, 60, 1]
+            dom_cdf_exclusion_sum = tf.reduce_sum(
+                dom_cdf_exclusion * latent_scale, axis=-1, keepdims=True)
+
+            tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
+            tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
+
+        # -------------------------------------------
         # Get expected charge at DOM
         # -------------------------------------------
         if config['estimate_charge_distribution'] is True:
@@ -323,6 +461,9 @@ class DefaultCascadeModel(Source):
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
+
+        # apply time window exclusions if needed
+        dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum)
 
         tensor_dict['dom_charges'] = dom_charges
 
@@ -451,86 +592,20 @@ class DefaultCascadeModel(Source):
             tensor_dict['dom_charges_unc'] = tf.sqrt(dom_charges)
             tensor_dict['dom_charges_variance'] = dom_charges
 
-        # -------------------------------------------
-        # Get times at which to evaluate DOM PDF
-        # -------------------------------------------
-
-        # offset PDF evaluation times with cascade vertex time
-        t_pdf = pulse_times - tf.gather(parameters[:, 6],
-                                        indices=pulse_batch_id)
-        # new shape: [None, 1]
-        t_pdf = tf.expand_dims(t_pdf, axis=-1)
-        t_pdf = tf.ensure_shape(t_pdf, [None, 1])
-
-        # scale time range down to avoid big numbers:
-        t_scale = 0.001  # 1./ns
-        average_t_dist = 1000. * t_scale
-        t_pdf = t_pdf * t_scale
-
-        # -------------------------------------------
-        # Gather latent vars of mixture model
-        # -------------------------------------------
-        # check if we have the right amount of filters in the latent dimension
-        n_models = config['num_latent_models']
-        if n_models*4 + n_charge != config['num_filters_list'][-1]:
-            raise ValueError('{!r} != {!r}'.format(
-                n_models*4 + n_charge, config['num_filters_list'][-1]))
-        if n_models <= 1:
-            raise ValueError('{!r} !> 1'.format(n_models))
-
-        out_layer = conv_hex3d_layers[-1]
-        latent_mu = out_layer[...,
-                              n_charge + 0*n_models:n_charge + 1*n_models]
-        latent_sigma = out_layer[...,
-                                 n_charge + 1*n_models:n_charge + 2*n_models]
-        latent_r = out_layer[..., n_charge + 2*n_models:n_charge + 3*n_models]
-        latent_scale = out_layer[...,
-                                 n_charge + 3*n_models:n_charge + 4*n_models]
-
-        # add reasonable scaling for parameters assuming the latent vars
-        # are distributed normally around zero
-        factor_sigma = 1.  # ns
-        factor_mu = 1.  # ns
-        factor_r = 1.
-        factor_scale = 1.
-
-        # create correct offset and scaling
-        latent_mu = average_t_dist + factor_mu * latent_mu
-        latent_sigma = 2 + factor_sigma * latent_sigma
-        latent_r = 1 + factor_r * latent_r
-        latent_scale = 1 + factor_scale * latent_scale
-
-        # force positive and min values
-        latent_scale = tf.nn.elu(latent_scale) + 1.00001
-        latent_r = tf.nn.elu(latent_r) + 1.001
-        latent_sigma = tf.nn.elu(latent_sigma) + 1.001
-
-        # normalize scale to sum to 1
-        latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
-
-        # Sort mixture model components in time if desired
-        if ('prevent_mixture_component_swapping' in config and
-                config['prevent_mixture_component_swapping']):
-
-            # swap latent variables of components, such that these are ordered
-            # in time. This puts a constrained on the model and reduces
-            # the permutation options and should thus facilitate training.
-            # We could keep the latent_mu in place and sort the other
-            # components accordingly. An equivalent alternative is to keep
-            # the other components in place and to simply sort the latent_mu.
-            latent_mu = tf.ensure_shape(
-                tf.sort(latent_mu, axis=-1), shape=[None, 86, 60, n_models])
-
-        tensor_dict['latent_var_mu'] = latent_mu
-        tensor_dict['latent_var_sigma'] = latent_sigma
-        tensor_dict['latent_var_r'] = latent_r
-        tensor_dict['latent_var_scale'] = latent_scale
+        # --------------------------
+        # Calculate Pulse PDF Values
+        # --------------------------
 
         # get latent vars for each pulse
         pulse_latent_mu = tf.gather_nd(latent_mu, pulses_ids)
         pulse_latent_sigma = tf.gather_nd(latent_sigma, pulses_ids)
         pulse_latent_r = tf.gather_nd(latent_r, pulses_ids)
         pulse_latent_scale = tf.gather_nd(latent_scale, pulses_ids)
+
+        # scale up pulse pdf by time exclusions if needed
+        if time_exclusions_exist:
+            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
+            pulse_latent_scale /= (1. - pulse_cdf_exclusion)
 
         # ensure shapes
         pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])
@@ -559,6 +634,7 @@ class DefaultCascadeModel(Source):
         print('pulse_pdf_values', pulse_pdf_values)
 
         tensor_dict['pulse_pdf'] = pulse_pdf_values
-        # -------------------------------------------
+
+        # ---------------------
 
         return tensor_dict
