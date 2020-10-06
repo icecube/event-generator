@@ -312,6 +312,9 @@ class DefaultCascadeModel(Source):
                                         indices=pulse_batch_id)
         if time_exclusions_exist:
             # offset time exclusions
+            print('\n\n\n\n\nx_time_exclusions', x_time_exclusions)
+            print('\n\n\n\n gather', tf.gather(
+                parameters[:, 6, None], indices=x_time_exclusions_ids[:, 0]))
             t_exclusions = x_time_exclusions - tf.gather(
                 parameters[:, 6, None], indices=x_time_exclusions_ids[:, 0])
             t_exclusions = tf.expand_dims(t_exclusions, axis=-1)
