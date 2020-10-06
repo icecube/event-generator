@@ -445,7 +445,6 @@ class DefaultCascadeModel(Source):
             tf.print(
                 tf.reduce_min(dom_cdf_exclusion_sum),
                 tf.reduce_mean(dom_cdf_exclusion_sum),
-                tf.reduce_median(dom_cdf_exclusion_sum),
                 tf.reduce_max(dom_cdf_exclusion_sum),
                 'dom_cdf_exclusion_sum',
             )
