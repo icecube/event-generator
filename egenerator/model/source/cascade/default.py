@@ -46,7 +46,6 @@ class DefaultCascadeModel(Source):
             to be in the same order as this returned list.
         """
         self.assert_configured(False)
-        print('Building Dfault Cascade Model...')
 
         # ---------------------------------------------
         # Define input parameters of cascade hypothesis
@@ -157,6 +156,7 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(True)
 
+        print('Building Dfault Cascade Model...')
         tensor_dict = {}
 
         config = self.configuration.config['config']
