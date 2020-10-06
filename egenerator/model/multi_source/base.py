@@ -302,6 +302,12 @@ class MultiSource(Source):
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
 
+        # check if time exclusions exist
+        tensors = self.data_trafo.data['tensors']
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            time_exclusions_exist = True
+
         # -----------------------------------------------
         # get concrete functions of base sources.
         # That way tracing only needs to be applied once.
@@ -323,6 +329,7 @@ class MultiSource(Source):
 
         dom_charges = None
         dom_charges_variance = None
+        dom_cdf_exclusion_sum = None
         pulse_pdf = None
         for name, base in self._untracked_data['sources'].items():
 
@@ -356,14 +363,32 @@ class MultiSource(Source):
                 msg += 'unexpected shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
+            if time_exclusions_exist:
+                dom_cdf_exclusion_sum_i = (
+                    result_tensors_i['dom_cdf_exclusion_sum']
+                )
+                if dom_cdf_exclusion_sum_i.shape[1:] != [86, 60, 1]:
+                    msg = 'DOM exclusions of source {!r} ({!r}) have an  '
+                    msg += 'unexpected shape {!r}.'
+                    raise ValueError(msg.format(
+                        name, base, dom_cdf_exclusion_sum_i.shape))
+
             # accumulate charge
             # (assumes that sources are linear and independent)
             if dom_charges is None:
                 dom_charges = dom_charges_i
                 dom_charges_variance = dom_charges_variance_i
+                if time_exclusions_exist:
+                    dom_cdf_exclusion_sum = (
+                        dom_cdf_exclusion_sum_i * dom_charges_i
+                    )
             else:
                 dom_charges += dom_charges_i
                 dom_charges_variance += dom_charges_variance_i
+                if time_exclusions_exist:
+                    dom_cdf_exclusion_sum += (
+                        dom_cdf_exclusion_sum_i * dom_charges_i
+                    )
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
@@ -385,6 +410,12 @@ class MultiSource(Source):
             'dom_charges_variance': dom_charges_variance,
             'pulse_pdf': pulse_pdf,
         }
+
+        # normalize time exclusion sum: divide by total charge at DOM
+        if time_exclusions_exist:
+            dom_cdf_exclusion_sum /= dom_charges
+
+            result_tensors['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
 
         return result_tensors
 
