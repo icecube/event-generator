@@ -201,9 +201,9 @@ class DefaultNoiseModel(Source):
             tf.print(tf.shape(dom_pdf_constant), 'noise: dom_pdf_constant')
             tf.print(tf.shape(x_time_excl_batch_id), 'noise: x_time_excl_batch_id')
             event_cdf_exclusion = tf.tensor_scatter_nd_add(
-                tf.zeros_like(tf.expand_dims(dom_pdf_constant, axis=-1)),
-                indices=x_time_excl_batch_id,
-                updates=tf.expand_dims(tw_cdf_exclusion, axis=-1),
+                tf.zeros_like(dom_pdf_constant, axis=-1),
+                indices=tf.expand_dims(x_time_excl_batch_id, axis=-1),
+                updates=tw_cdf_exclusion,
             )
 
             tf.print(event_cdf_exclusion, 'noise: event_cdf_exclusion')
