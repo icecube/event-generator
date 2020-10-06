@@ -422,6 +422,19 @@ class DefaultCascadeModel(Source):
                 r=tw_latent_r)
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
 
+            tf.print(
+                tf.reduce_min(tw_cdf_start),
+                tf.reduce_mean(tw_cdf_start),
+                tf.reduce_max(tw_cdf_start),
+                'tw_cdf_start',
+            )
+            tf.print(
+                tf.reduce_min(tw_cdf_stop),
+                tf.reduce_mean(tw_cdf_stop),
+                tf.reduce_max(tw_cdf_stop),
+                'tw_cdf_stop',
+            )
+
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
             dom_cdf_exclusion = tf.zeros_like(latent_mu)
@@ -474,7 +487,8 @@ class DefaultCascadeModel(Source):
         dom_charges += 1e-7
 
         # apply time window exclusions if needed
-        dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum)
+        if time_exclusions_exist:
+            dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum)
 
         tensor_dict['dom_charges'] = dom_charges
 
