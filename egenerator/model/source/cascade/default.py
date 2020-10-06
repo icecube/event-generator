@@ -434,6 +434,12 @@ class DefaultCascadeModel(Source):
                 tf.reduce_max(tw_cdf_stop),
                 'tw_cdf_stop',
             )
+            tf.print(
+                tf.reduce_min(tw_cdf_exclusion),
+                tf.reduce_mean(tw_cdf_exclusion),
+                tf.reduce_max(tw_cdf_exclusion),
+                'tw_cdf_exclusion',
+            )
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -443,6 +449,12 @@ class DefaultCascadeModel(Source):
                 dom_cdf_exclusion,
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
+            )
+            tf.print(
+                tf.reduce_min(dom_cdf_exclusion),
+                tf.reduce_mean(dom_cdf_exclusion),
+                tf.reduce_max(dom_cdf_exclusion),
+                'dom_cdf_exclusion',
             )
 
             # Shape: [None, 86, 60, 1]
