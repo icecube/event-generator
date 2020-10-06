@@ -406,23 +406,20 @@ class DefaultCascadeModel(Source):
             tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
             tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
             tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
-            tw_latent_scale = tf.gather_nd(latent_scale, x_time_exclusions_ids)
 
             # ensure shapes
             tw_latent_mu = tf.ensure_shape(tw_latent_mu, [None, n_models])
             tw_latent_sigma = tf.ensure_shape(
                 tw_latent_sigma, [None, n_models])
             tw_latent_r = tf.ensure_shape(tw_latent_r, [None, n_models])
-            tw_latent_scale = tf.ensure_shape(
-                tw_latent_scale, [None, n_models])
 
             # [n_tw, 1] * [n_tw, n_models] = [n_tw, n_models]
             tw_cdf_start = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 0], mu=tw_latent_mu, sigma=tw_latent_sigma,
-                r=tw_latent_r) * tw_latent_scale
+                r=tw_latent_r)
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
-                r=tw_latent_r) * tw_latent_scale
+                r=tw_latent_r)
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
 
             # accumulate time window exclusions for each DOM and MM component
@@ -441,7 +438,6 @@ class DefaultCascadeModel(Source):
 
             tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
-            tf.print(dom_cdf_exclusion_sum, 'dom_cdf_exclusion_sum')
             tf.print(
                 tf.reduce_min(dom_cdf_exclusion_sum),
                 tf.reduce_mean(dom_cdf_exclusion_sum),
