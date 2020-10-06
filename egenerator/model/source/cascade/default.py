@@ -467,7 +467,7 @@ class DefaultCascadeModel(Source):
 
         # apply time window exclusions if needed
         if time_exclusions_exist:
-            dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-7)
+            dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
@@ -606,7 +606,7 @@ class DefaultCascadeModel(Source):
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
             pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
-            pulse_latent_scale /= (1. - pulse_cdf_exclusion + 1e-4)
+            pulse_latent_scale /= (1. - pulse_cdf_exclusion + 1e-3)
 
         # ensure shapes
         pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])

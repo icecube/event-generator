@@ -217,7 +217,10 @@ class DefaultNoiseModel(Source):
 
         # scale by time exclusions
         if time_exclusions_exist:
-            dom_charges *= (1. - dom_cdf_exclusion_sum + 1e-7)
+            dom_charges *= (1. - dom_cdf_exclusion_sum + 1e-3)
+
+        # add small constant to make sure dom charges are > 0:
+        dom_charges += 1e-7
 
         # compute standard deviation
         # std = sqrt(var) = sqrt(mu + alpha*mu**2)
@@ -235,7 +238,7 @@ class DefaultNoiseModel(Source):
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
             pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
-            pulse_pdf /= tf.squeeze(1. - pulse_cdf_exclusion + 1e-4, axis=-1)
+            pulse_pdf /= tf.squeeze(1. - pulse_cdf_exclusion + 1e-3, axis=-1)
 
         # add tensors to tensor dictionary
         tensor_dict['dom_charges'] = dom_charges
