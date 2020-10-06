@@ -46,6 +46,7 @@ class DefaultCascadeModel(Source):
             to be in the same order as this returned list.
         """
         self.assert_configured(False)
+        print('Building Dfault Cascade Model...')
 
         # ---------------------------------------------
         # Define input parameters of cascade hypothesis
@@ -178,10 +179,6 @@ class DefaultCascadeModel(Source):
         pulse_times = pulses[:, 1]
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
-
-        print('pulses', pulses)
-        print('pulses_ids', pulses_ids)
-        print('parameters', parameters)
 
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(
@@ -615,11 +612,6 @@ class DefaultCascadeModel(Source):
         pulse_latent_scale = tf.ensure_shape(pulse_latent_scale,
                                              [None, n_models])
 
-        print('latent_mu', latent_mu)
-        print('pulse_latent_mu', pulse_latent_mu)
-        print('latent_scale', latent_scale)
-        print('pulse_latent_scale', pulse_latent_scale)
-
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
@@ -631,7 +623,6 @@ class DefaultCascadeModel(Source):
 
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
-        print('pulse_pdf_values', pulse_pdf_values)
 
         tensor_dict['pulse_pdf'] = pulse_pdf_values
 
