@@ -169,8 +169,12 @@ class DefaultCascadeModel(Source):
             time_exclusions_exist = True
             x_time_exclusions = data_batch_dict['x_time_exclusions']
             x_time_exclusions_ids = data_batch_dict['x_time_exclusions_ids']
+            tf.print(x_time_exclusions, 'x_time_exclusions')
         else:
             time_exclusions_exist = False
+
+        print('\n\n\n\n\nUsing Time exclusions: {} \n\n\n\n\n\n'.format(
+            time_exclusions_exist))
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
