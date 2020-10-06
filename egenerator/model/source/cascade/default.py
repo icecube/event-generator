@@ -169,12 +169,8 @@ class DefaultCascadeModel(Source):
             time_exclusions_exist = True
             x_time_exclusions = data_batch_dict['x_time_exclusions']
             x_time_exclusions_ids = data_batch_dict['x_time_exclusions_ids']
-            tf.print(x_time_exclusions, 'x_time_exclusions')
         else:
             time_exclusions_exist = False
-
-        print('\n\n\n\n\nUsing Time exclusions: {} \n\n\n\n\n\n'.format(
-            time_exclusions_exist))
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
@@ -316,8 +312,6 @@ class DefaultCascadeModel(Source):
             # shape: [n_events]
             tw_cascade_t = tf.gather(
                 parameters[:, 6], indices=x_time_exclusions_ids[:, 0])
-            tf.print(tw_cascade_t, 'tw_cascade_t')
-            print('\n\n\n\n\ntw_cascade_t', tw_cascade_t)
 
             # shape: [n_events, 2, 1]
             t_exclusions = tf.expand_dims(
@@ -325,8 +319,6 @@ class DefaultCascadeModel(Source):
                 axis=-1,
             )
             t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
-            print('t_exclusions', t_exclusions)
-            tf.print(t_exclusions, 't_exclusions_offset')
 
         # new shape: [None, 1]
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
@@ -411,13 +403,11 @@ class DefaultCascadeModel(Source):
         if time_exclusions_exist:
 
             # get latent vars for each time window
-            tf.print(x_time_exclusions_ids, 'x_time_exclusions_ids')
             tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
             tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
             tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
             tw_latent_scale = tf.gather_nd(latent_scale, x_time_exclusions_ids)
 
-            tf.print(tw_latent_mu, 'tw_latent_mu')
             # ensure shapes
             tw_latent_mu = tf.ensure_shape(tw_latent_mu, [None, n_models])
             tw_latent_sigma = tf.ensure_shape(
@@ -434,7 +424,6 @@ class DefaultCascadeModel(Source):
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r) * tw_latent_scale
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
-            tf.print(tw_cdf_exclusion, 'tw_cdf_exclusion')
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -452,9 +441,6 @@ class DefaultCascadeModel(Source):
 
             tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
-            print('tw_cdf_exclusion', tw_cdf_exclusion)
-            print('dom_cdf_exclusion', dom_cdf_exclusion)
-            print('dom_cdf_exclusion_sum', dom_cdf_exclusion_sum)
 
         # -------------------------------------------
         # Get expected charge at DOM
@@ -551,10 +537,6 @@ class DefaultCascadeModel(Source):
                 tf.math.sqrt(dom_charges + eps)
             )
 
-            print('dom_charges_sigma', dom_charges_sigma)
-            print('dom_charges_llh', dom_charges_llh)
-            print('dom_charges_unc', dom_charges_unc)
-
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
             tensor_dict['dom_charges_r'] = dom_charges_r
@@ -593,8 +575,6 @@ class DefaultCascadeModel(Source):
             dom_charges_variance = (
                 dom_charges + dom_charges_alpha*dom_charges**2)
             dom_charges_unc = tf.sqrt(dom_charges_variance)
-
-            print('dom_charges_llh', dom_charges_llh)
 
             # tf.print(
             #     'dom_charges_alpha',
