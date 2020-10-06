@@ -307,6 +307,8 @@ class MultiSource(Source):
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
             time_exclusions_exist = True
+        else:
+            time_exclusions_exist = False
 
         # -----------------------------------------------
         # get concrete functions of base sources.
