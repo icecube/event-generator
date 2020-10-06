@@ -172,6 +172,7 @@ class DefaultCascadeModel(Source):
             x_time_exclusions_ids = data_batch_dict['x_time_exclusions_ids']
         else:
             time_exclusions_exist = False
+        print('\t Applying time exclusions:', time_exclusions_exist)
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
@@ -274,7 +275,7 @@ class DefaultCascadeModel(Source):
             # extend to correct batch shape:
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
-            print('dom_coords', dom_coords)
+            print('\t dom_coords', dom_coords)
             input_list.append(dom_coords)
 
         if config['num_local_vars'] > 0:
@@ -282,12 +283,12 @@ class DefaultCascadeModel(Source):
             # extend to correct shape:
             local_vars = (tf.ones_like(dx_normed) *
                           self._untracked_data['local_vars'])
-            print('local_vars', local_vars)
+            print('\t local_vars', local_vars)
 
             input_list.append(local_vars)
 
         x_doms_input = tf.concat(input_list, axis=-1)
-        print('x_doms_input', x_doms_input)
+        print('\t x_doms_input', x_doms_input)
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
@@ -345,6 +346,9 @@ class DefaultCascadeModel(Source):
                 n_models*4 + n_charge, config['num_filters_list'][-1]))
         if n_models <= 1:
             raise ValueError('{!r} !> 1'.format(n_models))
+
+        print('\t Charge method:', config['estimate_charge_distribution'])
+        print('\t Number of Asymmetric Gaussian Components:', n_models)
 
         out_layer = conv_hex3d_layers[-1]
         latent_mu = out_layer[...,

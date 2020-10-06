@@ -134,6 +134,7 @@ class DefaultNoiseModel(Source):
             x_time_excl_batch_id = x_time_exclusions_ids[:, 0]
         else:
             time_exclusions_exist = False
+        print('\t Applying time exclusions:', time_exclusions_exist)
 
         # shape: [n_pulses, 2]
         pulses = data_batch_dict['x_pulses']
