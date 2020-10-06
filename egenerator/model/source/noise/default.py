@@ -181,6 +181,8 @@ class DefaultNoiseModel(Source):
             # shape: [n_tw, 1]
             tw_cdf_exclusion = tf.expand_dims(
                 (tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime, axis=-1)
+            print('tw_cdf_exclusion noise', tw_cdf_exclusion)
+            print('tf.zeros_like(data_batch_dict[]) noise', tf.zeros_like(data_batch_dict['x_dom_charge']))
             tf.print(
                 tf.reduce_min(tw_cdf_exclusion),
                 tf.reduce_mean(tw_cdf_exclusion),
@@ -195,6 +197,7 @@ class DefaultNoiseModel(Source):
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
+            print('dom_cdf_exclusion noise', dom_cdf_exclusion)
 
             tf.print(
                 tf.reduce_min(dom_cdf_exclusion),
