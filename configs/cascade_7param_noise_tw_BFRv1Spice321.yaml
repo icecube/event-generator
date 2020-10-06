@@ -432,54 +432,54 @@ model_settings: {
     # configuration settings for DefaultMultiCascadeModel object
     config: {
         'sources': {
-            'noise': 'noise',
-            # 'cascade': 'cascade',
+            # 'noise': 'noise',
+            'cascade': 'cascade',
         },
     },
 
     # Base sources used by the multi-source class
     multi_source_bases: {
 
-        noise: {
-            # The noise source model class to use
-            'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-            config: {},
-        },
-
-        # cascade: {
-        #     # The cascade source model class to use
-        #     'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
-
-        #     config: {
-        #         'keep_prob':,
-        #         'add_opening_angle': True,
-        #         'add_dom_coordinates': False,
-        #         'num_local_vars': 0,
-        #         'scale_charge': True,
-        #         'scale_charge_by_relative_dom_efficiency': True,
-        #         'scale_charge_by_global_dom_efficiency': False,
-        #         'prevent_mixture_component_swapping': False,
-        #         'estimate_charge_distribution': 'negative_binomial',
-        #         'num_latent_models': 10,
-
-        #         # This is a list of labels in addition to
-        #         # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
-        #         'additional_label_names' : [
-        #         ],
-
-        #         # First convolutions
-        #         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        #         'num_filters_list' : [25, 500, 500, 500, 42],
-        #         'method_list' : ['locally_connected',
-        #                          'convolution', 'convolution', 'convolution',
-        #                          'convolution',
-        #                          ],
-        #         'use_dropout_list' : False,
-        #         'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
-        #         'use_batch_norm_list' : False,
-        #         'use_residual_list' : True,
-        #     },
+        # noise: {
+        #     # The noise source model class to use
+        #     'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
+        #     config: {},
         # },
+
+        cascade: {
+            # The cascade source model class to use
+            'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
+
+            config: {
+                'keep_prob':,
+                'add_opening_angle': True,
+                'add_dom_coordinates': False,
+                'num_local_vars': 0,
+                'scale_charge': True,
+                'scale_charge_by_relative_dom_efficiency': True,
+                'scale_charge_by_global_dom_efficiency': False,
+                'prevent_mixture_component_swapping': False,
+                'estimate_charge_distribution': 'negative_binomial',
+                'num_latent_models': 10,
+
+                # This is a list of labels in addition to
+                # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
+                'additional_label_names' : [
+                ],
+
+                # First convolutions
+                'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                'num_filters_list' : [25, 500, 500, 500, 42],
+                'method_list' : ['locally_connected',
+                                 'convolution', 'convolution', 'convolution',
+                                 'convolution',
+                                 ],
+                'use_dropout_list' : False,
+                'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
+                'use_batch_norm_list' : False,
+                'use_residual_list' : True,
+            },
+        },
     },
 }
 
