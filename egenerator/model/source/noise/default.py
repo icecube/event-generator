@@ -176,10 +176,19 @@ class DefaultNoiseModel(Source):
                 tf.expand_dims(t_max, axis=-1),
             )
             tf.print(tw_reduced, 'noise: tw_reduced')
+            tf.print(tf.shape(tw_reduced), 'noise: tw_reduced')
 
             # now calculate exclusions cdf
             # shape: [n_tw]
+            tf.print(livetime, 'noise: livetime')
+            tf.print(tf.shape(livetime), 'noise: livetime')
             tw_cdf_exclusion = (tw_reduced[:, 1] - tw_reduced[:, 0]) / livetime
+            tf.print(
+                tf.reduce_min(tw_cdf_exclusion),
+                tf.reduce_mean(tw_cdf_exclusion),
+                tf.reduce_max(tw_cdf_exclusion),
+                'noise: tw_cdf_exclusion',
+            )
 
             # accumulate time window exclusions for each event
             # shape: [n_batch]
@@ -194,6 +203,7 @@ class DefaultNoiseModel(Source):
                 updates=tw_cdf_exclusion,
             )
 
+            tf.print(event_cdf_exclusion, 'noise: event_cdf_exclusion')
             # shape: [n_batch, 1, 1, 1]
             dom_cdf_exclusion = tf.reshape(
                 event_cdf_exclusion, [-1, 1, 1, 1])
