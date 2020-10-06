@@ -156,7 +156,7 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(True)
 
-        print('Building Dfault Cascade Model...')
+        print('Applying Dfault Cascade Model...')
         tensor_dict = {}
 
         config = self.configuration.config['config']

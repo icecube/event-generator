@@ -113,7 +113,7 @@ class DefaultNoiseModel(Source):
                              Shape: [-1]
         """
         self.assert_configured(True)
-        print('Building Noise Model...')
+        print('Applying Noise Model...')
 
         tensor_dict = {}
 
