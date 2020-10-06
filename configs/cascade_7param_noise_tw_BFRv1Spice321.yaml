@@ -432,7 +432,7 @@ model_settings: {
     # configuration settings for DefaultMultiCascadeModel object
     config: {
         'sources': {
-            # 'noise': 'noise',
+            'noise': 'noise',
             'cascade': 'cascade',
         },
     },
@@ -440,11 +440,11 @@ model_settings: {
     # Base sources used by the multi-source class
     multi_source_bases: {
 
-        # noise: {
-        #     # The noise source model class to use
-        #     'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-        #     config: {},
-        # },
+        noise: {
+            # The noise source model class to use
+            'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
+            config: {},
+        },
 
         cascade: {
             # The cascade source model class to use
