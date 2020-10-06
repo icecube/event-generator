@@ -421,9 +421,12 @@ class DefaultCascadeModel(Source):
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r)
             tf.print(
-                tf.reduce_mean(t_exclusions[:, 1] > t_exclusions[:, 0]),
-                tf.reduce_mean(t_exclusions[:, 1] >= t_exclusions[:, 0]),
-                tf.reduce_mean(t_exclusions[:, 1] + 1e-7 >= t_exclusions[:, 0]),
+                tf.reduce_mean(
+                    tf.cast(t_exclusions[:, 1] > t_exclusions[:, 0]), tf.float32),
+                tf.reduce_mean(
+                    tf.cast(t_exclusions[:, 1] >= t_exclusions[:, 0]), tf.float32),
+                tf.reduce_mean(
+                    tf.cast(t_exclusions[:, 1] + 1e-5 > t_exclusions[:, 0]), tf.float32),
                 'time start/stop are ordered',
             )
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
