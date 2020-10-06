@@ -441,6 +441,14 @@ class DefaultCascadeModel(Source):
 
             tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
+            tf.print(dom_cdf_exclusion_sum, 'dom_cdf_exclusion_sum')
+            tf.print(
+                tf.reduce_min(dom_cdf_exclusion_sum),
+                tf.reduce_mean(dom_cdf_exclusion_sum),
+                tf.reduce_median(dom_cdf_exclusion_sum),
+                tf.reduce_max(dom_cdf_exclusion_sum),
+                'dom_cdf_exclusion_sum',
+            )
 
         # -------------------------------------------
         # Get expected charge at DOM
