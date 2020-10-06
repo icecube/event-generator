@@ -312,16 +312,18 @@ class DefaultCascadeModel(Source):
                                         indices=pulse_batch_id)
         if time_exclusions_exist:
             # offset time exclusions
-            print('\n\n\n\n\nx_time_exclusions', x_time_exclusions)
-            print('\n\n\n\n gather', tf.gather(
-                parameters[:, 6], indices=x_time_exclusions_ids[:, 0]))
-            print('\n\n\n\n gather exp', tf.gather(
-                parameters[:, 6], indices=x_time_exclusions_ids[:, 0])[..., None])
-            t_exclusions = x_time_exclusions - tf.expand_dims(
-                tf.gather(
-                    parameters[:, 6], indices=x_time_exclusions_ids[:, 0]),
-                axis=-1)
-            t_exclusions = tf.expand_dims(t_exclusions, axis=-1)
+
+            # shape: [n_events]
+            tw_cascade_t = tf.gather(
+                parameters[:, 6], indices=x_time_exclusions_ids[:, 0])
+            tf.print(tw_cascade_t, 'tw_cascade_t')
+            print('\n\n\n\n\ntw_cascade_t', tw_cascade_t)
+
+            # shape: [n_events, 2, 1]
+            t_exclusions = tf.expand_dims(
+                x_time_exclusions - tf.expand_dims(tw_cascade_t, axis=-1),
+                axis=-1,
+            )
             tf.print(t_exclusions, 't_exclusions_offset')
             t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
             print('t_exclusions', t_exclusions)
