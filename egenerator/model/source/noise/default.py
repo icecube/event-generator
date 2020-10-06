@@ -253,17 +253,17 @@ class DefaultNoiseModel(Source):
         # shape: [n_pulses]
         pulse_pdf = tf.gather(dom_pdf_constant, indices=pulses_ids[:, 0])
 
-        # scale up pulse pdf by time exclusions if needed
-        if time_exclusions_exist:
-            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
-            print('noise: pulse_cdf_exclusion', pulse_cdf_exclusion)
-            print('noise: pulse_pdf', pulse_pdf)
-            tf.print('noise: pulse_cdf_exclusion', pulse_cdf_exclusion)
-            tf.print('noise: pulse_cdf_exclusion', tf.shape(pulse_cdf_exclusion))
-            tf.print('noise: pulse_pdf before', tf.shape(pulse_pdf))
-            pulse_pdf /= (1. - pulse_cdf_exclusion + 1e-4)
-            tf.print('noise: pulse_pdf after', tf.shape(pulse_pdf))
-            tf.print('noise: pulse_pdf', pulse_pdf)
+        # # scale up pulse pdf by time exclusions if needed
+        # if time_exclusions_exist:
+        #     pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
+        #     print('noise: pulse_cdf_exclusion', pulse_cdf_exclusion)
+        #     print('noise: pulse_pdf', pulse_pdf)
+        #     tf.print('noise: pulse_cdf_exclusion', pulse_cdf_exclusion)
+        #     tf.print('noise: pulse_cdf_exclusion', tf.shape(pulse_cdf_exclusion))
+        #     tf.print('noise: pulse_pdf before', tf.shape(pulse_pdf))
+        #     pulse_pdf /= (1. - pulse_cdf_exclusion + 1e-4)
+        #     tf.print('noise: pulse_pdf after', tf.shape(pulse_pdf))
+        #     tf.print('noise: pulse_pdf', pulse_pdf)
 
         # add tensors to tensor dictionary
         tensor_dict['dom_charges'] = dom_charges
