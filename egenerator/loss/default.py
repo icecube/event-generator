@@ -294,8 +294,10 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            raise NotImplementedError(
-                'Time exclusions are currently not implemented!')
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
@@ -536,8 +538,10 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            raise NotImplementedError(
-                'Time exclusions are currently not implemented!')
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
@@ -658,6 +662,10 @@ class DefaultLossModule(BaseComponent):
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
             self._logger.warning('Pulses in excluded time windows must have '
                                  'already been removed!')
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
@@ -793,6 +801,16 @@ class DefaultLossModule(BaseComponent):
         dom_charges_variance = tf.squeeze(
             result_tensors['dom_charges_variance'], axis=-1)
 
+        # throw error if this is being used with time window exclusions
+        # one needs to calculate cumulative pdf from exclusion window and
+        # reduce the predicted charge by this factor
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
+
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_dom_exclusions')].exists):
@@ -918,6 +936,16 @@ class DefaultLossModule(BaseComponent):
             alpha=dom_charges_alpha,
         )
 
+        # throw error if this is being used with time window exclusions
+        # one needs to calculate cumulative pdf from exclusion window and
+        # reduce the predicted charge by this factor
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
+
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_dom_exclusions')].exists):
@@ -1013,6 +1041,16 @@ class DefaultLossModule(BaseComponent):
         hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
         dom_charges_variance = tf.squeeze(
             result_tensors['dom_charges_variance'], axis=-1)
+
+        # throw error if this is being used with time window exclusions
+        # one needs to calculate cumulative pdf from exclusion window and
+        # reduce the predicted charge by this factor
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
@@ -1145,6 +1183,16 @@ class DefaultLossModule(BaseComponent):
         # shape: [n_batch, 86, 60]
         dom_pdf = hits_pred / event_total
         llh_dom = hits_true * tf.math.log(dom_pdf + eps)
+
+        # throw error if this is being used with time window exclusions
+        # one needs to calculate cumulative pdf from exclusion window and
+        # scale up the pulse pdf by this factor
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
 
         # mask out dom exclusions
         if ('x_dom_exclusions' in tensors.names and
