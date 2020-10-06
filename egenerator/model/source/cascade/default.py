@@ -314,9 +314,13 @@ class DefaultCascadeModel(Source):
             # offset time exclusions
             print('\n\n\n\n\nx_time_exclusions', x_time_exclusions)
             print('\n\n\n\n gather', tf.gather(
-                parameters[:, 6, None], indices=x_time_exclusions_ids[:, 0]))
-            t_exclusions = x_time_exclusions - tf.gather(
-                parameters[:, 6, None], indices=x_time_exclusions_ids[:, 0])
+                parameters[:, 6], indices=x_time_exclusions_ids[:, 0]))
+            print('\n\n\n\n gather exp', tf.gather(
+                parameters[:, 6], indices=x_time_exclusions_ids[:, 0])[..., None])
+            t_exclusions = x_time_exclusions - tf.expand_dims(
+                tf.gather(
+                    parameters[:, 6], indices=x_time_exclusions_ids[:, 0]),
+                axis=-1)
             t_exclusions = tf.expand_dims(t_exclusions, axis=-1)
             tf.print(t_exclusions, 't_exclusions_offset')
             t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
