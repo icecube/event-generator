@@ -168,10 +168,12 @@ class DefaultNoiseModel(Source):
 
             # limit exclusions windows to read out window
             # shape: [n_tw, 2]
+            t_min = tf.gather(time_window[:, 0], indices=x_time_excl_batch_id)
+            t_max = tf.gather(time_window[:, 1], indices=x_time_excl_batch_id)
             tw_reduced = tf.clip_by_value(
                 x_time_exclusions,
-                tf.gather(time_window[:, 0], indices=x_time_excl_batch_id),
-                tf.gather(time_window[:, 1], indices=x_time_excl_batch_id),
+                tf.expand_dims(t_min, axis=-1),
+                tf.expand_dims(t_max, axis=-1),
             )
 
             # now calculate exclusions cdf
