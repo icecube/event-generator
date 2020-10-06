@@ -440,11 +440,11 @@ class DefaultCascadeModel(Source):
             # shape: [None, 86, 60, n_models]
             dom_cdf_exclusion = tf.zeros_like(latent_mu)
 
-            dom_cdf_exclusion = tf.tensor_scatter_nd_add(
-                dom_cdf_exclusion,
-                indices=x_time_exclusions_ids,
-                updates=tw_cdf_exclusion,
-            )
+            # dom_cdf_exclusion = tf.tensor_scatter_nd_add(
+            #     dom_cdf_exclusion,
+            #     indices=x_time_exclusions_ids,
+            #     updates=tw_cdf_exclusion,
+            # )
 
             # Shape: [None, 86, 60, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
