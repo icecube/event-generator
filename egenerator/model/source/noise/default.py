@@ -179,7 +179,7 @@ class DefaultNoiseModel(Source):
 
             # now calculate exclusions cdf
             # shape: [n_tw]
-            tw_cdf_exclusion = tw_reduced[:, 1] - tw_reduced[:, 0]
+            tw_cdf_exclusion = (tw_reduced[:, 1] - tw_reduced[:, 0]) / livetime
 
             # accumulate time window exclusions for each event
             # shape: [n_batch]
