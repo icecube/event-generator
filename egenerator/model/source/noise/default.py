@@ -175,6 +175,7 @@ class DefaultNoiseModel(Source):
                 tf.expand_dims(t_min, axis=-1),
                 tf.expand_dims(t_max, axis=-1),
             )
+            tf.print(tw_reduced, 'noise: tw_reduced')
 
             # now calculate exclusions cdf
             # shape: [n_tw]
@@ -182,6 +183,7 @@ class DefaultNoiseModel(Source):
 
             # accumulate time window exclusions for each event
             # shape: [n_batch]
+            tf.print(tw_cdf_exclusion, 'noise: tw_cdf_exclusion')
             event_cdf_exclusion = tf.tensor_scatter_nd_add(
                 tf.zeros_like(dom_pdf_constant),
                 indices=x_time_excl_batch_id,

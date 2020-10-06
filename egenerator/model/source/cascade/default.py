@@ -310,7 +310,6 @@ class DefaultCascadeModel(Source):
         # offset PDF evaluation times with cascade vertex time
         t_pdf = pulse_times - tf.gather(parameters[:, 6],
                                         indices=pulse_batch_id)
-        tf.print(t_pdf, 't_pdf')
         if time_exclusions_exist:
             # offset time exclusions
 
