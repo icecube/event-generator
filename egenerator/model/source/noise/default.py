@@ -178,9 +178,9 @@ class DefaultNoiseModel(Source):
             )
 
             # now calculate exclusions cdf
-            # shape: [n_tw]
-            tw_cdf_exclusion = (
-                tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime
+            # shape: [n_tw, 1]
+            tw_cdf_exclusion = tf.expand_dims(
+                (tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime, axis=-1)
             tf.print(
                 tf.reduce_min(tw_cdf_exclusion),
                 tf.reduce_mean(tw_cdf_exclusion),
