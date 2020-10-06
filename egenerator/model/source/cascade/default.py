@@ -417,6 +417,7 @@ class DefaultCascadeModel(Source):
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r) * tw_latent_scale
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
+            tf.print(tw_cdf_exclusion, 'tw_cdf_exclusion')
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]

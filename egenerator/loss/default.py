@@ -294,8 +294,7 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 
@@ -418,8 +417,7 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 
@@ -540,8 +538,7 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 
@@ -664,8 +661,7 @@ class DefaultLossModule(BaseComponent):
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
             self._logger.warning('Pulses in excluded time windows must have '
                                  'already been removed!')
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 
@@ -808,8 +804,7 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 
@@ -943,8 +938,7 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 
@@ -1049,8 +1043,7 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 
@@ -1191,8 +1184,7 @@ class DefaultLossModule(BaseComponent):
         # scale up the pulse pdf by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert (
-                'dom_cdf_exclusion' in result_tensors,
+            assert 'dom_cdf_exclusion' in result_tensors, (
                 'Model must deal with time exclusions!'
             )
 

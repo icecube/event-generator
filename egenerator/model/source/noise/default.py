@@ -119,6 +119,20 @@ class DefaultNoiseModel(Source):
         config = self.configuration.config['config']
         parameters = data_batch_dict[parameter_tensor_name]
 
+        # get time exclusions
+        tensors = self.data_trafo.data['tensors']
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            time_exclusions_exist = True
+
+            # shape: [n_pulses, 2]
+            x_time_exclusions = data_batch_dict['x_time_exclusions']
+
+            # shape: [n_pulses, 3]
+            x_time_exclusions_ids = data_batch_dict['x_time_exclusions_ids']
+        else:
+            time_exclusions_exist = False
+
         # shape: [n_pulses, 2]
         pulses = data_batch_dict['x_pulses']
 
@@ -145,6 +159,12 @@ class DefaultNoiseModel(Source):
 
         # shape: [n_batch]
         dom_pdf_constant = 1. / livetime
+
+        # ----------------------------
+        # Apply time window exclusions
+        # ----------------------------
+
+        # ----------------------------
 
         # local scaling vars are initialized around zero with small std dev
         local_vars = tf.nn.elu(self._untracked_data['local_vars']) + 1.01
