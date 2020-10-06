@@ -327,6 +327,13 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         # Gather latent vars of mixture model
         # -------------------------------------------
+        if config['estimate_charge_distribution'] is True:
+            n_charge = 3
+        elif config['estimate_charge_distribution'] == 'negative_binomial':
+            n_charge = 2
+        else:
+            n_charge = 1
+
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
         if n_models*4 + n_charge != config['num_filters_list'][-1]:
@@ -431,12 +438,6 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         # Get expected charge at DOM
         # -------------------------------------------
-        if config['estimate_charge_distribution'] is True:
-            n_charge = 3
-        elif config['estimate_charge_distribution'] == 'negative_binomial':
-            n_charge = 2
-        else:
-            n_charge = 1
 
         # the result of the convolution layers are the latent variables
         dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
