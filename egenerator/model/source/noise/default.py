@@ -251,4 +251,5 @@ class DefaultNoiseModel(Source):
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
         # -------------------------------------------
 
+        tf.print('event_cdf_exclusion', event_cdf_exclusion)
         return tensor_dict
