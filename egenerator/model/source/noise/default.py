@@ -190,8 +190,11 @@ class DefaultNoiseModel(Source):
 
             # accumulate time window exclusions for each event
             # shape: [n_batch, 86, 60, 1]
+            dom_cdf_exclusion = tf.tile(tf.reshape(
+                tf.zeros_like(dom_pdf_constant), [-1, 86, 69, 1]),
+                [1, 86, 60, 1]),
             dom_cdf_exclusion = tf.tensor_scatter_nd_add(
-                tf.tile(tf.zeros_like(dom_pdf_constant),  [1, 86, 60, 1]),
+                dom_cdf_exclusion,
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
