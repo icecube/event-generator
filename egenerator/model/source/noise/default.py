@@ -170,6 +170,7 @@ class DefaultNoiseModel(Source):
             # shape: [n_tw, 2]
             t_min = tf.gather(time_window[:, 0], indices=x_time_excl_batch_id)
             t_max = tf.gather(time_window[:, 1], indices=x_time_excl_batch_id)
+            tw_livetime = tf.gather(livetime, indices=x_time_excl_batch_id)
             tw_reduced = tf.clip_by_value(
                 x_time_exclusions,
                 tf.expand_dims(t_min, axis=-1),
@@ -182,7 +183,9 @@ class DefaultNoiseModel(Source):
             # shape: [n_tw]
             tf.print(livetime, 'noise: livetime')
             tf.print(tf.shape(livetime), 'noise: livetime')
-            tw_cdf_exclusion = (tw_reduced[:, 1] - tw_reduced[:, 0]) / livetime
+            tf.print(tf.shape(tw_livetime), 'noise: tw_livetime')
+            tw_cdf_exclusion = (
+                tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime
             tf.print(
                 tf.reduce_min(tw_cdf_exclusion),
                 tf.reduce_mean(tw_cdf_exclusion),
