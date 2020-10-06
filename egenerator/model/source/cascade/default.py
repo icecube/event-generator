@@ -420,35 +420,7 @@ class DefaultCascadeModel(Source):
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r)
-            tf.print(
-                tf.reduce_mean(
-                    tf.cast(t_exclusions[:, 1] > t_exclusions[:, 0], tf.float32)),
-                tf.reduce_mean(
-                    tf.cast(t_exclusions[:, 1] >= t_exclusions[:, 0], tf.float32)),
-                tf.reduce_mean(
-                    tf.cast(t_exclusions[:, 1] + 1e-5 > t_exclusions[:, 0], tf.float32)),
-                'time start/stop are ordered',
-            )
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
-
-            tf.print(
-                tf.reduce_min(tw_cdf_start),
-                tf.reduce_mean(tw_cdf_start),
-                tf.reduce_max(tw_cdf_start),
-                'tw_cdf_start',
-            )
-            tf.print(
-                tf.reduce_min(tw_cdf_stop),
-                tf.reduce_mean(tw_cdf_stop),
-                tf.reduce_max(tw_cdf_stop),
-                'tw_cdf_stop',
-            )
-            tf.print(
-                tf.reduce_min(tw_cdf_exclusion),
-                tf.reduce_mean(tw_cdf_exclusion),
-                tf.reduce_max(tw_cdf_exclusion),
-                'tw_cdf_exclusion',
-            )
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -504,12 +476,12 @@ class DefaultCascadeModel(Source):
             dom_charges *= tf.expand_dims(
                 parameter_list[self.get_index('DOMEfficiency')], axis=-1)
 
-        # add small constant to make sure dom charges are > 0:
-        dom_charges += 1e-7
-
         # apply time window exclusions if needed
         if time_exclusions_exist:
-            dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum)
+            dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-7)
+
+        # add small constant to make sure dom charges are > 0:
+        dom_charges += 1e-7
 
         tensor_dict['dom_charges'] = dom_charges
 
@@ -645,7 +617,7 @@ class DefaultCascadeModel(Source):
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
             pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
-            pulse_latent_scale /= (1. - pulse_cdf_exclusion)
+            pulse_latent_scale /= (1. - pulse_cdf_exclusion + 1e-4)
 
         # ensure shapes
         pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])
