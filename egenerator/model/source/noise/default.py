@@ -235,6 +235,7 @@ class DefaultNoiseModel(Source):
                 tf.reduce_min(dom_cdf_exclusion_sum),
                 tf.reduce_mean(dom_cdf_exclusion_sum),
                 tf.reduce_max(dom_cdf_exclusion_sum),
+                tf.shape(dom_cdf_exclusion_sum),
                 'noise: dom_cdf_exclusion_sum',
             )
             dom_charges *= (1. - dom_cdf_exclusion_sum + 1e-7)
@@ -257,7 +258,11 @@ class DefaultNoiseModel(Source):
             pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
             print('pulse_cdf_exclusion', pulse_cdf_exclusion)
             tf.print('pulse_cdf_exclusion', pulse_cdf_exclusion)
+            tf.print('pulse_cdf_exclusion', tf.shape(pulse_cdf_exclusion))
+            tf.print('pulse_pdf before', tf.shape(pulse_pdf))
             pulse_pdf /= (1. - pulse_cdf_exclusion + 1e-4)
+            tf.print('pulse_pdf after', tf.shape(pulse_pdf))
+            tf.print('pulse_pdf', pulse_pdf)
 
         # add tensors to tensor dictionary
         tensor_dict['dom_charges'] = dom_charges
