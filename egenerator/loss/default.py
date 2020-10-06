@@ -418,8 +418,10 @@ class DefaultLossModule(BaseComponent):
         # reduce the predicted charge by this factor
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            raise NotImplementedError(
-                'Time exclusions are currently not implemented!')
+            assert (
+                'dom_cdf_exclusion' in result_tensors,
+                'Model must deal with time exclusions!'
+            )
 
         # prevent log(zeros) issues
         eps = 1e-7
