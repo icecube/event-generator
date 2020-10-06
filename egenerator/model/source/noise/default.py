@@ -228,7 +228,7 @@ class DefaultNoiseModel(Source):
 
         # scale by time exclusions
         if time_exclusions_exist:
-            dom_charges *= (1. - dom_cdf_exclusion)
+            dom_charges *= (1. - dom_cdf_exclusion_sum + 1e-7)
 
         # compute standard deviation
         # std = sqrt(var) = sqrt(mu + alpha*mu**2)
@@ -241,13 +241,12 @@ class DefaultNoiseModel(Source):
         # The time window is constructed such that every pulse is part of it
         # That means that every pulse of an event has the same likelihood.
         # shape: [n_pulses]
+        pulse_pdf = tf.gather(dom_pdf_constant, indices=pulses_ids[:, 0])
+
+        # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
-            pulse_pdf = tf.gather(
-                dom_pdf_constant / (1. - event_cdf_exclusion),
-                indices=pulses_ids[:, 0],
-            )
-        else:
-            pulse_pdf = tf.gather(dom_pdf_constant, indices=pulses_ids[:, 0])
+            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
+            pulse_pdf /= (1. - pulse_cdf_exclusion + 1e-4)
 
         # add tensors to tensor dictionary
         tensor_dict['dom_charges'] = dom_charges
@@ -259,9 +258,8 @@ class DefaultNoiseModel(Source):
         tensor_dict['pulse_pdf'] = pulse_pdf
 
         if time_exclusions_exist:
-            tensor_dict['event_cdf_exclusion'] = event_cdf_exclusion
+            tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
         # -------------------------------------------
 
-        tf.print('event_cdf_exclusion', event_cdf_exclusion)
         return tensor_dict
