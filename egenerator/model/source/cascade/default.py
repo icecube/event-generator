@@ -317,6 +317,7 @@ class DefaultCascadeModel(Source):
                 axis=-1,
             )
             t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
+            tf.print(tf.reduce_mean(t_exclusions), 'c01: t_exclusions')
 
         # new shape: [None, 1]
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
@@ -422,6 +423,7 @@ class DefaultCascadeModel(Source):
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r)
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
+            tf.print(tf.reduce_mean(tw_cdf_exclusion), 'c02: tw_cdf_exclusion')
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -432,6 +434,7 @@ class DefaultCascadeModel(Source):
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
+            tf.print(tf.reduce_mean(dom_cdf_exclusion_sum), 'c03: dom_cdf_exclusion_sum')
 
             # Shape: [None, 86, 60, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
@@ -468,6 +471,7 @@ class DefaultCascadeModel(Source):
         # apply time window exclusions if needed
         if time_exclusions_exist:
             dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
+            tf.print(tf.reduce_mean(dom_charges), 'c04: dom_charges')
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
@@ -607,6 +611,8 @@ class DefaultCascadeModel(Source):
         if time_exclusions_exist:
             pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
             pulse_latent_scale /= (1. - pulse_cdf_exclusion + 1e-3)
+            tf.print(tf.reduce_mean(pulse_cdf_exclusion), 'c05: pulse_cdf_exclusion')
+            tf.print(tf.reduce_mean(pulse_latent_scale), 'c06: pulse_latent_scale')
 
         # ensure shapes
         pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])
