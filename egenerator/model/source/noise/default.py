@@ -113,6 +113,7 @@ class DefaultNoiseModel(Source):
                              Shape: [-1]
         """
         self.assert_configured(True)
+        print('Building Noise Model...')
 
         tensor_dict = {}
 
@@ -181,14 +182,6 @@ class DefaultNoiseModel(Source):
             # shape: [n_tw, 1]
             tw_cdf_exclusion = tf.expand_dims(
                 (tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime, axis=-1)
-            print('tw_cdf_exclusion noise', tw_cdf_exclusion)
-            print('tf.zeros_like(data_batch_dict[]) noise', tf.zeros_like(data_batch_dict['x_dom_charge']))
-            tf.print(
-                tf.reduce_min(tw_cdf_exclusion),
-                tf.reduce_mean(tw_cdf_exclusion),
-                tf.reduce_max(tw_cdf_exclusion),
-                'noise: tw_cdf_exclusion',
-            )
 
             # accumulate time window exclusions for each event
             # shape: [n_batch, 86, 60, 1]
@@ -196,14 +189,6 @@ class DefaultNoiseModel(Source):
                 tf.zeros_like(data_batch_dict['x_dom_charge']),
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
-            )
-            print('dom_cdf_exclusion noise', dom_cdf_exclusion)
-
-            tf.print(
-                tf.reduce_min(dom_cdf_exclusion),
-                tf.reduce_mean(dom_cdf_exclusion),
-                tf.reduce_max(dom_cdf_exclusion),
-                'noise: dom_cdf_exclusion',
             )
 
             # we only have one model, so no need to actually sum up components
@@ -231,13 +216,6 @@ class DefaultNoiseModel(Source):
 
         # scale by time exclusions
         if time_exclusions_exist:
-            tf.print(
-                tf.reduce_min(dom_cdf_exclusion_sum),
-                tf.reduce_mean(dom_cdf_exclusion_sum),
-                tf.reduce_max(dom_cdf_exclusion_sum),
-                tf.shape(dom_cdf_exclusion_sum),
-                'noise: dom_cdf_exclusion_sum',
-            )
             dom_charges *= (1. - dom_cdf_exclusion_sum + 1e-7)
 
         # compute standard deviation
