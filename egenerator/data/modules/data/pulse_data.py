@@ -273,7 +273,7 @@ class PulseDataModule(BaseComponent):
             x_dom_exclusions = None
 
         if self.data['time_exclusions_exist']:
-            num_tws = len(pulses['Event'])
+            num_tws = len(time_exclusions['Event'])
             x_time_exclusions = np.empty(
                 (num_tws, 2), dtype=self.data['np_float_precision'])
             x_time_exclusions_ids = np.empty((num_tws, 3), dtype=np.int32)
