@@ -407,6 +407,19 @@ class MultiSource(Source):
 
         pulse_pdf /= (pulse_weight_total + 1e-6)
 
+        tf.print(
+            tf.reduce_min(dom_charges),
+            tf.reduce_mean(dom_charges),
+            tf.reduce_max(dom_charges),
+            'multisource: dom_charges',
+        )
+        tf.print(
+            tf.reduce_min(pulse_pdf),
+            tf.reduce_mean(pulse_pdf),
+            tf.reduce_max(pulse_pdf),
+            'multisource: pulse_pdf',
+        )
+
         result_tensors = {
             'dom_charges': dom_charges,
             'dom_charges_variance': dom_charges_variance,

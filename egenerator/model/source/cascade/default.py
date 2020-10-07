@@ -423,7 +423,12 @@ class DefaultCascadeModel(Source):
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r)
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
-            tf.print(tf.reduce_mean(tw_cdf_exclusion), 'c02: tw_cdf_exclusion')
+            tf.print(
+                tf.reduce_min(tw_cdf_exclusion),
+                tf.reduce_mean(tw_cdf_exclusion),
+                tf.reduce_max(tw_cdf_exclusion),
+                'c02: tw_cdf_exclusion',
+            )
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -434,11 +439,23 @@ class DefaultCascadeModel(Source):
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
-            tf.print(tf.reduce_mean(dom_cdf_exclusion), 'c03: dom_cdf_exclusion')
+            tf.print(
+                tf.reduce_min(dom_cdf_exclusion),
+                tf.reduce_mean(dom_cdf_exclusion),
+                tf.reduce_max(dom_cdf_exclusion),
+                'c03: dom_cdf_exclusion',
+            )
 
             # Shape: [None, 86, 60, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
                 dom_cdf_exclusion * latent_scale, axis=-1, keepdims=True)
+
+            tf.print(
+                tf.reduce_min(dom_cdf_exclusion_sum),
+                tf.reduce_mean(dom_cdf_exclusion_sum),
+                tf.reduce_max(dom_cdf_exclusion_sum),
+                'c03: dom_cdf_exclusion_sum',
+            )
 
             tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
@@ -471,7 +488,12 @@ class DefaultCascadeModel(Source):
         # apply time window exclusions if needed
         if time_exclusions_exist:
             dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
-            tf.print(tf.reduce_mean(dom_charges), 'c04: dom_charges')
+            tf.print(
+                tf.reduce_min(dom_charges),
+                tf.reduce_mean(dom_charges),
+                tf.reduce_max(dom_charges),
+                'c04: dom_charges',
+            )
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7

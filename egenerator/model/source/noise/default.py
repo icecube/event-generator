@@ -197,7 +197,12 @@ class DefaultNoiseModel(Source):
             # we only have one model, so no need to actually sum up components
             # shape: [n_batch, 86, 60, 1]
             dom_cdf_exclusion_sum = dom_cdf_exclusion
-            tf.print(tf.reduce_mean(dom_cdf_exclusion), 'n03: dom_cdf_exclusion')
+            tf.print(
+                tf.reduce_min(dom_cdf_exclusion),
+                tf.reduce_mean(dom_cdf_exclusion),
+                tf.reduce_max(dom_cdf_exclusion),
+                'n03: dom_cdf_exclusion',
+            )
 
         # ----------------------------
 
@@ -221,7 +226,12 @@ class DefaultNoiseModel(Source):
         # scale by time exclusions
         if time_exclusions_exist:
             dom_charges *= (1. - dom_cdf_exclusion_sum + 1e-3)
-            tf.print(tf.reduce_mean(dom_charges), 'n04: dom_charges')
+            tf.print(
+                tf.reduce_min(dom_charges),
+                tf.reduce_mean(dom_charges),
+                tf.reduce_max(dom_charges),
+                'n04: dom_charges',
+            )
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
