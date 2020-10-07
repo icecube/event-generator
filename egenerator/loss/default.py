@@ -940,8 +940,18 @@ class DefaultLossModule(BaseComponent):
             mu=hits_pred,
             alpha=dom_charges_alpha,
         )
-        tf.print(tf.reduce_mean(hits_true), 'negative_binomial_charge_pdf: hits_true')
-        tf.print(tf.reduce_mean(hits_pred), 'negative_binomial_charge_pdf: hits_pred')
+        tf.print(
+            tf.reduce_min(hits_true),
+            tf.reduce_mean(hits_true),
+            tf.reduce_max(hits_true),
+            'negative_binomial_charge_pdf: hits_true',
+        )
+        tf.print(
+            tf.reduce_min(hits_pred),
+            tf.reduce_mean(hits_pred),
+            tf.reduce_max(hits_pred),
+            'negative_binomial_charge_pdf: hits_pred',
+        )
         tf.print(tf.reduce_mean(dom_charges_variance), 'negative_binomial_charge_pdf: dom_charges_variance')
         tf.print(tf.reduce_mean(dom_charges_alpha), 'negative_binomial_charge_pdf: dom_charges_alpha')
         tf.print(tf.reduce_mean(llh_charge), 'negative_binomial_charge_pdf: llh_charge')
