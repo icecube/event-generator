@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 from egenerator import misc
 from egenerator.utils import basis_functions
@@ -219,7 +220,8 @@ class DefaultLossModule(BaseComponent):
         tf.Tensor
             Description
         """
-        return tf.math.lgamma(tf.clip_by_value(x + 1, 2, float('inf')))
+        return tf.math.lgamma(tfp.math.clip_by_value_preserve_gradient(
+            x + 1, 2, float('inf')))
 
     def unbinned_extended_pulse_llh(self, data_batch_dict, result_tensors,
                                     tensors, sort_loss_terms):
@@ -930,7 +932,7 @@ class DefaultLossModule(BaseComponent):
         dom_charges_alpha = (dom_charges_variance - hits_pred) / (
             hits_pred**2 + eps)
         # Make sure alpha is positive
-        dom_charges_alpha = tf.clip_by_value(
+        dom_charges_alpha = tfp.math.clip_by_value_preserve_gradient(
             dom_charges_alpha, eps, float('inf'))
 
         # compute negative binomial charge likelihood over DOMs
@@ -1100,7 +1102,7 @@ class DefaultLossModule(BaseComponent):
             event_charges_pred**2)
 
         # Make sure alpha is positive
-        event_charges_alpha = tf.clip_by_value(
+        event_charges_alpha = tfp.math.clip_by_value_preserve_gradient(
             event_charges_alpha, eps, float('inf'))
 
         llh_event = basis_functions.tf_log_negative_binomial(

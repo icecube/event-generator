@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 
 
@@ -65,7 +66,7 @@ def get_angle_deviation(azimuth1, zenith1, azimuth2, zenith2):
     cos_dist = (tf.cos(azimuth1 - azimuth2) *
                 tf.sin(zenith1) * tf.sin(zenith2) +
                 tf.cos(zenith1) * tf.cos(zenith2))
-    cos_dist = tf.clip(cos_dist, -1., 1.)
+    cos_dist = tfp.math.clip_by_value_preserve_gradient(cos_dist, -1., 1.)
     return tf.acos(cos_dist)
 
 

@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 
 from tfscripts import layers as tfs
@@ -193,6 +194,19 @@ class DefaultNoiseModel(Source):
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
+
+            # some safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.assert_greater_equal(
+                dom_cdf_exclusion, -1e-4, message='CDF < 0!',
+            ))
+            asserts.append(tf.debugging.assert_less_equal(
+                dom_cdf_exclusion, 1.0001, message='CDF > 1!',
+            ))
+
+            with tf.control_dependencies(asserts):
+                dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                    dom_cdf_exclusion, 0., 1.)
 
             # we only have one model, so no need to actually sum up components
             # shape: [n_batch, 86, 60, 1]

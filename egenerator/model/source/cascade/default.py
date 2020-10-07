@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 
 from tfscripts import layers as tfs
@@ -423,6 +424,20 @@ class DefaultCascadeModel(Source):
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r)
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
+
+            # some safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.assert_greater_equal(
+                tw_cdf_exclusion, -1e-4, message='CDF < 0!',
+            ))
+            asserts.append(tf.debugging.assert_less_equal(
+                tw_cdf_exclusion, 1.0001, message='CDF > 1!',
+            ))
+
+            with tf.control_dependencies(asserts):
+                tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                    tw_cdf_exclusion, 0., 1.)
+
             tf.print(
                 tf.reduce_min(tw_cdf_exclusion),
                 tf.reduce_mean(tw_cdf_exclusion),
@@ -439,6 +454,23 @@ class DefaultCascadeModel(Source):
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
+            # limit to range [0., 1.]
+            # Note: we loose gradients if clipping is applied. Maybe
+            # tfp.math.clip_value_value_preserve_gradient is a better idea?
+            # these values should be close to 0 and 1, keeping gradients
+            # for values slightly outside should therefore be more correct
+            # add safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.assert_greater_equal(
+                dom_cdf_exclusion, -1e-4, message='CDF < 0!',
+            ))
+            asserts.append(tf.debugging.assert_less_equal(
+                dom_cdf_exclusion, 1.0001, message='CDF > 1!',
+            ))
+
+            with tf.control_dependencies(asserts):
+                dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                    dom_cdf_exclusion, 0., 1.)
             tf.print(
                 tf.reduce_min(dom_cdf_exclusion),
                 tf.reduce_mean(dom_cdf_exclusion),
@@ -449,6 +481,21 @@ class DefaultCascadeModel(Source):
             # Shape: [None, 86, 60, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
                 dom_cdf_exclusion * latent_scale, axis=-1, keepdims=True)
+
+            # add safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.assert_greater_equal(
+                dom_cdf_exclusion_sum, -1e-4, message='CDF < 0!',
+            ))
+            asserts.append(tf.debugging.assert_less_equal(
+                dom_cdf_exclusion_sum, 1.0001, message='CDF > 1!',
+            ))
+
+            with tf.control_dependencies(asserts):
+                dom_cdf_exclusion_sum = (
+                    tfp.math.clip_by_value_preserve_gradient(
+                        dom_cdf_exclusion_sum, 0., 1.)
+                )
 
             tf.print(
                 tf.reduce_min(dom_cdf_exclusion_sum),
@@ -531,10 +578,11 @@ class DefaultCascadeModel(Source):
             dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.9
 
             # set default value to poisson uncertainty
-            dom_charges_sigma = tf.sqrt(tf.clip_by_value(
-                dom_charges,
-                0.0001,
-                float('inf'))) * sigma_scale
+            dom_charges_sigma = tf.sqrt(
+                tfp.math.clip_by_value_preserve_gradient(
+                    dom_charges,
+                    0.0001,
+                    float('inf'))) * sigma_scale
 
             # set threshold under which a Poisson Likelihood is used
             charge_threshold = 5
