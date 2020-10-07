@@ -426,18 +426,10 @@ class DefaultLossModule(BaseComponent):
         # prevent log(zeros) issues
         eps = 1e-7
         pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
-        tf.print(
-            tf.reduce_min(pulse_pdf_values),
-            tf.reduce_mean(pulse_pdf_values),
-            tf.reduce_max(pulse_pdf_values),
-            'unbinned_pulse_time_llh: pulse_pdf_values',
-        )
-        tf.print(tf.reduce_mean(pulse_log_pdf_values), 'unbinned_pulse_time_llh: pulse_log_pdf_values')
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
         time_loss = -pulse_charges * pulse_log_pdf_values
-        tf.print(tf.reduce_mean(time_loss), 'unbinned_pulse_time_llh: time_loss')
 
         if sort_loss_terms:
             loss_terms = [
@@ -942,26 +934,6 @@ class DefaultLossModule(BaseComponent):
             mu=hits_pred,
             alpha=dom_charges_alpha,
         )
-        tf.print(
-            tf.reduce_min(hits_true),
-            tf.reduce_mean(hits_true),
-            tf.reduce_max(hits_true),
-            'negative_binomial_charge_pdf: hits_true',
-        )
-        tf.print(
-            tf.reduce_min(hits_pred),
-            tf.reduce_mean(hits_pred),
-            tf.reduce_max(hits_pred),
-            'negative_binomial_charge_pdf: hits_pred',
-        )
-        tf.print(tf.reduce_mean(dom_charges_variance), 'negative_binomial_charge_pdf: dom_charges_variance')
-        tf.print(
-            tf.reduce_min(dom_charges_alpha),
-            tf.reduce_mean(dom_charges_alpha),
-            tf.reduce_max(dom_charges_alpha),
-            'negative_binomial_charge_pdf: dom_charges_alpha',
-        )
-        tf.print(tf.reduce_mean(llh_charge), 'negative_binomial_charge_pdf: llh_charge')
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and

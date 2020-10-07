@@ -179,13 +179,11 @@ class DefaultNoiseModel(Source):
                 tf.expand_dims(t_min, axis=-1),
                 tf.expand_dims(t_max, axis=-1),
             )
-            tf.print(tf.reduce_mean(tw_reduced), 'n01: tw_reduced')
 
             # now calculate exclusions cdf
             # shape: [n_tw, 1]
             tw_cdf_exclusion = tf.expand_dims(
                 (tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime, axis=-1)
-            tf.print(tf.reduce_mean(tw_cdf_exclusion), 'n02: tw_cdf_exclusion')
 
             # accumulate time window exclusions for each event
             # shape: [n_batch, 86, 60, 1]
@@ -211,12 +209,6 @@ class DefaultNoiseModel(Source):
             # we only have one model, so no need to actually sum up components
             # shape: [n_batch, 86, 60, 1]
             dom_cdf_exclusion_sum = dom_cdf_exclusion
-            tf.print(
-                tf.reduce_min(dom_cdf_exclusion),
-                tf.reduce_mean(dom_cdf_exclusion),
-                tf.reduce_max(dom_cdf_exclusion),
-                'n03: dom_cdf_exclusion',
-            )
 
         # ----------------------------
 
@@ -240,12 +232,6 @@ class DefaultNoiseModel(Source):
         # scale by time exclusions
         if time_exclusions_exist:
             dom_charges *= (1. - dom_cdf_exclusion_sum + 1e-3)
-            tf.print(
-                tf.reduce_min(dom_charges),
-                tf.reduce_mean(dom_charges),
-                tf.reduce_max(dom_charges),
-                'n04: dom_charges',
-            )
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
@@ -255,10 +241,6 @@ class DefaultNoiseModel(Source):
         dom_charges_variance = (
             dom_charges + dom_charges_alpha*dom_charges**2)
         dom_charges_unc = tf.sqrt(dom_charges_variance)
-        tf.print(tf.reduce_mean(dom_charges), 'n04a: dom_charges')
-        tf.print(tf.reduce_mean(dom_charges_variance), 'n04a: dom_charges_variance')
-        tf.print(tf.reduce_mean(dom_charges_alpha), 'n04a: dom_charges_alpha')
-
 
         # Compute Log Likelihood for pulses
         # PDF is a uniform distribution in the specified time window.
@@ -270,9 +252,7 @@ class DefaultNoiseModel(Source):
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
             pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
-            tf.print(tf.reduce_mean(pulse_cdf_exclusion), 'n05: pulse_cdf_exclusion')
             pulse_pdf /= tf.squeeze(1. - pulse_cdf_exclusion + 1e-3, axis=-1)
-            tf.print(tf.reduce_mean(pulse_pdf), 'n06: pulse_pdf')
 
         # add tensors to tensor dictionary
         tensor_dict['dom_charges'] = dom_charges

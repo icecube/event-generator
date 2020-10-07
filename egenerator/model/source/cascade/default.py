@@ -318,7 +318,6 @@ class DefaultCascadeModel(Source):
                 axis=-1,
             )
             t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
-            tf.print(tf.reduce_mean(t_exclusions), 'c01: t_exclusions')
 
         # new shape: [None, 1]
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
@@ -438,13 +437,6 @@ class DefaultCascadeModel(Source):
                 tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
                     tw_cdf_exclusion, 0., 1.)
 
-            tf.print(
-                tf.reduce_min(tw_cdf_exclusion),
-                tf.reduce_mean(tw_cdf_exclusion),
-                tf.reduce_max(tw_cdf_exclusion),
-                'c02: tw_cdf_exclusion',
-            )
-
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
             dom_cdf_exclusion = tf.zeros_like(latent_mu)
@@ -471,12 +463,6 @@ class DefaultCascadeModel(Source):
             with tf.control_dependencies(asserts):
                 dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
                     dom_cdf_exclusion, 0., 1.)
-            tf.print(
-                tf.reduce_min(dom_cdf_exclusion),
-                tf.reduce_mean(dom_cdf_exclusion),
-                tf.reduce_max(dom_cdf_exclusion),
-                'c03: dom_cdf_exclusion',
-            )
 
             # Shape: [None, 86, 60, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
@@ -496,13 +482,6 @@ class DefaultCascadeModel(Source):
                     tfp.math.clip_by_value_preserve_gradient(
                         dom_cdf_exclusion_sum, 0., 1.)
                 )
-
-            tf.print(
-                tf.reduce_min(dom_cdf_exclusion_sum),
-                tf.reduce_mean(dom_cdf_exclusion_sum),
-                tf.reduce_max(dom_cdf_exclusion_sum),
-                'c03: dom_cdf_exclusion_sum',
-            )
 
             tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
@@ -535,12 +514,6 @@ class DefaultCascadeModel(Source):
         # apply time window exclusions if needed
         if time_exclusions_exist:
             dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
-            tf.print(
-                tf.reduce_min(dom_charges),
-                tf.reduce_mean(dom_charges),
-                tf.reduce_max(dom_charges),
-                'c04: dom_charges',
-            )
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
@@ -649,21 +622,11 @@ class DefaultCascadeModel(Source):
                 dom_charges + dom_charges_alpha*dom_charges**2)
             dom_charges_unc = tf.sqrt(dom_charges_variance)
 
-            # tf.print(
-            #     'dom_charges_alpha',
-            #     tf.reduce_min(dom_charges_alpha),
-            #     tf.reduce_mean(dom_charges_alpha),
-            #     tf.reduce_max(dom_charges_alpha),
-            # )
-
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_alpha'] = dom_charges_alpha
             tensor_dict['dom_charges_unc'] = dom_charges_unc
             tensor_dict['dom_charges_variance'] = dom_charges_variance
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
-            tf.print(tf.reduce_mean(dom_charges_alpha), 'c04a: dom_charges_alpha')
-            tf.print(tf.reduce_mean(dom_charges), 'c04a: dom_charges')
-            tf.print(tf.reduce_mean(dom_charges_variance), 'c04a: dom_charges_variance')
 
         else:
             # Poisson Distribution: variance is equal to expected charge
@@ -684,8 +647,6 @@ class DefaultCascadeModel(Source):
         if time_exclusions_exist:
             pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
             pulse_latent_scale /= (1. - pulse_cdf_exclusion + 1e-3)
-            tf.print(tf.reduce_mean(pulse_cdf_exclusion), 'c05: pulse_cdf_exclusion')
-            tf.print(tf.reduce_mean(pulse_latent_scale), 'c06: pulse_latent_scale')
 
         # ensure shapes
         pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])
