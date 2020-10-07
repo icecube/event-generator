@@ -195,13 +195,14 @@ class DefaultNoiseModel(Source):
 
             # some safety checks to make sure we aren't clipping too much
             asserts = []
-            asserts.append(tf.debugging.assert_greater_equal(
-                dom_cdf_exclusion, -1e-4, message='Noise DOM CDF < 0!',
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_min(dom_cdf_exclusion) > -1e-4,
+                ['Noise DOM CDF < 0!', tf.reduce_min(dom_cdf_exclusion)],
             ))
-            asserts.append(tf.debugging.assert_less_equal(
-                dom_cdf_exclusion, 1.0001, message='Noise DOM CDF > 1!',
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_max(dom_cdf_exclusion) < 1.0001,
+                ['Noise DOM CDF > 1!', tf.reduce_max(dom_cdf_exclusion)],
             ))
-
             with tf.control_dependencies(asserts):
                 dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
                     dom_cdf_exclusion, 0., 1.)
