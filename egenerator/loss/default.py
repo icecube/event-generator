@@ -424,7 +424,12 @@ class DefaultLossModule(BaseComponent):
         # prevent log(zeros) issues
         eps = 1e-7
         pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
-        tf.print(tf.reduce_mean(pulse_pdf_values), 'unbinned_pulse_time_llh: pulse_pdf_values')
+        tf.print(
+            tf.reduce_min(pulse_pdf_values),
+            tf.reduce_mean(pulse_pdf_values),
+            tf.reduce_max(pulse_pdf_values),
+            'unbinned_pulse_time_llh: pulse_pdf_values',
+        )
         tf.print(tf.reduce_mean(pulse_log_pdf_values), 'unbinned_pulse_time_llh: pulse_log_pdf_values')
 
         # compute unbinned negative likelihood over pulse times with given
@@ -935,6 +940,7 @@ class DefaultLossModule(BaseComponent):
             mu=hits_pred,
             alpha=dom_charges_alpha,
         )
+        tf.print(tf.reduce_mean(hits_true), 'negative_binomial_charge_pdf: hits_true')
         tf.print(tf.reduce_mean(hits_pred), 'negative_binomial_charge_pdf: hits_pred')
         tf.print(tf.reduce_mean(dom_charges_variance), 'negative_binomial_charge_pdf: dom_charges_variance')
         tf.print(tf.reduce_mean(dom_charges_alpha), 'negative_binomial_charge_pdf: dom_charges_alpha')
