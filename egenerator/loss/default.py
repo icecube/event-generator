@@ -953,7 +953,12 @@ class DefaultLossModule(BaseComponent):
             'negative_binomial_charge_pdf: hits_pred',
         )
         tf.print(tf.reduce_mean(dom_charges_variance), 'negative_binomial_charge_pdf: dom_charges_variance')
-        tf.print(tf.reduce_mean(dom_charges_alpha), 'negative_binomial_charge_pdf: dom_charges_alpha')
+        tf.print(
+            tf.reduce_min(dom_charges_alpha),
+            tf.reduce_mean(dom_charges_alpha),
+            tf.reduce_max(dom_charges_alpha),
+            'negative_binomial_charge_pdf: dom_charges_alpha',
+        )
         tf.print(tf.reduce_mean(llh_charge), 'negative_binomial_charge_pdf: llh_charge')
 
         # throw error if this is being used with time window exclusions
