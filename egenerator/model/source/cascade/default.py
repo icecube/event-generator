@@ -427,10 +427,10 @@ class DefaultCascadeModel(Source):
             # some safety checks to make sure we aren't clipping too much
             asserts = []
             asserts.append(tf.debugging.assert_greater_equal(
-                tw_cdf_exclusion, -1e-4, message='CDF < 0!',
+                tw_cdf_exclusion, -1e-4, message='Cascade TW CDF < 0!',
             ))
             asserts.append(tf.debugging.assert_less_equal(
-                tw_cdf_exclusion, 1.0001, message='CDF > 1!',
+                tw_cdf_exclusion, 1.0001, message='Cascade TW CDF > 1!',
             ))
 
             with tf.control_dependencies(asserts):
@@ -454,10 +454,10 @@ class DefaultCascadeModel(Source):
             # add safety checks to make sure we aren't clipping too much
             asserts = []
             asserts.append(tf.debugging.assert_greater_equal(
-                dom_cdf_exclusion, -1e-4, message='CDF < 0!',
+                dom_cdf_exclusion, -1e-4, message='Cascade DOM CDF < 0!',
             ))
             asserts.append(tf.debugging.assert_less_equal(
-                dom_cdf_exclusion, 1.0001, message='CDF > 1!',
+                dom_cdf_exclusion, 1.0001, message='Cascade DOM CDF > 1!',
             ))
 
             with tf.control_dependencies(asserts):
@@ -471,10 +471,10 @@ class DefaultCascadeModel(Source):
             # add safety checks to make sure we aren't clipping too much
             asserts = []
             asserts.append(tf.debugging.assert_greater_equal(
-                dom_cdf_exclusion_sum, -1e-4, message='CDF < 0!',
+                dom_cdf_exclusion_sum, -1e-4, message='Cascade DOMs CDF < 0!',
             ))
             asserts.append(tf.debugging.assert_less_equal(
-                dom_cdf_exclusion_sum, 1.0001, message='CDF > 1!',
+                dom_cdf_exclusion_sum, 1.0001, message='Cascade DOMs CDF > 1!',
             ))
 
             with tf.control_dependencies(asserts):

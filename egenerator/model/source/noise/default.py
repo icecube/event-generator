@@ -196,10 +196,10 @@ class DefaultNoiseModel(Source):
             # some safety checks to make sure we aren't clipping too much
             asserts = []
             asserts.append(tf.debugging.assert_greater_equal(
-                dom_cdf_exclusion, -1e-4, message='CDF < 0!',
+                dom_cdf_exclusion, -1e-4, message='Noise DOM CDF < 0!',
             ))
             asserts.append(tf.debugging.assert_less_equal(
-                dom_cdf_exclusion, 1.0001, message='CDF > 1!',
+                dom_cdf_exclusion, 1.0001, message='Noise DOM CDF > 1!',
             ))
 
             with tf.control_dependencies(asserts):
