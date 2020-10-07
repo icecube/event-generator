@@ -569,6 +569,8 @@ class BaseModelManager(Model):
                 **kwargs
             )
 
+        tf.print(tf.reduce_mean(combined_loss), 'combined_loss')
+
         variables = []
         for model in self.models:
             variables.extend(model.trainable_variables)
