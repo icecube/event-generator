@@ -231,6 +231,7 @@ class DefaultNoiseModel(Source):
         dom_charges_variance = (
             dom_charges + dom_charges_alpha*dom_charges**2)
         dom_charges_unc = tf.sqrt(dom_charges_variance)
+        tf.print(tf.reduce_mean(dom_charges), 'n04a: dom_charges')
         tf.print(tf.reduce_mean(dom_charges_variance), 'n04a: dom_charges_variance')
         tf.print(tf.reduce_mean(dom_charges_alpha), 'n04a: dom_charges_alpha')
 

@@ -592,6 +592,7 @@ class DefaultCascadeModel(Source):
             tensor_dict['dom_charges_variance'] = dom_charges_variance
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
             tf.print(tf.reduce_mean(dom_charges_alpha), 'c04a: dom_charges_alpha')
+            tf.print(tf.reduce_mean(dom_charges), 'c04a: dom_charges')
             tf.print(tf.reduce_mean(dom_charges_variance), 'c04a: dom_charges_variance')
 
         else:
