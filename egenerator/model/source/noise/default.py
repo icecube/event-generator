@@ -193,7 +193,10 @@ class DefaultNoiseModel(Source):
             ))
             asserts.append(tf.debugging.Assert(
                 tf.reduce_max(tw_cdf_exclusion) < 1.0001,
-                ['Noise TW CDF > 1!', tf.reduce_max(tw_cdf_exclusion)],
+                ['Noise TW CDF > 1!', tf.reduce_max(tw_cdf_exclusion),
+                 tw_cdf_exclusion, x_time_exclusions_ids, x_time_exclusions,
+                 tw_reduced],
+                summarize=100000,
             ))
             with tf.control_dependencies(asserts):
                 tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
@@ -215,7 +218,10 @@ class DefaultNoiseModel(Source):
             ))
             asserts.append(tf.debugging.Assert(
                 tf.reduce_max(dom_cdf_exclusion) < 1.0001,
-                ['Noise DOM CDF > 1!', tf.reduce_max(dom_cdf_exclusion)],
+                ['Noise DOM CDF > 1!', tf.reduce_max(dom_cdf_exclusion),
+                 tw_cdf_exclusion, x_time_exclusions_ids, x_time_exclusions,
+                 tw_reduced],
+                summarize=100000,
             ))
             with tf.control_dependencies(asserts):
                 dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
