@@ -186,6 +186,12 @@ class DefaultNoiseModel(Source):
                 (tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime, axis=-1)
 
             # some safety checks to make sure we aren't clipping too much
+            tf.print(x_time_exclusions, 'x_time_exclusions')
+            tf.print(x_time_exclusions_ids, 'x_time_exclusions_ids')
+            tf.print(tw_reduced, 'tw_reduced')
+            tf.print(livetime, 'livetime')
+            tf.print(tw_livetime, 'tw_livetime')
+            tf.print(tw_cdf_exclusion, 'tw_cdf_exclusion')
             asserts = []
             asserts.append(tf.debugging.Assert(
                 tf.reduce_min(tw_cdf_exclusion) > -1e-4,
