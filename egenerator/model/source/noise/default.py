@@ -185,6 +185,20 @@ class DefaultNoiseModel(Source):
             tw_cdf_exclusion = tf.expand_dims(
                 (tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime, axis=-1)
 
+            # some safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_min(tw_cdf_exclusion) > -1e-4,
+                ['Noise TW CDF < 0!', tf.reduce_min(tw_cdf_exclusion)],
+            ))
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_max(tw_cdf_exclusion) < 1.0001,
+                ['Noise TW CDF > 1!', tf.reduce_max(tw_cdf_exclusion)],
+            ))
+            with tf.control_dependencies(asserts):
+                tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                    tw_cdf_exclusion, 0., 1.)
+
             # accumulate time window exclusions for each event
             # shape: [n_batch, 86, 60, 1]
             dom_cdf_exclusion = tf.tensor_scatter_nd_add(
