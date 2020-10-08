@@ -908,11 +908,11 @@ class BaseDataHandler(BaseComponent):
                 # num_repetitions:
                 #   potentially dangerous for batch_size approx file_size
                 for epoch in range(num_repetitions):
-                    print('new epoch', epoch, queue_size)
                     if not sample_randomly:
                         shuffled_indices = range(queue_size)
                     else:
                         shuffled_indices = np.random.permutation(queue_size)
+                    print('new epoch', epoch, queue_size, shuffled_indices)
 
                     # loop through shuffled events and accumulate them
                     for index in shuffled_indices:
@@ -952,7 +952,7 @@ class BaseDataHandler(BaseComponent):
                                         print(
                                             tensor.name,
                                             np.mean(batch[i], axis=0),
-                                            [len(v) for v in batch[i]],
+                                            [len(v) for v in batch_to_event_structure(batch[i])],
                                         )
                                 else:
                                     batch[i] = np.asarray(
