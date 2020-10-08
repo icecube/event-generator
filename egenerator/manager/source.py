@@ -1560,6 +1560,10 @@ class SourceManager(BaseModelManager):
         event_counter = 0
         for data_batch in test_dataset:
 
+            if event_counter < 400:
+                event_counter += 1
+                continue
+
             # ---------------------------
             # Execute reconstruction tray
             # ---------------------------
