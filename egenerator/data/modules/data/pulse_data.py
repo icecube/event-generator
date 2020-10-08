@@ -412,6 +412,53 @@ class PulseDataModule(BaseComponent):
                     print('Skipping file: {} [Duplicate TimeWindow]'.format(
                         file))
                     return None, None
+
+            def test_for_overlaps(tws, tw_ids):
+                found_overlap = False
+                overlaps = []
+                tw_dict = {}
+                for tw_id, tw in zip(tw_ids, tws):
+                    tw_id = tuple(tw_id.tolist())
+                    tw = tuple(tw.tolist())
+                    if tw_id in tw_dict:
+
+                        # check if there are any overlaps
+                        for tw_previous in tw_dict[tw_id]:
+                            if (
+                                    # start in previous tw
+                                    (tw[0] < tw_previous[1] and
+                                     tw[0] >= tw_previous[0]) or
+
+                                    # end in previous tw
+                                    (tw[1] >= tw_previous[0] and
+                                     tw[1] < tw_previous[1]) or
+
+                                    # previous tw completely in new tw
+                                    (tw[1] >= tw_previous[1] and
+                                     tw[0] <= tw_previous[0]) or
+
+                                    # new tw completely in previous tw
+                                    (tw[1] <= tw_previous[1] and
+                                     tw[0] >= tw_previous[0])
+                                    ):
+
+                                # found an overlap!
+                                overlaps.append((tw_id, tw_previous, tw))
+                                found_overlap = True
+
+                        tw_dict[tw_id].append(tw)
+                    else:
+                        tw_dict[tw_id] = [tw]
+                return found_overlap, overlaps
+
+            found_overlap, overlaps = test_for_overlaps(
+                x_time_exclusions, x_time_exclusions_ids)
+            if found_overlap:
+                print('Found overlaps in exlcusion time windows!')
+                print(overlaps)
+                print('Skipping file: {} [Overlapping TimeWindow]'.format(
+                    file))
+                return None, None
             # ----------------------
 
         # ------------------
