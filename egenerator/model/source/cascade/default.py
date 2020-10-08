@@ -433,12 +433,18 @@ class DefaultCascadeModel(Source):
             tf.print(tw_cdf_exclusion, 'c: tw_cdf_exclusion', summarize=1000)
             asserts = []
             asserts.append(tf.debugging.Assert(
-                tf.reduce_min(tw_cdf_exclusion) > -1e-4,
+                tf.reduce_all(tf.math.logical_or(
+                    tw_cdf_exclusion > -1e-4,
+                    ~tf.math.is_finite(tw_cdf_exclusion)
+                )),
                 ['Cascade TW CDF < 0!', tf.reduce_min(tw_cdf_exclusion)],
             ))
             asserts.append(tf.debugging.Assert(
-                tf.reduce_max(tw_cdf_exclusion) < 1.0001,
-                ['Cascade TW CDF > 1!', tf.reduce_max(tw_cdf_exclusion)],
+                tf.reduce_all(tf.math.logical_or(
+                    tw_cdf_exclusion < 1.0001,
+                    ~tf.math.is_finite(tw_cdf_exclusion)
+                )),
+                ['Cascade TW CDF > 1!', tf.reduce_min(tw_cdf_exclusion)],
             ))
             with tf.control_dependencies(asserts):
                 tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
