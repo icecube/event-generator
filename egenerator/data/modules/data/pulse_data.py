@@ -386,18 +386,33 @@ class PulseDataModule(BaseComponent):
                 return_counts=True,
             )
             if len(unique_vals) < num_tws:
-                double_ids = x_time_exclusions_ids[indices[counts > 1]]
 
-                print('Found possible duplicate Time Windows!')
-                for double_id in double_ids:
-                    print('\t Duplicates for {}:'.format(double_id))
+                # IDs that come up more than once
+                # These may have potential overlaps
+                double_ids = x_time_exclusions_ids[indices[counts > 1]]
+                double_tws = x_time_exclusions[indices[counts > 1]]
+                found_duplicates = False
+
+                msg = 'Found possible duplicate Time Windows!'
+                for double_id, double_tw in zip(double_ids, double_tws):
+                    double_count = 0
                     for i, (tw_id, tw) in enumerate(zip(
                             x_time_exclusions_ids, x_time_exclusions)):
-                        if (double_id == tw_id).all():
-                            print('\t\t TW Number: {} TimeWindow: {}'.format(
-                                i, tw))
-                print('Skipping file: {} [Duplicate TimeWindow]'.format(file))
-                return None, None
+                        if ((double_id == tw_id).all()
+                                and (double_tw == tw).all()):
+                            double_count += 1
+                            msg_i += '\n\t\t TW #: {} TimeWindow: {}'.format(
+                                i, tw)
+
+                    if double_count > 1:
+                        msg += '\n\t {} duplicates for {} with TW: {}'.format(
+                            double_count, double_id, double_tw)
+                        found_duplicates = True
+
+                if found_duplicates:
+                    print('Skipping file: {} [Duplicate TimeWindow]'.format(
+                        file))
+                    return None, None
             # ----------------------
 
         # ------------------
