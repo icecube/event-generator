@@ -952,7 +952,7 @@ class BaseDataHandler(BaseComponent):
                                         print(
                                             tensor.name,
                                             np.mean(batch[i], axis=0),
-                                            [len(v) for v in batch_to_event_structure(batch[i])],
+                                            [len(v) for v in self.batch_to_event_structure(batch[i])],
                                         )
                                 else:
                                     batch[i] = np.asarray(
