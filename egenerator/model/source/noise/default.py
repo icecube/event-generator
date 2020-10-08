@@ -189,7 +189,11 @@ class DefaultNoiseModel(Source):
             asserts = []
             asserts.append(tf.debugging.Assert(
                 tf.reduce_min(tw_cdf_exclusion) > -1e-4,
-                ['Noise TW CDF < 0!', tf.reduce_min(tw_cdf_exclusion)],
+                ['Noise TW CDF < 0!',
+                 tf.reduce_min(tw_cdf_exclusion),
+                 tw_cdf_exclusion, x_time_exclusions_ids, x_time_exclusions,
+                 tw_reduced],
+                summarize=100000,
             ))
             asserts.append(tf.debugging.Assert(
                 tf.reduce_max(tw_cdf_exclusion) < 1.0001,
@@ -213,7 +217,7 @@ class DefaultNoiseModel(Source):
             # -------------
             # HACK TO DEBUG
             # -------------
-            def tf_unique_2d(self, x):
+            def tf_unique_2d(x):
                 x_shape = tf.shape(x)  # (3,2)
                 x1 = tf.tile(x, [1, x_shape[0]])  # [[1,2],[1,2],[1,2],[3,4],[3,4],[3,4]..]
                 x2 = tf.tile(x, [x_shape[0], 1])  # [[1,2],[1,2],[1,2],[3,4],[3,4],[3,4]..]
@@ -261,7 +265,10 @@ class DefaultNoiseModel(Source):
             asserts = []
             asserts.append(tf.debugging.Assert(
                 tf.reduce_min(dom_cdf_exclusion) > -1e-4,
-                ['Noise DOM CDF < 0!', tf.reduce_min(dom_cdf_exclusion)],
+                ['Noise DOM CDF < 0!', tf.reduce_min(dom_cdf_exclusion),
+                 tw_cdf_exclusion, x_time_exclusions_ids, x_time_exclusions,
+                 tw_reduced],
+                summarize=100000,
             ))
             asserts.append(tf.debugging.Assert(
                 tf.reduce_max(dom_cdf_exclusion) < 1.0001,
