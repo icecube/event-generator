@@ -422,15 +422,16 @@ class DefaultCascadeModel(Source):
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
                 r=tw_latent_r)
+
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
 
             # some safety checks to make sure we aren't clipping too much
-            tf.print(x_time_exclusions_ids, 'c: x_time_exclusions_ids', summarize=1000)
-            tf.print(tw_latent_mu, 'c: tw_latent_mu', summarize=1000)
-            tf.print(tw_latent_r, 'c: tw_latent_r', summarize=1000)
-            tf.print(tw_cdf_start, 'c: tw_cdf_start', summarize=1000)
-            tf.print(tw_cdf_stop, 'c: tw_cdf_stop', summarize=1000)
-            tf.print(tw_cdf_exclusion, 'c: tw_cdf_exclusion', summarize=1000)
+            # tf.print(x_time_exclusions_ids, 'c: x_time_exclusions_ids', summarize=1000)
+            # tf.print(tw_latent_mu, 'c: tw_latent_mu', summarize=1000)
+            # tf.print(tw_latent_r, 'c: tw_latent_r', summarize=1000)
+            # tf.print(tw_cdf_start, 'c: tw_cdf_start', summarize=1000)
+            # tf.print(tw_cdf_stop, 'c: tw_cdf_stop', summarize=1000)
+            # tf.print(tw_cdf_exclusion, 'c: tw_cdf_exclusion', summarize=1000)
             asserts = []
             asserts.append(tf.debugging.Assert(
                 tf.reduce_all(tf.math.logical_or(
@@ -467,12 +468,18 @@ class DefaultCascadeModel(Source):
             # add safety checks to make sure we aren't clipping too much
             asserts = []
             asserts.append(tf.debugging.Assert(
-                tf.reduce_min(dom_cdf_exclusion) > -1e-4,
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion > -1e-4,
+                    ~tf.math.is_finite(dom_cdf_exclusion)
+                )),
                 ['Cascade DOM CDF < 0!', tf.reduce_min(dom_cdf_exclusion)],
             ))
             asserts.append(tf.debugging.Assert(
-                tf.reduce_max(dom_cdf_exclusion) < 1.0001,
-                ['Cascade DOM CDF > 1!', tf.reduce_max(dom_cdf_exclusion)],
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion < 1.0001,
+                    ~tf.math.is_finite(dom_cdf_exclusion)
+                )),
+                ['Cascade DOM CDF > 1!', tf.reduce_min(dom_cdf_exclusion)],
             ))
             with tf.control_dependencies(asserts):
                 dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
@@ -485,14 +492,20 @@ class DefaultCascadeModel(Source):
             # add safety checks to make sure we aren't clipping too much
             asserts = []
             asserts.append(tf.debugging.Assert(
-                tf.reduce_min(dom_cdf_exclusion_sum) > -1e-4,
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion_sum > -1e-4,
+                    ~tf.math.is_finite(dom_cdf_exclusion_sum)
+                )),
                 ['Cascade DOM CDF sum < 0!',
                  tf.reduce_min(dom_cdf_exclusion_sum)],
             ))
             asserts.append(tf.debugging.Assert(
-                tf.reduce_max(dom_cdf_exclusion_sum) < 1.0001,
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion_sum < 1.0001,
+                    ~tf.math.is_finite(dom_cdf_exclusion_sum)
+                )),
                 ['Cascade DOM CDF sum > 1!',
-                 tf.reduce_max(dom_cdf_exclusion_sum)],
+                 tf.reduce_min(dom_cdf_exclusion_sum)],
             ))
             with tf.control_dependencies(asserts):
                 dom_cdf_exclusion_sum = (
