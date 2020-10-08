@@ -830,8 +830,6 @@ class BaseModelManager(Model):
             if found_overlap:
                 print('Found overlaps in exlcusion time windows!')
                 print(overlaps)
-                print('Skipping file: {} [Overlapping TimeWindow]'.format(
-                    file))
                 raise ValueError('OVERLAP!')
             else:
                 if step % 1000 == 0:
