@@ -912,7 +912,6 @@ class BaseDataHandler(BaseComponent):
                         shuffled_indices = range(queue_size)
                     else:
                         shuffled_indices = np.random.permutation(queue_size)
-                    print('new epoch', epoch, queue_size, shuffled_indices)
 
                     # loop through shuffled events and accumulate them
                     for index in shuffled_indices:
@@ -926,7 +925,7 @@ class BaseDataHandler(BaseComponent):
                                     batch[i].append(event_list[i][index])
                                 else:
                                     # correct batch index for vector indices
-                                    indices = event_list[i][index]
+                                    indices = np.array(event_list[i][index])
                                     indices[:, 0] = size
                                     batch[i].append(indices)
                             else:
@@ -949,12 +948,6 @@ class BaseDataHandler(BaseComponent):
                                         batch[i] = np.concatenate(
                                                 batch[i], axis=0).astype(
                                                     getattr(np, tensor.dtype))
-                                        print(
-                                            tensor.name,
-                                            np.mean(batch[i], axis=0),
-                                            [len(batch[i][batch[i][:, 0] == v])
-                                             for v in range(size)],
-                                        )
                                 else:
                                     batch[i] = np.asarray(
                                             batch[i],
