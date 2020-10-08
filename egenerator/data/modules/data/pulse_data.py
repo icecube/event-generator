@@ -372,6 +372,33 @@ class PulseDataModule(BaseComponent):
                 # gather pulse ids (batch index, string, dom)
                 x_time_exclusions_ids[tw_index] = [index, string-1, dom-1]
 
+            # ----------------------
+            # safety check and hack:
+            # ----------------------
+            """Some files seem to have duplicate time windows.
+            ToDo: Where do these come from?
+            """
+            unique_vals, indices, counts = np.unique(
+                x_time_exclusions,
+                axis=0,
+                return_index=True,
+                return_counts=True,
+            )
+            if len(unique_vals) < num_tws:
+                double_ids = x_time_exclusions_ids[indices[counts > 1]]
+
+                print('Found possible duplicate Time Windows!')
+                for double_id in double_ids:
+                    print('\t Duplicates for {}:'.format(double_id))
+                    for i, (tw_id, tw) in enumerate(zip(
+                            x_time_exclusions_ids, x_time_exclusions)):
+                        if (double_id == tw_id).all():
+                            print('\t\t TW Number: {} TimeWindow: {}'.format(
+                                i, tw))
+                print('Skipping file: {} [Duplicate TimeWindow]'.format(file))
+                return None, None
+            # ----------------------
+
         # ------------------
         # get dom exclusions
         # ------------------

@@ -426,12 +426,12 @@ class DefaultCascadeModel(Source):
             tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
 
             # some safety checks to make sure we aren't clipping too much
-            tf.print(x_time_exclusions_ids, 'c: x_time_exclusions_ids', summarize=1000)
-            tf.print(tw_latent_mu, 'c: tw_latent_mu', summarize=1000)
-            tf.print(tw_latent_r, 'c: tw_latent_r', summarize=1000)
-            tf.print(tw_cdf_start, 'c: tw_cdf_start', summarize=1000)
-            tf.print(tw_cdf_stop, 'c: tw_cdf_stop', summarize=1000)
-            tf.print(tw_cdf_exclusion, 'c: tw_cdf_exclusion', summarize=1000)
+            # tf.print(x_time_exclusions_ids, 'c: x_time_exclusions_ids', summarize=1000)
+            # tf.print(tw_latent_mu, 'c: tw_latent_mu', summarize=1000)
+            # tf.print(tw_latent_r, 'c: tw_latent_r', summarize=1000)
+            # tf.print(tw_cdf_start, 'c: tw_cdf_start', summarize=1000)
+            # tf.print(tw_cdf_stop, 'c: tw_cdf_stop', summarize=1000)
+            # tf.print(tw_cdf_exclusion, 'c: tw_cdf_exclusion', summarize=1000)
             asserts = []
             asserts.append(tf.debugging.Assert(
                 tf.reduce_all(tf.math.logical_or(
