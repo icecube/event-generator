@@ -828,6 +828,15 @@ class BaseModelManager(Model):
                     'x_time_exclusions_ids')].numpy(),
             )
             if found_overlap:
+                for tensor in self.data_handler.tensors:
+                    i = self.data_handler.tensors.get_index(tensor.name)
+                    print(
+                        tensor.name,
+                        np.mean(training_data_batch[i], axis=0),
+                        [len(training_data_batch[i][training_data_batch[i][:, 0] == v])
+                         for v in range(32)],
+                    )
+
                 print('Found overlaps in exlcusion time windows!')
                 print(overlaps)
                 raise ValueError('OVERLAP!')
