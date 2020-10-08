@@ -401,8 +401,6 @@ class PulseDataModule(BaseComponent):
                         if ((double_id == tw_id).all()
                                 and (double_tw == tw).all()):
                             double_count += 1
-                            msg_i += '\n\t\t TW #: {} TimeWindow: {}'.format(
-                                i, tw)
 
                     if double_count > 1:
                         msg += '\n\t {} duplicates for {} with TW: {}'.format(
@@ -410,6 +408,7 @@ class PulseDataModule(BaseComponent):
                         found_duplicates = True
 
                 if found_duplicates:
+                    print(msg)
                     print('Skipping file: {} [Duplicate TimeWindow]'.format(
                         file))
                     return None, None
