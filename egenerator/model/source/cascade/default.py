@@ -445,7 +445,7 @@ class DefaultCascadeModel(Source):
                     tw_cdf_exclusion < 1.0001,
                     ~tf.math.is_finite(tw_cdf_exclusion)
                 )),
-                ['Cascade TW CDF > 1!', tf.reduce_min(tw_cdf_exclusion)],
+                ['Cascade TW CDF > 1!', tf.reduce_max(tw_cdf_exclusion)],
             ))
             with tf.control_dependencies(asserts):
                 tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
@@ -479,7 +479,7 @@ class DefaultCascadeModel(Source):
                     dom_cdf_exclusion < 1.0001,
                     ~tf.math.is_finite(dom_cdf_exclusion)
                 )),
-                ['Cascade DOM CDF > 1!', tf.reduce_min(dom_cdf_exclusion)],
+                ['Cascade DOM CDF > 1!', tf.reduce_max(dom_cdf_exclusion)],
             ))
             with tf.control_dependencies(asserts):
                 dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
@@ -505,7 +505,7 @@ class DefaultCascadeModel(Source):
                     ~tf.math.is_finite(dom_cdf_exclusion_sum)
                 )),
                 ['Cascade DOM CDF sum > 1!',
-                 tf.reduce_min(dom_cdf_exclusion_sum)],
+                 tf.reduce_max(dom_cdf_exclusion_sum)],
             ))
             with tf.control_dependencies(asserts):
                 dom_cdf_exclusion_sum = (
