@@ -251,9 +251,10 @@ class DefaultNoiseModel(Source):
                 return op, r_cond_mul4
 
             unique_a_vals, unique_idx = tf_unique_2d(x_time_exclusions_ids)
-            count_a_unique = tf.math.unsorted_segment_sum(tf.ones_like(x_time_exclusions_ids[:, 0]),
-                                                     unique_idx,
-                                                     tf.shape(x_time_exclusions_ids[:, 0])[0])
+            count_a_unique = tf.math.unsorted_segment_sum(
+                tf.ones_like(x_time_exclusions_ids[:, 0]),
+                 unique_idx,
+                 tf.shape(unique_idx)[0])
 
             more_than_one = tf.greater(count_a_unique, 1)
             more_than_one_idx = tf.squeeze(tf.where(more_than_one))
