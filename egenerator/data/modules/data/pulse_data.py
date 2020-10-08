@@ -375,7 +375,8 @@ class PulseDataModule(BaseComponent):
             # ----------------------
             # safety check and hack:
             # ----------------------
-            """Some files seem to have duplicate time windows.
+            """Some files seem to have duplicate time windows which should
+            never happen. Time Windows must not overlap!
             ToDo: Where do these come from?
             """
             unique_vals, indices, counts = np.unique(
