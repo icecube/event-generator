@@ -823,9 +823,9 @@ class BaseModelManager(Model):
 
             found_overlap, overlaps = test_for_overlaps(
                 training_data_batch[self.data_handler.tensors.get_index(
-                    'x_time_exclusions')],
+                    'x_time_exclusions')].numpy(),
                 training_data_batch[self.data_handler.tensors.get_index(
-                    'x_time_exclusions_ids')],
+                    'x_time_exclusions_ids')].numpy(),
             )
             if found_overlap:
                 print('Found overlaps in exlcusion time windows!')
