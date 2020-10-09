@@ -16,11 +16,11 @@ unique_name: 'cascade_7param_noise_tw_BFRv1Spice321'
 training_settings: {
     'optimizer_name': 'Adam',
     'optimizer_settings': {
-        'amsgrad': True,
+        # 'amsgrad': True,
         'learning_rate': {
             'full_class_string': 'egenerator.utils.learning_rate.MultiLearningRateScheduler',
             'settings':{
-                'boundaries': [10000, 1000000],
+                'boundaries': [10000, 500000],
                 'scheduler_settings': [
                     {
                     'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
@@ -35,7 +35,7 @@ training_settings: {
                     'settings': {
                         'initial_learning_rate': 0.001,
                         'end_learning_rate': 0.001,
-                        'decay_steps': 990000,
+                        'decay_steps': 490000,
                         },
                     },
                     {
@@ -43,7 +43,7 @@ training_settings: {
                     'settings': {
                         'initial_learning_rate': 0.001,
                         'end_learning_rate': 0.000001,
-                        'decay_steps': 1000000,
+                        'decay_steps': 500000,
                         'power': 2,
                         },
                     },
@@ -53,7 +53,7 @@ training_settings: {
     },
     'l1_regularization': 0.,
     'l2_regularization': 0.,
-    'clip_gradients_value': 1.,
+    'clip_gradients_value': ,
     'remove_nan_gradients': False,
 
     'validation_frequency': 100,
@@ -61,7 +61,7 @@ training_settings: {
     'save_frequency': 500,
 
     # Number of training iterations to train the model for
-    'num_training_iterations': 2000000,
+    'num_training_iterations': 1000000,
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
