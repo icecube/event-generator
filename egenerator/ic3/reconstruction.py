@@ -221,6 +221,12 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.manager = self.manager_configurator.manager
         self.loss_module = self.manager_configurator.loss_module
 
+        if 'I3ParticleMapping' in self.manager.configuration.config:
+            self.i3_mapping = self.manager.configuration.config[
+                'I3ParticleMapping']
+        else:
+            self.i3_mapping = None
+
         for model in self.manager.models:
             num_vars, num_total_vars = model.num_variables
             msg = '\nNumber of Model Variables:\n'
@@ -357,16 +363,25 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         result_dict['loss_seed'] = float(results['reco']['loss_seed'])
 
         # add an I3Particle
-        particle = dataclasses.I3Particle()
-        particle.energy = result_dict['energy']
-        particle.time = result_dict['time']
-        particle.pos = dataclasses.I3Position(
-            result_dict['x'], result_dict['y'], result_dict['z'])
-        particle.dir = dataclasses.I3Direction(
-            result_dict['zenith'], result_dict['azimuth'])
-        # set particle shape to infinite track even though this is not
-        # necessarily true. This will allow for visualization in steamshovel
-        particle.shape = dataclasses.I3Particle.InfiniteTrack
+        if self.i3_mapping:
+            particle = dataclasses.I3Particle()
+
+            for key, param in self.i3_mapping.items():
+
+                if key in ['x', 'y', 'z']:
+                    setattr(particle.pos, key, result_dict[param])
+
+                elif key in ['zenith', 'azimuth']:
+                    particle.dir = dataclasses.I3Direction(
+                        result_dict[self.i3_mapping['zenith']],
+                        result_dict[self.i3_mapping['azimuth']],
+                    )
+                else:
+                    setattr(particle, key, result_dict[param])
+
+            # set particle shape to infinite track even though this is not
+            # necessarily true. This will allow for visualization in steamshovel
+            particle.shape = dataclasses.I3Particle.InfiniteTrack
 
         # write covariance Matrices to frame
         if self.add_covariances:
@@ -436,7 +451,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         # save to frame
         frame[self.output_key] = result_dict
-        frame[self.output_key+'_I3Particle'] = particle
+        if self.i3_mapping:
+            frame[self.output_key+'_I3Particle'] = particle
 
         # push frame to next modules
         self.PushFrame(frame)

@@ -148,6 +148,18 @@ model_manager_settings: {
 
         # Path to where the manager will be saved to and loaded from
         'manager_dir': '../data/training/{unique_name}/manager',
+
+        # Define which model parameters to use for the I3Particle
+        # [x, y, z, zenith, azimuth, energy, time]
+        'I3ParticleMapping': {
+            'x': 'cascade_x',
+            'y': 'cascade_y',
+            'z': 'cascade_z',
+            'zenith': 'cascade_zenith',
+            'azimuth': 'cascade_azimuth',
+            'energy': 'cascade_energy',
+            'time': 'cascade_time',
+        },
     },
 }
 

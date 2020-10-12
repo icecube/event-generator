@@ -801,9 +801,10 @@ class SourceManager(BaseModelManager):
             spherical_indices = tuple()
         else:
             print('Using spherical indices for CRS2 Optimization!')
+            mapping = self.configuration.config['I3ParticleMapping']
             spherical_indices = [
-                [self.models[0].get_index('azimuth'),
-                 self.models[0].get_index('zenith')],
+                [self.models[0].get_index(mapping['azimuth']),
+                 self.models[0].get_index(mapping['zenith'])],
             ]
 
         # ----------------------
@@ -1294,6 +1295,9 @@ class SourceManager(BaseModelManager):
         reco_config = config['reconstruction_settings']
         minimize_in_trafo_space = reco_config['minimize_in_trafo_space']
 
+        # get mapping for zenith and azimuth
+        mapping = self.configuration.config['I3ParticleMapping']
+
         # get a list of parameters to fit
         fit_paramater_list = [reco_config['minimize_parameter_default_value']
                               for i in range(self.models[0].num_parameters)]
@@ -1592,8 +1596,8 @@ class SourceManager(BaseModelManager):
                 cov_sand_fit = results['covariance']['cov_sand_fit']
 
                 # save correlation between zenith and azimuth
-                zen_index = self.models[0].get_index('zenith')
-                azi_index = self.models[0].get_index('azimuth')
+                zen_index = self.models[0].get_index(mapping['zenith'])
+                azi_index = self.models[0].get_index(mapping['azimuth'])
 
                 cov_zen_azi_list.append(cov[zen_index, azi_index])
                 cov_fit_zen_azi_list.append(cov_fit[zen_index, azi_index])
@@ -1642,9 +1646,9 @@ class SourceManager(BaseModelManager):
 
                     param_counter = 0
                     for name in self.models[0].parameter_names:
-                        if name == 'azimuth':
+                        if name == mapping['azimuth']:
                             values = azi
-                        elif name == 'zenith':
+                        elif name == mapping['zenith']:
                             values = zen
                         else:
                             values = unc_results[:, param_counter]
