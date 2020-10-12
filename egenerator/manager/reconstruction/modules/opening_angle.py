@@ -76,7 +76,8 @@ class CircularizedAngularUncertainty:
         self.rng = np.random.RandomState(random_seed)
 
         # fit parameter list
-        self.mapping = self.manager.configuration.config['I3ParticleMapping']
+        self.mapping = self.manager.configuration.config['config'][
+            'I3ParticleMapping']
         self.zenith_index = self.manager.models[0].get_index(
             self.mapping['zenith'])
         self.azimuth_index = self.manager.models[0].get_index(

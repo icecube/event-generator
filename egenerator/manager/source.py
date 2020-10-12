@@ -801,7 +801,7 @@ class SourceManager(BaseModelManager):
             spherical_indices = tuple()
         else:
             print('Using spherical indices for CRS2 Optimization!')
-            mapping = self.configuration.config['I3ParticleMapping']
+            mapping = self.configuration.config['config']['I3ParticleMapping']
             spherical_indices = [
                 [self.models[0].get_index(mapping['azimuth']),
                  self.models[0].get_index(mapping['zenith'])],
@@ -1296,7 +1296,7 @@ class SourceManager(BaseModelManager):
         minimize_in_trafo_space = reco_config['minimize_in_trafo_space']
 
         # get mapping for zenith and azimuth
-        mapping = self.configuration.config['I3ParticleMapping']
+        mapping = self.configuration.config['config']['I3ParticleMapping']
 
         # get a list of parameters to fit
         fit_paramater_list = [reco_config['minimize_parameter_default_value']
