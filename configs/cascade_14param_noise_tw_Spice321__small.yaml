@@ -335,26 +335,26 @@ loss_module_settings: [
             'loss_function_name': 'negative_binomial_charge_pdf',
         },
     },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
-        config: {
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
+    #     config: {
 
-            # define uniform priors
-            'uniform_parameters': {
-                'cascade_energy_fraction_hadron': [0., 1.0],
-                'cascade_Absorption': [0.9, 1.1],
-                'cascade_AnisotropyScale': [0., 2.0],
-                'cascade_DOMEfficiency': [0.9, 1.1],
-                'cascade_Scattering': [0.9, 1.1],
-                'cascade_HoleIceForward_Unified_00': [-0.65, 0.60],
-                'cascade_HoleIceForward_Unified_01': [-0.08, 0.08],
-            },
+    #         # define uniform priors
+    #         'uniform_parameters': {
+    #             'cascade_energy_fraction_hadron': [0., 1.0],
+    #             'cascade_Absorption': [0.9, 1.1],
+    #             'cascade_AnisotropyScale': [0., 2.0],
+    #             'cascade_DOMEfficiency': [0.9, 1.1],
+    #             'cascade_Scattering': [0.9, 1.1],
+    #             'cascade_HoleIceForward_Unified_00': [-0.65, 0.60],
+    #             'cascade_HoleIceForward_Unified_01': [-0.08, 0.08],
+    #         },
 
-            # define fourier component sigmas
-            'sigmas': [],
-        },
-    },
+    #         # define fourier component sigmas
+    #         'sigmas': [],
+    #     },
+    # },
 ]
 
 #---------------------------
