@@ -317,7 +317,7 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': False,
+            'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'unbinned_pulse_time_llh',
         },
@@ -330,31 +330,31 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': False,
+            'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'negative_binomial_charge_pdf',
         },
     },
-    # {
-    #     # The loss module class to use
-    #     'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
-    #     config: {
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
+        config: {
 
-    #         # define uniform priors
-    #         'uniform_parameters': {
-    #             'cascade_energy_fraction_hadron': [0., 1.0],
-    #             'cascade_Absorption': [0.9, 1.1],
-    #             'cascade_AnisotropyScale': [0., 2.0],
-    #             'cascade_DOMEfficiency': [0.9, 1.1],
-    #             'cascade_Scattering': [0.9, 1.1],
-    #             'cascade_HoleIceForward_Unified_00': [-0.65, 0.60],
-    #             'cascade_HoleIceForward_Unified_01': [-0.08, 0.08],
-    #         },
+            # define uniform priors
+            'uniform_parameters': {
+                'cascade_energy_fraction_hadron': [0., 1.0],
+                'cascade_Absorption': [0.9, 1.1],
+                'cascade_AnisotropyScale': [0., 2.0],
+                'cascade_DOMEfficiency': [0.9, 1.1],
+                'cascade_Scattering': [0.9, 1.1],
+                'cascade_HoleIceForward_Unified_00': [-0.65, 0.60],
+                'cascade_HoleIceForward_Unified_01': [-0.08, 0.08],
+            },
 
-    #         # define fourier component sigmas
-    #         'sigmas': [],
-    #     },
-    # },
+            # define fourier component sigmas
+            'sigmas': [],
+        },
+    },
 ]
 
 #---------------------------
@@ -452,11 +452,11 @@ data_handler_settings: {
     # settings for the filter module
     'filter_settings':{
         'constraints': [
-            # # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
-            # ['SnowstormParameters', 3, '>=', -0.65],
-            # ['SnowstormParameters', 3, '<=', 0.60],
-            # ['SnowstormParameters', 4, '>=', -0.08],
-            # ['SnowstormParameters', 4, '<=', 0.08],
+            # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            ['SnowstormParameters', 3, '>=', -0.65],
+            ['SnowstormParameters', 3, '<=', 0.60],
+            ['SnowstormParameters', 4, '>=', -0.08],
+            ['SnowstormParameters', 4, '<=', 0.08],
         ],
     },
 }
