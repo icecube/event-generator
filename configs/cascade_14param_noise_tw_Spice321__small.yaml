@@ -25,7 +25,7 @@ training_settings: {
                     {
                     'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
                     'settings': {
-                        'initial_learning_rate': 0.001,
+                        'initial_learning_rate': 0.01,
                         'end_learning_rate': 0.001,
                         'decay_steps': 10000,
                         },
@@ -499,7 +499,7 @@ model_settings: {
                 'num_local_vars': 0,
                 'scale_charge': True,
                 'scale_charge_by_relative_dom_efficiency': True,
-                'scale_charge_by_global_dom_efficiency': True,
+                'scale_charge_by_global_dom_efficiency': False,
                 'prevent_mixture_component_swapping': False,
                 'estimate_charge_distribution': 'negative_binomial',
                 'num_latent_models': 10,
