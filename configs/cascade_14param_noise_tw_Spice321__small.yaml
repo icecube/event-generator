@@ -452,11 +452,11 @@ data_handler_settings: {
     # settings for the filter module
     'filter_settings':{
         'constraints': [
-            # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
-            ['SnowstormParameters', 3, '>=', -0.65],
-            ['SnowstormParameters', 3, '<=', 0.60],
-            ['SnowstormParameters', 4, '>=', -0.08],
-            ['SnowstormParameters', 4, '<=', 0.08],
+            # # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            # ['SnowstormParameters', 3, '>=', -0.65],
+            # ['SnowstormParameters', 3, '<=', 0.60],
+            # ['SnowstormParameters', 4, '>=', -0.08],
+            # ['SnowstormParameters', 4, '<=', 0.08],
         ],
     },
 }
