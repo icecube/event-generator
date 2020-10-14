@@ -9,7 +9,6 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
-from egenerator.data.tensor import DataTensorList, DataTensor
 
 
 class DataTransformer(BaseComponent):

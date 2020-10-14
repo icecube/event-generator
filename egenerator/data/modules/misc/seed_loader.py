@@ -153,7 +153,8 @@ class SeedLoaderMiscModule(BaseComponent):
         num_events_list = []
         missing_value = self.configuration.config['missing_value']
         missing_value_dict = self.configuration.config['missing_value_dict']
-        for seed_name in self.configuration.config['seed_names']:
+        for tensor in self.data['misc_tensors'].list:
+            seed_name = tensor.name
 
             seed_parameters = []
             try:
@@ -222,7 +223,8 @@ class SeedLoaderMiscModule(BaseComponent):
         num_events_list = []
         missing_value = self.configuration.config['missing_value']
         missing_value_dict = self.configuration.config['missing_value_dict']
-        for seed_name in self.configuration.config['seed_names']:
+        for tensor in self.data['misc_tensors'].list:
+            seed_name = tensor.name
 
             seed_parameters = []
             try:
