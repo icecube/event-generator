@@ -75,6 +75,7 @@ class ManagerConfigurator:
         # read in reconstruction config file
         setup_manager = SetupManager([reco_config_file])
         self.config = setup_manager.get_config()
+        data_handler_settings = self.config['data_handler_settings']
 
         # ------------------
         # Create loss module
@@ -108,14 +109,14 @@ class ManagerConfigurator:
             # to create a modified misc module
             modified_sub_components = {}
 
-        if not load_labels or 'modified_label_module' in reco_config:
+        if not load_labels or label_setting_updates:
             if not load_labels:
                 label_config = {
                     'label_module': 'dummy.DummyLabelModule',
                     'label_settings': {},
                 }
             else:
-                label_config = reco_config['modified_label_module']
+                label_config = dict(data_handler_settings)
                 label_config['label_settings'].update(label_setting_updates)
 
             LabelModuleClass = misc.load_class(
@@ -133,8 +134,9 @@ class ManagerConfigurator:
                     'label_module': label_module
                 }
 
-        if 'modified_data_module' in reco_config:
-            data_config = reco_config['modified_data_module']
+        if data_setting_updates:
+            data_config = dict(data_handler_settings)
+
             DataModuleClass = misc.load_class(
                 'egenerator.data.modules.data.{}'.format(
                             data_config['data_module']))
