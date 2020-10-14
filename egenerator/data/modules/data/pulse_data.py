@@ -590,10 +590,15 @@ class PulseDataModule(BaseComponent):
                     # gather pulse ids (batch index, string, dom)
                     x_time_exclusions_ids.append([index, string-1, dom-1])
 
-            x_time_exclusions = np.array(
-                x_time_exclusions, dtype=self.data['np_float_precision'])
-            x_time_exclusions_ids = np.array(
-                x_time_exclusions_ids, dtype=np.int32)
+            if x_time_exclusions:
+                x_time_exclusions = np.array(
+                    x_time_exclusions, dtype=self.data['np_float_precision'])
+                x_time_exclusions_ids = np.array(
+                    x_time_exclusions_ids, dtype=np.int32)
+            else:
+                x_time_exclusions = np.empty(
+                    (0, 2), dtype=self.data['np_float_precision'])
+                x_time_exclusions_ids = np.empty((0, 3), dtype=np.int32)
 
         # ------------------
         # get dom exclusions
