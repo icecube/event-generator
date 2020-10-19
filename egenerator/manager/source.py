@@ -1054,14 +1054,8 @@ class SourceManager(BaseModelManager):
             x0 = seed_array_trafo[:, fit_paramater_list]
 
         # convert to tensors
-        seed_array = tf.reshape(tf.convert_to_tensor(
-            seed_array, dtype=parameter_dtype), param_shape_full)
-        data_batch = self.data_handler.convert_data_to_tensor(data_batch)
-
         def const_loss_and_gradients_function(x):
             # convert to tensors
-            x = tf.reshape(tf.convert_to_tensor(
-                x, dtype=parameter_dtype), param_shape)
             loss, grad = loss_and_gradients_function(
                 x, data_batch, seed_array)
             loss = tf.reshape(loss, [1])
@@ -1072,10 +1066,12 @@ class SourceManager(BaseModelManager):
                 'Use of Hessian currently not implemented')
 
         optimizer = getattr(tfp.optimizer, method)
-        otpim_results = optimizer(
+        optim_results = optimizer(
             value_and_gradients_function=const_loss_and_gradients_function,
-            initial_position=x0)
-        return otpim_results.position, otpim_results
+            initial_position=x0,
+            **kwargs
+        )
+        return optim_results.position, optim_results
 
     def run_mcmc_on_events(self, initial_position, data_batch, loss_module,
                            parameter_loss_function,
