@@ -499,7 +499,7 @@ model_settings: {
                 'num_local_vars': 0,
                 'scale_charge': True,
                 'scale_charge_by_relative_dom_efficiency': True,
-                'scale_charge_by_global_dom_efficiency': False,
+                'scale_charge_by_global_dom_efficiency': True,
                 'prevent_mixture_component_swapping': False,
                 'estimate_charge_distribution': 'negative_binomial',
                 'num_latent_models': 10,
