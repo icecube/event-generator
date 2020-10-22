@@ -327,6 +327,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
+                scipy_optimizer_settings=self.scipy_optimizer_settings,
             )
 
     def Physics(self, frame):
