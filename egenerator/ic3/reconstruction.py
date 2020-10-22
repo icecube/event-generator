@@ -126,7 +126,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'scipy')
         self.AddParameter('scipy_optimizer_settings',
                           'Only relevant if `reco_optimizer_interface` is set '
-                          ' to "scipy". '
+                          ' to "scipy" and/or for `add_circular_err`. '
                           'Defines settings for scipy optimizer',
                           {'method': 'BFGS'})
         self.AddParameter('tf_optimizer_settings',
