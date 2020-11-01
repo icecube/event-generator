@@ -147,13 +147,20 @@ def main(config_files, reco_config_file=None):
             }
 
     # load models from config files
+    if 'restore_manager' in reco_config:
+        print('Restoring Manager from file')
+        restore_manager = reco_config['restore_manager']
+    else:
+        print('Rebuilding Manager from scratch (hopefully loading models)')
+        restore_manager = False
+
     models = []
     for config_file in config_files:
 
         # load manager objects and extract models and a data_handler
         model_manger,  _, data_handler, data_transformer = build_manager(
             SetupManager([config_file]).get_config(),
-            restore=True,
+            restore=restore_manager,
             modified_sub_components=deepcopy(modified_sub_components),
             allow_rebuild_base_sources=False,
         )
