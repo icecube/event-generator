@@ -57,7 +57,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
             raise ValueError(msg.format(base_sources.keys()))
 
         sources = {}
-        parameters = ['x', 'y', 'z', 'zenith', 'azimuth', 'time', 'energy']
+        parameters = ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time']
         for index in range(1, self._untracked_data['num_cascades']):
             cascade_name = 'cascade_{:05d}'.format(index)
             parameters.append(cascade_name + '_energy')
