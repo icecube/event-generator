@@ -17,7 +17,8 @@ class StartingVariableMultiCascadeModel(MultiSource):
             The logger to use.
         """
         self._logger = logger or logging.getLogger(__name__)
-        super(DefaultMultiCascadeModel, self).__init__(logger=self._logger)
+        super(StartingVariableMultiCascadeModel, self).__init__(
+            logger=self._logger)
 
     def get_parameters_and_mapping(self, config, base_sources):
         """Get parameter names and their ordering as well as source mapping.
