@@ -73,7 +73,6 @@ training_settings: {
 # Reconstruction settings
 #------------------------
 reconstruction_settings: {
-    'restore_manager': False,
     'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
 
     # Define which modules to run
