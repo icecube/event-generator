@@ -8,7 +8,7 @@ class IndependentMultiSource(MultiSource):
 
     """This is a MultiSource that assumes that the parameters of each of its
     sources are independent, e.g. there are no constraints on the source
-    paramters.
+    parameters.
     """
 
     def __init__(self, logger=None):
@@ -31,7 +31,12 @@ class IndependentMultiSource(MultiSource):
         Parameters
         ----------
         config : dict
-            A dictionary of settings.
+            A dictionary of settings. The config must contain a 'sources'
+            dictionary with the following structure:
+                'sources': {
+                    'independent_source1': base_source_name_a,
+                    'independent_source2': base_source_name_b,
+                }
         base_sources : dict of Source objects
             A dictionary of sources. These sources are used as a basis for
             the MultiSource object. The event hypothesis can be made up of
@@ -57,7 +62,7 @@ class IndependentMultiSource(MultiSource):
         parameters = []
         for cascade in sorted(sources.keys()):
             base = sources[cascade]
-            for variable in sorted(base_sources[base].parameter_names):
+            for variable in base_sources[base].parameter_names:
                 parameters.append(cascade + '_' + variable)
         return parameters, sources
 

@@ -767,6 +767,18 @@ class BaseDataHandler(BaseComponent):
                             data_batch_queue.put((num_events, data))
                         else:
 
+                            """
+                            Note: num_splits is currently broken!
+
+                            Not all data tensors are provided in a format
+                            where the first axis is the batch dimension!
+                            That means that splitting has to be more complex
+                            to make sure the correct pulses are kept for each
+                            event
+                            """
+                            raise NotImplementedError(
+                                'num_splits currently not supported')
+
                             # split data into several smaller chunks
                             # (Multiprocessing queue can only handle
                             #  a certain size)
@@ -913,7 +925,7 @@ class BaseDataHandler(BaseComponent):
                                     batch[i].append(event_list[i][index])
                                 else:
                                     # correct batch index for vector indices
-                                    indices = event_list[i][index]
+                                    indices = np.array(event_list[i][index])
                                     indices[:, 0] = size
                                     batch[i].append(indices)
                             else:

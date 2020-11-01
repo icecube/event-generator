@@ -161,6 +161,8 @@ class Reconstruction:
                     minimizer_kwargs=scipy_optimizer_settings)
 
         elif reco_optimizer_interface.lower() == 'tfp':
+            @tf.function(
+                input_signature=(data_batch_signature, param_signature_full))
             def reconstruction_method(data_batch, seed_tensor):
                 return manager.tf_reconstruct_events(
                     data_batch, loss_module,

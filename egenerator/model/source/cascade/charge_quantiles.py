@@ -1,6 +1,7 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
+import tensorflow_probability as tfp
 import numpy as np
 
 from tfscripts import layers as tfs
@@ -395,10 +396,11 @@ class ChargeQuantileCascadeModel(Source):
             dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.9
 
             # set default value to poisson uncertainty
-            dom_charges_sigma = tf.sqrt(tf.clip_by_value(
-                dom_charges,
-                0.0001,
-                float('inf'))) * sigma_scale
+            dom_charges_sigma = tf.sqrt(
+                tfp.math.clip_by_value_preserve_gradient(
+                    dom_charges,
+                    0.0001,
+                    float('inf'))) * sigma_scale
 
             # set threshold under which a Poisson Likelihood is used
             charge_threshold = 5

@@ -801,9 +801,10 @@ class SourceManager(BaseModelManager):
             spherical_indices = tuple()
         else:
             print('Using spherical indices for CRS2 Optimization!')
+            mapping = self.configuration.config['config']['I3ParticleMapping']
             spherical_indices = [
-                [self.models[0].get_index('azimuth'),
-                 self.models[0].get_index('zenith')],
+                [self.models[0].get_index(mapping['azimuth']),
+                 self.models[0].get_index(mapping['zenith'])],
             ]
 
         # ----------------------
@@ -1053,14 +1054,8 @@ class SourceManager(BaseModelManager):
             x0 = seed_array_trafo[:, fit_paramater_list]
 
         # convert to tensors
-        seed_array = tf.reshape(tf.convert_to_tensor(
-            seed_array, dtype=parameter_dtype), param_shape_full)
-        data_batch = self.data_handler.convert_data_to_tensor(data_batch)
-
         def const_loss_and_gradients_function(x):
             # convert to tensors
-            x = tf.reshape(tf.convert_to_tensor(
-                x, dtype=parameter_dtype), param_shape)
             loss, grad = loss_and_gradients_function(
                 x, data_batch, seed_array)
             loss = tf.reshape(loss, [1])
@@ -1071,10 +1066,12 @@ class SourceManager(BaseModelManager):
                 'Use of Hessian currently not implemented')
 
         optimizer = getattr(tfp.optimizer, method)
-        otpim_results = optimizer(
+        optim_results = optimizer(
             value_and_gradients_function=const_loss_and_gradients_function,
-            initial_position=x0)
-        return otpim_results.position, otpim_results
+            initial_position=x0,
+            **kwargs
+        )
+        return optim_results.position, optim_results
 
     def run_mcmc_on_events(self, initial_position, data_batch, loss_module,
                            parameter_loss_function,
@@ -1293,6 +1290,9 @@ class SourceManager(BaseModelManager):
         # get reconstruction config
         reco_config = config['reconstruction_settings']
         minimize_in_trafo_space = reco_config['minimize_in_trafo_space']
+
+        # get mapping for zenith and azimuth
+        mapping = self.configuration.config['config']['I3ParticleMapping']
 
         # get a list of parameters to fit
         fit_paramater_list = [reco_config['minimize_parameter_default_value']
@@ -1592,8 +1592,8 @@ class SourceManager(BaseModelManager):
                 cov_sand_fit = results['covariance']['cov_sand_fit']
 
                 # save correlation between zenith and azimuth
-                zen_index = self.models[0].get_index('zenith')
-                azi_index = self.models[0].get_index('azimuth')
+                zen_index = self.models[0].get_index(mapping['zenith'])
+                azi_index = self.models[0].get_index(mapping['azimuth'])
 
                 cov_zen_azi_list.append(cov[zen_index, azi_index])
                 cov_fit_zen_azi_list.append(cov_fit[zen_index, azi_index])
@@ -1642,9 +1642,9 @@ class SourceManager(BaseModelManager):
 
                     param_counter = 0
                     for name in self.models[0].parameter_names:
-                        if name == 'azimuth':
+                        if name == mapping['azimuth']:
                             values = azi
-                        elif name == 'zenith':
+                        elif name == mapping['zenith']:
                             values = zen
                         else:
                             values = unc_results[:, param_counter]
