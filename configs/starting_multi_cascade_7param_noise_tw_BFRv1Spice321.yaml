@@ -400,7 +400,7 @@ data_handler_settings: {
         'trafo_log': [False, False, False, False, False, True, False,
                       True, False],
         'label_key': 'EventGeneratorMultiCascadeLabels',
-        'additional_labels': ['cascade_00001_energy', 'cascade_00001_distance']
+        'additional_labels': ['cascade_00001_energy', 'cascade_00001_distance'],
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 0,
         'float_precision': 'float32',
