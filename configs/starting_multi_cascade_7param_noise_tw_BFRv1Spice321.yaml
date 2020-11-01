@@ -195,7 +195,7 @@ data_iterator_settings: {
         'num_jobs': 20,
         'num_add_files': 1,
         'num_repetitions': 1,
-        'pick_random_files_forever': False,
+        'pick_random_files_forever': True,
         'input_data': [
             # Multi-Cascade Simulation
             '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
