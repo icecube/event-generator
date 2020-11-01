@@ -322,6 +322,7 @@ class MultiSource(Source):
 
             @tf.function(input_signature=input_signature)
             def concrete_function(data_batch_dict_i):
+                print('Tracing multi-source base: {}'.format(base))
                 return base_source.get_tensors(
                                 data_batch_dict_i,
                                 is_training=is_training,

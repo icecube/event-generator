@@ -268,7 +268,7 @@ def tf_asymmetric_gauss_ppf(q, mu, sigma, r):
     tf.Tensor
         The asymmetric Gaussian PPF evaluated at q
     """
-    return np.where(q < 1. / (r + 1),
+    return tf.where(q < 1. / (r + 1),
                     mu + np.sqrt(2) * sigma * tf.math.erfinv(q*(r+1) - 1),
                     mu + r*np.sqrt(2)*sigma * tf.math.erfinv((q*(r+1) - 1)/r),
                     )
