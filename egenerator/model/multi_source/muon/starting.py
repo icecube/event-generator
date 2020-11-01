@@ -56,7 +56,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
             msg = "Expected only 'cascade' base, but got {!r}"
             raise ValueError(msg.format(base_sources.keys()))
 
-        sources = {}
+        sources = {'starting_cascade': 'cascade'}
         parameters = ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time']
         for index in range(1, self._untracked_data['num_cascades']):
             cascade_name = 'cascade_{:05d}'.format(index)
@@ -92,6 +92,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
         zenith = parameters.params['zenith']
         azimuth = parameters.params['azimuth']
         time = parameters.params['time']
+        energy = parameters.params['energy']
 
         # calculate direction vector
         dir_x = -tf.sin(zenith) * tf.cos(azimuth)
@@ -101,18 +102,25 @@ class StartingVariableMultiCascadeModel(MultiSource):
         source_parameter_dict = {}
         for cascade in self._untracked_data['sources'].keys():
 
-            dist = parameters.params[cascade + '_distance']
-            cascade_energy = parameters.params[cascade + '_energy']
+            if cascade == 'starting_cascade':
+                source_parameter_dict[cascade] = tf.stack(
+                    [x, y, z, zenith, azimuth, energy, time],
+                    axis=1,
+                )
 
-            # calculate position and time of cascade
-            cascade_x = x + dist * dir_x
-            cascade_y = y + dist * dir_y
-            cascade_z = z + dist * dir_z
-            cascade_time = time + dist / c
+            else:
+                dist = parameters.params[cascade + '_distance']
+                cascade_energy = parameters.params[cascade + '_energy']
 
-            source_parameter_dict[cascade] = tf.stack([
-                cascade_x, cascade_y, cascade_z,
-                zenith, azimuth, cascade_energy, cascade_time],
-                axis=1)
+                # calculate position and time of cascade
+                cascade_x = x + dist * dir_x
+                cascade_y = y + dist * dir_y
+                cascade_z = z + dist * dir_z
+                cascade_time = time + dist / c
+
+                source_parameter_dict[cascade] = tf.stack([
+                    cascade_x, cascade_y, cascade_z,
+                    zenith, azimuth, cascade_energy, cascade_time],
+                    axis=1)
 
         return source_parameter_dict
