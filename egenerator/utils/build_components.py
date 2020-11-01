@@ -75,14 +75,16 @@ def build_loss_module(config):
     return loss_module
 
 
-def build_model(config, data_transformer, allow_rebuild_base_sources=False):
+def build_model(model_settings, data_transformer,
+                allow_rebuild_base_sources=False):
     """Build a Model object
 
     Parameters
     ----------
-    config : dict
-        A dictionary containg the settings. Must at least contain the key
-        `model_settings` which defines the model
+    model_settings : dict
+        A dictionary containg the model settings. Must at least contain
+        `model_class`, `config` and if this is a multi-source:
+        `multi_source_bases`.
     data_transformer : DataTransformer object
         The data transformer object to use for the model.
     allow_rebuild_base_sources : bool, optional
@@ -100,7 +102,6 @@ def build_model(config, data_transformer, allow_rebuild_base_sources=False):
     ValueError
         Description
     """
-    model_settings = config['model_settings']
 
     # check if base sources need to be built:
     base_sources = {}
@@ -126,15 +127,25 @@ def build_model(config, data_transformer, allow_rebuild_base_sources=False):
                     msg += "setting, set 'allow_rebuild_base_sources' to True."
                     raise ValueError(msg)
 
-                # check if the base model has its own data transformer defined
-                if 'data_trafo_settings' in settings:
-                    data_transformer_base = DataTransformer()
-                    data_transformer_base.load(
-                        settings['data_trafo_settings']['model_dir'])
+                # if this multi source base is a nested multi source
+                # with sub sources, we need to recursively build them
+                if 'multi_source_bases' in settings:
+                    base_source = build_model(
+                        model_settings=settings,
+                        data_transformer=data_transformer,
+                        allow_rebuild_base_sources=allow_rebuild_base_sources,
+                    )
                 else:
-                    data_transformer_base = data_transformer
-                base_source.configure(config=settings['config'],
-                                      data_trafo=data_transformer_base)
+
+                    # check if the base model has its own data transformer defined
+                    if 'data_trafo_settings' in settings:
+                        data_transformer_base = DataTransformer()
+                        data_transformer_base.load(
+                            settings['data_trafo_settings']['model_dir'])
+                    else:
+                        data_transformer_base = data_transformer
+                    base_source.configure(config=settings['config'],
+                                          data_trafo=data_transformer_base)
 
             base_sources[name] = base_source
 
@@ -223,7 +234,7 @@ def build_manager(config, restore,
         # -----------------------
         if models is None:
             model = build_model(
-                config,
+                config['model_settings'],
                 data_transformer=data_transformer,
                 allow_rebuild_base_sources=allow_rebuild_base_sources,
             )
