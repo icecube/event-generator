@@ -127,7 +127,6 @@ class StartingVariableMultiCascadeModel(MultiSource):
                 cascade_energy = tf.where(tf.abs(cascade_z) > d_thresh,
                                           cascade_energy*0., cascade_energy)
 
-
                 source_parameter_dict[cascade] = tf.stack([
                     cascade_x, cascade_y, cascade_z,
                     zenith, azimuth, cascade_energy, cascade_time],

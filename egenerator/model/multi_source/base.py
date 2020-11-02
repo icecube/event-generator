@@ -298,6 +298,7 @@ class MultiSource(Source):
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
+        source_names = sorted(self._untracked_data['sources'].keys())
 
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
@@ -328,7 +329,25 @@ class MultiSource(Source):
                                 is_training=is_training,
                                 parameter_tensor_name='x_parameters')
             concrete_get_tensors_funcs[base] = concrete_function
-        # -----------------------------------------------
+
+        # --------------------------------------
+        # Get input tensors for each base source
+        # --------------------------------------
+        base_parameter_tensors = {
+            [] for b in set(self._untracked_data['sources'].values())}
+
+        for source_name in source_names:
+
+            # get input parameters for Source i
+            base = self._untracked_data['sources'][source_name]
+            base_parameter_tensors[base].append(source_parameters[source_name])
+
+        for base in set(self._untracked_data['sources'].values()):
+            base_parameter_tensors[base] = tf.concat(
+                base_parameter_tensors[base], axis=0,
+            )
+            print(base, base_parameter_tensors[base])
+        # --------------------------------------
 
         dom_charges = None
         dom_charges_variance = None
