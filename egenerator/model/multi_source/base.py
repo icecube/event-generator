@@ -333,36 +333,41 @@ class MultiSource(Source):
         # --------------------------------------
         # Get input tensors for each base source
         # --------------------------------------
-        base_parameter_tensors = {
-            b: [] for b in set(self._untracked_data['sources'].values())}
+        base_parameter_tensors = {}
+        base_parameter_count = {}
+        for base in set(self._untracked_data['sources'].values()):
+            base_parameter_tensors[base] = []
+            base_parameter_count[base] = 0
 
         for source_name in source_names:
 
             # get input parameters for Source i
             base = self._untracked_data['sources'][source_name]
             base_parameter_tensors[base].append(source_parameters[source_name])
+            base_parameter_count[base] += 1
+            print(base, base_parameter_count[base], source_parameters[source_name])
 
+        # concatenate tensors: [n_sources * n_batch, ...]
         for base in set(self._untracked_data['sources'].values()):
             base_parameter_tensors[base] = tf.concat(
                 base_parameter_tensors[base], axis=0,
             )
-            print(base, base_parameter_tensors[base])
         # --------------------------------------
 
         dom_charges = None
         dom_charges_variance = None
         dom_cdf_exclusion_sum = None
         pulse_pdf = None
-        for name, base in self._untracked_data['sources'].items():
+        for base in set(self._untracked_data['sources'].values()):
 
             # get the base source
             sub_component = self.sub_components[base]
 
-            # get input parameters for Source i
-            parameters_i = source_parameters[name]
+            # get input parameters for base source i
+            parameters_i = base_parameter_tensors[base]
             parameters_i = sub_component.add_parameter_indexing(parameters_i)
 
-            # Get expected DOM charge and Likelihood evaluations for source i
+            # Get expected DOM charge and Likelihood evaluations for base i
             data_batch_dict_i = {'x_parameters': parameters_i}
             for key, values in data_batch_dict.items():
                 if key != 'x_parameters':
@@ -371,6 +376,7 @@ class MultiSource(Source):
             result_tensors_i = concrete_get_tensors_funcs[base](
                                                             data_batch_dict_i)
 
+            # shape: [n_sources * n_batch, ...]
             dom_charges_i = result_tensors_i['dom_charges']
             dom_charges_variance_i = result_tensors_i['dom_charges_variance']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
@@ -395,31 +401,55 @@ class MultiSource(Source):
                     raise ValueError(msg.format(
                         name, base, dom_cdf_exclusion_sum_i.shape))
 
+            # reshape to: [n_sources, n_batch, 86, 60, 1]
+            n_sources = base_parameter_count[base]
+            dom_charges_i = tf.reshape(
+                dom_charges_i, [n_sources, None, 86, 60, 1])
+            dom_charges_variance_i = tf.reshape(
+                dom_charges_variance_i, [n_sources, None, 86, 60, 1])
+
+            # reshape to: [n_sources, n_pulses]
+            pulse_pdf_i = tf.reshape(
+                pulse_pdf_i, [n_sources, None])
+
+            if time_exclusions_exist:
+                dom_cdf_exclusion_sum_i = tf.reshape(
+                    dom_cdf_exclusion_sum_i, [n_sources, None, 86, 60, 1])
+
             # accumulate charge
             # (assumes that sources are linear and independent)
             if dom_charges is None:
-                dom_charges = dom_charges_i
-                dom_charges_variance = dom_charges_variance_i
+                dom_charges = tf.reduce_sum(dom_charges_i, axis=0)
+                dom_charges_variance = tf.reduce_sum(
+                    dom_charges_variance_i, axis=0)
                 if time_exclusions_exist:
-                    dom_cdf_exclusion_sum = (
+                    dom_cdf_exclusion_sum = tf.reduce_sum((
                         dom_cdf_exclusion_sum_i * dom_charges_i
-                    )
+                    ), axis=0)
             else:
-                dom_charges += dom_charges_i
-                dom_charges_variance += dom_charges_variance_i
+                dom_charges += tf.reduce_sum(dom_charges_i, axis=0)
+                dom_charges_variance += tf.reduce_sum(
+                    dom_charges_variance_i, axis=0)
                 if time_exclusions_exist:
-                    dom_cdf_exclusion_sum += (
+                    dom_cdf_exclusion_sum += tf.reduce_sum((
                         dom_cdf_exclusion_sum_i * dom_charges_i
-                    )
+                    ), axis=0)
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
-            pulse_weight_i = tf.gather_nd(tf.squeeze(dom_charges_i, axis=3),
-                                          pulses_ids)
+            pulse_weight_i = tf.gather_nd(
+                # shape: [n_sources, n_batch, 86, 60]
+                tf.squeeze(dom_charges_i, axis=3),
+                # shape: [n_sources, None, 3], indexes to [b_i, s_i, d_i]
+                tf.broadcast_to(pulses_ids, [n_sources, None, 3]),
+                batch_dims=1,
+            )
             if pulse_pdf is None:
-                pulse_pdf = pulse_pdf_i * pulse_weight_i
+                pulse_pdf = tf.reduce_sum(
+                    pulse_pdf_i * pulse_weight_i, axis=0)
             else:
-                pulse_pdf += pulse_pdf_i * pulse_weight_i
+                pulse_pdf += tf.reduce_sum(
+                    pulse_pdf_i * pulse_weight_i, axis=0)
 
         # normalize pulse_pdf values: divide by total charge at DOM
         pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
