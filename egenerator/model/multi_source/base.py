@@ -334,7 +334,7 @@ class MultiSource(Source):
         # Get input tensors for each base source
         # --------------------------------------
         base_parameter_tensors = {
-            [] for b in set(self._untracked_data['sources'].values())}
+            b: [] for b in set(self._untracked_data['sources'].values())}
 
         for source_name in source_names:
 
