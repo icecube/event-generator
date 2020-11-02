@@ -439,7 +439,7 @@ class MultiSource(Source):
             # (reweight by fraction of charge of source i vs total DOM charge)
             pulse_weight_i = tf.gather_nd(
                 # shape: [n_sources, n_batch, 86, 60]
-                tf.squeeze(dom_charges_i, axis=3),
+                tf.squeeze(dom_charges_i, axis=4),
                 # shape: [n_sources, None, 3], indexes to [b_i, s_i, d_i]
                 tf.broadcast_to(pulses_ids, [n_sources, -1, 3]),
                 batch_dims=1,
