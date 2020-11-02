@@ -404,17 +404,17 @@ class MultiSource(Source):
             # reshape to: [n_sources, n_batch, 86, 60, 1]
             n_sources = base_parameter_count[base]
             dom_charges_i = tf.reshape(
-                dom_charges_i, [n_sources, None, 86, 60, 1])
+                dom_charges_i, [n_sources, -1, 86, 60, 1])
             dom_charges_variance_i = tf.reshape(
-                dom_charges_variance_i, [n_sources, None, 86, 60, 1])
+                dom_charges_variance_i, [n_sources, -1, 86, 60, 1])
 
             # reshape to: [n_sources, n_pulses]
             pulse_pdf_i = tf.reshape(
-                pulse_pdf_i, [n_sources, None])
+                pulse_pdf_i, [n_sources, -1])
 
             if time_exclusions_exist:
                 dom_cdf_exclusion_sum_i = tf.reshape(
-                    dom_cdf_exclusion_sum_i, [n_sources, None, 86, 60, 1])
+                    dom_cdf_exclusion_sum_i, [n_sources, -1, 86, 60, 1])
 
             # accumulate charge
             # (assumes that sources are linear and independent)
@@ -441,7 +441,7 @@ class MultiSource(Source):
                 # shape: [n_sources, n_batch, 86, 60]
                 tf.squeeze(dom_charges_i, axis=3),
                 # shape: [n_sources, None, 3], indexes to [b_i, s_i, d_i]
-                tf.broadcast_to(pulses_ids, [n_sources, None, 3]),
+                tf.broadcast_to(pulses_ids, [n_sources, -1, 3]),
                 batch_dims=1,
             )
             if pulse_pdf is None:
