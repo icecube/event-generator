@@ -373,35 +373,40 @@ class MultiSource(Source):
 
             # create pulses, time windows and ids for each added
             # source batch dimension
-            x_pulses_ids_i = []
-            if time_exclusions_exist:
-                x_time_exclusions_ids_i = []
-
-            for i in range(n_sources):
-                offset = [[i*n_events, 0, 0]]
-                x_pulses_ids_i.append(pulses_ids + offset)
+            if n_sources > 1:
+                x_pulses_ids_i = []
                 if time_exclusions_exist:
-                    x_time_exclusions_ids_i.append(tws_ids + offset)
+                    x_time_exclusions_ids_i = []
 
-            # put tensors together
-            x_pulses_i = tf.tile(pulses, multiples=[n_sources, 1])
-            x_pulses_ids_i = tf.concat(x_pulses_ids_i, axis=0)
-            if time_exclusions_exist:
-                x_time_exclusions_i = tf.tile(tws, multiples=[n_sources, 1])
-                x_time_exclusions_ids_i = tf.concat(
-                    x_time_exclusions_ids_i, axis=0)
+                for i in range(n_sources):
+                    offset = [[i*n_events, 0, 0]]
+                    x_pulses_ids_i.append(pulses_ids + offset)
+                    if time_exclusions_exist:
+                        x_time_exclusions_ids_i.append(tws_ids + offset)
 
-            # Get expected DOM charge and Likelihood evaluations for base i
-            data_batch_dict_i = {
-                'x_parameters': parameters_i,
-                'x_pulses': x_pulses_i,
-                'x_pulses_ids': x_pulses_ids_i,
-            }
-            if time_exclusions_exist:
-                data_batch_dict_i.update({
-                    'x_time_exclusions': x_time_exclusions_i,
-                    'x_time_exclusions_ids': x_time_exclusions_ids_i,
-                })
+                # put tensors together
+                x_pulses_i = tf.tile(pulses, multiples=[n_sources, 1])
+                x_pulses_ids_i = tf.concat(x_pulses_ids_i, axis=0)
+                if time_exclusions_exist:
+                    x_time_exclusions_i = tf.tile(tws, multiples=[n_sources, 1])
+                    x_time_exclusions_ids_i = tf.concat(
+                        x_time_exclusions_ids_i, axis=0)
+
+                # Get expected DOM charge and Likelihood evaluations for base i
+                data_batch_dict_i = {
+                    'x_parameters': parameters_i,
+                    'x_pulses': x_pulses_i,
+                    'x_pulses_ids': x_pulses_ids_i,
+                }
+                if time_exclusions_exist:
+                    data_batch_dict_i.update({
+                        'x_time_exclusions': x_time_exclusions_i,
+                        'x_time_exclusions_ids': x_time_exclusions_ids_i,
+                    })
+            else:
+                data_batch_dict_i = {'x_parameters': parameters_i}
+                x_pulses_ids_i = pulses_ids
+
             set_keys = data_batch_dict_i.keys()
 
             for key, values in data_batch_dict.items():
