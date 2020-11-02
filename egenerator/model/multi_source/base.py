@@ -475,7 +475,7 @@ class MultiSource(Source):
                 # shape: [n_sources * n_batch, 86, 60]
                 tf.squeeze(result_tensors_i['dom_charges'], axis=3),
                 # shape: [n_sources * n_pulses, 3], indexes to [b_i, s_i, d_i]
-                pulses_ids_i
+                x_pulses_ids_i
             )
             # reshape to: [n_sources, n_pulses]
             pulse_weight_i = tf.reshape(
