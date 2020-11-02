@@ -299,6 +299,7 @@ class MultiSource(Source):
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
         source_names = sorted(self._untracked_data['sources'].keys())
+        n_events = tf.shape(data_batch_dict['x_dom_charge'])[0]
 
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
@@ -308,6 +309,8 @@ class MultiSource(Source):
         if ('x_time_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_time_exclusions')].exists):
             time_exclusions_exist = True
+            tws = data_batch_dict['x_time_exclusions']
+            tws_ids = data_batch_dict['x_time_exclusions_ids']
         else:
             time_exclusions_exist = False
 
@@ -361,16 +364,48 @@ class MultiSource(Source):
         for base in set(self._untracked_data['sources'].values()):
 
             # get the base source
+            n_sources = base_parameter_count[base]
             sub_component = self.sub_components[base]
 
             # get input parameters for base source i
             parameters_i = base_parameter_tensors[base]
             parameters_i = sub_component.add_parameter_indexing(parameters_i)
 
+            # create pulses, time windows and ids for each added
+            # source batch dimension
+            x_pulses_ids_i = []
+            if time_exclusions_exist:
+                x_time_exclusions_ids_i = []
+
+            for i in range(n_sources):
+                offset = [[i*n_events, 0, 0]]
+                x_pulses_ids_i.append(pulses_ids + offset)
+                if time_exclusions_exist:
+                    x_time_exclusions_ids_i.append(tws_ids + offset)
+
+            # put tensors together
+            x_pulses_i = tf.tile(pulses, multiples=[n_sources, 1])
+            x_pulses_ids_i = tf.concat(x_pulses_ids_i, axis=0)
+            if time_exclusions_exist:
+                x_time_exclusions_i = tf.tile(tws, multiples=[n_sources, 1])
+                x_time_exclusions_ids_i = tf.concat(
+                    x_time_exclusions_ids_i, axis=0)
+
             # Get expected DOM charge and Likelihood evaluations for base i
-            data_batch_dict_i = {'x_parameters': parameters_i}
+            data_batch_dict_i = {
+                'x_parameters': parameters_i,
+                'x_pulses': x_pulses_i,
+                'x_pulses_ids': x_pulses_ids_i,
+            }
+            if time_exclusions_exist:
+                data_batch_dict_i.update({
+                    'x_time_exclusions': x_time_exclusions_i,
+                    'x_time_exclusions_ids': x_time_exclusions_ids_i,
+                })
+            set_keys = data_batch_dict.keys()
+
             for key, values in data_batch_dict.items():
-                if key != 'x_parameters':
+                if key not in set_keys:
                     data_batch_dict_i[key] = values
 
             result_tensors_i = concrete_get_tensors_funcs[base](
@@ -402,7 +437,6 @@ class MultiSource(Source):
                         name, base, dom_cdf_exclusion_sum_i.shape))
 
             # reshape to: [n_sources, n_batch, 86, 60, 1]
-            n_sources = base_parameter_count[base]
             dom_charges_i = tf.reshape(
                 dom_charges_i, [n_sources, -1, 86, 60, 1])
             dom_charges_variance_i = tf.reshape(
@@ -438,13 +472,15 @@ class MultiSource(Source):
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
             pulse_weight_i = tf.gather_nd(
-                # shape: [n_sources, n_batch, 86, 60]
-                tf.squeeze(dom_charges_i, axis=4),
-                # shape: [n_sources, n_pulses, 3], indexes to [b_i, s_i, d_i]
-                tf.broadcast_to(
-                    pulses_ids, [n_sources, tf.shape(pulses_ids)[0], 3]),
-                batch_dims=1,
+                # shape: [n_sources * n_batch, 86, 60]
+                tf.squeeze(result_tensors_i['dom_charges'], axis=3),
+                # shape: [n_sources * n_pulses, 3], indexes to [b_i, s_i, d_i]
+                pulses_ids_i
             )
+            # reshape to: [n_sources, n_pulses]
+            pulse_weight_i = tf.reshape(
+                pulse_weight_i, [n_sources, -1])
+
             if pulse_pdf is None:
                 pulse_pdf = tf.reduce_sum(
                     pulse_pdf_i * pulse_weight_i, axis=0)
