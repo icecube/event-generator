@@ -402,7 +402,7 @@ class MultiSource(Source):
                     'x_time_exclusions': x_time_exclusions_i,
                     'x_time_exclusions_ids': x_time_exclusions_ids_i,
                 })
-            set_keys = data_batch_dict.keys()
+            set_keys = data_batch_dict_i.keys()
 
             for key, values in data_batch_dict.items():
                 if key not in set_keys:
