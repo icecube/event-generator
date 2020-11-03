@@ -523,7 +523,10 @@ class DefaultCascadeModel(Source):
 
         # scale charges by cascade energy
         if config['scale_charge']:
-            scale_factor = tf.expand_dims(parameter_list[5], axis=-1) / 10000.0
+            # make sure cascade energy does not turn negative
+            cascade_energy = tf.clip_by_value(
+                parameter_list[5], 0., float('inf'))
+            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
             dom_charges *= scale_factor
 
         # scale charges by realtive DOM efficiency

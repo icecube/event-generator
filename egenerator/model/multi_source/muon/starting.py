@@ -118,8 +118,12 @@ class StartingVariableMultiCascadeModel(MultiSource):
                 cascade_z = z + dist * dir_z
                 cascade_time = time + dist / c
 
+                # make sure cascade energy does not turn negative
+                cascade_energy = tf.clip_by_value(
+                    cascade_energy, 0., float('inf'))
+
                 # set cascades far out to zero energy
-                d_thresh = 600
+                d_thresh = 700
                 cascade_energy = tf.where(tf.abs(cascade_x) > d_thresh,
                                           cascade_energy*0., cascade_energy)
                 cascade_energy = tf.where(tf.abs(cascade_y) > d_thresh,
