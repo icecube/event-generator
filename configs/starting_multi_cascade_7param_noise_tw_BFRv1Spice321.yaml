@@ -90,12 +90,13 @@ reconstruction_settings: {
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
                              'energy', 'time',
-                             'cascade_00001_energy', 'cascade_00001_distance',
+                             # 'cascade_00001_energy', 'cascade_00001_distance',
+                             'energy', 'cascade_00001_distance',
                          ],
     'seed_missing_value': ,
     'seed_missing_value_dict': {
         'cascade_00001_energy': !!float 1e-3,
-        'cascade_00001_distance': 25,
+        'cascade_00001_distance': 50,
     },
     'seed_float_precision': 'float32',
 
