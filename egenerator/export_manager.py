@@ -64,6 +64,7 @@ def main(config_files, output_dir, reco_config_file=None):
     # read in reconstruction config file
     setup_manager = SetupManager(reco_config_file)
     config = setup_manager.get_config()
+    manager_config = config['model_manager_settings']
 
     # ------------------
     # Create loss module
@@ -81,9 +82,9 @@ def main(config_files, output_dir, reco_config_file=None):
         # load manager objects and extract models and a data_handler
         model_manger,  _, data_handler, data_transformer = build_manager(
             SetupManager([config_file]).get_config(),
-            restore=True,
+            restore=manager_config['restore_model'],
             modified_sub_components={},
-            allow_rebuild_base_sources=False,
+            allow_rebuild_base_sources=not manager_config['restore_model'],
         )
         models.extend(model_manger.models)
 
