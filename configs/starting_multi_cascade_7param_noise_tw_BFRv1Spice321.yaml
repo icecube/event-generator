@@ -91,8 +91,10 @@ reconstruction_settings: {
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
                              'energy', 'time',
                          ],
-    'seed_missing_value': 1.,
+    'seed_missing_value': ,
     'seed_missing_value_dict': {
+        'cascade_00001_energy': !!float 1e-3,
+        'cascade_00001_distance': 25,
     },
     'seed_float_precision': 'float32',
 
