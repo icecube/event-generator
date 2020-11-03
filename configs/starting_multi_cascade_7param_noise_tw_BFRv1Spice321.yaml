@@ -90,6 +90,7 @@ reconstruction_settings: {
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
                              'energy', 'time',
+                             'cascade_00001_energy', 'cascade_00001_distance',
                          ],
     'seed_missing_value': ,
     'seed_missing_value_dict': {
