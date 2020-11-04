@@ -364,7 +364,7 @@ class SourceManager(BaseModelManager):
             def get_hessian_for_term(loss_term):
 
                 # shape: [-1, n_params]
-                term_gradients = tf.gradients(loss_term, parameters_trafo)
+                term_gradients = tf.gradients(loss_term, parameters_trafo)[0]
                 print('term_gradients', term_gradients)
 
                 # compute outer product
@@ -387,7 +387,7 @@ class SourceManager(BaseModelManager):
             print('loss_terms_concat', loss_terms_concat)
 
             # shape: [-1, n_params, n_params]
-            opg_estimate_terms = tf.vectorized_map(
+            opg_estimate_terms = tf.map_fn(
                 fn=get_hessian_for_term, elems=loss_terms_concat)
 
             print('opg_estimate_terms', opg_estimate_terms)
