@@ -364,7 +364,8 @@ class SourceManager(BaseModelManager):
             def get_hessian_for_term(loss_term):
 
                 # shape: [-1, n_params]
-                term_gradients = tf.gradients(loss_term, parameters_trafo)[0]
+                # term_gradients = tf.gradients(loss_term, parameters_trafo)[0]
+                term_gradients = parameters_trafo
                 print('term_gradients', term_gradients)
 
                 # shape: [-1, n_params, 1]
@@ -452,7 +453,7 @@ class SourceManager(BaseModelManager):
 
             return tf.reduce_sum(opg_estimate, axis=0)
 
-        return opg_estimate_function
+        return opg_estimate_function_via_loop
 
     def get_hessian_function(self, loss_module, input_signature,
                              fit_paramater_list,
