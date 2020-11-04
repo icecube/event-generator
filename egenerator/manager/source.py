@@ -367,6 +367,9 @@ class SourceManager(BaseModelManager):
                 term_gradients = tf.gradients(loss_term, parameters_trafo)[0]
                 print('term_gradients', term_gradients)
 
+                # shape: [-1, n_params, 1]
+                term_gradients = tf.expand_dims(term_gradients, axis=-1)
+
                 # compute outer product
                 # shape: [-1, n_params, n_params]
                 term_opg_estimate = tf.linalg.matmul(
