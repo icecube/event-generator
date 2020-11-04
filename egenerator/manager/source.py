@@ -392,7 +392,7 @@ class SourceManager(BaseModelManager):
             print('loss_terms_concat', loss_terms_concat)
 
             # shape: [-1, n_params, n_params]
-            opg_estimate_terms = tf.vectorized_map(
+            opg_estimate_terms = tf.map_fn(
                 fn=get_hessian_for_term, elems=loss_terms_concat)
 
             print('opg_estimate_terms', opg_estimate_terms)
