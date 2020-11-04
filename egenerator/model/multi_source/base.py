@@ -244,14 +244,20 @@ class MultiSource(Source):
 
         return configuration, {}, sub_components
 
-    def get_tensors(self, data_batch_dict, is_training,
-                    parameter_tensor_name='x_parameters'):
+    def get_tensors_batched(
+            self, data_batch_dict, is_training,
+            parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
         shape [-1, n_params]. The get_tensors method must compute all tensors
         that are to be used in later steps. It returns these as a dictionary
         of output tensors.
+
+        Note: this calculates the same as `get_tensors`, but models are first
+        lumped to together and then run through the base models as a batch.
+        In the curent implementation, this requires the duplication of the
+        input data which might lead to significantly higher memory usage.
 
         Parameters
         ----------
