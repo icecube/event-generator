@@ -377,6 +377,8 @@ class SourceManager(BaseModelManager):
                 term_opg_estimate = tf.linalg.matmul(
                     term_gradients, term_gradients, transpose_b=True)
                 print('term_opg_estimate', term_opg_estimate)
+                term_opg_estimate = tf.squeeze(term_opg_estimate, axis=0)
+                print('term_opg_estimate squeezed', term_opg_estimate)
                 return term_opg_estimate
 
             # compute loss terms
