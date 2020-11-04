@@ -400,59 +400,59 @@ class SourceManager(BaseModelManager):
 
             return tf.reduce_sum(opg_estimate_terms, axis=0)
 
-        # @tf.function(input_signature=input_signature)
-        # def opg_estimate_function(parameters_trafo, data_batch,
-        #                           seed=seed):
+        @tf.function(input_signature=input_signature)
+        def opg_estimate_function(parameters_trafo, data_batch,
+                                  seed=seed):
 
-        #     """
-        #     We need to accumulate the Jacobian over colums (xs) in
-        #     the forward accumulator.
-        #     If we did this via back propagation we would need to compute
-        #     the Jacobian over rows (ys) and therefore perform a loop over
-        #     each loss term.
+            """
+            We need to accumulate the Jacobian over colums (xs) in
+            the forward accumulator.
+            If we did this via back propagation we would need to compute
+            the Jacobian over rows (ys) and therefore perform a loop over
+            each loss term.
 
-        #     See:
-        #     https://www.tensorflow.org/api_docs/python/tf/
-        #     autodiff/ForwardAccumulator
-        #     """
+            See:
+            https://www.tensorflow.org/api_docs/python/tf/
+            autodiff/ForwardAccumulator
+            """
 
-        #     kernel_fprop = []
-        #     for i in range(parameters_trafo.shape[1]):
-        #         tangent = np.zeros([1, parameters_trafo.shape[1]])
-        #         tangent[:, i] = 1
-        #         tangent = tf.convert_to_tensor(
-        #             tangent, dtype=parameters_trafo.dtype)
+            kernel_fprop = []
+            for i in range(parameters_trafo.shape[1]):
+                tangent = np.zeros([1, parameters_trafo.shape[1]])
+                tangent[:, i] = 1
+                tangent = tf.convert_to_tensor(
+                    tangent, dtype=parameters_trafo.dtype)
 
-        #         with tf.autodiff.ForwardAccumulator(
-        #                 # parameters for which we want to compute gradients
-        #                 primals=parameters_trafo,
-        #                 # tangent vector which defines the direction, e.g.
-        #                 # parameter (xs) we want to compute the gradients for
-        #                 tangents=tangent) as acc:
+                with tf.autodiff.ForwardAccumulator(
+                        # parameters for which we want to compute gradients
+                        primals=parameters_trafo,
+                        # tangent vector which defines the direction, e.g.
+                        # parameter (xs) we want to compute the gradients for
+                        tangents=tangent) as acc:
 
-        #             loss_terms = loss_function(
-        #                 parameters_trafo=parameters_trafo,
-        #                 data_batch=data_batch,
-        #                 seed=seed)
+                    loss_terms = loss_function(
+                        parameters_trafo=parameters_trafo,
+                        data_batch=data_batch,
+                        seed=seed)
 
-        #             loss_terms_concat = tf.concat(
-        #                 values=[tf.reshape(term, [-1]) for term in loss_terms],
-        #                 axis=0)
+                    loss_terms_concat = tf.concat(
+                        values=[tf.reshape(term, [-1]) for term in loss_terms],
+                        axis=0)
 
-        #             kernel_fprop.append(acc.jvp(loss_terms_concat))
+                    kernel_fprop.append(acc.jvp(loss_terms_concat))
 
-        #     # shape: [n_terms, n_params, 1]
-        #     kernel_fprop = tf.stack(kernel_fprop, axis=1)[..., tf.newaxis]
-        #     print('kernel_fprop', kernel_fprop)
+            # shape: [n_terms, n_params, 1]
+            kernel_fprop = tf.stack(kernel_fprop, axis=1)[..., tf.newaxis]
+            print('kernel_fprop', kernel_fprop)
 
-        #     # shape: [n_terms, n_params, n_params]
-        #     opg_estimate = tf.linalg.matmul(kernel_fprop, kernel_fprop,
-        #                                     transpose_b=True)
-        #     print('opg_estimate', opg_estimate)
+            # shape: [n_terms, n_params, n_params]
+            opg_estimate = tf.linalg.matmul(kernel_fprop, kernel_fprop,
+                                            transpose_b=True)
+            print('opg_estimate', opg_estimate)
 
-        #     return tf.reduce_sum(opg_estimate, axis=0)
+            return tf.reduce_sum(opg_estimate, axis=0)
 
-        return opg_estimate_function_via_loop
+        return opg_estimate_function
 
     def get_hessian_function(self, loss_module, input_signature,
                              fit_paramater_list,
