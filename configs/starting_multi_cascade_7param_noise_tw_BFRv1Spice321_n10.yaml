@@ -94,6 +94,7 @@ reconstruction_settings: {
                              # additional cascades
                              'energy', 'cascade_00001_distance',
                              'energy', 'cascade_00002_distance',
+                             'energy', 'cascade_00003_distance',
                              'energy', 'cascade_00004_distance',
                              'energy', 'cascade_00005_distance',
                              'energy', 'cascade_00006_distance',
