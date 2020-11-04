@@ -363,8 +363,6 @@ class SourceManager(BaseModelManager):
             # compute outer gradient product
             def get_hessian_for_term(loss_term):
 
-                loss_term = tf.ensure_shape(loss_term, [1])
-
                 # shape: [-1, n_params]
                 term_gradients = tf.gradients(loss_term, parameters_trafo)[0]
                 print('term_gradients', term_gradients)
