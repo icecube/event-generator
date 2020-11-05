@@ -522,6 +522,13 @@ class SourceManager(BaseModelManager):
 
         @tf.function(input_signature=input_signature)
         def hessian_function(parameters_trafo, data_batch, seed=seed):
+            # we will limit this to a batch dimension of 1 for now
+            # Note: this runs through and works for a batch dimension
+            # but it requires verification that the result is correct
+            # Shape: [1, n_params]
+            parameters_trafo = tf.reshape(
+                parameters_trafo, [1, parameters_trafo.shape[1]])
+
             loss = self.parameter_loss_function(
                 parameters_trafo=parameters_trafo,
                 data_batch=data_batch,
@@ -545,7 +552,7 @@ class SourceManager(BaseModelManager):
 
             return hessian
 
-        return hessian_function2
+        return hessian_function
 
     def get_model_tensors_function(self, model_index=0):
         """Get a tf function that returns the model tensors
