@@ -394,7 +394,7 @@ class SourceManager(BaseModelManager):
                         values=[tf.reshape(term, [-1]) for term in loss_terms],
                         axis=0)
 
-                    kernel_fprop.append(acc.jvp(loss_terms_concat))
+                kernel_fprop.append(acc.jvp(loss_terms_concat))
 
             # shape: [n_terms, n_params, 1]
             kernel_fprop = tf.stack(kernel_fprop, axis=1)[..., tf.newaxis]
@@ -504,7 +504,7 @@ class SourceManager(BaseModelManager):
                     gradients = tape.gradient(loss, parameters_trafo)[0]
                     print('gradients', gradients)
 
-                    kernel_fprop.append(acc.jvp(gradients))
+                kernel_fprop.append(acc.jvp(gradients))
 
             # shape: [1, n_params, n_params]
             print('kernel_fprop', kernel_fprop)
@@ -512,8 +512,6 @@ class SourceManager(BaseModelManager):
             print('hessian', hessian)
 
             # we will limit this to a batch dimension of 1 for now
-            # Note: this runs through and works for a batch dimension
-            # but it requires some thinking of what the result actually means
             hessian = tf.squeeze(tf.ensure_shape(
                 hessian, [1] + [parameters_trafo.shape[1]]*2), axis=0)
             print('hessian squeeze', hessian)
