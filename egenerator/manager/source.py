@@ -356,51 +356,6 @@ class SourceManager(BaseModelManager):
         )
 
         @tf.function(input_signature=input_signature)
-        def opg_estimate_function_via_loop(
-                parameters_trafo, data_batch, seed=seed):
-
-            # define the function to be performed on each loss term:
-            # compute outer gradient product
-            def get_hessian_for_term(loss_term):
-
-                # shape: [-1, n_params]
-                term_gradients = tf.gradients(loss_term, parameters_trafo)[0]
-                print('term_gradients', term_gradients)
-
-                # shape: [-1, n_params, 1]
-                term_gradients = tf.expand_dims(term_gradients, axis=-1)
-
-                # compute outer product
-                # shape: [-1, n_params, n_params]
-                term_opg_estimate = tf.linalg.matmul(
-                    term_gradients, term_gradients, transpose_b=True)
-                print('term_opg_estimate', term_opg_estimate)
-                term_opg_estimate = tf.squeeze(term_opg_estimate, axis=0)
-                print('term_opg_estimate squeezed', term_opg_estimate)
-                return term_opg_estimate
-
-            # compute loss terms
-            loss_terms = loss_function(
-                parameters_trafo=parameters_trafo,
-                data_batch=data_batch,
-                seed=seed)
-
-            # flatten the loss terms
-            loss_terms_concat = tf.concat(
-                values=[tf.reshape(term, [-1]) for term in loss_terms],
-                axis=0)
-            print('loss_terms_concat', loss_terms_concat)
-
-            # shape: [-1, n_params, n_params]
-            # Todo: change to tf.vectorized_map once better supported
-            opg_estimate_terms = tf.vectorized_map(
-                fn=get_hessian_for_term, elems=loss_terms_concat)
-
-            print('opg_estimate_terms', opg_estimate_terms)
-
-            return tf.reduce_sum(opg_estimate_terms, axis=0)
-
-        @tf.function(input_signature=input_signature)
         def opg_estimate_function(parameters_trafo, data_batch,
                                   seed=seed):
 
