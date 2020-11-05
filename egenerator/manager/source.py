@@ -479,8 +479,8 @@ class SourceManager(BaseModelManager):
 
             kernel_fprop = []
             for i in range(parameters_trafo.shape[1]):
-                tangent = np.zeros([parameters_trafo.shape[1]])
-                tangent[i] = 1
+                tangent = np.zeros([1, parameters_trafo.shape[1]])
+                tangent[:, i] = 1
                 tangent = tf.convert_to_tensor(
                     tangent, dtype=parameters_trafo.dtype)
 
