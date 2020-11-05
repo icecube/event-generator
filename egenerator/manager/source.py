@@ -471,8 +471,8 @@ class SourceManager(BaseModelManager):
             # we will limit this to a batch dimension of 1 for now
             # Note: this runs through and works for a batch dimension
             # but it requires verification that the result is correct
-            parameters_trafo = tf.squeeze(tf.ensure_shape(
-                parameters_trafo, [1, parameters_trafo.shape[1]]))
+            parameters_trafo = tf.ensure_shape(
+                parameters_trafo, [1, parameters_trafo.shape[1]])
 
             kernel_fprop = []
             for i in range(parameters_trafo.shape[1]):
@@ -506,10 +506,17 @@ class SourceManager(BaseModelManager):
 
                     kernel_fprop.append(acc.jvp(gradients))
 
-            # shape: [n_params, n_params]
+            # shape: [1, n_params, n_params]
             print('kernel_fprop', kernel_fprop)
             hessian = tf.stack(kernel_fprop, axis=1)
             print('hessian', hessian)
+
+            # we will limit this to a batch dimension of 1 for now
+            # Note: this runs through and works for a batch dimension
+            # but it requires some thinking of what the result actually means
+            hessian = tf.squeeze(tf.ensure_shape(
+                hessian, [1] + [parameters_trafo.shape[1]]*2), axis=0)
+            print('hessian squeeze', hessian)
 
             return hessian
         # -----------------------------
@@ -543,7 +550,7 @@ class SourceManager(BaseModelManager):
 
     def get_model_tensors_function(self, model_index=0):
         """Get a tf function that returns the model tensors
-        for a set of parameters.
+        for a set of paraparameters_trafometers.
 
         Parameters
         ----------
