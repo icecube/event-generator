@@ -453,71 +453,70 @@ class SourceManager(BaseModelManager):
         # -----------------------------
         # Try memory efficent version
         # -----------------------------
+        # loss_function = self.get_parameter_loss_function(
+        #     loss_module=loss_module,
+        #     input_signature=input_signature,
+        #     fit_paramater_list=fit_paramater_list,
+        #     minimize_in_trafo_space=minimize_in_trafo_space,
+        #     seed=seed,
+        #     parameter_tensor_name=parameter_tensor_name,
+        #     reduce_to_scalar=True,
+        #     normalize_by_total_charge=False,
+        #     sort_loss_terms=False,
+        # )
 
-        loss_function = self.get_parameter_loss_function(
-            loss_module=loss_module,
-            input_signature=input_signature,
-            fit_paramater_list=fit_paramater_list,
-            minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed,
-            parameter_tensor_name=parameter_tensor_name,
-            reduce_to_scalar=True,
-            normalize_by_total_charge=False,
-            sort_loss_terms=False,
-        )
+        # @tf.function(input_signature=input_signature)
+        # def hessian_function2(parameters_trafo, data_batch, seed=seed):
+        #     # we will limit this to a batch dimension of 1 for now
+        #     # Note: this runs through and works for a batch dimension
+        #     # but it requires verification that the result is correct
+        #     # Shape: [1, n_params]
+        #     parameters_trafo = tf.reshape(
+        #         parameters_trafo, [1, parameters_trafo.shape[1]])
 
-        @tf.function(input_signature=input_signature)
-        def hessian_function2(parameters_trafo, data_batch, seed=seed):
-            # we will limit this to a batch dimension of 1 for now
-            # Note: this runs through and works for a batch dimension
-            # but it requires verification that the result is correct
-            # Shape: [1, n_params]
-            parameters_trafo = tf.reshape(
-                parameters_trafo, [1, parameters_trafo.shape[1]])
+        #     kernel_fprop = []
+        #     for i in range(parameters_trafo.shape[1]):
+        #         tangent = np.zeros([1, parameters_trafo.shape[1]])
+        #         tangent[:, i] = 1
+        #         tangent = tf.convert_to_tensor(
+        #             tangent, dtype=parameters_trafo.dtype)
 
-            kernel_fprop = []
-            for i in range(parameters_trafo.shape[1]):
-                tangent = np.zeros([1, parameters_trafo.shape[1]])
-                tangent[:, i] = 1
-                tangent = tf.convert_to_tensor(
-                    tangent, dtype=parameters_trafo.dtype)
+        #         with tf.autodiff.ForwardAccumulator(
+        #                 # parameters for which we want to compute gradients
+        #                 primals=parameters_trafo,
+        #                 # tangent vector which defines the direction, e.g.
+        #                 # parameter (xs) we want to compute the gradients for
+        #                 tangents=tangent) as acc:
 
-                with tf.autodiff.ForwardAccumulator(
-                        # parameters for which we want to compute gradients
-                        primals=parameters_trafo,
-                        # tangent vector which defines the direction, e.g.
-                        # parameter (xs) we want to compute the gradients for
-                        tangents=tangent) as acc:
+        #             with tf.GradientTape(
+        #                     watch_accessed_variables=False) as tape:
+        #                 tape.watch(parameters_trafo)
 
-                    with tf.GradientTape(
-                            watch_accessed_variables=False) as tape:
-                        tape.watch(parameters_trafo)
+        #                 # scalar loss: shape []
+        #                 loss = loss_function(
+        #                     parameters_trafo=parameters_trafo,
+        #                     data_batch=data_batch,
+        #                     seed=seed)
+        #                 print('loss', loss)
 
-                        # scalar loss: shape []
-                        loss = loss_function(
-                            parameters_trafo=parameters_trafo,
-                            data_batch=data_batch,
-                            seed=seed)
-                        print('loss', loss)
+        #             # Get gradient of loss wrt parameters
+        #             # Shape: [n_params]
+        #             gradients = tape.gradient(loss, parameters_trafo)[0]
+        #             print('gradients', gradients)
 
-                    # Get gradient of loss wrt parameters
-                    # Shape: [n_params]
-                    gradients = tape.gradient(loss, parameters_trafo)[0]
-                    print('gradients', gradients)
+        #         kernel_fprop.append(acc.jvp(gradients))
 
-                kernel_fprop.append(acc.jvp(gradients))
+        #     # shape: [n_params, n_params]
+        #     print('kernel_fprop', kernel_fprop)
+        #     hessian = tf.stack(kernel_fprop, axis=1)
+        #     print('hessian', hessian)
 
-            # shape: [n_params, n_params]
-            print('kernel_fprop', kernel_fprop)
-            hessian = tf.stack(kernel_fprop, axis=1)
-            print('hessian', hessian)
+        #     # we will limit this to a batch dimension of 1 for now
+        #     hessian = tf.squeeze(tf.ensure_shape(
+        #         hessian, [1] + [parameters_trafo.shape[1]]*2), axis=0)
+        #     print('hessian squeeze', hessian)
 
-            # we will limit this to a batch dimension of 1 for now
-            hessian = tf.squeeze(tf.ensure_shape(
-                hessian, [1] + [parameters_trafo.shape[1]]*2), axis=0)
-            print('hessian squeeze', hessian)
-
-            return hessian
+        #     return hessian
         # -----------------------------
 
         @tf.function(input_signature=input_signature)
