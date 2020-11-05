@@ -247,10 +247,12 @@ class MultiSource(Source):
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
+
         Parameters are the hypothesis tensor of the source with
         shape [-1, n_params]. The get_tensors method must compute all tensors
         that are to be used in later steps. It returns these as a dictionary
         of output tensors.
+
         Parameters
         ----------
         data_batch_dict : dict of tf.Tensor
@@ -273,10 +275,12 @@ class MultiSource(Source):
             False: inference mode.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+
         Raises
         ------
         ValueError
             Description
+
         Returns
         -------
         dict of tf.Tensor
@@ -286,6 +290,7 @@ class MultiSource(Source):
                                Shape: [-1, 86, 60, 1]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
+
         """
         self.assert_configured(True)
 
