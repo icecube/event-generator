@@ -471,13 +471,14 @@ class SourceManager(BaseModelManager):
             # we will limit this to a batch dimension of 1 for now
             # Note: this runs through and works for a batch dimension
             # but it requires verification that the result is correct
-            parameters_trafo = tf.ensure_shape(
-                parameters_trafo, [1, parameters_trafo.shape[1]])
+            # Shape: [n_params]
+            parameters_trafo = tf.squeeze(tf.ensure_shape(
+                parameters_trafo, [1, parameters_trafo.shape[1]]), axis=0)
 
             kernel_fprop = []
             for i in range(parameters_trafo.shape[1]):
-                tangent = np.zeros([1, parameters_trafo.shape[1]])
-                tangent[:, i] = 1
+                tangent = np.zeros([parameters_trafo.shape[1]])
+                tangent[i] = 1
                 tangent = tf.convert_to_tensor(
                     tangent, dtype=parameters_trafo.dtype)
 
@@ -506,7 +507,7 @@ class SourceManager(BaseModelManager):
 
                 kernel_fprop.append(acc.jvp(gradients))
 
-            # shape: [1, n_params, n_params]
+            # shape: [n_params, n_params]
             print('kernel_fprop', kernel_fprop)
             hessian = tf.stack(kernel_fprop, axis=1)
             print('hessian', hessian)
