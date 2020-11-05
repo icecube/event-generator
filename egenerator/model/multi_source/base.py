@@ -423,6 +423,7 @@ class MultiSource(Source):
 
         return result_tensors
 
+    @tf.function
     def get_tensors_batched(
             self, data_batch_dict, is_training,
             parameter_tensor_name='x_parameters'):
