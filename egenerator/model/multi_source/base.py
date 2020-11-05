@@ -244,6 +244,7 @@ class MultiSource(Source):
 
         return configuration, {}, sub_components
 
+    @tf.function
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
