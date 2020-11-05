@@ -286,6 +286,7 @@ class MultiSource(Source):
         dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
+
                 'dom_charges': the predicted charge at each DOM
                                Shape: [-1, 86, 60, 1]
                 'pulse_pdf': The likelihood evaluated for each pulse
