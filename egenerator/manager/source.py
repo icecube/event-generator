@@ -501,7 +501,7 @@ class SourceManager(BaseModelManager):
 
                     # Get gradient of loss wrt parameters
                     # Shape: [n_params]
-                    gradients = tape.gradient(loss, parameters_trafo)
+                    gradients = tape.gradient(loss, parameters_trafo)[0]
                     print('gradients', gradients)
 
                     kernel_fprop.append(acc.jvp(gradients))
