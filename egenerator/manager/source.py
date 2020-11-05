@@ -472,7 +472,7 @@ class SourceManager(BaseModelManager):
             # Note: this runs through and works for a batch dimension
             # but it requires verification that the result is correct
             # Shape: [1, n_params]
-            parameters_trafo = tf.ensure_shape(
+            parameters_trafo = tf.reshape(
                 parameters_trafo, [1, parameters_trafo.shape[1]])
 
             kernel_fprop = []
