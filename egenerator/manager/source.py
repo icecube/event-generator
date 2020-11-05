@@ -495,16 +495,20 @@ class SourceManager(BaseModelManager):
                         # parameter (xs) we want to compute the gradients for
                         tangents=tangent) as acc:
 
-                    # scalar loss: shape []
-                    loss = loss_function(
-                        parameters_trafo=parameters_trafo,
-                        data_batch=data_batch,
-                        seed=seed)
-                    print('loss', loss)
+                    with tf.GradientTape(
+                            watch_accessed_variables=False) as tape:
+                        tape.watch(parameters_trafo)
+
+                        # scalar loss: shape []
+                        loss = loss_function(
+                            parameters_trafo=parameters_trafo,
+                            data_batch=data_batch,
+                            seed=seed)
+                        print('loss', loss)
 
                     # Get gradient of loss wrt parameters
                     # Shape: [n_params]
-                    gradients = tf.gradients(loss, parameters_trafo)
+                    gradients = tape.gradient(loss, parameters_trafo)
                     print('gradients', gradients)
 
                     kernel_fprop.append(acc.jvp(gradients))
