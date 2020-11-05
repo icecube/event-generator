@@ -475,8 +475,6 @@ class SourceManager(BaseModelManager):
             parameters_trafo = tf.ensure_shape(
                 parameters_trafo, [1, parameters_trafo.shape[1]])
 
-            parameters_trafo_sq = tf.squeeze(parameters_trafo, axis=0)
-
             kernel_fprop = []
             for i in range(parameters_trafo.shape[1]):
                 tangent = np.zeros([1, parameters_trafo.shape[1]])
@@ -504,7 +502,7 @@ class SourceManager(BaseModelManager):
 
                     # Get gradient of loss wrt parameters
                     # Shape: [n_params]
-                    gradients = tape.gradient(loss, parameters_trafo_sq)[0]
+                    gradients = tape.gradient(loss, parameters_trafo)[0]
                     print('gradients', gradients)
 
                 kernel_fprop.append(acc.jvp(gradients))
