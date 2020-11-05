@@ -468,18 +468,11 @@ class SourceManager(BaseModelManager):
 
         @tf.function(input_signature=input_signature)
         def hessian_function2(parameters_trafo, data_batch, seed=seed):
-            # loss = self.parameter_loss_function(
-            #     parameters_trafo=parameters_trafo,
-            #     data_batch=data_batch,
-            #     loss_module=loss_module,
-            #     fit_paramater_list=fit_paramater_list,
-            #     minimize_in_trafo_space=minimize_in_trafo_space,
-            #     seed=seed,
-            #     parameter_tensor_name=parameter_tensor_name,
-            #     reduce_to_scalar=True,
-            #     normalize_by_total_charge=False,
-            #     sort_loss_terms=False,
-            # )
+            # we will limit this to a batch dimension of 1 for now
+            # Note: this runs through and works for a batch dimension
+            # but it requires verification that the result is correct
+            parameters_trafo = tf.squeeze(tf.ensure_shape(
+                parameters_trafo, [1, parameters_trafo.shape[1]]))
 
             kernel_fprop = []
             for i in range(parameters_trafo.shape[1]):
@@ -513,9 +506,9 @@ class SourceManager(BaseModelManager):
 
                     kernel_fprop.append(acc.jvp(gradients))
 
-            # shape: [n_terms, n_params, 1]
+            # shape: [n_params, n_params]
             print('kernel_fprop', kernel_fprop)
-            hessian = tf.stack(kernel_fprop, axis=0)
+            hessian = tf.stack(kernel_fprop, axis=1)
             print('hessian', hessian)
 
             return hessian
