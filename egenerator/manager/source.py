@@ -450,6 +450,73 @@ class SourceManager(BaseModelManager):
             model parameters.
         """
 
+        # -----------------------------
+        # Try memory efficent version
+        # -----------------------------
+
+        loss_function = self.get_parameter_loss_function(
+            loss_module=loss_module,
+            input_signature=input_signature,
+            fit_paramater_list=fit_paramater_list,
+            minimize_in_trafo_space=minimize_in_trafo_space,
+            seed=seed,
+            parameter_tensor_name=parameter_tensor_name,
+            reduce_to_scalar=True,
+            normalize_by_total_charge=False,
+            sort_loss_terms=False,
+        )
+
+        @tf.function(input_signature=input_signature)
+        def hessian_function2(parameters_trafo, data_batch, seed=seed):
+            # loss = self.parameter_loss_function(
+            #     parameters_trafo=parameters_trafo,
+            #     data_batch=data_batch,
+            #     loss_module=loss_module,
+            #     fit_paramater_list=fit_paramater_list,
+            #     minimize_in_trafo_space=minimize_in_trafo_space,
+            #     seed=seed,
+            #     parameter_tensor_name=parameter_tensor_name,
+            #     reduce_to_scalar=True,
+            #     normalize_by_total_charge=False,
+            #     sort_loss_terms=False,
+            # )
+
+            kernel_fprop = []
+            for i in range(parameters_trafo.shape[1]):
+                tangent = np.zeros([1, parameters_trafo.shape[1]])
+                tangent[:, i] = 1
+                tangent = tf.convert_to_tensor(
+                    tangent, dtype=parameters_trafo.dtype)
+
+                with tf.autodiff.ForwardAccumulator(
+                        # parameters for which we want to compute gradients
+                        primals=parameters_trafo,
+                        # tangent vector which defines the direction, e.g.
+                        # parameter (xs) we want to compute the gradients for
+                        tangents=tangent) as acc:
+
+                    # scalar loss: shape []
+                    loss = loss_function(
+                        parameters_trafo=parameters_trafo,
+                        data_batch=data_batch,
+                        seed=seed)
+                    print('loss', loss)
+
+                    # Get gradient of loss wrt parameters
+                    # Shape: [n_params]
+                    gradients = tf.gradients(loss, parameters_trafo)
+                    print('gradients', gradients)
+
+                    kernel_fprop.append(acc.jvp(gradients))
+
+            # shape: [n_terms, n_params, 1]
+            print('kernel_fprop', kernel_fprop)
+            hessian = tf.stack(kernel_fprop, axis=0)
+            print('hessian', hessian)
+
+            return hessian
+        # -----------------------------
+
         @tf.function(input_signature=input_signature)
         def hessian_function(parameters_trafo, data_batch, seed=seed):
             loss = self.parameter_loss_function(
@@ -475,7 +542,7 @@ class SourceManager(BaseModelManager):
 
             return hessian
 
-        return hessian_function
+        return hessian_function2
 
     def get_model_tensors_function(self, model_index=0):
         """Get a tf function that returns the model tensors
