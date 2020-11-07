@@ -284,7 +284,7 @@ def spherical_opt(
         if method != 'CRS2':
             raise ValueError(
                 'batch_size > 1 is only supported for the CRS2 method!'
-                f' You selected the {method} method.')
+                ' You selected the {} method.'.format(method))
         vec_func = func
     else:
         def vec_func(x):
@@ -310,7 +310,7 @@ def spherical_opt(
 
     if method == 'CRS2':
         assert n_points > n_dim, 'CRS will need more points than dimensions'
-        assert (n_points - 1) / n_dim >= batch_size, f'(n_points - 1) / n_dim must be >= batch size ({batch_size})!'
+        assert (n_points - 1) / n_dim >= batch_size, '{} must be >= batch size ({})!'.format((n_points - 1) / n_dim, batch_size)
 
         if n_points < 10 * n_dim:
             print('WARNING: number of points is very low')
