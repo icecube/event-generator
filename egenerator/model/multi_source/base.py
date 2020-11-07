@@ -203,11 +203,9 @@ class MultiSource(Source):
         if name is None:
             name = __name__
 
-        # # Note: this requires .ref() to be implemented which is not there
-        # # in older versions of TF <=~ 2.1, so comment out for now
-        # # collect all tensorflow variables before creation
-        # variables_before = set([
-        #     v.ref() for v in tf.compat.v1.global_variables()])
+        # collect all tensorflow variables before creation
+        variables_before = set([
+            v.ref() for v in tf.compat.v1.global_variables()])
 
         # build architecture: create and save model weights
         # returns parameter_names
@@ -218,15 +216,15 @@ class MultiSource(Source):
         if data_trafo is not None:
             sub_components['data_trafo'] = data_trafo
 
-        # # collect all tensorflow variables after creation and match
-        # variables_after = set([
-        #     v.ref() for v in tf.compat.v1.global_variables()])
-        # set_diff = variables_after - variables_before
-        # model_variables = set([v.ref() for v in self.variables])
-        # new_unaccounted_variables = set_diff - model_variables
-        # if len(new_unaccounted_variables) > 0:
-        #     msg = 'Found new variables that are not part of the tf.Module: {}'
-        #     raise ValueError(msg.format(new_unaccounted_variables))
+        # collect all tensorflow variables after creation and match
+        variables_after = set([
+            v.ref() for v in tf.compat.v1.global_variables()])
+        set_diff = variables_after - variables_before
+        model_variables = set([v.ref() for v in self.variables])
+        new_unaccounted_variables = set_diff - model_variables
+        if len(new_unaccounted_variables) > 0:
+            msg = 'Found new variables that are not part of the tf.Module: {}'
+            raise ValueError(msg.format(new_unaccounted_variables))
 
         # get names of parameters
         self._untracked_data['name'] = name
