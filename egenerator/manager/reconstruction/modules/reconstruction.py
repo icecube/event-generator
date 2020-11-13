@@ -341,7 +341,7 @@ class SelectBestReconstruction:
             if reco_results['loss_reco'] < min_loss:
                 min_loss = reco_results['loss_reco']
                 min_results = reco_results
-        min_results = dict(reco_results)
+        min_results = dict(min_results)
 
         if min_results is None:
 
