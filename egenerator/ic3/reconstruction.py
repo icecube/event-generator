@@ -380,6 +380,10 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 else:
                     setattr(particle, key, result_dict[param])
 
+            # transform zenith and azimuth to proper range:
+            particle.dir = dataclasses.I3Direction(
+                particle.dir.x, particle.dir.y, particle.dir.z)
+
             # set particle shape to infinite track even though this is not
             # necessarily true. This will allow for visualization in steamshovel
             particle.shape = dataclasses.I3Particle.InfiniteTrack
