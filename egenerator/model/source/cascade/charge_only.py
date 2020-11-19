@@ -354,6 +354,7 @@ class ChargeOnlyCascadeModel(Source):
             tensor_dict['dom_charges_variance'] = dom_charges
 
         # add dummy pulse pdf values
-        tensor_dict['pulse_pdf'] = tf.ones_like(data_batch_dict['x_pulses'])
+        tensor_dict['pulse_pdf'] = tf.ones_like(
+            data_batch_dict['x_pulses'][:, 0])
 
         return tensor_dict
