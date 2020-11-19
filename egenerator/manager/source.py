@@ -577,6 +577,10 @@ class SourceManager(BaseModelManager):
             tf, self.data_trafo.data['tensors']['x_pulses'].dtype)
         param_dtype = getattr(
             tf, self.data_trafo.data['tensors']['x_parameters'].dtype)
+        tw_dtype = getattr(
+            tf, self.data_trafo.data['tensors']['x_time_window'].dtype)
+        t_exclusions_dtype = getattr(
+            tf, self.data_trafo.data['tensors']['x_time_exclusions'].dtype)
         param_signature = tf.TensorSpec(
             shape=[None, model.num_parameters], dtype=param_dtype)
         x_pulses_shape = self.data_trafo.data['tensors']['x_pulses'].shape
@@ -608,6 +612,11 @@ class SourceManager(BaseModelManager):
                     [len(parameters), 86, 60, 1], dtype=param_dtype),
                 'x_parameters': tf.convert_to_tensor(
                     parameters, dtype=param_dtype),
+                'x_time_window': tf.convert_to_tensor(
+                    [[9000, 10000]], dtype=tw_dtype),
+                'x_time_exclusions': tf.convert_to_tensor(
+                    [[0, 0]], dtype=t_exclusions_dtype),
+                'x_time_exclusions_ids': tf.convert_to_tensor([[0, 0, 0]]),
             }
             result_tensors = model.get_tensors(
                 data_batch_dict,

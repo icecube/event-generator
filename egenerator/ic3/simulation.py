@@ -146,9 +146,9 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 raise KeyError('Unknown parameter name:', name)
 
         # Create concrete tensorflow function to obtain DOM expectations
+        self.param_dtype = getattr(
+            tf, self.manager.data_trafo.data['tensors']['x_parameters'].dtype)
         # ---- TO DELETE [START] ----------------
-        # self.param_dtype = getattr(
-        #     tf, self.manager.data_trafo.data['tensors']['x_parameters'].dtype)
         # param_signature = tf.TensorSpec(
         #     shape=[None, self.model.num_parameters], dtype=self.param_dtype)
 
