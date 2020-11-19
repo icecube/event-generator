@@ -21,7 +21,7 @@ class ChargeOnlyCascadeModel(Source):
             The logger to use.
         """
         self._logger = logger or logging.getLogger(__name__)
-        super(DefaultCascadeModel, self).__init__(logger=self._logger)
+        super(ChargeOnlyCascadeModel, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
