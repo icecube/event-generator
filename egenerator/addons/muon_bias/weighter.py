@@ -334,8 +334,6 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
             bias_weights['layer_charge_{:02d}'.format(i)] = float(np.sum(
                 layer_dom_charges[i]))
 
-        frame[self.output_key] = bias_weights
-
         # timer after biasing function
         t_3 = timeit.default_timer()
 
@@ -381,6 +379,13 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
             print('\t Evaluating NN model: {:3.3f}ms'.format((t_2 - t_1)*1000))
             print('\t Applying Bias: {:3.3f}ms'.format((t_3 - t_2) * 1000))
             print('\t Writing Results: {:3.3f}ms'.format((t_4 - t_3) * 1000))
+
+        # add runtimes
+        bias_weights['runtime_sources'] = t_1 - t_0
+        bias_weights['runtime_nn_model'] = t_2 - t_1
+        bias_weights['runtime_bias_func'] = t_3 - t_2
+        bias_weights['runtime_total'] = t_4 - t_0
+        frame[self.output_key] = bias_weights
 
         # push frame to next modules
         if self.keep_all_events:
