@@ -613,7 +613,7 @@ class SourceManager(BaseModelManager):
                 'x_parameters': tf.convert_to_tensor(
                     parameters, dtype=param_dtype),
                 'x_time_window': tf.convert_to_tensor(
-                    [[9000, 10000]], dtype=tw_dtype),
+                    [[9000, 9001]], dtype=tw_dtype),
                 'x_time_exclusions': tf.convert_to_tensor(
                     [[0, 0]], dtype=t_exclusions_dtype),
                 'x_time_exclusions_ids': tf.convert_to_tensor([[0, 0, 0]]),
