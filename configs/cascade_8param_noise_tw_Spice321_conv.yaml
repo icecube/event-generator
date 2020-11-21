@@ -503,6 +503,7 @@ model_settings: {
                 'use_residual_list' : [True, True, True, False],
             },
         },
+    },
 }
 
 #----------------------
