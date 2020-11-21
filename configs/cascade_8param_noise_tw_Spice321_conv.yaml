@@ -330,7 +330,7 @@ loss_module_settings: [
 
             # define uniform priors
             'uniform_parameters': {
-                'energy_fraction_hadron': [0., 1.0],
+                'cascade_energy_fraction_hadron': [0., 1.0],
             },
 
             # define fourier component sigmas
