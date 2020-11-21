@@ -47,6 +47,10 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
                           'If True, all events are kept and the bias results '
                           'are only written to the frame',
                           False)
+        self.AddParameter('verbose_output',
+                          'If True, additional bias info is written to the '
+                          'output key.',
+                          True)
         self.AddParameter('icecube_hull',
                           'The convex hull around IceCube.',
                           detector.icecube_hull)
@@ -135,6 +139,7 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
         self.bias_function = self.GetParameter('bias_function')
         self.model_name = self.GetParameter('model_name')
         self.keep_all_events = self.GetParameter('keep_all_events')
+        self.verbose_output = self.GetParameter('verbose_output')
         self.icecube_hull = self.GetParameter('icecube_hull')
         self.outer_veto_hull = self.GetParameter('outer_veto_hull')
         self.inner_veto_hull = self.GetParameter('inner_veto_hull')
@@ -321,18 +326,20 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
         })
 
         # add more info [flatten out bias_data]
-        bias_weights['energy'] = muon.energy
-        bias_weights['zenith'] = muon.dir.zenith
-        bias_weights['azimuth'] = muon.dir.azimuth
-        for i in range(len(entry_z)):
-            bias_weights['entry_x_{:02d}'.format(i)] = entry_x[i]
-            bias_weights['entry_y_{:02d}'.format(i)] = entry_y[i]
-            bias_weights['entry_z_{:02d}'.format(i)] = entry_z[i]
-            bias_weights['exit_z_{:02d}'.format(i)] = exit_z[i]
-            bias_weights['track_length_{:02d}'.format(i)] = track_lengths[i]
-            bias_weights['layer_energy_{:02d}'.format(i)] = layer_energies[i]
-            bias_weights['layer_charge_{:02d}'.format(i)] = float(np.sum(
-                layer_dom_charges[i]))
+        if self.verbose_output:
+            bias_weights['energy'] = muon.energy
+            bias_weights['zenith'] = muon.dir.zenith
+            bias_weights['azimuth'] = muon.dir.azimuth
+            for i in range(len(entry_z)):
+                ending = '_{:02d}'.format(i)
+                bias_weights['entry_x' + ending] = entry_x[i]
+                bias_weights['entry_y' + ending] = entry_y[i]
+                bias_weights['entry_z' + ending] = entry_z[i]
+                bias_weights['exit_z' + ending] = exit_z[i]
+                bias_weights['track_length' + ending] = track_lengths[i]
+                bias_weights['layer_energy' + ending] = layer_energies[i]
+                bias_weights['layer_charge' + ending] = float(np.sum(
+                    layer_dom_charges[i]))
 
         # timer after biasing function
         t_3 = timeit.default_timer()
@@ -381,10 +388,11 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
             print('\t Writing Results: {:3.3f}ms'.format((t_4 - t_3) * 1000))
 
         # add runtimes
-        bias_weights['runtime_sources'] = t_1 - t_0
-        bias_weights['runtime_nn_model'] = t_2 - t_1
-        bias_weights['runtime_bias_func'] = t_3 - t_2
-        bias_weights['runtime_total'] = t_4 - t_0
+        if self.verbose_output:
+            bias_weights['runtime_sources'] = t_1 - t_0
+            bias_weights['runtime_nn_model'] = t_2 - t_1
+            bias_weights['runtime_bias_func'] = t_3 - t_2
+            bias_weights['runtime_total'] = t_4 - t_0
         frame[self.output_key] = bias_weights
 
         # push frame to next modules
