@@ -416,12 +416,12 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
             A mask for the valid DOMs (values: 1.)
             Shape: (86, 60)
         """
-        exclusion_keys = frame[self.bad_doms_key]
         mask = np.ones((86, 60))
 
-        for omkey in frame[self.bad_doms_key]:
-            if omkey.om <= 60:
-                mask[omkey.string - 1, omkey.om - 1] = 0.
+        if self.bad_doms_key is not None:
+            for omkey in frame[self.bad_doms_key]:
+                if omkey.om <= 60:
+                    mask[omkey.string - 1, omkey.om - 1] = 0.
 
         return mask
 
