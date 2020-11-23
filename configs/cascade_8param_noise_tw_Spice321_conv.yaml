@@ -94,7 +94,7 @@ reconstruction_settings: {
                          ],
     'seed_missing_value': ,
     'seed_missing_value_dict': {
-        'cascade_energy_fraction_hadron': 0.5,
+        'energy_fraction_hadron': 0.5,
     },
     'seed_float_precision': 'float32',
 
