@@ -2,7 +2,7 @@ import os
 import numpy as np
 import timeit
 
-from icecube import dataclasses, icetray, MuonGun
+from icecube import dataclasses, icetray
 
 from egenerator.utils.detector import x_coords
 
