@@ -341,7 +341,6 @@ class SelectBestReconstruction:
             if reco_results['loss_reco'] < min_loss:
                 min_loss = reco_results['loss_reco']
                 min_results = reco_results
-        min_results = dict(min_results)
 
         if min_results is None:
 
@@ -350,6 +349,8 @@ class SelectBestReconstruction:
             print('Did not find a minimium, choosing last reco: {}!'.format(
                 reco_name))
             min_results = reco_results
+
+        min_results = dict(min_results)
 
         # rename runtime key of result
         min_results['reco_runtime'] = min_results.pop('runtime')
