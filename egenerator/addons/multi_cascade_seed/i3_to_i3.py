@@ -56,6 +56,7 @@ def main(input_file_pattern, outfile, gcd, number):
                             #icetray.I3Frame.Simulation,
                             #icetray.I3Frame.Stream('S'),
                             ])
+
     tray.AddModule('TrashCan', 'YesWeCan')
     if number is not None:
         tray.Execute(int(number))

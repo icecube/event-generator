@@ -316,7 +316,7 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
             'layer_dom_charges': layer_dom_charges,
         }
         keep_prob = float(self.bias_function(bias_data))
-        passed = self.random_service.uniform() <= keep_prob
+        passed = self.random_service.uniform(0., 1.) <= keep_prob
         assert keep_prob > 0. and keep_prob <= 1., keep_prob
 
         bias_weights = dataclasses.I3MapStringDouble({

@@ -164,7 +164,7 @@ class BiasedMuonCorridorWeighter(icetray.I3ConditionalModule):
         keep_prob, min_outer, min_inner = self.compute_probability(muon)
 
         keep_prob = float(keep_prob)
-        passed = self.random_service.uniform() <= keep_prob
+        passed = self.random_service.uniform(0., 1.) <= keep_prob
         assert keep_prob > 0. and keep_prob <= 1., keep_prob
 
         bias_weights = dataclasses.I3MapStringDouble({
