@@ -126,8 +126,13 @@ class CovarianceMatrix:
         except np.linalg.LinAlgError as e:
             print(e)
             print('Hessian is a singular matrix and cannot be inverted!')
-            print('Setting covariance matrix to NaNs!')
-            cov_trafo = np.zeros_like(hessian) * float('nan')
+            try:
+                cov_trafo = np.linalg.pinv(hessian, hermitian=True)
+                print('Using (Moore-Penrose) pseudo-inverse of Hessian.')
+            except np.linalg.LinAlgError as e2:
+                print(e2)
+                print('Setting covariance matrix to NaNs!')
+                cov_trafo = np.zeros_like(hessian) * float('nan')
 
         cov_sand_trafo = np.matmul(np.matmul(
             cov_trafo, opg_estimate), cov_trafo)
