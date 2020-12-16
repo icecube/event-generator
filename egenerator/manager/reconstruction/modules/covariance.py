@@ -124,7 +124,7 @@ class CovarianceMatrix:
         try:
             cov_trafo = np.linalg.inv(hessian)
         except np.linalg.LinAlgError as e:
-            print('e')
+            print(e)
             print('Hessian is a singular matrix and cannot be inverted!')
             print('Setting covariance matrix to NaNs!')
             cov_trafo = np.zeros_like(hessian) * float('nan')
