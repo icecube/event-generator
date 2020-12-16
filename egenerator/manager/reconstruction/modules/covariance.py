@@ -127,7 +127,7 @@ class CovarianceMatrix:
             print(e)
             print('Hessian is a singular matrix and cannot be inverted!')
             try:
-                cov_trafo = np.linalg.pinv(hessian, hermitian=True)
+                cov_trafo = np.linalg.pinv(hessian, rcond=1e-8, hermitian=True)
                 print('Using (Moore-Penrose) pseudo-inverse of Hessian.')
             except np.linalg.LinAlgError as e2:
                 print(e2)
