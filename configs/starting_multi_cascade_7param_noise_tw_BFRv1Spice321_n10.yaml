@@ -456,7 +456,7 @@ model_settings: {
             # The loss module class to use
             'model_class': 'egenerator.model.multi_source.muon.StartingVariableMultiCascadeModel',
 
-            # configuration settings for StochasticTrackModel object
+            # configuration settings for StartingVariableMultiCascadeModel object
             config: {
                 'num_cascades': 10,
             },
