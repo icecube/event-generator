@@ -151,13 +151,13 @@ model_manager_settings: {
         # Define which model parameters to use for the I3Particle
         # [x, y, z, zenith, azimuth, energy, time]
         'I3ParticleMapping': {
-            'x': 'cascade_x',
-            'y': 'cascade_y',
-            'z': 'cascade_z',
+            'x': 'track_anchor_x',
+            'y': 'track_anchor_y',
+            'z': 'track_anchor_z',
             'zenith': 'cascade_zenith',
             'azimuth': 'cascade_azimuth',
-            'energy': 'cascade_energy',
-            'time': 'cascade_time',
+            # 'energy': 'cascade_energy',
+            'time': 'track_anchor_time',
         },
     },
 }
