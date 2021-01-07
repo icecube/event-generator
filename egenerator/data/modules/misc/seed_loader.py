@@ -167,7 +167,7 @@ class SeedLoaderMiscModule(BaseComponent):
             try:
                 _labels = f[seed_name]
                 for ls in self.configuration.config['seed_parameter_names']:
-                    if ls is isinstance(str):
+                    if isinstance(ls, str):
                         ls = [ls]
                     else:
                         ls = [ls[0]] * ls[1]
@@ -242,7 +242,7 @@ class SeedLoaderMiscModule(BaseComponent):
             try:
                 _labels = frame[seed_name]
                 for ls in self.configuration.config['seed_parameter_names']:
-                    if ls is isinstance(str):
+                    if isinstance(ls, str):
                         ls = [ls]
                     else:
                         ls = [ls[0]] * ls[1]
