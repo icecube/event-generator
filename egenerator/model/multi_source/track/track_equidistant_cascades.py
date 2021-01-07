@@ -66,7 +66,7 @@ class TrackEquidistantCascadeModel(MultiSource):
         # compute maximum number of required cascades
         # A diagonal track through cylinder
         max_length = 2 * np.sqrt(cylinder_radius**2 + cylinder_extension**2)
-        num_cascades = max(int(max_length / num_cascades), 1)
+        num_cascades = max(int(max_length / cascade_spacing), 1)
 
         self._untracked_data['cascade_spacing'] = cascade_spacing
         self._untracked_data['cylinder_radius'] = cylinder_radius
