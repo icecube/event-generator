@@ -181,7 +181,7 @@ data_iterator_settings: {
         'num_repetitions': 3,
         'input_data': [
             # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
         ],
     },
 
@@ -197,7 +197,7 @@ data_iterator_settings: {
         'pick_random_files_forever': True,
         'input_data': [
             # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
         ],
     },
 
@@ -214,7 +214,7 @@ data_iterator_settings: {
         'pick_random_files_forever': True,
         'input_data': [
             # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
         ],
     },
 
@@ -231,7 +231,7 @@ data_iterator_settings: {
         'pick_random_files_forever': False,
         'input_data': [
             # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
         ],
     },
 }
@@ -450,7 +450,7 @@ model_settings: {
             # configuration settings for TrackEquidistantCascadeModel object
             config: {
                 'max_num_cascades': 10,
-                'cascade_spacing': 100,
+                'cascade_spacing': 10,
                 'cylinder_radius': 600,
                 'cylinder_extension': 500,
             },
