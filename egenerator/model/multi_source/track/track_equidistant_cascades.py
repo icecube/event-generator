@@ -59,6 +59,7 @@ class TrackEquidistantCascadeModel(MultiSource):
             required: the cascade source. The mapping will then map all
             cascades in the hypothesis to this one base cascade source.
         """
+        max_num_cascades = config['max_num_cascades']
         cascade_spacing = config['cascade_spacing']
         cylinder_radius = config['cylinder_radius']
         cylinder_extension = config['cylinder_extension']
@@ -67,6 +68,13 @@ class TrackEquidistantCascadeModel(MultiSource):
         # A diagonal track through cylinder
         max_length = 2 * np.sqrt(cylinder_radius**2 + cylinder_extension**2)
         num_cascades = max(int(max_length / cascade_spacing), 1)
+
+        if num_cascades > max_num_cascades:
+            msg = 'Maximum number of cascades {} '.format(max_num_cascades)
+            msg += 'might not cover complete track with spacing of {}!'.format(
+                cascade_spacing)
+            self._logger.warning(msg)
+            num_cascades = max_num_cascades
 
         self._untracked_data['cascade_spacing'] = cascade_spacing
         self._untracked_data['cylinder_radius'] = cylinder_radius

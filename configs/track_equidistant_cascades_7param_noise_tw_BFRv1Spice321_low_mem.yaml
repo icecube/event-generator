@@ -88,7 +88,8 @@ reconstruction_settings: {
     'seed': 'x_parameters', #'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
-    'seed_parameter_names': ['zenith', 'azimuth', 'x', 'y', 'z', 'time'],
+    'seed_parameter_names': ['zenith', 'azimuth', 'x', 'y', 'z', 'time',
+                             ('energy', 100)],
     'seed_missing_value': ,
     'seed_missing_value_dict': {
     },
@@ -418,6 +419,7 @@ model_settings: {
 
             # configuration settings for TrackEquidistantCascadeModel object
             config: {
+                'max_num_cascades': 100,
                 'cascade_spacing': 15,
                 'cylinder_radius': 600,
                 'cylinder_extension': 500,
