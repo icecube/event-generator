@@ -93,7 +93,7 @@ class TrackEquidistantCascadeModel(MultiSource):
             'track_anchor_time',
         ]
         for index in range(num_cascades):
-            cascade_name = 'cascade_{:04d}'.format(index)
+            cascade_name = 'cascade_{:05d}'.format(index)
             sources[cascade_name] = 'cascade'
             parameter_names.append(cascade_name + '_energy')
 
