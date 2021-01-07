@@ -45,9 +45,11 @@ class SeedLoaderMiscModule(BaseComponent):
         seed_names : list of str
             The list of seed names. These must specify data tables in the hdf
             file or keys in the I3Frame.
-        seed_parameter_names : list of str
+        seed_parameter_names : list of str or (str, int)
             The column names to extract from the data table in hdf file
             or from the I3Frame object.
+            If the entry in the list is a tuple of (str, int), the string will
+            be added the specified number of times.
             The values will be extracted and concatenated in the same order
             as the seed_parameter_names.
         float_precision : str
@@ -101,7 +103,12 @@ class SeedLoaderMiscModule(BaseComponent):
         if not isinstance(config_data, (type(None), str, DataTensorList)):
             raise ValueError('Unknown type: {!r}'.format(type(config_data)))
 
-        num_params = len(seed_parameter_names)
+        num_params = 0
+        for name in seed_parameter_names:
+            if isinstance(name, str):
+                num_params += 1
+            else:
+                num_params += name[1]
 
         # create data tensor list
         tensor_list = []
@@ -159,18 +166,23 @@ class SeedLoaderMiscModule(BaseComponent):
             seed_parameters = []
             try:
                 _labels = f[seed_name]
-                for l in self.configuration.config['seed_parameter_names']:
-                    if l in _labels:
-                        seed_parameters.append(_labels[l].values)
-                    elif l in missing_value_dict:
-                        num_events = len(seed_parameters[-1])
-                        seed_parameters.append(
-                            [missing_value_dict[l]]*num_events)
-                    elif missing_value is not None:
-                        num_events = len(seed_parameters[-1])
-                        seed_parameters.append([missing_value]*num_events)
+                for ls in self.configuration.config['seed_parameter_names']:
+                    if ls is instance(str):
+                        ls = [ls]
                     else:
-                        raise KeyError('Could not find key {!r}'.format(l))
+                        ls = [ls[0]] * ls[1]
+                    for l in ls:
+                        if l in _labels:
+                            seed_parameters.append(_labels[l].values)
+                        elif l in missing_value_dict:
+                            num_events = len(seed_parameters[-1])
+                            seed_parameters.append(
+                                [missing_value_dict[l]]*num_events)
+                        elif missing_value is not None:
+                            num_events = len(seed_parameters[-1])
+                            seed_parameters.append([missing_value]*num_events)
+                        else:
+                            raise KeyError('Could not find key {!r}'.format(l))
 
             except Exception as e:
                 self._logger.warning(e)
@@ -229,29 +241,35 @@ class SeedLoaderMiscModule(BaseComponent):
             seed_parameters = []
             try:
                 _labels = frame[seed_name]
-                for l in self.configuration.config['seed_parameter_names']:
-                    if isinstance(_labels, dataclasses.I3Particle):
-                        if hasattr(_labels, l):
-                            value = getattr(_labels, l)
-                        elif l in ['x', 'y', 'z']:
-                            value = getattr(_labels.pos, l)
-                        elif l in ['zenith', 'azimuth']:
-                            value = getattr(_labels.dir, l)
+                for ls in self.configuration.config['seed_parameter_names']:
+                    if ls is instance(str):
+                        ls = [ls]
+                    else:
+                        ls = [ls[0]] * ls[1]
+                    for l in ls:
+                        if isinstance(_labels, dataclasses.I3Particle):
+                            if hasattr(_labels, l):
+                                value = getattr(_labels, l)
+                            elif l in ['x', 'y', 'z']:
+                                value = getattr(_labels.pos, l)
+                            elif l in ['zenith', 'azimuth']:
+                                value = getattr(_labels.dir, l)
+                            elif l in missing_value_dict:
+                                value = missing_value_dict[l]
+                            elif missing_value is not None:
+                                value = missing_value
+                            else:
+                                raise KeyError(
+                                    'Could not find key {!r}'.format(l))
+                            seed_parameters.append([value])
+                        elif l in _labels:
+                            seed_parameters.append([_labels[l]])
                         elif l in missing_value_dict:
-                            value = missing_value_dict[l]
+                            seed_parameters.append([missing_value_dict[l]])
                         elif missing_value is not None:
-                            value = missing_value
+                            seed_parameters.append([missing_value])
                         else:
                             raise KeyError('Could not find key {!r}'.format(l))
-                        seed_parameters.append([value])
-                    elif l in _labels:
-                        seed_parameters.append([_labels[l]])
-                    elif l in missing_value_dict:
-                        seed_parameters.append([missing_value_dict[l]])
-                    elif missing_value is not None:
-                        seed_parameters.append([missing_value])
-                    else:
-                        raise KeyError('Could not find key {!r}'.format(l))
 
             except KeyError as e:
                 self._logger.warning(e)
