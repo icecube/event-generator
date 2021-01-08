@@ -253,9 +253,9 @@ class TrackEquidistantCascadeModel(MultiSource):
 
             # calculate position and time of cascade
             dist = (index + 0.5) * self._untracked_data['cascade_spacing']
-            cascade_x = start_x + dist * dir_x
-            cascade_y = start_y + dist * dir_y
-            cascade_z = start_z + dist * dir_z
+            cascade_x = start_x + dist * dx
+            cascade_y = start_y + dist * dy
+            cascade_z = start_z + dist * dz
             cascade_time = start_time + dist / c
 
             # make sure cascade energy does not turn negative
