@@ -433,7 +433,7 @@ model_settings: {
 
             # configuration settings for TrackEquidistantCascadeModel object
             config: {
-                'max_num_cascades': 100,
+                'max_num_cascades': 10,
                 'cascade_spacing': 15,
                 'cylinder_radius': 600,
                 'cylinder_extension': 500,
