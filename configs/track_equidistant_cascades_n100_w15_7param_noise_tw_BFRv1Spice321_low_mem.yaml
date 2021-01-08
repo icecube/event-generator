@@ -182,10 +182,10 @@ data_iterator_settings: {
         'input_data': [
             # Snowstorm datasets
             # 1e2 - 1e4 GeV
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
             # 1e4 - 1e6 GeV
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
         ],
     },
@@ -201,8 +201,8 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
         ],
     },
 
@@ -221,10 +221,10 @@ data_iterator_settings: {
 
             # Snowstorm datasets
             # 1e2 - 1e4 GeV
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
 
             # 1e4 - 1e6 GeV
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
 
         ],
     },
@@ -244,10 +244,10 @@ data_iterator_settings: {
 
             # Snowstorm datasets
             # 1e2 - 1e4 GeV
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31032/egenerator_31032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
 
             # 1e4 - 1e6 GeV
-            '/net/big-tank/POOL/users/mhuennefeld/data/cgenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/31033/egenerator_31033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
 
         ],
     },
