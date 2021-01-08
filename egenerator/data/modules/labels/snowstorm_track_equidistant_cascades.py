@@ -9,16 +9,17 @@ from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
-class DummyMuonFixedCascadesLabelModule(BaseComponent):
+class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
 
-    """This is a dummy label module that loads muon labels
+    """Track Equidistant Cascades
 
-    Note: these are dummy labels and therefore *not* correct.
-          Do *not* use for training!
+    This is a label module that loads the snowstorm track labels
+    for a track that is defined by equidistant cascades. Because the cascades
+    are all equidistant, not vertex shifting is applied.
     """
 
     def __init__(self, logger=None):
-        """Initialize cascade module
+        """Initialize track module
 
         Parameters
         ----------
@@ -27,10 +28,15 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(DummyMuonFixedCascadesLabelModule, self).__init__(logger=logger)
+        super(SnowstormTrackEquidistantCascadesLabelModule, self).__init__(
+                                                                logger=logger)
 
-    def _configure(self, config_data, trafo_log, float_precision, num_cascades,
-                   label_key='LabelsDeepLearning'):
+    def _configure(self, config_data, trafo_log,
+                   float_precision,
+                   num_cascades=5,
+                   label_key='MCLabelsMuonEnergyLossesInCylinder',
+                   snowstorm_key='SnowstormParameters',
+                   num_snowstorm_params=30):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -40,18 +46,30 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
         trafo_log : None or bool or list of bool
-            Whether or not to apply logarithm on cascade parameters.
+            Whether or not to apply logarithm on parameters.
             If a single bool is given, this applies to all labels. Otherwise
             a list of bools corresponds to the labels in the order:
-                x, y, z, zenith, azimuth, energy, time
+                track_anchor_x, track_anchor_y, track_anchor_z,
+                zenith, azimuth,
+                track_anchor_time,
+                cascade_energy_losses,
+            The value defined for `cascade_energy_losses` will be applied to
+            all energy losses.
+            Snowstorm parameters must not be defined here. No logarithm will be
+            applied to the snowstorm parameters.
         float_precision : str
             The float precision as a str.
-        num_cascades : int
-            Number of cascade energy losses along muon track.
-            These are filled with dummy values (min 100 GeV) and are *not*
-            correct.
+        num_cascades : int, optional
+            Number of cascades along the track.
         label_key : str, optional
             The name of the key under which the labels are saved.
+        snowstorm_key : str, optional
+            The name of the key under which the snowstorm parameters are saved.
+            If `snowstorm_key` is None, no snowstorm parameters will be loaded.
+            Instead a default value of 1. will be assigned to each of the
+            `num_snowstorm_params` number of snowstorm parameters.
+        num_snowstorm_params : int, optional
+            The number of varied snowstorm parameters.
 
         Returns
         -------
@@ -88,25 +106,51 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
 
         Raises
         ------
-        TypeError
-            Description
         ValueError
             Description
         """
 
         # sanity checks:
-        if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError('{!r} is not a boolean value!'.format(
-                shift_cascade_vertex))
+        if num_cascades < 1:
+            raise ValueError('Num cascades {} must be > 0!'.format(
+                num_cascades))
 
-        data = {}
+        # compute number of parameters
+        num_params = 6 + num_cascades
+
+        # create list of parameter names which is needed for data loading
+        parameter_names = [
+            'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
+            'zenith', 'azimuth',
+            'track_anchor_time',
+        ]
+        for i in range(num_cascades):
+            parameter_names.append('cascade_{:05d}_energy'.format(i))
+
+        parameter_dict = {}
+        for i, parameter_name in enumerate(parameter_names):
+            parameter_dict[parameter_name] = i
+
+        # extend trafo log for snowstorm parameters: fill with Flase
+        if isinstance(trafo_log, bool):
+            trafo_log_ext = [trafo_log] * num_params
+        else:
+            trafo_log_ext = (
+                list(trafo_log[:-1]) + [trafo_log[-1]] * num_cascades
+            )
+        trafo_log_ext.extend([False]*num_snowstorm_params)
+
+        data = {
+            'parameter_dict': parameter_dict,
+            'parameter_names': parameter_names,
+        }
         data['label_tensors'] = DataTensorList([DataTensor(
-                                        name='x_parameters',
-                                        shape=[None, 6 + num_cascades],
-                                        tensor_type='label',
-                                        dtype=float_precision,
-                                        trafo=True,
-                                        trafo_log=trafo_log)])
+            name='x_parameters',
+            shape=[None, num_params + num_snowstorm_params],
+            tensor_type='label',
+            dtype=float_precision,
+            trafo=True,
+            trafo_log=trafo_log_ext)])
 
         if isinstance(config_data, DataTensorList):
             if config_data != data['label_tensors']:
@@ -116,11 +160,12 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config_data=config_data,
-                          shift_cascade_vertex=shift_cascade_vertex,
                           trafo_log=trafo_log,
                           float_precision=float_precision,
                           num_cascades=num_cascades,
-                          label_key=label_key))
+                          label_key=label_key,
+                          snowstorm_key=snowstorm_key,
+                          num_snowstorm_params=num_snowstorm_params))
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -143,6 +188,11 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
             Returns None if no label data is loaded.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
@@ -150,21 +200,34 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         # open file
         f = pd.HDFStore(file, 'r')
 
-        cascade_parameters = []
+        track_parameters = []
         try:
             _labels = f[self.configuration.config['label_key']]
-            for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
-                      'cascade_azimuth', 'cascade_t']:
-                cascade_parameters.append(_labels[l])
+            for l in self.data['parameter_names']:
+                    track_parameters.append(_labels[l])
 
-            # add dummy energy loss values
-            cascade_energy = _labels['cascade_energy']
+            snowstorm_key = self.configuration.config['snowstorm_key']
+            num_params = self.configuration.config['num_snowstorm_params']
+            num_events = len(track_parameters[0])
 
-            num_cascades = self.configuration.config['num_cascades']
-            energy_per_cascade = np.clip(cascade_energy / num_cascades,
-                                         100, float('inf'))
+            if num_params > 0:
+                if snowstorm_key is not None:
+                    _snowstorm_params = f[snowstorm_key]
+                    params = _snowstorm_params['item']
+                    index = _snowstorm_params['vector_index']
+                    assert max(index) == num_params - 1
+                    assert min(index) == 0
 
-            cascade_parameters.extend([energy_per_cascade] * num_cascades)
+                    for i in range(num_params):
+
+                        snowstorm_param = params[index == i]
+                        assert len(snowstorm_param) == num_events
+                        track_parameters.append(snowstorm_param)
+
+                else:
+                    # No Snowstorm key is provided: add dummy values
+                    for i in range(num_params):
+                        track_parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
@@ -173,13 +236,12 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         finally:
             f.close()
 
-        # format cascade parameters
+        # format track parameters
         dtype = getattr(np, self.configuration.config['float_precision'])
-        cascade_parameters = np.array(cascade_parameters,
-                                      dtype=dtype).T
-        num_events = len(cascade_parameters)
+        track_parameters = np.array(track_parameters, dtype=dtype).T
+        num_events = len(track_parameters)
 
-        return num_events, (cascade_parameters,)
+        return num_events, (track_parameters,)
 
     def get_data_from_frame(self, frame, *args, **kwargs):
         """Get label data from frame.
@@ -205,34 +267,43 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
 
-        cascade_parameters = []
+        track_parameters = []
         try:
             _labels = frame[self.configuration.config['label_key']]
-            for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
-                      'cascade_azimuth', 'cascade_t']:
-                cascade_parameters.append(np.atleast_1d(_labels[l]))
+            for l in self.data['parameter_names']:
+                track_parameters.append(np.atleast_1d(_labels[l]))
 
-            # add dummy energy loss values
-            cascade_energy = np.atleast_1d(_labels['cascade_energy'])
+            snowstorm_key = self.configuration.config['snowstorm_key']
+            num_params = self.configuration.config['num_snowstorm_params']
+            num_events = len(track_parameters[0])
 
-            num_cascades = self.configuration.config['num_cascades']
-            energy_per_cascade = np.clip(cascade_energy / num_cascades,
-                                         100, float('inf'))
+            if num_params > 0:
+                if snowstorm_key is not None:
+                    _snowstorm_params = frame[snowstorm_key]
+                    assert len(_snowstorm_params) == num_params
 
-            cascade_parameters.extend([energy_per_cascade] * num_cascades)
+                    for i in range(num_params):
+
+                        snowstorm_param = np.atleast_1d(_snowstorm_params[i])
+                        assert len(snowstorm_param) == num_events
+                        track_parameters.append(snowstorm_param)
+
+                else:
+                    # No Snowstorm key is provided: add dummy values
+                    for i in range(num_params):
+                        track_parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
             self._logger.warning('Skipping frame: {}'.format(frame))
             return None, None
 
-        # format cascade parameters
+        # format track parameters
         dtype = getattr(np, self.configuration.config['float_precision'])
-        cascade_parameters = np.array(cascade_parameters,
-                                      dtype=dtype).T
-        num_events = len(cascade_parameters)
+        track_parameters = np.array(track_parameters, dtype=dtype).T
+        num_events = len(track_parameters)
 
-        return num_events, (cascade_parameters,)
+        return num_events, (track_parameters,)
 
     def create_data_from_frame(self, frame, *args, **kwargs):
         """Create label data from frame.

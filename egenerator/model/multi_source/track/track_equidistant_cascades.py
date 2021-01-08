@@ -88,9 +88,8 @@ class TrackEquidistantCascadeModel(MultiSource):
         # gather parameter names and sources
         sources = {}
         parameter_names = [
-            'zenith', 'azimuth',
             'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-            'track_anchor_time',
+            'zenith', 'azimuth', 'track_anchor_time',
         ]
         for index in range(num_cascades):
             cascade_name = 'cascade_{:05d}'.format(index)
@@ -130,6 +129,8 @@ class TrackEquidistantCascadeModel(MultiSource):
             of the infinite track.
             Shape: [n_events]
         """
+        cascade_spacing = self._untracked_data['cascade_spacing']
+        num_cascades = self._untracked_data['num_cascades']
         r = self._untracked_data['cylinder_radius']
         c_z = self._untracked_data['cylinder_extension']
 
@@ -187,11 +188,12 @@ class TrackEquidistantCascadeModel(MultiSource):
             [l_p, l_n, l_t, l_b], axis=1), axis=1)
 
         # if track did not hit the cylinder, the distance will not be finite,
-        # in this case set the position to the closes approach point
+        # in this case set the position to the closest approach point minus
+        # half of the binned track length
         dist_cyl = tf.where(
             tf.math.is_finite(dist_cyl),
             dist_cyl,
-            dist_closest,
+            dist_closest - 0.5*(cascade_spacing * max(0, num_cascades - 1)),
         )
 
         return dist_cyl
@@ -249,7 +251,7 @@ class TrackEquidistantCascadeModel(MultiSource):
             cascade_energy = parameters.params[cascade_name + '_energy']
 
             # calculate position and time of cascade
-            dist = index * self._untracked_data['cascade_spacing']
+            dist = (index + 0.5) * self._untracked_data['cascade_spacing']
             cascade_x = start_x + dist * dir_x
             cascade_y = start_y + dist * dir_y
             cascade_z = start_z + dist * dir_z
