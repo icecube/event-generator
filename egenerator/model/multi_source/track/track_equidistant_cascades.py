@@ -232,7 +232,8 @@ class TrackEquidistantCascadeModel(MultiSource):
         dz = -tf.cos(zenith)
 
         # compute entry distance of track to cylinder
-        dist_cyl = self.get_cylinder_intersection_distance(x, y, z, dx, dy, dz)
+        dist_cyl = self.get_cylinder_intersection_distance(
+            anchor_x, anchor_y, anchor_z, dx, dy, dz)
 
         # compute entry point of track to cylinder
         start_x = anchor_x + dist_cyl * dx
