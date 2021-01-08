@@ -125,7 +125,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             'track_anchor_time',
         ]
         for i in range(num_cascades):
-            parameter_names.append('cascade_{:05d}_energy'.format(i))
+            parameter_names.append('EnergyLoss_{:05d}_energy'.format(i))
 
         parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):
