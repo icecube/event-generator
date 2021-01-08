@@ -89,7 +89,7 @@ reconstruction_settings: {
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth', 'time',
-                             ('energy', 100)],
+                             ['energy', 100]],
     'seed_missing_value': ,
     'seed_missing_value_dict': {
     },
