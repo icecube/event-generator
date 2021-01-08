@@ -88,8 +88,8 @@ class TrackEquidistantCascadeModel(MultiSource):
         # gather parameter names and sources
         sources = {}
         parameter_names = [
-            'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-            'zenith', 'azimuth', 'track_anchor_time',
+            'anchor_x', 'anchor_y', 'anchor_z',
+            'zenith', 'azimuth', 'anchor_time',
         ]
         for index in range(num_cascades):
             cascade_name = 'cascade_{:05d}'.format(index)
@@ -219,12 +219,12 @@ class TrackEquidistantCascadeModel(MultiSource):
         c = 0.299792458  # meter / ns
         d_thresh = 700  # meter
 
-        anchor_x = parameters.params['track_anchor_x']
-        anchor_y = parameters.params['track_anchor_y']
-        anchor_z = parameters.params['track_anchor_z']
+        anchor_x = parameters.params['anchor_x']
+        anchor_y = parameters.params['anchor_y']
+        anchor_z = parameters.params['anchor_z']
         zenith = parameters.params['zenith']
         azimuth = parameters.params['azimuth']
-        anchor_time = parameters.params['track_anchor_time']
+        anchor_time = parameters.params['anchor_time']
 
         # calculate direction vector
         dx = -tf.sin(zenith) * tf.cos(azimuth)

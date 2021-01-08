@@ -154,8 +154,8 @@ model_manager_settings: {
             'x': 'track_anchor_x',
             'y': 'track_anchor_y',
             'z': 'track_anchor_z',
-            'zenith': 'zenith',
-            'azimuth': 'azimuth',
+            'zenith': 'track_zenith',
+            'azimuth': 'track_azimuth',
             # 'energy': 'cascade_energy',
             'time': 'track_anchor_time',
         },
@@ -400,7 +400,7 @@ model_settings: {
     config: {
         'sources': {
             'noise': 'noise',
-            'cascade': 'cascade',
+            'track': 'track',
         },
     },
 
@@ -426,7 +426,7 @@ model_settings: {
         },
 
         # MultiSourceCascade
-        cascade: {
+        track: {
 
             # The model class to use
             'model_class': 'egenerator.model.multi_source.track.TrackEquidistantCascadeModel',

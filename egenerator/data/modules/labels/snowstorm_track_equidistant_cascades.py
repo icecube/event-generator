@@ -120,9 +120,8 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
 
         # create list of parameter names which is needed for data loading
         parameter_names = [
-            'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-            'zenith', 'azimuth',
-            'track_anchor_time',
+            'anchor_x', 'anchor_y', 'anchor_z', 'zenith', 'azimuth',
+            'anchor_time',
         ]
         for i in range(num_cascades):
             parameter_names.append('EnergyLoss_{:05d}'.format(i))
