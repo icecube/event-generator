@@ -346,7 +346,7 @@ data_handler_settings: {
     'label_settings':{
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, time, E_losses)
-        'trafo_log': [False, False, False, False, False, False, True]
+        'trafo_log': [False, False, False, False, False, False, True],
         'label_key': 'MCLabelsMuonEnergyLossesInCylinder_n115_w15',
         'num_cascades': 100,
         'snowstorm_key': 'SnowstormParameters',
