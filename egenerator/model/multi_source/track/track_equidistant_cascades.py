@@ -249,7 +249,8 @@ class TrackEquidistantCascadeModel(MultiSource):
         # -------------------------------
         for index in range(self._untracked_data['num_cascades']):
             cascade_name = 'cascade_{:04d}'.format(index)
-            cascade_energy = parameters.params[cascade_name + '_energy']
+            loss_name = 'EnergyLoss_{:05d}'.format(index)
+            cascade_energy = parameters.params[loss_name]
 
             # calculate position and time of cascade
             dist = (index + 0.5) * self._untracked_data['cascade_spacing']
@@ -270,7 +271,7 @@ class TrackEquidistantCascadeModel(MultiSource):
             cascade_energy = tf.where(tf.abs(cascade_z) > d_thresh,
                                       cascade_energy*0., cascade_energy)
 
-            source_parameter_dict[cascade] = tf.stack([
+            source_parameter_dict[cascade_name] = tf.stack([
                 cascade_x, cascade_y, cascade_z,
                 zenith, azimuth, cascade_energy, cascade_time],
                 axis=1)
