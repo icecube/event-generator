@@ -248,9 +248,8 @@ class TrackEquidistantCascadeModel(MultiSource):
         # Compute parameters for Cascades
         # -------------------------------
         for index in range(self._untracked_data['num_cascades']):
-            cascade_name = 'cascade_{:04d}'.format(index)
-            loss_name = 'EnergyLoss_{:05d}'.format(index)
-            cascade_energy = parameters.params[loss_name]
+            cascade_name = 'cascade_{:05d}'.format(index)
+            cascade_energy = parameters.params[cascade_name + '_energy']
 
             # calculate position and time of cascade
             dist = (index + 0.5) * self._untracked_data['cascade_spacing']
