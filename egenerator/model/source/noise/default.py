@@ -333,17 +333,25 @@ class DefaultNoiseModel(Source):
         x = np.atleast_1d(x)
         assert len(x.shape) == 1, x.shape
 
-        # internally we are working with different time units
-        x = x / self.time_unit_in_ns
+        n_points = len(x)
+        # shape: [1, 1, 1, n_points]
+        x = np.reshape(x, [1, 1, 1, -1])
 
         # extract values
 
-        # Shape: ()
+        # Shape: (n_events)
         pdf_constant = result_tensors['pdf_constant'].numpy()
+        # shape: [n_events, 1, 1, 1]
+        pdf_constant = np.reshape(pdf_constant, [-1, 1, 1, 1])
 
         # Shape: [n_events, 2]
         time_window = result_tensors['pdf_time_window'].numpy()
-        time_window = np.reshape(time_window, [-1, 1, 1, ])
+        # shape: [n_events, 1, 1, 1, 2]
+        time_window = np.reshape(time_window, [-1, 1, 1, 1, 2])
+
+        # internally we are working with different time units
+        x = x / self.time_unit_in_ns
+        time_window = time_window / self.time_unit_in_ns
 
         # Shape: [n_events, 86, 60, 1]
         if 'dom_cdf_exclusion' in result_tensors:
@@ -355,10 +363,11 @@ class DefaultNoiseModel(Source):
         pdf_values = pdf_constant / (1. - dom_cdf_exclusion + 1e-3)
 
         # Shape: [n_events, 86, 60, n_points]
-        pdf_values = np.tile(pdf_values, reps=(1, 1, 1, len(x)))
+        pdf_values = np.tile(pdf_values, reps=(1, 1, 1, n_points))
 
         pdf_values = np.where(
-            np.logical_and(x >= time_window[0], x <= time_window[1]),
+            # mask shape: [n_events, 1, 1, n_points]
+            np.logical_and(x >= time_window[..., 0], x <= time_window[..., 1]),
             pdf_values,
             np.zeros_like(pdf_values),
         )

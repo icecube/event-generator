@@ -47,7 +47,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'The output base key to which results will be saved',
                           'EventGenerator')
         self.AddParameter('pulse_key',
-                          'The pulses to use for the reconstruction.',
+                          'The pulses to use for the reconstruction. Note: '
+                          'pulses in exclusion windows must have already been '
+                          'excluded!',
                           'InIceDSTPulses')
         self.AddParameter('dom_exclusions_key',
                           'The DOM exclusions to use.',

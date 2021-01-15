@@ -840,8 +840,11 @@ class MultiSource(Source):
             dictionary:
             {
                 # str: ([n_events, 86, 60, 1], [n_events, 86, 60, n_points])
-                source_name: (dom_charges, pdf_values),
+                source_name: (multi_source_fraction, pdf_values),
             }
+            Note: that the PDFs need to be multiplied by
+            `multi_source_fraction` in order to obtain the mixture model for
+            the Multi-Source.
         **kwargs
             Keyword arguments.
 
@@ -851,10 +854,14 @@ class MultiSource(Source):
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
             Shape: [n_events, 86, 60, n_points]
+        dict [optional]
+            A dictionary with the PDFs of the nested sources. See description
+            of `output_nested_pdfs`.
         """
         # dict: {model_name: (base_source, result_tensors_i)}
         flattened_results = self._flatten_nested_results(result_tensors)
 
+        nested_pdfs = {}
         pdf_values = None
         dom_charges = result_tensors['dom_charges'].numpy()
         for name, (base_source, result_tensors_i) in flattened_results.items():
@@ -870,9 +877,16 @@ class MultiSource(Source):
             else:
                 pdf_values += pdf_values_i * dom_charges_i
 
+            if output_nested_pdfs:
+                multi_source_fraction = dom_charges_i / dom_charges
+                nested_pdfs[name] = (multi_source_fraction, pdf_values_i)
+
         pdf_values /= dom_charges
 
-        return pdf_values
+        if output_nested_pdfs:
+            return pdf_values, nested_pdfs
+        else:
+            return pdf_values
 
     def load_weights(self, dir_path, checkpoint_number=None):
         """Load the model weights.
