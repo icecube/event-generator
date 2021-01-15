@@ -1,8 +1,10 @@
 from __future__ import division, print_function
 import logging
+import numpy as np
 import tensorflow as tf
 
 from egenerator import misc
+from egenerator.utils import basis_functions
 from egenerator.model.base import Model
 from egenerator.manager.component import Configuration
 
@@ -63,6 +65,10 @@ class Source(Model):
     parameter_names : list of str
         The names of the n_params number of parameters.
     """
+
+    @property
+    def time_unit_in_ns(self):
+        return 1000.
 
     @property
     def data_trafo(self):
@@ -335,6 +341,92 @@ class Source(Model):
         """
         self.assert_configured(True)
         raise NotImplementedError()
+
+    def pdf(self, x, result_tensors, **kwargs):
+        """Compute PDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the PDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The PDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+
+        Raises
+        ------
+        NotImplementedError
+            If assymetric Gaussian latent variables are not present in
+            `result_tensors` dictionary.
+        """
+
+        x = np.atleast_1d(x)
+        assert len(x.shape) == 1, x.shape
+
+        # shape: [1, 1, 1, 1, n_points]
+        x = np.reshape(x, (1, 1, 1, 1, -1))
+
+        if result_tensors['time_offsets'] is not None:
+            # shape: [n_events]
+            t_offsets = result_tensors['time_offsets'].numpy()
+            # shape: [n_events, 1, 1, 1, 1]
+            t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
+            # shape: [n_events, 1, 1, 1, n_points]
+            x = x - t_offsets
+
+        # internally we are working with different time units
+        x = x / self.time_unit_in_ns
+
+        # Check if the asymmetric Gaussian latent variables exist
+        for latent_name in ['mu', 'scale', 'sigma', 'r']:
+            if 'latent_var_' + latent_name not in result_tensors:
+                msg = 'PDF evaluation is not supported for this model: {}'
+                raise NotImplementedError(msg.format(
+                    self._untracked_data['name']))
+
+        # extract values
+        # shape: [n_events, 86, 60, n_components, 1]
+        mu = result_tensors['latent_var_mu'].numpy()[..., np.newaxis]
+        scale = result_tensors['latent_var_scale'].numpy()[..., np.newaxis]
+        sigma = result_tensors['latent_var_sigma'].numpy()[..., np.newaxis]
+        r = result_tensors['latent_var_r'].numpy()[..., np.newaxis]
+
+        # shape: [n_events, 86, 60, n_components, n_points]
+        mixture_pdf = basis_functions.asymmetric_gauss(
+            x=x, mu=mu, sigma=sigma, r=r
+        )
+
+        # uniformly scale up pdf values due to excluded regions
+        if 'dom_cdf_exclusion' in result_tensors:
+
+            # shape: [n_events, 86, 60, n_components]
+            dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
+
+            # shape: [n_events, 86, 60, n_components, 1]
+            dom_cdf_exclusion = dom_cdf_exclusion[..., np.newaxis]
+            scale /= (1. - dom_cdf_exclusion + 1e-3)
+
+        # shape: [n_events, 86, 60, n_points]
+        pdf_values = np.sum(mixture_pdf * scale, axis=3)
+
+        return pdf_values
 
     # def _get_top_node(self):
     #     """Helper function to get the top

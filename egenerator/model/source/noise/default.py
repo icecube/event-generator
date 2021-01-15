@@ -282,6 +282,7 @@ class DefaultNoiseModel(Source):
             pulse_pdf /= tf.squeeze(1. - pulse_cdf_exclusion + 1e-3, axis=-1)
 
         # add tensors to tensor dictionary
+        tensor_dict['time_offsets'] = None
         tensor_dict['dom_charges'] = dom_charges
         tensor_dict['dom_charges_alpha'] = dom_charges_alpha
         tensor_dict['dom_charges_unc'] = dom_charges_unc
@@ -296,3 +297,70 @@ class DefaultNoiseModel(Source):
         # -------------------------------------------
 
         return tensor_dict
+
+    def pdf(self, x, result_tensors, **kwargs):
+        """Compute PDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the PDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The PDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+
+        Raises
+        ------
+        NotImplementedError
+            If assymetric Gaussian latent variables are not present in
+            `result_tensors` dictionary.
+        """
+
+        # shape: [n_points]
+        x = np.atleast_1d(x)
+        assert len(x.shape) == 1, x.shape
+
+        # internally we are working with different time units
+        x = x / self.time_unit_in_ns
+
+        # extract values
+
+        # Shape: ()
+        pdf_constant = result_tensors['pdf_constant'].numpy()
+
+        # Shape: [n_events, 2]
+        time_window = result_tensors['pdf_time_window'].numpy()
+        time_window = np.reshape(time_window, [-1, 1, 1, ])
+
+        # Shape: [n_events, 86, 60, 1]
+        if 'dom_cdf_exclusion' in result_tensors:
+            dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
+        else:
+            dom_cdf_exclusion = np.zeros((len(time_window), 86, 60, 1))
+
+        # Shape: [n_events, 86, 60, 1]
+        pdf_values = pdf_constant / (1. - dom_cdf_exclusion + 1e-3)
+
+        # Shape: [n_events, 86, 60, n_points]
+        pdf_values = np.tile(pdf_values, reps=(1, 1, 1, len(x)))
+
+        pdf_values = np.where(
+            np.logical_and(x >= time_window[0], x <= time_window[1]),
+            pdf_values,
+            np.zeros_like(pdf_values),
+        )
+
+        return pdf_values

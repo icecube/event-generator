@@ -335,6 +335,7 @@ class MultiSource(Source):
         dom_charges_variance = None
         dom_cdf_exclusion_sum = None
         pulse_pdf = None
+        nested_results = {}
         for name, base in self._untracked_data['sources'].items():
 
             # get the base source
@@ -352,6 +353,7 @@ class MultiSource(Source):
 
             result_tensors_i = concrete_get_tensors_funcs[base](
                                                             data_batch_dict_i)
+            nested_results[name] = result_tensors_i
 
             dom_charges_i = result_tensors_i['dom_charges']
             dom_charges_variance_i = result_tensors_i['dom_charges_variance']
@@ -413,6 +415,7 @@ class MultiSource(Source):
             'dom_charges': dom_charges,
             'dom_charges_variance': dom_charges_variance,
             'pulse_pdf': pulse_pdf,
+            'nested_results': nested_results,
         }
 
         # normalize time exclusion sum: divide by total charge at DOM
@@ -438,6 +441,10 @@ class MultiSource(Source):
         lumped to together and then run through the base models as a batch.
         In the curent implementation, this requires the duplication of the
         input data which might lead to significantly higher memory usage.
+
+        Note: this implementation does not support output of nested result
+        tensors, which is required for the `pdf` and `sample_pulses` methods.
+        If these are needed, use `get_tensors` instead.
 
         Parameters
         ----------
@@ -768,6 +775,104 @@ class MultiSource(Source):
                     dir_path=sub_dir_path, max_keep=max_keep,
                     protected=protected, description=description,
                     num_training_steps=num_training_steps)
+
+    def _flatten_nested_results(self, result_tensors, parent=None):
+        """Gather nested result tensors and return as flattened dictionary.
+
+        Parameters
+        ----------
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        parent : str, optional
+            The name of the parent Multi-Source object.
+            None, if no parent exists, i.e. this is the root Multi-Source
+            object.
+
+        Returns
+        -------
+        dict of tf.tensor
+            A dictionary of the flattend results and models:
+            {
+                model_name: (base_source, result_tensors_i),
+            }
+        """
+        flattened_results = {}
+        for name, result_tensors_i in result_tensors['nested_results'].items():
+
+            base_name = self._untracked_data['sources'][name]
+            base_source = self.sub_components[base_name]
+
+            if 'nested_results' in result_tensors_i:
+                # found another Multi-Source, so keep going
+                flattened_results_i = base_source._flatten_nested_results(
+                    result_tensors_i, parent=name)
+                flattened_results.update(flattened_results_i)
+            else:
+                # found a base source
+                values = (base_source, result_tensors_i)
+                if parent is None:
+                    flattened_results[name] = values
+                else:
+                    flattened_results['{}/{}'.format(parent, name)] = values
+
+        return flattened_results
+
+    def pdf(self, x, result_tensors, output_nested_pdfs=False, **kwargs):
+        """Compute PDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the PDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        output_nested_pdfs : bool, optional
+            If True, the PDFs of the nested sources will be returned as a
+            dictionary:
+            {
+                # str: ([n_events, 86, 60, 1], [n_events, 86, 60, n_points])
+                source_name: (dom_charges, pdf_values),
+            }
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The PDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+        """
+        # dict: {model_name: (base_source, result_tensors_i)}
+        flattened_results = self._flatten_nested_results(result_tensors)
+
+        pdf_values = None
+        dom_charges = result_tensors['dom_charges'].numpy()
+        for name, (base_source, result_tensors_i) in flattened_results.items():
+
+            # shape: [n_events, 86, 60, n_points]
+            pdf_values_i = base_source.pdf(x, result_tensors_i)
+
+            # shape: [n_events, 86, 60, 1]
+            dom_charges_i = result_tensors_i['dom_charges'].numpy()
+
+            if pdf_values is None:
+                pdf_values = pdf_values_i * dom_charges_i
+            else:
+                pdf_values += pdf_values_i * dom_charges_i
+
+        pdf_values /= dom_charges
+
+        return pdf_values
 
     def load_weights(self, dir_path, checkpoint_number=None):
         """Load the model weights.

@@ -542,6 +542,7 @@ class ChargeQuantileCascadeModel(Source):
         # -------------------------------------------
 
         # offset PDF evaluation times with cascade vertex time
+        tensor_dict['time_offsets'] = parameters[:, 6]
         t_pdf = pulse_times - tf.gather(parameters[:, 6],
                                         indices=pulse_batch_id)
         # new shape: [None, 1]
@@ -555,7 +556,7 @@ class ChargeQuantileCascadeModel(Source):
         print('pulse_light_propagation_time', pulse_light_propagation_time)
 
         # scale time range down to avoid big numbers:
-        t_scale = 0.001  # unit: 1./ns --> time units in us
+        t_scale = 1. / self.time_unit_in_ns  # [1./ns]
         average_t_dist = 1000. * t_scale
         t_pdf = t_pdf * t_scale
         pulse_light_propagation_time *= t_scale

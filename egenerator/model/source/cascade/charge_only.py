@@ -357,4 +357,6 @@ class ChargeOnlyCascadeModel(Source):
         tensor_dict['pulse_pdf'] = tf.ones_like(
             data_batch_dict['x_pulses'][:, 0])
 
+        tensor_dict['time_offsets'] = None
+
         return tensor_dict

@@ -108,7 +108,9 @@ class DummyCascadeModel(Source):
 
         tensor_dict = {
             'dom_charges': dom_charges,
+            'dom_charges_variance': dom_charges,
             'pulse_pdf': pulse_pdf,
+            'time_offsets': None,
         }
 
         return tensor_dict
