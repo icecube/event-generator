@@ -26,8 +26,8 @@ def get_combined_exclusions(
     excluded_doms, excluded_tws = combine_exclusions(
         frame, dom_and_tw_exclusions, partial_exclusion)
 
-    frame[output_key + '_DOMs'] = excluded_doms
-    frame[output_key + '_TimeWindows'] = excluded_tws
+    frame[output_key + 'DOMs'] = excluded_doms
+    frame[output_key + 'TimeWindows'] = excluded_tws
 
 
 def get_valid_pulse_map(frame, pulse_key, dom_and_tw_exclusions,
