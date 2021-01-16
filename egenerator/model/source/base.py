@@ -353,6 +353,11 @@ class Source(Model):
         Gaussians to parameterize the PDF. The latent values of the AG
         must be included in the `result_tensors`.
 
+        Note: the PDF does not set values inside excluded time windows to zero,
+        but it does adjust the normalization. It is assumed that pulses will
+        already be masked before evaluated by Event-Generator. Therefore, an
+        extra check for exclusions is not performed due to performance issues.
+
         Parameters
         ----------
         x : array_like

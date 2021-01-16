@@ -305,6 +305,11 @@ class DefaultNoiseModel(Source):
         on a provided `result_tensors`. This can be used to investigate
         the generated PDFs.
 
+        Note: the PDF does not set values inside excluded time windows to zero,
+        but it does adjust the normalization. It is assumed that pulses will
+        already be masked before evaluated by Event-Generator. Therefore, an
+        extra check for exclusions is not performed due to performance issues.
+
         Parameters
         ----------
         x : array_like
