@@ -96,7 +96,7 @@ def ApplyEventGeneratorReconstruction(
         pulse_key=masked_pulses_key,
         dom_exclusions_key=excluded_dom_key,
         time_exclusions_key=excluded_tw_key,
-        **egenerator_cfg
+        **egenerator_kwargs
     )
 
     # clean up
