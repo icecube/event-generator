@@ -747,6 +747,7 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        param_dtype = getattr(np, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_paramater_list)]
 
@@ -757,9 +758,9 @@ class SourceManager(BaseModelManager):
 
         # define helper function
         def func(x, data_batch, seed):
-            # reshape and convert to tensor
-            x = np.reshape(x, param_shape)
-            seed = np.reshape(seed, param_shape_full)
+            # reshape and convert to proper
+            x = np.reshape(x, param_shape).astype(param_dtype)
+            seed = np.reshape(seed, param_shape_full).astype(param_dtype)
             loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
@@ -770,8 +771,8 @@ class SourceManager(BaseModelManager):
         if hessian_function is not None:
             def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
-                x = np.reshape(x, param_shape)
-                seed = np.reshape(seed, param_shape_full)
+                x = np.reshape(x, param_shape).astype(param_dtype)
+                seed = np.reshape(seed, param_shape_full).astype(param_dtype)
                 hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
@@ -896,6 +897,7 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        param_dtype = getattr(np, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_paramater_list)]
 
@@ -907,8 +909,8 @@ class SourceManager(BaseModelManager):
         # define helper function
         def func(x, data_batch, seed):
             # reshape and convert to tensor
-            x = np.reshape(x, param_shape)
-            seed = np.reshape(seed, param_shape_full)
+            x = np.reshape(x, param_shape).astype(param_dtype)
+            seed = np.reshape(seed, param_shape_full).astype(param_dtype)
             if batch_size == 1:
                 loss = loss_function(x, data_batch, seed=seed)
             else:
@@ -1042,6 +1044,7 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_paramater_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        param_dtype = getattr(np, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_paramater_list)]
 
@@ -1056,8 +1059,8 @@ class SourceManager(BaseModelManager):
         # define helper function
         def func(x, data_batch, seed):
             # reshape and convert to tensor
-            x = np.reshape(x, param_shape)
-            seed = np.reshape(seed, param_shape_full)
+            x = np.reshape(x, param_shape).astype(param_dtype)
+            seed = np.reshape(seed, param_shape_full).astype(param_dtype)
             loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
             loss = loss.numpy().astype('float64')
             grad = grad.numpy().astype('float64')
@@ -1068,8 +1071,8 @@ class SourceManager(BaseModelManager):
         if hessian_function is not None:
             def get_hessian(x, data_batch, seed):
                 # reshape and convert to tensor
-                x = np.reshape(x, param_shape)
-                seed = np.reshape(seed, param_shape_full)
+                x = np.reshape(x, param_shape).astype(param_dtype)
+                seed = np.reshape(seed, param_shape_full).astype(param_dtype)
                 hessian = hessian_function(x, data_batch, seed=seed)
                 hessian = hessian.numpy().astype('float64')
                 return hessian
