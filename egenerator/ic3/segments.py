@@ -85,7 +85,7 @@ def ApplyEventGeneratorReconstruction(
         exclusions.get_valid_pulse_map, name + 'MaskPulses',
         pulse_key=pulse_key,
         output_key=masked_pulses_key,
-        excluded_doms=dom_and_tw_exclusions,
+        dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
         verbose=False,
     )
