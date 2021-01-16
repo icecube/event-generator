@@ -61,16 +61,8 @@ class ManagerConfigurator:
 
         reco_config_file = os.path.join(reco_config_dir[0], 'reco_config.yaml')
 
-        tf.random.set_seed(tf_random_seed)
-
-        # limit GPU usage
-        gpu_devices = tf.config.experimental.list_physical_devices('GPU')
-        for device in gpu_devices:
-            tf.config.experimental.set_memory_growth(device, True)
-
-        # limit number of CPU threads
-        tf.config.threading.set_intra_op_parallelism_threads(num_threads)
-        tf.config.threading.set_inter_op_parallelism_threads(num_threads)
+        self.confifgure_tf(
+            num_threads=num_threads, tf_random_seed=tf_random_seed)
 
         # read in reconstruction config file
         setup_manager = SetupManager([reco_config_file])
@@ -187,3 +179,30 @@ class ManagerConfigurator:
 
         # save manager
         self.manager = manager
+
+    @staticmethod
+    def confifgure_tf(num_threads=0, tf_random_seed=1337):
+        """Configures tensorflow
+
+        Set memory growth of GPUs to true, sets random seed and specifies
+        number of threads for inter and intra op parallelism.
+
+        Parameters
+        ----------
+        num_threads : int, optional
+            Number of threads to use for tensorflow settings
+            `intra_op_parallelism_threads` and `inter_op_parallelism_threads`.
+            If zero (default), the system picks an appropriate number.
+        tf_random_seed : int, optional
+            Random seed for tensorflow.
+        """
+        tf.random.set_seed(tf_random_seed)
+
+        # limit GPU usage
+        gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+        for device in gpu_devices:
+            tf.config.experimental.set_memory_growth(device, True)
+
+        # limit number of CPU threads
+        tf.config.threading.set_intra_op_parallelism_threads(num_threads)
+        tf.config.threading.set_inter_op_parallelism_threads(num_threads)
