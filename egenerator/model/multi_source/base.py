@@ -315,38 +315,12 @@ class MultiSource(Source):
         # get concrete functions of base sources.
         # That way tracing only needs to be applied once.
         # -----------------------------------------------
-        concrete_tensor_funcs = {}
-
-        def get_or_add_tf_func(source_name, base_name):
-
-            if base_name not in concrete_tensor_funcs:
-                base_source = self.sub_components[base_name]
-
-                @tf.function
-                def concrete_function(data_batch_dict_i):
-                    print('Tracing multi-source base: {} ({})'.format(
-                        base_name, base_source))
-                    return base_source.get_tensors(
-                                    data_batch_dict_i,
-                                    is_training=is_training,
-                                    parameter_tensor_name='x_parameters')
-
-                # get input parameters for Source i
-                parameters_i = source_parameters[source_name]
-                parameters_i = base_source.add_parameter_indexing(
-                    parameters_i)
-
-                # Create data batch for this source
-                data_batch_dict_i = {'x_parameters': parameters_i}
-                for key, values in data_batch_dict.items():
-                    if key != 'x_parameters':
-                        data_batch_dict_i[key] = values
-
-                concrete_tensor_funcs[base_name] = (
-                    concrete_function.get_concrete_function(data_batch_dict_i)
-                )
-
-            return concrete_tensor_funcs[base_name]
+        func_cache = ConcreteFunctionCache(
+            source_parameters=source_parameters,
+            sub_components=self.sub_components,
+            data_batch_dict=data_batch_dict,
+            is_training=is_training,
+        )
         # -----------------------------------------------
 
         dom_charges = None
@@ -369,7 +343,7 @@ class MultiSource(Source):
                 if key != 'x_parameters':
                     data_batch_dict_i[key] = values
 
-            result_tensors_i = get_or_add_tf_func(
+            result_tensors_i = func_cache.get_or_add_tf_func(
                 source_name=name, base_name=base)(data_batch_dict_i)
             nested_results[name] = result_tensors_i
 
@@ -1130,3 +1104,60 @@ class MultiSource(Source):
                 in_tensor, collect_name=collect_name))
 
         return tensor_list
+
+
+class ConcreteFunctionCache():
+
+    """Concrete Function Container
+    """
+
+    def __init__(self, source_parameters, sub_components,
+                 data_batch_dict, is_training):
+        self.source_parameters = source_parameters
+        self.sub_components = sub_components
+        self.data_batch_dict = data_batch_dict
+        self.is_training = is_training
+        self.concrete_tensor_funcs = {}
+
+    def get_or_add_tf_func(self, source_name, base_name):
+        """Retrieve concrete tf function from cache or add new one.
+
+        Parameters
+        ----------
+        source_name : str
+            The name of the Source object.
+        base_name : str
+            The name of the base source object.
+
+        Returns
+        -------
+        tf.Function
+            The concrete tensorflow function
+        """
+        if base_name not in self.concrete_tensor_funcs:
+            base_source = self.sub_components[base_name]
+
+            @tf.function
+            def concrete_function(data_batch_dict_i):
+                print('Tracing multi-source base: {} ({})'.format(
+                    base_name, base_source))
+                return base_source.get_tensors(
+                                data_batch_dict_i,
+                                is_training=self.is_training,
+                                parameter_tensor_name='x_parameters')
+
+            # get input parameters for Source i
+            parameters_i = self.source_parameters[source_name]
+            parameters_i = base_source.add_parameter_indexing(parameters_i)
+
+            # Create data batch for this source
+            data_batch_dict_i = {'x_parameters': parameters_i}
+            for key, values in self.data_batch_dict.items():
+                if key != 'x_parameters':
+                    data_batch_dict_i[key] = values
+
+            self.concrete_tensor_funcs[base_name] = (
+                concrete_function.get_concrete_function(data_batch_dict_i)
+            )
+
+        return self.concrete_tensor_funcs[base_name]
