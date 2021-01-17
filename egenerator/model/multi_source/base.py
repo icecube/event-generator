@@ -317,22 +317,22 @@ class MultiSource(Source):
         # -----------------------------------------------
         concrete_tensor_funcs = {}
 
-        def get_or_add_tf_func(base):
+        def get_or_add_tf_func(source_name, base_name):
 
-            if base not in concrete_tensor_funcs:
-                base_source = self.sub_components[base]
+            if base_name not in concrete_tensor_funcs:
+                base_source = self.sub_components[base_name]
 
                 @tf.function
                 def concrete_function(data_batch_dict_i):
                     print('Tracing multi-source base: {} ({})'.format(
-                        base, base_source))
+                        base_name, base_source))
                     return base_source.get_tensors(
                                     data_batch_dict_i,
                                     is_training=is_training,
                                     parameter_tensor_name='x_parameters')
 
                 # get input parameters for Source i
-                parameters_i = source_parameters[name]
+                parameters_i = source_parameters[source_name]
                 parameters_i = sub_component.add_parameter_indexing(
                     parameters_i)
 
@@ -342,11 +342,11 @@ class MultiSource(Source):
                     if key != 'x_parameters':
                         data_batch_dict_i[key] = values
 
-                concrete_tensor_funcs[base] = (
+                concrete_tensor_funcs[base_name] = (
                     concrete_function.get_concrete_function(data_batch_dict_i)
                 )
 
-            return concrete_tensor_funcs[base]
+            return concrete_tensor_funcs[base_name]
         # -----------------------------------------------
 
         dom_charges = None
@@ -369,7 +369,8 @@ class MultiSource(Source):
                 if key != 'x_parameters':
                     data_batch_dict_i[key] = values
 
-            result_tensors_i = get_or_add_tf_func(base)(data_batch_dict_i)
+            result_tensors_i = get_or_add_tf_func(
+                source_name=name, base_name=base)(data_batch_dict_i)
             nested_results[name] = result_tensors_i
 
             dom_charges_i = result_tensors_i['dom_charges']
