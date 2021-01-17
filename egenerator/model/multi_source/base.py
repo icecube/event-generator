@@ -315,20 +315,38 @@ class MultiSource(Source):
         # get concrete functions of base sources.
         # That way tracing only needs to be applied once.
         # -----------------------------------------------
-        input_signature = None
+        concrete_tensor_funcs = {}
 
-        concrete_get_tensors_funcs = {}
-        for base in set(self._untracked_data['sources'].values()):
-            base_source = self.sub_components[base]
+        def get_or_add_tf_func(base):
 
-            @tf.function(input_signature=input_signature)
-            def concrete_function(data_batch_dict_i):
-                print('Tracing multi-source base: {}'.format(base))
-                return base_source.get_tensors(
-                                data_batch_dict_i,
-                                is_training=is_training,
-                                parameter_tensor_name='x_parameters')
-            concrete_get_tensors_funcs[base] = concrete_function
+            if base not in concrete_tensor_funcs:
+                base_source = self.sub_components[base]
+
+                @tf.function
+                def concrete_function(data_batch_dict_i):
+                    print('Tracing multi-source base: {} ({})'.format(
+                        base, base_source))
+                    return base_source.get_tensors(
+                                    data_batch_dict_i,
+                                    is_training=is_training,
+                                    parameter_tensor_name='x_parameters')
+
+                # get input parameters for Source i
+                parameters_i = source_parameters[name]
+                parameters_i = sub_component.add_parameter_indexing(
+                    parameters_i)
+
+                # Create data batch for this source
+                data_batch_dict_i = {'x_parameters': parameters_i}
+                for key, values in data_batch_dict.items():
+                    if key != 'x_parameters':
+                        data_batch_dict_i[key] = values
+
+                concrete_tensor_funcs[base] = (
+                    concrete_function.get_concrete_function(data_batch_dict_i)
+                )
+
+            return concrete_tensor_funcs[base]
         # -----------------------------------------------
 
         dom_charges = None
@@ -351,8 +369,7 @@ class MultiSource(Source):
                 if key != 'x_parameters':
                     data_batch_dict_i[key] = values
 
-            result_tensors_i = concrete_get_tensors_funcs[base](
-                                                            data_batch_dict_i)
+            result_tensors_i = get_or_add_tf_func(base)(data_batch_dict_i)
             nested_results[name] = result_tensors_i
 
             dom_charges_i = result_tensors_i['dom_charges']
@@ -513,7 +530,7 @@ class MultiSource(Source):
         # -----------------------------------------------
         input_signature = None
 
-        concrete_get_tensors_funcs = {}
+        concrete_tensor_funcs = {}
         for base in set(self._untracked_data['sources'].values()):
             base_source = self.sub_components[base]
 
@@ -524,7 +541,7 @@ class MultiSource(Source):
                                 data_batch_dict_i,
                                 is_training=is_training,
                                 parameter_tensor_name='x_parameters')
-            concrete_get_tensors_funcs[base] = concrete_function
+            concrete_tensor_funcs[base] = concrete_function
 
         # --------------------------------------
         # Get input tensors for each base source
@@ -606,8 +623,7 @@ class MultiSource(Source):
                 if key not in set_keys:
                     data_batch_dict_i[key] = values
 
-            result_tensors_i = concrete_get_tensors_funcs[base](
-                                                            data_batch_dict_i)
+            result_tensors_i = concrete_tensor_funcs[base](data_batch_dict_i)
 
             # shape: [n_sources * n_batch, ...]
             dom_charges_i = result_tensors_i['dom_charges']
