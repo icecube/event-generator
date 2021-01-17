@@ -333,7 +333,7 @@ class MultiSource(Source):
 
                 # get input parameters for Source i
                 parameters_i = source_parameters[source_name]
-                parameters_i = sub_component.add_parameter_indexing(
+                parameters_i = base_source.add_parameter_indexing(
                     parameters_i)
 
                 # Create data batch for this source
