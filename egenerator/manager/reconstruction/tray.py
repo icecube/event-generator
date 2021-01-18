@@ -20,7 +20,7 @@ class ReconstructionTray:
               LossModule object
             - Add desired reconstruction modules
         2.) Execute reconstruction modules by calling execute() with a batch
-            of data.
+            of data (plus optional event meta data such as the I3EventHeader)
 
     Attributes
     ----------
@@ -97,13 +97,27 @@ class ReconstructionTray:
         self.modules.append(module)
         self.module_names.append(name)
 
-    def execute(self, data_batch):
+    def execute(self, data_batch, **kwargs):
         """Execute reconstruction models for a given batch of data.
 
         Parameters
         ----------
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
+        **kwargs
+            Additional keyword arguments that are passed on to tray modules.
+            This can be used to specify event meta data such as the
+            I3EventHeader.
+
+        Returns
+        -------
+        dict
+            A dictionary with the results.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
 
         # create a container for the results
@@ -114,7 +128,11 @@ class ReconstructionTray:
 
             # run module
             start_t = timeit.default_timer()
-            module_results = module.execute(data_batch, results)
+            module_results = module.execute(
+                data_batch=data_batch,
+                results=results,
+                **kwargs
+            )
             end_t = timeit.default_timer()
 
             if 'runtime' in module_results:

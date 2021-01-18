@@ -29,7 +29,7 @@ class SourceManager(BaseModelManager):
         super(SourceManager, self).__init__(logger=self._logger)
 
     def parameter_loss_function(self, parameters_trafo, data_batch,
-                                loss_module, fit_paramater_list,
+                                loss_module, fit_parameter_list,
                                 minimize_in_trafo_space=True,
                                 seed=None,
                                 parameter_tensor_name='x_parameters',
@@ -43,7 +43,7 @@ class SourceManager(BaseModelManager):
             The tensor describing the parameters.
             If minimize_in_trafo_space is True, it is also expected that
             parameters_trafo are given in transformed data space.
-            Shape: [-1, np.sum(fit_paramater_list)]
+            Shape: [-1, np.sum(fit_parameter_list)]
         data_batch : tuple of tf.Tensor
             The tf.data.Dataset batch.
         loss_module : LossComponent
@@ -51,7 +51,7 @@ class SourceManager(BaseModelManager):
             must provide a
             loss_module.get_loss(data_batch_dict, result_tensors)
             method.
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -61,7 +61,7 @@ class SourceManager(BaseModelManager):
             the parameters will all be normalized which should facilitate
             minimization.
         seed : str or tf.Tensor, optional
-            If a fit_paramater_list is provided with at least one 'False'
+            If a fit_parameter_list is provided with at least one 'False'
             entry, the seed must also be provided. The seed may either be
             provided as the name of the data tensor within the `data_batch`,
             or by explicitly passing a tf.Tensor.
@@ -92,7 +92,7 @@ class SourceManager(BaseModelManager):
             data_batch_dict[name] = data_batch[i]
 
         # gather a list of parameters that are to be fitted
-        if not np.all(fit_paramater_list):
+        if not np.all(fit_parameter_list):
 
             if isinstance(seed, str):
                 seed_index = self.data_handler.tensors.get_index(seed)
@@ -111,7 +111,7 @@ class SourceManager(BaseModelManager):
             unstacked_seed_trafo = tf.unstack(seed_trafo, axis=1)
             all_params = []
             counter = 0
-            for i, fit in enumerate(fit_paramater_list):
+            for i, fit in enumerate(fit_parameter_list):
                 if fit:
                     all_params.append(unstacked_params_trafo[counter])
                     counter += 1
@@ -156,7 +156,7 @@ class SourceManager(BaseModelManager):
         return loss
 
     def get_parameter_loss_function(self, loss_module, input_signature,
-                                    fit_paramater_list,
+                                    fit_parameter_list,
                                     minimize_in_trafo_space=True,
                                     seed=None,
                                     parameter_tensor_name='x_parameters',
@@ -173,7 +173,7 @@ class SourceManager(BaseModelManager):
             method.
         input_signature : tf.TensorSpec or nested tf.TensorSpec
             The input signature of the parameters and data_batch arguments
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -183,7 +183,7 @@ class SourceManager(BaseModelManager):
             the parameters will all be normalized which should facilitate
             minimization.
         seed : str or tf.Tensor, optional
-            If a fit_paramater_list is provided with at least one 'False'
+            If a fit_parameter_list is provided with at least one 'False'
             entry, the seed must also be provided. The seed may either be
             provided as the name of the data tensor within the `data_batch`,
             or by explicitly passing a tf.Tensor.
@@ -215,7 +215,7 @@ class SourceManager(BaseModelManager):
                     parameters_trafo=parameters_trafo,
                     data_batch=data_batch,
                     loss_module=loss_module,
-                    fit_paramater_list=fit_paramater_list,
+                    fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
                     parameter_tensor_name=parameter_tensor_name,
@@ -226,7 +226,7 @@ class SourceManager(BaseModelManager):
         return parameter_loss_function
 
     def get_loss_and_gradients_function(self, loss_module, input_signature,
-                                        fit_paramater_list,
+                                        fit_parameter_list,
                                         minimize_in_trafo_space=True,
                                         seed=None,
                                         parameter_tensor_name='x_parameters',
@@ -242,7 +242,7 @@ class SourceManager(BaseModelManager):
             method.
         input_signature : tf.TensorSpec or nested tf.TensorSpec
             The input signature of the parameters and data_batch arguments
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -252,7 +252,7 @@ class SourceManager(BaseModelManager):
             the parameters will all be normalized which should facilitate
             minimization.
         seed : str or tf.Tensor, optional
-            If a fit_paramater_list is provided with at least one 'False'
+            If a fit_parameter_list is provided with at least one 'False'
             entry, the seed must also be provided. The seed may either be
             provided as the name of the data tensor within the `data_batch`,
             or by explicitly passing a tf.Tensor.
@@ -281,7 +281,7 @@ class SourceManager(BaseModelManager):
                     parameters_trafo=parameters_trafo,
                     data_batch=data_batch,
                     loss_module=loss_module,
-                    fit_paramater_list=fit_paramater_list,
+                    fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed,
                     parameter_tensor_name=parameter_tensor_name,
@@ -293,7 +293,7 @@ class SourceManager(BaseModelManager):
         return loss_and_gradients_function
 
     def get_opg_estimate_function(self, loss_module, input_signature,
-                                  fit_paramater_list,
+                                  fit_parameter_list,
                                   minimize_in_trafo_space=True,
                                   seed=None,
                                   parameter_tensor_name='x_parameters'):
@@ -317,7 +317,7 @@ class SourceManager(BaseModelManager):
             method.
         input_signature : tf.TensorSpec or nested tf.TensorSpec
             The input signature of the parameters and data_batch arguments
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -327,7 +327,7 @@ class SourceManager(BaseModelManager):
             the parameters will all be normalized which should facilitate
             minimization.
         seed : str or tf.Tensor, optional
-            If a fit_paramater_list is provided with at least one 'False'
+            If a fit_parameter_list is provided with at least one 'False'
             entry, the seed must also be provided. The seed may either be
             provided as the name of the data tensor within the `data_batch`,
             or by explicitly passing a tf.Tensor.
@@ -346,7 +346,7 @@ class SourceManager(BaseModelManager):
         loss_function = self.get_parameter_loss_function(
             loss_module=loss_module,
             input_signature=input_signature,
-            fit_paramater_list=fit_paramater_list,
+            fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=seed,
             parameter_tensor_name=parameter_tensor_name,
@@ -410,7 +410,7 @@ class SourceManager(BaseModelManager):
         return opg_estimate_function
 
     def get_hessian_function(self, loss_module, input_signature,
-                             fit_paramater_list,
+                             fit_parameter_list,
                              minimize_in_trafo_space=True,
                              seed=None,
                              parameter_tensor_name='x_parameters'):
@@ -425,7 +425,7 @@ class SourceManager(BaseModelManager):
             method.
         input_signature : tf.TensorSpec or nested tf.TensorSpec
             The input signature of the parameters and data_batch arguments
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -435,7 +435,7 @@ class SourceManager(BaseModelManager):
             the parameters will all be normalized which should facilitate
             minimization.
         seed : str or tf.Tensor, optional
-            If a fit_paramater_list is provided with at least one 'False'
+            If a fit_parameter_list is provided with at least one 'False'
             entry, the seed must also be provided. The seed may either be
             provided as the name of the data tensor within the `data_batch`,
             or by explicitly passing a tf.Tensor.
@@ -456,7 +456,7 @@ class SourceManager(BaseModelManager):
         # loss_function = self.get_parameter_loss_function(
         #     loss_module=loss_module,
         #     input_signature=input_signature,
-        #     fit_paramater_list=fit_paramater_list,
+        #     fit_parameter_list=fit_parameter_list,
         #     minimize_in_trafo_space=minimize_in_trafo_space,
         #     seed=seed,
         #     parameter_tensor_name=parameter_tensor_name,
@@ -532,7 +532,7 @@ class SourceManager(BaseModelManager):
                 parameters_trafo=parameters_trafo,
                 data_batch=data_batch,
                 loss_module=loss_module,
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 seed=seed,
                 parameter_tensor_name=parameter_tensor_name,
@@ -687,7 +687,7 @@ class SourceManager(BaseModelManager):
 
     def reconstruct_events(self, data_batch, loss_module,
                            loss_and_gradients_function,
-                           fit_paramater_list,
+                           fit_parameter_list,
                            minimize_in_trafo_space=True,
                            seed='x_parameters',
                            parameter_tensor_name='x_parameters',
@@ -709,7 +709,9 @@ class SourceManager(BaseModelManager):
         loss_and_gradients_function : tf.function
             The tensorflow function:
                 f(parameters, data_batch, seed_tensor) -> loss, gradients
-        fit_paramater_list : bool or list of bool, optional
+            Note: it is imperative that this function uses the same settings
+            for trafo space!
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -745,16 +747,16 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
-        num_fit_params = np.sum(fit_paramater_list, dtype=int)
+        num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         param_dtype = getattr(np, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
-        param_shape_full = [-1, len(fit_paramater_list)]
+        param_shape_full = [-1, len(fit_parameter_list)]
 
-        if (len(fit_paramater_list) != param_tensor.shape[1]):
-            msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
+        if (len(fit_parameter_list) != param_tensor.shape[1]):
+            msg = 'Wrong length of fit_parameter_list: {!r} != {!r}'
             raise ValueError(msg.format(param_tensor.shape[1],
-                                        len(fit_paramater_list)))
+                                        len(fit_parameter_list)))
 
         # define helper function
         def func(x, data_batch, seed):
@@ -828,11 +830,11 @@ class SourceManager(BaseModelManager):
             seed_array_trafo = seed_array
 
         # get seed parameters
-        if np.all(fit_paramater_list):
+        if np.all(fit_parameter_list):
             x0 = seed_array_trafo
         else:
             # get seed parameters
-            x0 = seed_array_trafo[:, fit_paramater_list]
+            x0 = seed_array_trafo[:, fit_parameter_list]
 
         x0_flat = np.reshape(x0, [-1])
         result = optimize.minimize(fun=func, x0=x0_flat, jac=jac,
@@ -844,7 +846,7 @@ class SourceManager(BaseModelManager):
 
     def reconstruct_events_spherical_opt(self, data_batch, loss_module,
                                          loss_function,
-                                         fit_paramater_list,
+                                         fit_parameter_list,
                                          minimize_in_trafo_space=True,
                                          seed='x_parameters',
                                          parameter_tensor_name='x_parameters',
@@ -864,7 +866,7 @@ class SourceManager(BaseModelManager):
         loss_function : tf.function
             The tensorflow function:
                 f(parameters, data_batch, seed_tensor) -> loss
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -895,16 +897,16 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
-        num_fit_params = np.sum(fit_paramater_list, dtype=int)
+        num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         param_dtype = getattr(np, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
-        param_shape_full = [-1, len(fit_paramater_list)]
+        param_shape_full = [-1, len(fit_parameter_list)]
 
-        if (len(fit_paramater_list) != param_tensor.shape[1]):
-            msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
+        if (len(fit_parameter_list) != param_tensor.shape[1]):
+            msg = 'Wrong length of fit_parameter_list: {!r} != {!r}'
             raise ValueError(msg.format(param_tensor.shape[1],
-                                        len(fit_paramater_list)))
+                                        len(fit_parameter_list)))
 
         # define helper function
         def func(x, data_batch, seed):
@@ -935,14 +937,14 @@ class SourceManager(BaseModelManager):
             seed_array_trafo = seed_array
 
         # get seed parameters
-        if np.all(fit_paramater_list):
+        if np.all(fit_parameter_list):
             x0 = seed_array_trafo
         else:
             # get seed parameters
-            x0 = seed_array_trafo[:, fit_paramater_list]
+            x0 = seed_array_trafo[:, fit_parameter_list]
 
         # get spherical indices
-        if minimize_in_trafo_space or not np.all(fit_paramater_list):
+        if minimize_in_trafo_space or not np.all(fit_parameter_list):
             spherical_indices = tuple()
         else:
             print('Using spherical indices for CRS2 Optimization!')
@@ -976,7 +978,7 @@ class SourceManager(BaseModelManager):
     def scipy_global_reconstruct_events(
             self, data_batch, loss_module,
             loss_and_gradients_function,
-            fit_paramater_list,
+            fit_parameter_list,
             minimize_in_trafo_space=True,
             seed='x_parameters',
             parameter_tensor_name='x_parameters',
@@ -1003,7 +1005,7 @@ class SourceManager(BaseModelManager):
         loss_and_gradients_function : tf.function
             The tensorflow function:
                 f(parameters, data_batch, seed_tensor) -> loss, gradients
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -1042,16 +1044,16 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
-        num_fit_params = np.sum(fit_paramater_list, dtype=int)
+        num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         param_dtype = getattr(np, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
-        param_shape_full = [-1, len(fit_paramater_list)]
+        param_shape_full = [-1, len(fit_parameter_list)]
 
-        if (len(fit_paramater_list) != param_tensor.shape[1]):
-            msg = 'Wrong length of fit_paramater_list: {!r} != {!r}'
+        if (len(fit_parameter_list) != param_tensor.shape[1]):
+            msg = 'Wrong length of fit_parameter_list: {!r} != {!r}'
             raise ValueError(msg.format(param_tensor.shape[1],
-                                        len(fit_paramater_list)))
+                                        len(fit_parameter_list)))
 
         minimizer_kwargs['jac'] = jac
         options['jac'] = jac
@@ -1112,7 +1114,7 @@ class SourceManager(BaseModelManager):
 
     def tf_reconstruct_events(self, data_batch, loss_module,
                               loss_and_gradients_function,
-                              fit_paramater_list,
+                              fit_parameter_list,
                               minimize_in_trafo_space=True,
                               seed='x_parameters',
                               parameter_tensor_name='x_parameters',
@@ -1133,7 +1135,7 @@ class SourceManager(BaseModelManager):
         loss_and_gradients_function : tf.function
             The tensorflow function:
                 f(parameters, data_batch, seed_tensor) -> loss, gradients
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -1168,15 +1170,15 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
-        num_fit_params = np.sum(fit_paramater_list, dtype=int)
+        num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
         param_shape = [-1, num_fit_params]
-        param_shape_full = [-1, len(fit_paramater_list)]
+        param_shape_full = [-1, len(fit_parameter_list)]
 
-        if (len(fit_paramater_list) != param_tensor.shape[1]):
-            raise ValueError('Wrong length of fit_paramater_list: {!r}'.format(
-                len(fit_paramater_list)))
+        if (len(fit_parameter_list) != param_tensor.shape[1]):
+            raise ValueError('Wrong length of fit_parameter_list: {!r}'.format(
+                len(fit_parameter_list)))
 
         # Get seed tensor
         if isinstance(seed, str):
@@ -1193,11 +1195,11 @@ class SourceManager(BaseModelManager):
             seed_array_trafo = seed_array
 
         # get seed parameters
-        if np.all(fit_paramater_list):
+        if np.all(fit_parameter_list):
             x0 = seed_array_trafo
         else:
             # get seed parameters
-            x0 = seed_array_trafo[:, fit_paramater_list]
+            x0 = seed_array_trafo[:, fit_parameter_list]
 
         # convert to tensors
         def const_loss_and_gradients_function(x):
@@ -1221,7 +1223,7 @@ class SourceManager(BaseModelManager):
 
     def run_mcmc_on_events(self, initial_position, data_batch, loss_module,
                            parameter_loss_function,
-                           fit_paramater_list,
+                           fit_parameter_list,
                            minimize_in_trafo_space=True,
                            num_chains=1,
                            seed=None,
@@ -1249,7 +1251,7 @@ class SourceManager(BaseModelManager):
         parameter_loss_function : tf.function
             The tensorflow function:
                 f(parameters, data_batch) -> loss
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -1332,7 +1334,7 @@ class SourceManager(BaseModelManager):
             step_size /= self.data_trafo.data[parameter_tensor_name+'_std']
 
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
-        step_size = tf.reshape(step_size, [1, len(fit_paramater_list)])
+        step_size = tf.reshape(step_size, [1, len(fit_parameter_list)])
 
         # Define transition kernel
         if method == 'HamiltonianMonteCarlo':
@@ -1441,10 +1443,10 @@ class SourceManager(BaseModelManager):
         mapping = self.configuration.config['config']['I3ParticleMapping']
 
         # get a list of parameters to fit
-        fit_paramater_list = [reco_config['minimize_parameter_default_value']
+        fit_parameter_list = [reco_config['minimize_parameter_default_value']
                               for i in range(self.models[0].num_parameters)]
         for name, value in reco_config['minimize_parameter_dict'].items():
-            fit_paramater_list[self.models[0].get_index(name)] = value
+            fit_parameter_list[self.models[0].get_index(name)] = value
 
         # create directory if needed
         directory = os.path.dirname(reco_config['reco_output_file'])
@@ -1529,7 +1531,7 @@ class SourceManager(BaseModelManager):
                     reco_tray.add_module(
                         'Reconstruction',
                         name=reco_name_random_i,
-                        fit_paramater_list=fit_paramater_list,
+                        fit_parameter_list=fit_parameter_list,
                         seed_tensor_name=seed_tensor_name,
                         seed_from_previous_module=False,
                         randomize_seed=True,
@@ -1572,7 +1574,7 @@ class SourceManager(BaseModelManager):
                 reco_tray.add_module(
                     'Reconstruction',
                     name=reco_name_random,
-                    fit_paramater_list=fit_paramater_list,
+                    fit_parameter_list=fit_parameter_list,
                     seed_tensor_name='sel_reco_random',
                     seed_from_previous_module=True,
                     minimize_in_trafo_space=minimize_in_trafo_space,
@@ -1589,7 +1591,7 @@ class SourceManager(BaseModelManager):
             reco_tray.add_module(
                 'Reconstruction',
                 name=reco_name,
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 seed_tensor_name=seed_tensor_name,
                 seed_from_previous_module=False,
                 minimize_in_trafo_space=minimize_in_trafo_space,
@@ -1611,7 +1613,7 @@ class SourceManager(BaseModelManager):
             reco_tray.add_module(
                 'CovarianceMatrix',
                 name='covariance',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
@@ -1626,7 +1628,7 @@ class SourceManager(BaseModelManager):
             reco_tray.add_module(
                 'GoodnessOfFit',
                 name='GoodnessOfFit',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=minimize_in_trafo_space,
@@ -1642,7 +1644,7 @@ class SourceManager(BaseModelManager):
             reco_tray.add_module(
                 'CircularizedAngularUncertainty',
                 name='CircularizedAngularUncertainty',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=minimize_in_trafo_space,
@@ -1654,7 +1656,7 @@ class SourceManager(BaseModelManager):
             reco_tray.add_module(
                 'MarkovChainMonteCarlo',
                 name='mcmc',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 seed_tensor_name=reco_config['seed'],
                 reco_key='reco',
                 minimize_in_trafo_space=minimize_in_trafo_space,
@@ -1674,7 +1676,7 @@ class SourceManager(BaseModelManager):
             reco_tray.add_module(
                 'Visualize1DLikelihoodScan',
                 name='visualization',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 seed_tensor_name=reco_config['seed'],
                 plot_file_template=plot_file,
                 reco_key='reco',
@@ -1882,7 +1884,7 @@ class SourceManager(BaseModelManager):
                 msg += pattern.format('', loss_true, loss_seed, loss_reco,
                                       loss_true - loss_reco, 'Loss')
                 for index, (name, fit) in enumerate(zip(
-                        self.models[0].parameter_names, fit_paramater_list)):
+                        self.models[0].parameter_names, fit_parameter_list)):
                     msg += pattern.format(
                         str(fit),
                         cascade_true[index],

@@ -808,7 +808,109 @@ class MultiSource(Source):
 
         return flattened_results
 
-    def pdf(self, x, result_tensors, output_nested_pdfs=False, **kwargs):
+    def cdf(self, x, result_tensors, output_nested_pdfs=False,
+            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+        """Compute CDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the PDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Note: the PDF does not set values inside excluded time windows to zero,
+        but it does adjust the normalization. It is assumed that pulses will
+        already be masked before evaluated by Event-Generator. Therefore, an
+        extra check for exclusions is not performed due to performance issues.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        output_nested_pdfs : bool, optional
+            If True, the PDFs of the nested sources will be returned as a
+            dictionary:
+            {
+                # str: ([n_events, 86, 60, 1], [n_events, 86, 60, n_points])
+                source_name: (multi_source_fraction, pdf_values),
+            }
+            Note: that the PDFs need to be multiplied by
+            `multi_source_fraction` in order to obtain the mixture model for
+            the Multi-Source.
+        tw_exclusions : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusions are defined as a list of
+            [(t1_start, t1_stop), ..., (tn_start, tn_stop)]
+            Shape: [n_exclusions, 2]
+        tw_exclusions_ids : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusion ids define to which event and DOM the
+            time exclusions `tw_exclusions` belong to. They are defined
+            as a list of:
+            [(event1, string1, dom1), ..., (eventN, stringN, domN)]
+            Shape: [n_exclusions, 3]
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+        dict [optional]
+            A dictionary with the CDFs of the nested sources. See description
+            of `output_nested_pdfs`.
+        """
+        # dict: {model_name: (base_source, result_tensors_i)}
+        flattened_results = self._flatten_nested_results(result_tensors)
+
+        nested_cdfs = {}
+        cdf_values = None
+        dom_charges = result_tensors['dom_charges'].numpy()
+        for name, (base_source, result_tensors_i) in flattened_results.items():
+
+            # shape: [n_events, 86, 60, n_points]
+            cdf_values_i = base_source.cdf(
+                x, result_tensors_i,
+                tw_exclusions=tw_exclusions,
+                tw_exclusions_ids=tw_exclusions_ids,
+            )
+
+            # shape: [n_events, 86, 60, 1]
+            dom_charges_i = result_tensors_i['dom_charges'].numpy()
+
+            if cdf_values is None:
+                cdf_values = cdf_values_i * dom_charges_i
+            else:
+                cdf_values += cdf_values_i * dom_charges_i
+
+            if output_nested_pdfs:
+                multi_source_fraction = dom_charges_i / dom_charges
+                nested_cdfs[name] = (multi_source_fraction, cdf_values_i)
+
+        cdf_values /= dom_charges
+
+        if output_nested_pdfs:
+            return cdf_values, nested_cdfs
+        else:
+            return cdf_values
+
+    def pdf(self, x, result_tensors, output_nested_pdfs=False,
+            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
         """Compute PDF values at x for given result_tensors
 
         This is a numpy, i.e. not tensorflow, method to compute the PDF based
@@ -841,6 +943,26 @@ class MultiSource(Source):
             Note: that the PDFs need to be multiplied by
             `multi_source_fraction` in order to obtain the mixture model for
             the Multi-Source.
+        tw_exclusions : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusions are defined as a list of
+            [(t1_start, t1_stop), ..., (tn_start, tn_stop)]
+            Shape: [n_exclusions, 2]
+        tw_exclusions_ids : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusion ids define to which event and DOM the
+            time exclusions `tw_exclusions` belong to. They are defined
+            as a list of:
+            [(event1, string1, dom1), ..., (eventN, stringN, domN)]
+            Shape: [n_exclusions, 3]
         **kwargs
             Keyword arguments.
 
@@ -863,7 +985,11 @@ class MultiSource(Source):
         for name, (base_source, result_tensors_i) in flattened_results.items():
 
             # shape: [n_events, 86, 60, n_points]
-            pdf_values_i = base_source.pdf(x, result_tensors_i)
+            pdf_values_i = base_source.pdf(
+                x, result_tensors_i,
+                tw_exclusions=tw_exclusions,
+                tw_exclusions_ids=tw_exclusions_ids,
+            )
 
             # shape: [n_events, 86, 60, 1]
             dom_charges_i = result_tensors_i['dom_charges'].numpy()

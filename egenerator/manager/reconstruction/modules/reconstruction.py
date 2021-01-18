@@ -7,7 +7,7 @@ from egenerator.manager.reconstruction.modules.utils import trafo
 class Reconstruction:
 
     def __init__(self, manager, loss_module, function_cache,
-                 fit_paramater_list,
+                 fit_parameter_list,
                  seed_tensor_name,
                  seed_from_previous_module=False,
                  minimize_in_trafo_space=True,
@@ -28,7 +28,7 @@ class Reconstruction:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -74,7 +74,7 @@ class Reconstruction:
 
         # store settings
         self.manager = manager
-        self.fit_paramater_list = fit_paramater_list
+        self.fit_parameter_list = fit_parameter_list
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
         self.seed_tensor_name = seed_tensor_name
@@ -89,10 +89,10 @@ class Reconstruction:
         param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
-            shape=[None, np.sum(fit_paramater_list, dtype=int)],
+            shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=param_dtype)
         param_signature_full = tf.TensorSpec(
-            shape=[None, len(fit_paramater_list)],
+            shape=[None, len(fit_parameter_list)],
             dtype=param_dtype)
 
         data_batch_signature = manager.data_handler.get_data_set_signature()
@@ -105,7 +105,7 @@ class Reconstruction:
         loss_settings = dict(
             input_signature=(param_signature_full, data_batch_signature),
             loss_module=loss_module,
-            fit_paramater_list=[True for f in fit_paramater_list],
+            fit_parameter_list=[True for f in fit_parameter_list],
             minimize_in_trafo_space=False,
             seed=None,
             parameter_tensor_name=parameter_tensor_name,
@@ -123,7 +123,7 @@ class Reconstruction:
             input_signature=(
                 param_signature, data_batch_signature, param_signature_full),
             loss_module=loss_module,
-            fit_paramater_list=fit_paramater_list,
+            fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=None,
             parameter_tensor_name=parameter_tensor_name,
@@ -143,7 +143,7 @@ class Reconstruction:
                 return manager.reconstruct_events(
                     data_batch, loss_module,
                     loss_and_gradients_function=loss_and_gradients_function,
-                    fit_paramater_list=fit_paramater_list,
+                    fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name,
@@ -154,7 +154,7 @@ class Reconstruction:
                 return manager.scipy_global_reconstruct_events(
                     data_batch, loss_module,
                     loss_and_gradients_function=loss_and_gradients_function,
-                    fit_paramater_list=fit_paramater_list,
+                    fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name,
@@ -167,7 +167,7 @@ class Reconstruction:
                 return manager.tf_reconstruct_events(
                     data_batch, loss_module,
                     loss_and_gradients_function=loss_and_gradients_function,
-                    fit_paramater_list=fit_paramater_list,
+                    fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name,
@@ -195,7 +195,7 @@ class Reconstruction:
                 return manager.reconstruct_events_spherical_opt(
                     data_batch, loss_module,
                     loss_function=loss_function,
-                    fit_paramater_list=fit_paramater_list,
+                    fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name)
@@ -206,7 +206,7 @@ class Reconstruction:
 
         self.reconstruction_method = reconstruction_method
 
-    def execute(self, data_batch, results):
+    def execute(self, data_batch, results, **kwargs):
         """Execute reconstruction for a given batch of data.
 
         Parameters
@@ -215,6 +215,8 @@ class Reconstruction:
             A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
+        **kwargs
+            Additional keyword arguments.
 
         Returns
         -------
@@ -263,7 +265,7 @@ class Reconstruction:
         result = trafo.get_reco_result_batch(
             result_trafo=result_trafo,
             seed_tensor=seed_tensor,
-            fit_paramater_list=self.fit_paramater_list,
+            fit_parameter_list=self.fit_parameter_list,
             minimize_in_trafo_space=self.minimize_in_trafo_space,
             data_trafo=self.manager.data_trafo,
             parameter_tensor_name=self.parameter_tensor_name)
@@ -311,7 +313,7 @@ class SelectBestReconstruction:
         # store settings
         self.reco_names = reco_names
 
-    def execute(self, data_batch, results):
+    def execute(self, data_batch, results, **kwargs):
         """Execute selection.
 
         Choose best reconstruction from a list of results
@@ -322,6 +324,8 @@ class SelectBestReconstruction:
             A data batch which consists of a tuple of tf.Tensors.
         results : dict
             A dictrionary with the results of previous modules.
+        **kwargs
+            Additional keyword arguments.
 
         Returns
         -------

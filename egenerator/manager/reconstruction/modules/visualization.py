@@ -5,7 +5,7 @@ import tensorflow as tf
 class Visualize1DLikelihoodScan:
 
     def __init__(self, manager, loss_module, function_cache,
-                 fit_paramater_list,
+                 fit_parameter_list,
                  seed_tensor_name,
                  reco_key,
                  plot_file_template,
@@ -22,7 +22,7 @@ class Visualize1DLikelihoodScan:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        fit_paramater_list : TYPE
+        fit_parameter_list : TYPE
             Description
         seed_tensor_name : TYPE
             Description
@@ -43,7 +43,7 @@ class Visualize1DLikelihoodScan:
         # store settings
         self.event_counter = 0
         self.manager = manager
-        self.fit_paramater_list = fit_paramater_list
+        self.fit_parameter_list = fit_parameter_list
         self.reco_key = reco_key
         self.covariance_key = covariance_key
         self.plot_file_template = plot_file_template
@@ -55,7 +55,7 @@ class Visualize1DLikelihoodScan:
         param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
-            shape=[None, np.sum(fit_paramater_list, dtype=int)],
+            shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=param_dtype)
 
         # define data batch tensor specification
@@ -65,7 +65,7 @@ class Visualize1DLikelihoodScan:
         func_settings = dict(
             input_signature=(param_signature, data_batch_signature),
             loss_module=loss_module,
-            fit_paramater_list=fit_paramater_list,
+            fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=seed_tensor_name,
             parameter_tensor_name=parameter_tensor_name,
@@ -80,7 +80,7 @@ class Visualize1DLikelihoodScan:
                 **func_settings)
             function_cache.add(self.loss_function, func_settings)
 
-    def execute(self, data_batch, results):
+    def execute(self, data_batch, results, **kwargs):
         """Execute module for a given batch of data.
 
         Parameters
@@ -89,6 +89,8 @@ class Visualize1DLikelihoodScan:
             A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
+        **kwargs
+            Additional keyword arguments.
 
         Returns
         -------

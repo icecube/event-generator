@@ -3,7 +3,7 @@ import numpy as np
 
 def get_reco_result_batch(result_trafo,
                           seed_tensor,
-                          fit_paramater_list,
+                          fit_parameter_list,
                           minimize_in_trafo_space,
                           data_trafo,
                           parameter_tensor_name='x_parameters'):
@@ -22,7 +22,7 @@ def get_reco_result_batch(result_trafo,
     seed_tensor : array_like or tf.Tensor
         The reconstruction seeds in *unnormalized* and original
         parameter space.
-    fit_paramater_list : bool or list of bool, optional
+    fit_parameter_list : bool or list of bool, optional
         Indicates whether a parameter has been minimized.
         The ith element in the list specifies if the ith parameter
         is minimized.
@@ -50,13 +50,13 @@ def get_reco_result_batch(result_trafo,
     else:
         cascade_seed_batch_trafo = seed_tensor
 
-    if np.all(fit_paramater_list):
+    if np.all(fit_parameter_list):
         cascade_reco_batch = result_trafo
     else:
         # get seed parameters
         cascade_reco_batch = []
         result_counter = 0
-        for i, fit in enumerate(fit_paramater_list):
+        for i, fit in enumerate(fit_parameter_list):
             if fit:
                 cascade_reco_batch.append(result_trafo[:, result_counter])
                 result_counter += 1

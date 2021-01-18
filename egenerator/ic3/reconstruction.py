@@ -247,11 +247,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 self.log_names.append(name)
 
         # get a list of parameters to fit
-        fit_paramater_list = [self.minimize_parameter_default_value
+        fit_parameter_list = [self.minimize_parameter_default_value
                               for i in
                               range(self.manager.models[0].num_parameters)]
         for name, value in self.minimize_parameter_dict.items():
-            fit_paramater_list[self.manager.models[0].get_index(name)] = value
+            fit_parameter_list[self.manager.models[0].get_index(name)] = value
 
         # parameter input signature
         parameter_tensor_name = 'x_parameters'
@@ -273,7 +273,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'Reconstruction',
                 name=reco_name,
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 seed_tensor_name=seed_tensor_name,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
@@ -292,7 +292,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'CovarianceMatrix',
                 name='covariance',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
@@ -306,7 +306,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'GoodnessOfFit',
                 name='GoodnessOfFit',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
@@ -324,7 +324,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'CircularizedAngularUncertainty',
                 name='CircularizedAngularUncertainty',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
