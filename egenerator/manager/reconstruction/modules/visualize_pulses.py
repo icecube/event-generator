@@ -208,7 +208,9 @@ class VisualizePulseLikelihood:
         self.event_counter += 1
         return {}
 
-    def plot_meta_data(self, ax, event_header, reco_result, max_params=9):
+    def plot_meta_data(
+            self, ax, event_header, reco_result,
+            event_charge=None, max_params=9):
         """Plot Event Meta Data
 
         Parameters
@@ -220,6 +222,10 @@ class VisualizePulseLikelihood:
         reco_result : array_like
             The reconstruction result.
             Shape: [1, num_parameters]
+        event_charge : None, optional
+            If provided, the total event charge will be displayed.
+        max_params : int, optional
+            Maximum number of best fit parameters to display.
         """
         ax.axis('off')
 
@@ -231,6 +237,9 @@ class VisualizePulseLikelihood:
         textstr += 'Sub Event ID: {}\n'.format(event_header['sub_event_id'])
         textstr += 'Date: {}\n'.format(event_header['date_string'])
         textstr += 'Time: {}\n'.format(event_header['time_string'])
+
+        if event_charge is not None:
+            textstr += 'Event Charge: {:3.1f} PE\n'.format(event_charge)
 
         textstr += 'Best Fit Parameters:\n'
         max_width = 15
@@ -361,6 +370,7 @@ class VisualizePulseLikelihood:
                 ax=axes.ravel()[0],
                 event_header=event_header,
                 reco_result=reco_result,
+                event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
             )
             dom_axes = axes.ravel()[1:]
 
@@ -603,6 +613,7 @@ class VisualizePulseLikelihood:
                 ax=axes.ravel()[0],
                 event_header=event_header,
                 reco_result=reco_result,
+                event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
             )
             dom_axes = axes.ravel()[1:]
 

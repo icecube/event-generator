@@ -193,7 +193,7 @@ def CombineAndApplyExclusions(
     if isinstance(dom_and_tw_exclusions, str):
         dom_and_tw_exclusions = [dom_and_tw_exclusions]
 
-    combined_exclusion_key = name + 'CombinedExclusions'
+    combined_exclusion_key = name
     bright_dom_key = name + 'BrightDOMs'
     excluded_dom_key = combined_exclusion_key + 'DOMs'
     excluded_tw_key = combined_exclusion_key + 'TimeWindows'

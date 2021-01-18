@@ -501,7 +501,7 @@ class Source(Model):
 
                 cdf_values[ids[0], ids[1], ids[2]] -= cdf_excluded
 
-            eps = 5e-3
+            eps = 1e-2
             assert (cdf_values >= 0-eps).all(), cdf_values[cdf_values < 0-eps]
             assert (cdf_values <= 1+eps).all(), cdf_values[cdf_values > 1+eps]
             cdf_values = np.clip(cdf_values, 0., 1.)
