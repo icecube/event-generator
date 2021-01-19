@@ -185,8 +185,7 @@ data_iterator_settings: {
         'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            'dumy_file_path',
         ],
     },
 
@@ -201,8 +200,9 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
         ],
     },
 
@@ -218,8 +218,7 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            'dumy_file_path',
         ],
     },
 
@@ -235,8 +234,7 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99500/egenerator_99500_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            'dumy_file_path',
         ],
     },
 }
@@ -341,11 +339,11 @@ data_handler_settings: {
             False, False, False, False, False, True, False,
             False, False, False, False, False, True, False,
         ],
-        'label_key': 'EventGeneratorMultiCascadeLabels',
+        'label_key': 'LabelsDeepLearning',
         'additional_labels': [
-            'cascade_00001_x', 'cascade_00001_y', 'cascade_00001_z',
+            'cascade_x', 'cascade_y', 'cascade_z',
             'cascade_zenith', 'cascade_azimuth',
-            'cascade_00001_energy', 'cascade_00001_t',
+            'cascade_energy', 'cascade_t',
         ],
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 0,
