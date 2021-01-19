@@ -145,7 +145,7 @@ model_manager_settings: {
     'model_manager_class': 'egenerator.manager.source.SourceManager',
 
     # restore model if True, otherwise start from scratch
-    'restore_model' : True,
+    'restore_model' : False,
 
     # These settings are used to configure the model manager and may not change
     config: {
