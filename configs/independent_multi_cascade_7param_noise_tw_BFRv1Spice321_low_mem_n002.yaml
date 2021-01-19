@@ -1,9 +1,10 @@
 ---
 ##############
-# Config for single cascade events
+# Config for independent multi cascade events
 #
-# Detailed information on the parameters are given in the SetupManager
-# class located in egenerator.settings.setup_manager.py.
+# Note: This config is only intended for exporting of model.
+# Training with this config will lead to *WRONG* results since the
+# labels read in are *not* correct!!
 ##############
 
 # Provide a unique name for the model
@@ -331,7 +332,9 @@ data_handler_settings: {
 
     # settings for the label module
     'label_settings':{
-        'shift_cascade_vertex': True,
+        # Warning:
+        # in this case it only shifts the first cascade and not the second!
+        'shift_cascade_vertex': True,  # Do not actually use for training!!
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, energy, time)?
         'trafo_log': [
@@ -341,7 +344,7 @@ data_handler_settings: {
         'label_key': 'EventGeneratorMultiCascadeLabels',
         'additional_labels': [
             'cascade_00001_x', 'cascade_00001_y', 'cascade_00001_z',
-            'cascade_00001_zenith', 'cascade_00001_azimuth',
+            'cascade_zenith', 'cascade_azimuth',
             'cascade_00001_energy', 'cascade_00001_t',
         ],
         'snowstorm_key': 'SnowstormParameters',
