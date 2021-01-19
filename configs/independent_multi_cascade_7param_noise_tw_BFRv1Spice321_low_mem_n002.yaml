@@ -407,12 +407,35 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
+
+            # The directory from which this base source will be loaded
+            'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/noise',
+
+            # define data trafo settings for the noise base source
+            data_trafo_settings: {
+                'float_precision': 'float64',
+                'norm_constant': !!float 1e-6,
+                'num_batches': 5000,
+                'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
+            },
+
             config: {},
         },
 
         cascade: {
             # The cascade source model class to use
             'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
+
+            # The directory from which this base source will be loaded
+            'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/cascade',
+
+            # define data trafo settings for the noise base source
+            data_trafo_settings: {
+                'float_precision': 'float64',
+                'norm_constant': !!float 1e-6,
+                'num_batches': 5000,
+                'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
+            },
 
             config: {
                 'keep_prob':,
