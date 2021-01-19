@@ -16,6 +16,8 @@ class ManagerConfigurator:
                  misc_setting_updates={},
                  label_setting_updates={},
                  data_setting_updates={},
+                 additional_loss_modules=None,
+                 replace_existing_loss_modules=False,
                  num_threads=0,
                  tf_random_seed=1337):
         """Set up and configure the SourceManager object.
@@ -39,17 +41,22 @@ class ManagerConfigurator:
             A dictionary with setting values to overwrite.
         data_setting_updates : dict, optional
             A dictionary with setting values to overwrite.
+        additional_loss_modules : list of dict, optional
+            A list of dictionaries which define the loss modules to add.
+            If `replace_existing_loss_modules` is True, then the original
+            loss modules of the event-generator model are replaced. Otherwise
+            the loss modules defined here will be appended.
+        replace_existing_loss_modules : bool, optional
+            Only relevant if `additional_loss_modules` is provided.
+            If True, original event-generator loss modules are discarded.
+            If False, the loss modules defined in `additional_loss_modules`
+            will be appended to the loss modules of the event-generator model.
         num_threads : int, optional
             Number of threads to use for tensorflow settings
             `intra_op_parallelism_threads` and `inter_op_parallelism_threads`.
             If zero (default), the system picks an appropriate number.
         tf_random_seed : int, optional
             Random seed for tensorflow.
-
-        No Longer Raises
-        ----------------
-        ValueError
-            Description
         """
         if isinstance(manager_dirs, str):
             manager_dirs = [manager_dirs]
@@ -72,6 +79,23 @@ class ManagerConfigurator:
         # ------------------
         # Create loss module
         # ------------------
+        if additional_loss_modules is not None:
+
+            # make sure this is a list of dictionaries
+            if isinstance(additional_loss_modules, dict):
+                additional_loss_modules = [additional_loss_modules]
+
+            if replace_existing_loss_modules:
+                self.config['loss_module_settings'] = additional_loss_modules
+            else:
+                if isinstance(self.config['loss_module_settings'], dict):
+                    loss_modules = [self.config['loss_module_settings']]
+                else:
+                    loss_modules = self.config['loss_module_settings']
+                self.config['loss_module_settings'] = (
+                    loss_modules + additional_loss_modules
+                )
+
         self.loss_module = build_loss_module(
             self.config['loss_module_settings'])
 
