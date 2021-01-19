@@ -37,7 +37,7 @@ def main(config_files):
     # ------------------
     # Create loss module
     # ------------------
-    loss_module = build_loss_module(config)
+    loss_module = build_loss_module(config['loss_module_settings'])
 
     # -------------------------------------
     # create evaluation module if specified

@@ -147,8 +147,6 @@ class VisualizePulseLikelihood:
         reco_result = data_batch[self.reco_index]
         loss_scalar, loss_event, loss_dom = self.parameter_loss_function(
             reco_result, data_batch)
-        print(self.event_counter, reco_result, reco_result.shape)
-        print(np.sum(loss_scalar), np.sum(loss_event), np.sum(loss_dom))
 
         data_batch_dict = {}
         for i, tensor in enumerate(self.manager.data_handler.tensors.list):

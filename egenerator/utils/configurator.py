@@ -72,7 +72,8 @@ class ManagerConfigurator:
         # ------------------
         # Create loss module
         # ------------------
-        self.loss_module = build_loss_module(self.config)
+        self.loss_module = build_loss_module(
+            self.config['loss_module_settings'])
 
         # ------------------
         # Create misc module

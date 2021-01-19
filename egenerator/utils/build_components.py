@@ -16,14 +16,13 @@ from egenerator.data.trafo import DataTransformer
 from egenerator.loss.multi_loss import MultiLossModule
 
 
-def build_data_handler(config):
+def build_data_handler(data_handler_settings):
     """Build a data handler object
 
     Parameters
     ----------
-    config : dict
-        A dictionary containg the settings. Must at least contain the key
-        `data_handler_settings` which defines the data handler
+    data_handler_settings : dict
+        A dictionary containing the settings for the data handler.
 
     Returns
     -------
@@ -31,27 +30,29 @@ def build_data_handler(config):
         The data handler object.
     """
     DataHandlerClass = misc.load_class('egenerator.data.handler.{}'.format(
-                    config['data_handler_settings']['data_handler']))
+                    data_handler_settings['data_handler']))
     data_handler = DataHandlerClass()
-    data_handler.configure(config=config['data_handler_settings'])
+    data_handler.configure(config=data_handler_settings)
     return data_handler
 
 
-def build_loss_module(config):
+def build_loss_module(loss_module_settings):
     """Build a loss module
 
     Parameters
     ----------
-    config : dict
-        A dictionary containg the settings. Must at least contain the key
-        `loss_module_settings` which defines the loss module.
+    loss_module_settings : dict or list of dict
+        A dictionary containg the settings for the loss module.
+        This may also be a list of dictionaries, where each dictionary
+        defines the settings for one loss module. Thes are then all combined
+        to a MultiLossModule which simply accumulates the losses of all
+        sub modules.
 
     Returns
     -------
     LossModule object
         The loss module object.
     """
-    loss_module_settings = config['loss_module_settings']
 
     # If a dictionary is provided, then this is just a single loss module
     if isinstance(loss_module_settings, dict):
@@ -220,7 +221,7 @@ def build_manager(config, restore,
         # Create Data Handler object
         # --------------------------
         if data_handler is None:
-            data_handler = build_data_handler(config)
+            data_handler = build_data_handler(config['data_handler_settings'])
 
         # --------------------------
         # create and load TrafoModel

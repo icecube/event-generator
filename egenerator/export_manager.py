@@ -69,7 +69,7 @@ def main(config_files, output_dir, reco_config_file=None):
     # ------------------
     # Create loss module
     # ------------------
-    loss_module = build_loss_module(config)
+    loss_module = build_loss_module(config['loss_module_settings'])
 
     # --------------
     # Create manager
