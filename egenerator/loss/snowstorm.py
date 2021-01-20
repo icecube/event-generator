@@ -171,6 +171,10 @@ class SnowstormPriorLossModule(BaseComponent):
         TYPE
             Description
         """
+        if high <= low:
+            msg = 'Upper bound [{}] must be greater than lower bound [{}]'
+            raise ValueError(msg.format(high, low))
+
         scale = high - low
         exp_factor = 10
         normalization = np.exp(exp_factor)
