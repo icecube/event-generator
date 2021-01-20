@@ -511,8 +511,7 @@ class MultiSource(Source):
 
             @tf.function(input_signature=input_signature)
             def concrete_function(data_batch_dict_i):
-                self._logger.info(
-                    'Tracing multi-source base: {}'.format(base))
+                print('Tracing multi-source base: {}'.format(base))
                 return base_source.get_tensors(
                                 data_batch_dict_i,
                                 is_training=is_training,
@@ -534,7 +533,7 @@ class MultiSource(Source):
             base = self._untracked_data['sources'][source_name]
             base_parameter_tensors[base].append(source_parameters[source_name])
             base_parameter_count[base] += 1
-            self._logger.info(
+            print(
                 base, base_parameter_count[base],
                 source_parameters[source_name])
 
@@ -1269,7 +1268,7 @@ class ConcreteFunctionCache():
 
             @tf.function
             def concrete_function(data_batch_dict_i):
-                self._logger.info('Tracing multi-source base: {} ({})'.format(
+                print('Tracing multi-source base: {} ({})'.format(
                     base_name, base_source))
                 return base_source.get_tensors(
                                 data_batch_dict_i,

@@ -158,7 +158,7 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(True)
 
-        self._logger.info('Applying Default Cascade Model...')
+        print('Applying Default Cascade Model...')
         tensor_dict = {}
 
         config = self.configuration.config['config']
@@ -174,8 +174,7 @@ class DefaultCascadeModel(Source):
             x_time_exclusions_ids = data_batch_dict['x_time_exclusions_ids']
         else:
             time_exclusions_exist = False
-        self._logger.info(
-            '\t Applying time exclusions:', time_exclusions_exist)
+        print('\t Applying time exclusions:', time_exclusions_exist)
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
@@ -278,7 +277,7 @@ class DefaultCascadeModel(Source):
             # extend to correct batch shape:
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
-            self._logger.info('\t dom_coords', dom_coords)
+            print('\t dom_coords', dom_coords)
             input_list.append(dom_coords)
 
         if config['num_local_vars'] > 0:
@@ -286,12 +285,12 @@ class DefaultCascadeModel(Source):
             # extend to correct shape:
             local_vars = (tf.ones_like(dx_normed) *
                           self._untracked_data['local_vars'])
-            self._logger.info('\t local_vars', local_vars)
+            print('\t local_vars', local_vars)
 
             input_list.append(local_vars)
 
         x_doms_input = tf.concat(input_list, axis=-1)
-        self._logger.info('\t x_doms_input', x_doms_input)
+        print('\t x_doms_input', x_doms_input)
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
@@ -351,10 +350,8 @@ class DefaultCascadeModel(Source):
         if n_models <= 1:
             raise ValueError('{!r} !> 1'.format(n_models))
 
-        self._logger.info(
-            '\t Charge method:', config['estimate_charge_distribution'])
-        self._logger.info(
-            '\t Number of Asymmetric Gaussian Components:', n_models)
+        print('\t Charge method:', config['estimate_charge_distribution'])
+        print('\t Number of Asymmetric Gaussian Components:', n_models)
 
         out_layer = conv_hex3d_layers[-1]
         latent_mu = out_layer[...,

@@ -156,7 +156,7 @@ class ChargeOnlyCascadeModel(Source):
         """
         self.assert_configured(True)
 
-        self._logger.info('Applying Charge Only Cascade Model...')
+        print('Applying Charge Only Cascade Model...')
         tensor_dict = {}
 
         config = self.configuration.config['config']
@@ -259,7 +259,7 @@ class ChargeOnlyCascadeModel(Source):
             # extend to correct batch shape:
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
-            self._logger.info('\t dom_coords', dom_coords)
+            print('\t dom_coords', dom_coords)
             input_list.append(dom_coords)
 
         if config['num_local_vars'] > 0:
@@ -267,12 +267,12 @@ class ChargeOnlyCascadeModel(Source):
             # extend to correct shape:
             local_vars = (tf.ones_like(dx_normed) *
                           self._untracked_data['local_vars'])
-            self._logger.info('\t local_vars', local_vars)
+            print('\t local_vars', local_vars)
 
             input_list.append(local_vars)
 
         x_doms_input = tf.concat(input_list, axis=-1)
-        self._logger.info('\t x_doms_input', x_doms_input)
+        print('\t x_doms_input', x_doms_input)
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
@@ -284,8 +284,7 @@ class ChargeOnlyCascadeModel(Source):
         # -------------------------------------------
         # Get expected charge at DOM
         # -------------------------------------------
-        self._logger.info(
-            '\t Charge method:', config['estimate_charge_distribution'])
+        print('\t Charge method:', config['estimate_charge_distribution'])
 
         # the result of the convolution layers are the latent variables
         dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],

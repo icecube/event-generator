@@ -115,7 +115,7 @@ class DefaultNoiseModel(Source):
                              Shape: [-1]
         """
         self.assert_configured(True)
-        self._logger.info('Applying Noise Model...')
+        print('Applying Noise Model...')
 
         tensor_dict = {}
 
@@ -136,8 +136,7 @@ class DefaultNoiseModel(Source):
             x_time_excl_batch_id = x_time_exclusions_ids[:, 0]
         else:
             time_exclusions_exist = False
-        self._logger.info(
-            '\t Applying time exclusions:', time_exclusions_exist)
+        print('\t Applying time exclusions:', time_exclusions_exist)
 
         # shape: [n_pulses, 2]
         pulses = data_batch_dict['x_pulses']
