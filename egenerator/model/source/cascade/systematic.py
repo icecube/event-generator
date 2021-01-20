@@ -202,9 +202,9 @@ class SystematicsCascadeModel(Source):
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
 
-        print('pulses', pulses)
-        print('pulses_ids', pulses_ids)
-        print('parameters', parameters)
+        self._logger.info('pulses', pulses)
+        self._logger.info('pulses_ids', pulses_ids)
+        self._logger.info('parameters', parameters)
 
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(
@@ -310,7 +310,7 @@ class SystematicsCascadeModel(Source):
             # extend to correct batch shape:
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
-            print('dom_coords', dom_coords)
+            self._logger.info('dom_coords', dom_coords)
             input_list_shared.append(dom_coords)
 
         if config['num_local_vars'] > 0:
@@ -318,12 +318,12 @@ class SystematicsCascadeModel(Source):
             # extend to correct shape:
             local_vars = (tf.ones_like(dx_normed) *
                           self._untracked_data['local_vars'])
-            print('local_vars', local_vars)
+            self._logger.info('local_vars', local_vars)
 
             input_list.append(local_vars)
 
         x_doms_input = tf.concat(input_list, axis=-1)
-        print('x_doms_input', x_doms_input)
+        self._logger.info('x_doms_input', x_doms_input)
 
         # -------------------------------------
         # convolutional layers over X_IC86 data
@@ -351,7 +351,7 @@ class SystematicsCascadeModel(Source):
         input_list_shared.append(modified_add_parameters)
         input_list_shared.append(local_conv_layers[-1])
         x_doms_input2 = tf.concat(input_list_shared, axis=-1)
-        print('x_doms_input2', x_doms_input2)
+        self._logger.info('x_doms_input2', x_doms_input2)
 
         # run shared convoluational layers
         conv_layers = self._untracked_data['shared_conv_layer'](
@@ -458,9 +458,9 @@ class SystematicsCascadeModel(Source):
                 tf.math.sqrt(dom_charges + eps)
             )
 
-            print('dom_charges_sigma', dom_charges_sigma)
-            print('dom_charges_llh', dom_charges_llh)
-            print('dom_charges_unc', dom_charges_unc)
+            self._logger.info('dom_charges_sigma', dom_charges_sigma)
+            self._logger.info('dom_charges_llh', dom_charges_llh)
+            self._logger.info('dom_charges_unc', dom_charges_unc)
 
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
@@ -500,7 +500,7 @@ class SystematicsCascadeModel(Source):
                 dom_charges + dom_charges_alpha*dom_charges**2)
             dom_charges_unc = tf.sqrt(dom_charges_variance)
 
-            print('dom_charges_llh', dom_charges_llh)
+            self._logger.info('dom_charges_llh', dom_charges_llh)
 
             # tf.print(
             #     'dom_charges_alpha',
@@ -597,10 +597,10 @@ class SystematicsCascadeModel(Source):
         pulse_latent_scale = tf.ensure_shape(pulse_latent_scale,
                                              [None, n_models])
 
-        print('latent_mu', latent_mu)
-        print('pulse_latent_mu', pulse_latent_mu)
-        print('latent_scale', latent_scale)
-        print('pulse_latent_scale', pulse_latent_scale)
+        self._logger.info('latent_mu', latent_mu)
+        self._logger.info('pulse_latent_mu', pulse_latent_mu)
+        self._logger.info('latent_scale', latent_scale)
+        self._logger.info('pulse_latent_scale', pulse_latent_scale)
 
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
@@ -613,7 +613,7 @@ class SystematicsCascadeModel(Source):
 
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
-        print('pulse_pdf_values', pulse_pdf_values)
+        self._logger.info('pulse_pdf_values', pulse_pdf_values)
 
         tensor_dict['pulse_pdf'] = pulse_pdf_values
         # -------------------------------------------

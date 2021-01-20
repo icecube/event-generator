@@ -115,7 +115,7 @@ class DefaultNoiseModel(Source):
                              Shape: [-1]
         """
         self.assert_configured(True)
-        print('Applying Noise Model...')
+        self._logger.info('Applying Noise Model...')
 
         tensor_dict = {}
 
@@ -136,7 +136,8 @@ class DefaultNoiseModel(Source):
             x_time_excl_batch_id = x_time_exclusions_ids[:, 0]
         else:
             time_exclusions_exist = False
-        print('\t Applying time exclusions:', time_exclusions_exist)
+        self._logger.info(
+            '\t Applying time exclusions:', time_exclusions_exist)
 
         # shape: [n_pulses, 2]
         pulses = data_batch_dict['x_pulses']
@@ -432,10 +433,13 @@ class DefaultNoiseModel(Source):
                 # subtract excluded region
                 cdf_values[ids[0], ids[1], ids[2]] -= cdf_excluded
 
-            eps = 1e-2
-            assert (cdf_values >= 0-eps).all(), cdf_values[cdf_values < 0-eps]
-            assert (cdf_values <= 1+eps).all(), cdf_values[cdf_values > 1+eps]
-            cdf_values = np.clip(cdf_values, 0., 1.)
+            eps = 1e-3
+            if (cdf_values < 0-eps).any():
+                self._logger.warning('CDF values below zero: {}'.format(
+                    cdf_values[cdf_values < 0-eps]))
+            if (cdf_values > 1+eps).any():
+                self._logger.warning('CDF values above one: {}'.format(
+                    cdf_values[cdf_values > 1+eps]))
 
         return cdf_values
 

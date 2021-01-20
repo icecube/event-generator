@@ -511,7 +511,8 @@ class MultiSource(Source):
 
             @tf.function(input_signature=input_signature)
             def concrete_function(data_batch_dict_i):
-                print('Tracing multi-source base: {}'.format(base))
+                self._logger.info(
+                    'Tracing multi-source base: {}'.format(base))
                 return base_source.get_tensors(
                                 data_batch_dict_i,
                                 is_training=is_training,
@@ -533,7 +534,9 @@ class MultiSource(Source):
             base = self._untracked_data['sources'][source_name]
             base_parameter_tensors[base].append(source_parameters[source_name])
             base_parameter_count[base] += 1
-            print(base, base_parameter_count[base], source_parameters[source_name])
+            self._logger.info(
+                base, base_parameter_count[base],
+                source_parameters[source_name])
 
         # concatenate tensors: [n_sources * n_batch, ...]
         for base in set(self._untracked_data['sources'].values()):
@@ -1238,12 +1241,13 @@ class ConcreteFunctionCache():
     """
 
     def __init__(self, source_parameters, sub_components,
-                 data_batch_dict, is_training):
+                 data_batch_dict, is_training, logger=None):
         self.source_parameters = source_parameters
         self.sub_components = sub_components
         self.data_batch_dict = data_batch_dict
         self.is_training = is_training
         self.concrete_tensor_funcs = {}
+        self._logger = logger or logging.getLogger(__name__)
 
     def get_or_add_tf_func(self, source_name, base_name):
         """Retrieve concrete tf function from cache or add new one.
@@ -1265,7 +1269,7 @@ class ConcreteFunctionCache():
 
             @tf.function
             def concrete_function(data_batch_dict_i):
-                print('Tracing multi-source base: {} ({})'.format(
+                self._logger.info('Tracing multi-source base: {} ({})'.format(
                     base_name, base_source))
                 return base_source.get_tensors(
                                 data_batch_dict_i,

@@ -4,6 +4,7 @@ import tensorflow as tf
 import timeit
 
 from icecube import dataclasses, icetray
+from icecube.icetray.i3logging import log_info, log_warn
 
 from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.utils import basis_functions
@@ -126,7 +127,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             msg = '\nNumber of Model Variables:\n'
             msg += '\tFree: {}\n'
             msg += '\tTotal: {}'
-            print(msg.format(num_vars, num_total_vars))
+            log_info(msg.format(num_vars, num_total_vars))
 
         if len(self.manager.models) > 1:
             raise NotImplementedError(
@@ -249,10 +250,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # timer after Sampling
         t_3 = timeit.default_timer()
 
-        print('Simulation took: {:3.3f}ms'.format((t_3 - t_0) * 1000))
-        print('\t Gathering Sources: {:3.3f}ms'.format((t_1 - t_0) * 1000))
-        print('\t Evaluating NN model: {:3.3f}ms'.format((t_2 - t_1) * 1000))
-        print('\t Sampling Pulses: {:3.3f}ms'.format((t_3 - t_2) * 1000))
+        log_info('Simulation took: {:3.3f}ms'.format((t_3 - t_0) * 1000))
+        log_info('\t Gathering Sources: {:3.3f}ms'.format((t_1 - t_0) * 1000))
+        log_info('\t Evaluating NN model: {:3.3f}ms'.format((t_2 - t_1) * 1000))
+        log_info('\t Sampling Pulses: {:3.3f}ms'.format((t_3 - t_2) * 1000))
 
         # write to frame
         frame[self.output_key] = pulses
@@ -452,8 +453,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # check if we have a branch that we can't simulate
         if len(daughters) == 0 and parent.type not in self.dark_particles:
-            print(parent)
-            print(mc_tree)
+            log_warn(parent)
+            log_warn(mc_tree)
             raise NotImplementedError(
                 'Particle can not be simulated: ', parent.type)
 

@@ -2,6 +2,7 @@ import os
 import tensorflow as tf
 
 from icecube import dataclasses, icetray
+from icecube.icetray.i3logging import log_info, log_warn
 
 from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.manager.reconstruction.tray import ReconstructionTray
@@ -261,7 +262,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             msg = '\nNumber of Model Variables:\n'
             msg += '\tFree: {}\n'
             msg += '\tTotal: {}'
-            print(msg.format(num_vars, num_total_vars))
+            log_info(msg.format(num_vars, num_total_vars))
 
         # ------------------------------
         # Gather Reconstruction Settings

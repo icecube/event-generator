@@ -501,10 +501,13 @@ class Source(Model):
 
                 cdf_values[ids[0], ids[1], ids[2]] -= cdf_excluded
 
-            eps = 1e-2
-            assert (cdf_values >= 0-eps).all(), cdf_values[cdf_values < 0-eps]
-            assert (cdf_values <= 1+eps).all(), cdf_values[cdf_values > 1+eps]
-            cdf_values = np.clip(cdf_values, 0., 1.)
+            eps = 1e-3
+            if (cdf_values < 0-eps).any():
+                self._logger.warning('CDF values below zero: {}'.format(
+                    cdf_values[cdf_values < 0-eps]))
+            if (cdf_values > 1+eps).any():
+                self._logger.warning('CDF values above one: {}'.format(
+                    cdf_values[cdf_values > 1+eps]))
 
         return cdf_values
 

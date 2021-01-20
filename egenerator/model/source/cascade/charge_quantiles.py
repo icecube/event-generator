@@ -204,9 +204,9 @@ class ChargeQuantileCascadeModel(Source):
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
 
-        print('pulses', pulses)
-        print('pulses_ids', pulses_ids)
-        print('parameters', parameters)
+        self._logger.info('pulses', pulses)
+        self._logger.info('pulses_ids', pulses_ids)
+        self._logger.info('parameters', parameters)
 
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(
@@ -308,7 +308,7 @@ class ChargeQuantileCascadeModel(Source):
             # extend to correct batch shape:
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
-            print('dom_coords', dom_coords)
+            self._logger.info('dom_coords', dom_coords)
             input_list.append(dom_coords)
 
         if config['num_local_vars'] > 0:
@@ -316,12 +316,12 @@ class ChargeQuantileCascadeModel(Source):
             # extend to correct shape:
             local_vars = (tf.ones_like(dx_normed) *
                           self._untracked_data['local_vars'])
-            print('local_vars', local_vars)
+            self._logger.info('local_vars', local_vars)
 
             input_list.append(local_vars)
 
         x_doms_input = tf.concat(input_list, axis=-1)
-        print('x_doms_input', x_doms_input)
+        self._logger.info('x_doms_input', x_doms_input)
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
@@ -429,9 +429,9 @@ class ChargeQuantileCascadeModel(Source):
                 tf.math.sqrt(dom_charges + eps)
             )
 
-            print('dom_charges_sigma', dom_charges_sigma)
-            print('dom_charges_llh', dom_charges_llh)
-            print('dom_charges_unc', dom_charges_unc)
+            self._logger.info('dom_charges_sigma', dom_charges_sigma)
+            self._logger.info('dom_charges_llh', dom_charges_llh)
+            self._logger.info('dom_charges_unc', dom_charges_unc)
 
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
@@ -472,7 +472,7 @@ class ChargeQuantileCascadeModel(Source):
                 dom_charges + dom_charges_alpha*dom_charges**2)
             dom_charges_unc = tf.sqrt(dom_charges_variance)
 
-            print('dom_charges_llh', dom_charges_llh)
+            self._logger.info('dom_charges_llh', dom_charges_llh)
 
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_alpha'] = dom_charges_alpha
@@ -528,7 +528,7 @@ class ChargeQuantileCascadeModel(Source):
 
         # Shape: [n_pulses, n_latent + (2 or 3)]
         quantile_pdf_input = tf.concat(input_list, axis=-1)
-        print('quantile_pdf_input', quantile_pdf_input)
+        self._logger.info('quantile_pdf_input', quantile_pdf_input)
 
         # now apply fully connected layers to compute p(t | q_i, D_i)
         fc_layers = self._untracked_data['fully_connected_layer'](
@@ -553,7 +553,8 @@ class ChargeQuantileCascadeModel(Source):
         # shape: [n_pulses, 1]
         pulse_light_propagation_time = tf.gather_nd(light_propagation_time,
                                                     pulses_ids)
-        print('pulse_light_propagation_time', pulse_light_propagation_time)
+        self._logger.info(
+            'pulse_light_propagation_time', pulse_light_propagation_time)
 
         # scale time range down to avoid big numbers:
         t_scale = 1. / self.time_unit_in_ns  # [1./ns]

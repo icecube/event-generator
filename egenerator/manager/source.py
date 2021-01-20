@@ -398,12 +398,12 @@ class SourceManager(BaseModelManager):
 
             # shape: [n_terms, n_params, 1]
             kernel_fprop = tf.stack(kernel_fprop, axis=1)[..., tf.newaxis]
-            print('kernel_fprop', kernel_fprop)
+            self._logger.info('kernel_fprop', kernel_fprop)
 
             # shape: [n_terms, n_params, n_params]
             opg_estimate = tf.linalg.matmul(kernel_fprop, kernel_fprop,
                                             transpose_b=True)
-            print('opg_estimate', opg_estimate)
+            self._logger.info('opg_estimate', opg_estimate)
 
             return tf.reduce_sum(opg_estimate, axis=0)
 
@@ -497,24 +497,24 @@ class SourceManager(BaseModelManager):
         #                     parameters_trafo=parameters_trafo,
         #                     data_batch=data_batch,
         #                     seed=seed)
-        #                 print('loss', loss)
+        #                 self._logger.info('loss', loss)
 
         #             # Get gradient of loss wrt parameters
         #             # Shape: [n_params]
         #             gradients = tape.gradient(loss, parameters_trafo)[0]
-        #             print('gradients', gradients)
+        #             self._logger.info('gradients', gradients)
 
         #         kernel_fprop.append(acc.jvp(gradients))
 
         #     # shape: [n_params, n_params]
-        #     print('kernel_fprop', kernel_fprop)
+        #     self._logger.info('kernel_fprop', kernel_fprop)
         #     hessian = tf.stack(kernel_fprop, axis=1)
-        #     print('hessian', hessian)
+        #     self._logger.info('hessian', hessian)
 
         #     # we will limit this to a batch dimension of 1 for now
         #     hessian = tf.squeeze(tf.ensure_shape(
         #         hessian, [1] + [parameters_trafo.shape[1]]*2), axis=0)
-        #     print('hessian squeeze', hessian)
+        #     self._logger.info('hessian squeeze', hessian)
 
         #     return hessian
         # -----------------------------
@@ -783,7 +783,7 @@ class SourceManager(BaseModelManager):
 
         # tolerance_func = None
         # if tolerance_func is not None:
-        #     print('using tolerance_func')
+        #     self._logger.info('using tolerance_func')
 
         #     class Callback:
         #         def __init__(self, atol=10.1):
@@ -793,7 +793,7 @@ class SourceManager(BaseModelManager):
         #         def __call__(self, xk):
         #             this_loss, _ = func(xk, data_batch, seed)
         #             if self._prev_loss is not None:
-        #                 print('self._prev_loss - this_loss',
+        #                 self._logger.info('self._prev_loss - this_loss',
         #                       self._prev_loss - this_loss)
         #                 if (self._prev_loss - this_loss) < self._atol:
         #                     return True
@@ -947,7 +947,7 @@ class SourceManager(BaseModelManager):
         if minimize_in_trafo_space or not np.all(fit_parameter_list):
             spherical_indices = tuple()
         else:
-            print('Using spherical indices for CRS2 Optimization!')
+            self._logger.info('Using spherical indices for CRS2 Optimization!')
             mapping = self.configuration.config['config']['I3ParticleMapping']
             spherical_indices = [
                 [self.models[0].get_index(mapping['azimuth']),
@@ -968,9 +968,9 @@ class SourceManager(BaseModelManager):
             batch_size=batch_size,
             **kwargs
         )
-        print('success', result['success'])
-        print('n_calls', result['n_calls'])
-        print('nit', result['nit'])
+        self._logger.info('success', result['success'])
+        self._logger.info('n_calls', result['n_calls'])
+        self._logger.info('nit', result['nit'])
 
         best_fit = np.reshape(result['x'], param_shape)
         return best_fit, result
@@ -1433,7 +1433,7 @@ class SourceManager(BaseModelManager):
             msg = '\nNumber of Model Variables:\n'
             msg += '\tFree: {}\n'
             msg += '\tTotal: {}'
-            print(msg.format(num_vars, num_total_vars))
+            self._logger.info(msg.format(num_vars, num_total_vars))
 
         # get reconstruction config
         reco_config = config['reconstruction_settings']
@@ -1817,8 +1817,10 @@ class SourceManager(BaseModelManager):
 
                 if num_accepted > 0:
                     index_max = np.argmax(log_prob_values)
-                    print('\tBest Sample: ' + msg.format(*samples[index_max]))
-                    print('\tmin loss_values: {:3.2f}'.format(
+                    self._logger.info(
+                        '\tBest Sample: ' + msg.format(*samples[index_max]))
+                    self._logger.info(
+                        '\tmin loss_values: {:3.2f}'.format(
                                                         -max(log_prob_values)))
 
                     sorted_indices = np.argsort(log_prob_values)
@@ -1852,9 +1854,11 @@ class SourceManager(BaseModelManager):
                         max_val_50 = max(central_50p[:, i])
 
                         msg = '\t{:8.2f}: {:8.2f} {:8.2f} {:8.2f} {:8.2f} [{}]'
-                        print(msg.format(cascade_true[i], min_val_90,
-                                         min_val_50, max_val_50, max_val_90,
-                                         name))
+                        self._logger.info(
+                            msg.format(
+                                cascade_true[i], min_val_90,
+                                min_val_50, max_val_50, max_val_90,
+                                name))
             # -------------
 
             # Now loop through events in this batch
@@ -1892,9 +1896,10 @@ class SourceManager(BaseModelManager):
                         cascade_reco[index],
                         cascade_true[index]-cascade_reco[index],
                         name)
-                print('At event {} [Reconstruction took {:3.3f}s]'.format(
-                    event_counter, reco_end_t - reco_start_t))
-                print(msg)
+                self._logger.info(
+                    'At event {} [Reconstruction took {:3.3f}s]'.format(
+                        event_counter, reco_end_t - reco_start_t))
+                self._logger.info(msg)
 
                 # keep track of results
                 cascade_parameters_true.append(cascade_true)

@@ -239,9 +239,9 @@ class StochasticTrackSegmentModel(Source):
         pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
 
-        print('pulses', pulses)
-        print('pulses_ids', pulses_ids)
-        print('parameters', parameters)
+        self._logger.info('pulses', pulses)
+        self._logger.info('pulses_ids', pulses_ids)
+        self._logger.info('parameters', parameters)
 
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(
@@ -469,7 +469,7 @@ class StochasticTrackSegmentModel(Source):
             # extend to correct batch shape:
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
-            print('dom_coords', dom_coords)
+            self._logger.info('dom_coords', dom_coords)
             input_list.append(dom_coords)
 
         if config['num_local_vars'] > 0:
@@ -477,7 +477,7 @@ class StochasticTrackSegmentModel(Source):
             # extend to correct shape:
             local_vars = (tf.ones_like(dx_normed) *
                           self._untracked_data['local_vars'])
-            print('local_vars', local_vars)
+            self._logger.info('local_vars', local_vars)
 
             input_list.append(local_vars)
 
@@ -502,7 +502,7 @@ class StochasticTrackSegmentModel(Source):
                 x_doms_input = tf.concat(input_list, axis=-1)
         else:
             x_doms_input = tf.concat(input_list, axis=-1)
-        print('x_doms_input', x_doms_input)
+        self._logger.info('x_doms_input', x_doms_input)
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
@@ -610,9 +610,9 @@ class StochasticTrackSegmentModel(Source):
                 tf.math.sqrt(dom_charges + eps)
             )
 
-            print('dom_charges_sigma', dom_charges_sigma)
-            print('dom_charges_llh', dom_charges_llh)
-            print('dom_charges_unc', dom_charges_unc)
+            self._logger.info('dom_charges_sigma', dom_charges_sigma)
+            self._logger.info('dom_charges_llh', dom_charges_llh)
+            self._logger.info('dom_charges_unc', dom_charges_unc)
 
             # add tensors to tensor dictionary
             tensor_dict['dom_charges_sigma'] = dom_charges_sigma
@@ -653,7 +653,7 @@ class StochasticTrackSegmentModel(Source):
                 dom_charges + dom_charges_alpha*dom_charges**2)
             dom_charges_unc = tf.sqrt(dom_charges_variance)
 
-            print('dom_charges_llh', dom_charges_llh)
+            self._logger.info('dom_charges_llh', dom_charges_llh)
 
             # tf.print(
             #     'dom_charges_alpha',
@@ -750,10 +750,10 @@ class StochasticTrackSegmentModel(Source):
         pulse_latent_scale = tf.ensure_shape(pulse_latent_scale,
                                              [None, n_models])
 
-        print('latent_mu', latent_mu)
-        print('pulse_latent_mu', pulse_latent_mu)
-        print('latent_scale', latent_scale)
-        print('pulse_latent_scale', pulse_latent_scale)
+        self._logger.info('latent_mu', latent_mu)
+        self._logger.info('pulse_latent_mu', pulse_latent_mu)
+        self._logger.info('latent_scale', latent_scale)
+        self._logger.info('pulse_latent_scale', pulse_latent_scale)
 
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
@@ -766,7 +766,7 @@ class StochasticTrackSegmentModel(Source):
 
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
-        print('pulse_pdf_values', pulse_pdf_values)
+        self._logger.info('pulse_pdf_values', pulse_pdf_values)
 
         if is_training:
             # Ensure finite values
