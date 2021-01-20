@@ -784,7 +784,7 @@ class VisualizePulseLikelihood:
             min_time = np.min(pulses[:, 1]) - 50
             max_time = np.max(pulses[:, 1]) + 50
 
-        if limit_charge_fraction is not None:
+        if len(pulses) > 1 and limit_charge_fraction is not None:
             max_time = func_tools.weighted_quantile(
                 x=pulses[:, 1],
                 weights=pulses[:, 0],

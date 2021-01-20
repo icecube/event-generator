@@ -2,7 +2,7 @@ from icecube import icetray
 
 from egenerator.ic3.reconstruction import EventGeneratorReconstruction
 from egenerator.ic3.visualization import EventGeneratorVisualizeBestFit
-from egenerator.ic3.utils import exclusions
+from egenerator.ic3.utils import exclusions, bright_doms
 
 
 @icetray.traysegment
@@ -12,7 +12,9 @@ def ApplyEventGeneratorReconstruction(
         dom_and_tw_exclusions=[
             'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
         partial_exclusion=True,
-        bright_doms_exclusion_threshold=None,
+        exclude_bright_doms=True,
+        bright_doms_threshold_fraction=0.3,
+        bright_doms_threshold_charge=50.,
         clean_up=True,
         **egenerator_kwargs
         ):
@@ -39,11 +41,17 @@ def ApplyEventGeneratorReconstruction(
         TimeWindows defined in 'dom_and_tw_exclusions'.
         If False, all pulses from a DOM will be excluded regardless of how
         long the excluded time window is.
-    bright_doms_exclusion_threshold : None, optional
-        If specified, bright DOMs will be calculated and excluded. Bright DOMs
-        are defined as such:
-        charge_i/total_event_charge >= `bright_doms_exclusion_threshold`
-        where charge_i is the charge at the i-th DOM.
+    exclude_bright_doms : bool, optional
+        If True, bright DOMs will be excluded. A bright DOM is a DOM that
+            fulfills:
+                DOM charge > `bright_doms_threshold_fraction` * event charge
+                DOm charge > `bright_doms_threshold_charge`
+    bright_doms_threshold_fraction : float, optional
+        The threshold fraction of total event charge above which a DOM is
+        considered as a bright DOM. See exclude_bright_doms.
+    bright_doms_threshold_charge : float, optional
+        The threshold charge a DOM must exceeded to be considered as a
+        bright DOM. See exclude_bright_doms.
     clean_up : bool, optional
         If True, temporarily created frame objects, such as the combined
         exclusions and masked pulses, are deleted from the frame once no
@@ -61,7 +69,9 @@ def ApplyEventGeneratorReconstruction(
         pulse_key=pulse_key,
         dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
-        bright_doms_exclusion_threshold=bright_doms_exclusion_threshold,
+        exclude_bright_doms=exclude_bright_doms,
+        bright_doms_threshold_fraction=bright_doms_threshold_fraction,
+        bright_doms_threshold_charge=bright_doms_threshold_charge,
     )
 
     # apply event-generator reconstruction
@@ -85,7 +95,9 @@ def ApplyEventGeneratorVisualizeBestFit(
         dom_and_tw_exclusions=[
             'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
         partial_exclusion=True,
-        bright_doms_exclusion_threshold=None,
+        exclude_bright_doms=True,
+        bright_doms_threshold_fraction=0.3,
+        bright_doms_threshold_charge=50.,
         clean_up=True,
         **egenerator_kwargs
         ):
@@ -112,11 +124,17 @@ def ApplyEventGeneratorVisualizeBestFit(
         TimeWindows defined in 'dom_and_tw_exclusions'.
         If False, all pulses from a DOM will be excluded regardless of how
         long the excluded time window is.
-    bright_doms_exclusion_threshold : None, optional
-        If specified, bright DOMs will be calculated and excluded. Bright DOMs
-        are defined as such:
-        charge_i/total_event_charge >= `bright_doms_exclusion_threshold`
-        where charge_i is the charge at the i-th DOM.
+    exclude_bright_doms : bool, optional
+        If True, bright DOMs will be excluded. A bright DOM is a DOM that
+            fulfills:
+                DOM charge > `bright_doms_threshold_fraction` * event charge
+                DOm charge > `bright_doms_threshold_charge`
+    bright_doms_threshold_fraction : float, optional
+        The threshold fraction of total event charge above which a DOM is
+        considered as a bright DOM. See exclude_bright_doms.
+    bright_doms_threshold_charge : float, optional
+        The threshold charge a DOM must exceeded to be considered as a
+        bright DOM. See exclude_bright_doms.
     clean_up : bool, optional
         If True, temporarily created frame objects, such as the combined
         exclusions and masked pulses, are deleted from the frame once no
@@ -134,7 +152,9 @@ def ApplyEventGeneratorVisualizeBestFit(
         pulse_key=pulse_key,
         dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
-        bright_doms_exclusion_threshold=bright_doms_exclusion_threshold,
+        exclude_bright_doms=exclude_bright_doms,
+        bright_doms_threshold_fraction=bright_doms_threshold_fraction,
+        bright_doms_threshold_charge=bright_doms_threshold_charge,
     )
 
     # apply event-generator reconstruction
@@ -158,24 +178,40 @@ def CombineAndApplyExclusions(
         dom_and_tw_exclusions=[
             'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
         partial_exclusion=True,
-        bright_doms_exclusion_threshold=None,
+        exclude_bright_doms=True,
+        bright_doms_threshold_fraction=0.3,
+        bright_doms_threshold_charge=50.,
         ):
     """Combine and Apply DOM and TimeWindow exclusions
 
     Parameters
     ----------
-    tray : TYPE
-        Description
-    name : TYPE
-        Description
+    tray : icecube.icetray
+        The icetry.
+    name : str
+        Name of module
     pulse_key : str, optional
-        Description
-    dom_and_tw_exclusions : list, optional
-        Description
+        The pulses to run the event-generator on. If specified, these pulses
+        will be masked to comply with the DOM and time window exclusions.
+    dom_and_tw_exclusions : str or list of str, optional
+        A list of frame keys that specifiy DOM and time window exclusions.
+        If no exclusions are to be applied, pass an empty list or None.
     partial_exclusion : bool, optional
-        Description
-    bright_doms_exclusion_threshold : None, optional
-        Description
+        If True, partially exclude DOMS, e.g. only omit pulses from excluded
+        TimeWindows defined in 'dom_and_tw_exclusions'.
+        If False, all pulses from a DOM will be excluded regardless of how
+        long the excluded time window is.
+    exclude_bright_doms : bool, optional
+        If True, bright DOMs will be excluded. A bright DOM is a DOM that
+            fulfills:
+                DOM charge > `bright_doms_threshold_fraction` * event charge
+                DOm charge > `bright_doms_threshold_charge`
+    bright_doms_threshold_fraction : float, optional
+        The threshold fraction of total event charge above which a DOM is
+        considered as a bright DOM. See exclude_bright_doms.
+    bright_doms_threshold_charge : float, optional
+        The threshold charge a DOM must exceeded to be considered as a
+        bright DOM. See exclude_bright_doms.
 
     Returns
     -------
@@ -187,6 +223,11 @@ def CombineAndApplyExclusions(
         Frame key of the combined excluded time windows.
     list of str
         List of frame keys that were added.
+
+    Raises
+    ------
+    NotImplementedError
+        Description
     """
     if dom_and_tw_exclusions is None:
         dom_and_tw_exclusions = []
@@ -200,12 +241,18 @@ def CombineAndApplyExclusions(
     masked_pulses_key = combined_exclusion_key + 'Pulses'
     added_keys = [masked_pulses_key, excluded_dom_key, excluded_tw_key]
 
-    if bright_doms_exclusion_threshold is not None:
+    if exclude_bright_doms:
         dom_and_tw_exclusions.append(bright_dom_key)
         added_keys.append(bright_dom_key)
 
         # compute and add bright DOMs to frame
-        raise NotImplementedError
+        tray.AddModule(
+            bright_doms.AddBrightDOMs, name + 'BrightDOMs',
+            PulseKey=pulse_key,
+            BrightThresholdFraction=bright_doms_threshold_fraction,
+            BrightThresholdCharge=bright_doms_threshold_charge,
+            OutputKey=bright_dom_key,
+        )
 
     # combine exclusions in a single key for DOMs and TWs
     tray.AddModule(
