@@ -253,7 +253,7 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': False,
+            'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'unbinned_pulse_time_llh',
         },
@@ -266,7 +266,7 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': False,
+            'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'negative_binomial_charge_pdf',
         },
