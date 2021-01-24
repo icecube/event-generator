@@ -72,6 +72,34 @@ class CovarianceMatrix:
             parameter_tensor_name=parameter_tensor_name,
         )
 
+        # Get loss and gradients function
+        loss_and_gradients_function = function_cache.get(
+            'loss_and_gradients_function', func_settings)
+
+        if loss_and_gradients_function is None:
+            loss_and_gradients_function = \
+                manager.get_loss_and_gradients_function(**func_settings)
+            function_cache.add(loss_and_gradients_function, func_settings)
+
+        # build outer gradient product function
+        def outer_gradient_product(
+                parameters_trafo, data_batch, seed):
+
+            loss, gradients = loss_and_gradients_function(
+                parameters_trafo, data_batch, seed=seed)
+            gradients = gradients.numpy().astype('float64')
+
+            # shape: [n_params, 1]
+            gradients = np.reshape(gradients, [len(fit_parameter_list), 1])
+
+            # shape: [n_params, n_params]
+            outer_product = np.matmul(gradients, gradients.T)
+
+            # compute outer product
+            return outer_product
+
+        self.outer_gradient_product_function = outer_gradient_product
+
         # Get Hessian Function
         self.hessian_function = function_cache.get(
             'hessian_function', func_settings)
@@ -116,12 +144,20 @@ class CovarianceMatrix:
         hessian = self.hessian_function(
             parameters_trafo=result_trafo,
             data_batch=data_batch,
-            seed=result_inv).numpy().astype('float64')
+            seed=result_inv,
+        ).numpy().astype('float64')
 
         opg_estimate = self.opg_estimate_function(
             parameters_trafo=result_trafo,
             data_batch=data_batch,
-            seed=result_inv).numpy().astype('float64')
+            seed=result_inv,
+        ).numpy().astype('float64')
+
+        outer_product = self.outer_gradient_product_function(
+            parameters_trafo=result_trafo,
+            data_batch=data_batch,
+            seed=result_inv,
+        ).numpy().astype('float64')
 
         try:
             cov_trafo = np.linalg.inv(hessian)
@@ -136,8 +172,12 @@ class CovarianceMatrix:
                 print('Setting covariance matrix to NaNs!')
                 cov_trafo = np.zeros_like(hessian) * float('nan')
 
+        cov_outer_trafo = np.matmul(np.matmul(
+            cov_trafo, outer_product), cov_trafo)
         cov_sand_trafo = np.matmul(np.matmul(
             cov_trafo, opg_estimate), cov_trafo)
+        cov_outer_sand_trafo = np.matmul(np.matmul(
+            cov_outer_trafo, opg_estimate), cov_outer_trafo)
         if hasattr(result_obj, 'hess_inv'):
             if isinstance(result_obj.hess_inv, LbfgsInvHessProduct):
                 result_obj.hess_inv = result_obj.hess_inv.todense()
@@ -152,6 +192,16 @@ class CovarianceMatrix:
 
             cov_sand = self.manager.data_trafo.inverse_transform_cov(
                 cov_trafo=cov_sand_trafo,
+                tensor_name=self.parameter_tensor_name
+            )
+
+            cov_outer = self.manager.data_trafo.inverse_transform_cov(
+                cov_trafo=cov_outer_trafo,
+                tensor_name=self.parameter_tensor_name
+            )
+
+            cov_outer_sand = self.manager.data_trafo.inverse_transform_cov(
+                cov_trafo=cov_outer_sand_trafo,
                 tensor_name=self.parameter_tensor_name
             )
 
@@ -170,6 +220,8 @@ class CovarianceMatrix:
             'cov_sand': cov_sand,
             'cov_trafo': cov_trafo,
             'cov_sand_trafo': cov_sand_trafo,
+            'cov_outer': cov_outer,
+            'cov_outer_sand': cov_outer_sand,
         }
         if hasattr(result_obj, 'hess_inv'):
             results.update({
