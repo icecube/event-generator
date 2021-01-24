@@ -157,7 +157,7 @@ class CovarianceMatrix:
             parameters_trafo=result_trafo,
             data_batch=data_batch,
             seed=result_inv,
-        ).numpy().astype('float64')
+        )
 
         try:
             cov_trafo = np.linalg.inv(hessian)
