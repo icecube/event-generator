@@ -13,8 +13,8 @@ def ApplyEventGeneratorReconstruction(
             'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
         partial_exclusion=True,
         exclude_bright_doms=True,
-        bright_doms_threshold_fraction=0.3,
-        bright_doms_threshold_charge=50.,
+        bright_doms_threshold_fraction=0.4,
+        bright_doms_threshold_charge=100.,
         clean_up=True,
         **egenerator_kwargs
         ):
@@ -96,8 +96,8 @@ def ApplyEventGeneratorVisualizeBestFit(
             'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
         partial_exclusion=True,
         exclude_bright_doms=True,
-        bright_doms_threshold_fraction=0.3,
-        bright_doms_threshold_charge=50.,
+        bright_doms_threshold_fraction=0.4,
+        bright_doms_threshold_charge=100.,
         clean_up=True,
         **egenerator_kwargs
         ):
@@ -179,8 +179,8 @@ def CombineAndApplyExclusions(
             'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
         partial_exclusion=True,
         exclude_bright_doms=True,
-        bright_doms_threshold_fraction=0.3,
-        bright_doms_threshold_charge=50.,
+        bright_doms_threshold_fraction=0.4,
+        bright_doms_threshold_charge=100.,
         ):
     """Combine and Apply DOM and TimeWindow exclusions
 

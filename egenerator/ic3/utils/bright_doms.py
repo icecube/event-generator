@@ -27,12 +27,12 @@ class AddBrightDOMs(icetray.I3ConditionalModule):
             "is considered as a bright DOM. A bright DOM is a DOM that "
             "fulfills: DOM charge > threshold fraction * event charge and "
             "which exceeds the threshold charge `BrightThresholdCharge`.",
-            0.3)
+            0.4)
         self.AddParameter(
             "BrightThresholdCharge",
             "The threshold charge a DOM must exceed to be eligible as a "
             "bright DOM. See also `BrightThresholdFraction`.",
-            50)
+            100)
         self.AddParameter("OutputKey",
                           "The key to which to save the BrightDOMs.",
                           'BrightDOMs')
