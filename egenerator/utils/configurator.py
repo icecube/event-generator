@@ -18,6 +18,7 @@ class ManagerConfigurator:
                  data_setting_updates={},
                  additional_loss_modules=None,
                  replace_existing_loss_modules=False,
+                 configure_tensorflow=True,
                  num_threads=0,
                  tf_random_seed=1337):
         """Set up and configure the SourceManager object.
@@ -51,11 +52,17 @@ class ManagerConfigurator:
             If True, original event-generator loss modules are discarded.
             If False, the loss modules defined in `additional_loss_modules`
             will be appended to the loss modules of the event-generator model.
+        configure_tensorflow : bool, optional
+            If True, tensorflow will be configured. Note, this may only be done
+            once. Hence, if the tensorflow session is already configured, then
+            pass False.
         num_threads : int, optional
+            Only relevant if `configure_tensorflow` is True.
             Number of threads to use for tensorflow settings
             `intra_op_parallelism_threads` and `inter_op_parallelism_threads`.
             If zero (default), the system picks an appropriate number.
         tf_random_seed : int, optional
+            Only relevant if `configure_tensorflow` is True.
             Random seed for tensorflow.
         """
         if isinstance(manager_dirs, str):
@@ -68,8 +75,9 @@ class ManagerConfigurator:
 
         reco_config_file = os.path.join(reco_config_dir[0], 'reco_config.yaml')
 
-        self.confifgure_tf(
-            num_threads=num_threads, tf_random_seed=tf_random_seed)
+        if configure_tensorflow:
+            self.confifgure_tf(
+                num_threads=num_threads, tf_random_seed=tf_random_seed)
 
         # read in reconstruction config file
         setup_manager = SetupManager([reco_config_file])
