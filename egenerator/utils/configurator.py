@@ -1,4 +1,5 @@
 import os
+import logging
 import tensorflow as tf
 
 from egenerator import misc
@@ -20,7 +21,8 @@ class ManagerConfigurator:
                  replace_existing_loss_modules=False,
                  configure_tensorflow=True,
                  num_threads=0,
-                 tf_random_seed=1337):
+                 tf_random_seed=1337,
+                 logger=None):
         """Set up and configure the SourceManager object.
 
         Parameters
@@ -64,7 +66,11 @@ class ManagerConfigurator:
         tf_random_seed : int, optional
             Only relevant if `configure_tensorflow` is True.
             Random seed for tensorflow.
+        logger : logging.logger, optional
+            The logger to use.
         """
+        self._logger = logger or logging.getLogger(__name__)
+
         if isinstance(manager_dirs, str):
             manager_dirs = [manager_dirs]
 
@@ -76,8 +82,14 @@ class ManagerConfigurator:
         reco_config_file = os.path.join(reco_config_dir[0], 'reco_config.yaml')
 
         if configure_tensorflow:
-            self.confifgure_tf(
-                num_threads=num_threads, tf_random_seed=tf_random_seed)
+            try:
+                self.confifgure_tf(
+                    num_threads=num_threads, tf_random_seed=tf_random_seed)
+            except RuntimeError as e:
+                self._logger.warning(e)
+                self._logger.warning(
+                    'Could not configure tensorflow.'
+                    ' Perhaps it is already configured?')
 
         # read in reconstruction config file
         setup_manager = SetupManager([reco_config_file])
