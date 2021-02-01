@@ -2,6 +2,7 @@ from icecube import dataclasses
 
 
 from ic3_data.ext_boost import combine_exclusions
+from ic3_data.ext_boost import merge_pulses
 from ic3_data.ext_boost import get_valid_pulse_map as get_valid_pulse_map_cpp
 
 
@@ -39,22 +40,18 @@ def get_valid_pulse_map(frame, pulse_key, dom_and_tw_exclusions,
 
     Parameters
     ----------
-    frame : TYPE
-        Description
-    pulse_key : TYPE
-        Description
+    frame : I3Frame
+        The current IeFrame.
+    pulse_key : str
+        The name of the input pulse series map.
     dom_and_tw_exclusions : TYPE
         Description
     partial_exclusion : TYPE
         Description
-    output_key : None, optional
-        Description
+    output_key : str, optional
+        The name to which the masked pulse series map will be written to.
+        If none provided, the output name will be `pulse_key`+'_masked'.
     verbose : bool, optional
-        Description
-
-    No Longer Returned
-    ------------------
-    TYPE
         Description
     """
     if isinstance(dom_and_tw_exclusions, str):
@@ -65,5 +62,34 @@ def get_valid_pulse_map(frame, pulse_key, dom_and_tw_exclusions,
 
     if output_key is None:
         frame[pulse_key + '_masked'] = pulses
+    else:
+        frame[output_key] = pulses
+
+
+def get_merged_pulse_map(frame, pulse_key, time_threshold,
+                         output_key=None):
+    """Simple wrapper over c++ version.
+    Necessary for I3 Magic...
+
+    Parameters
+    ----------
+    frame : I3Frame
+        The current IeFrame.
+    pulse_key : str
+        The name of the input pulse series map.
+    time_threshold : double, optional
+        If provided, pulses within this time threshold will be merged together
+        into one pulse. The merged pulse obtains the time stamp and properties
+        of the first pulse.
+    output_key : str, optional
+        The name to which the merged pulse series map will be written to.
+        If none provided, the output name will be `pulse_key`+'_merged'.
+    """
+    assert time_threshold > 0., time_threshold
+
+    pulses = merge_pulses(frame, pulse_key, time_threshold)
+
+    if output_key is None:
+        frame[pulse_key + '_merged'] = pulses
     else:
         frame[output_key] = pulses

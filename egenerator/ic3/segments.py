@@ -15,6 +15,7 @@ def ApplyEventGeneratorReconstruction(
         exclude_bright_doms=True,
         bright_doms_threshold_fraction=0.4,
         bright_doms_threshold_charge=100.,
+        merge_pulses_time_threshold=None,
         clean_up=True,
         **egenerator_kwargs
         ):
@@ -52,6 +53,10 @@ def ApplyEventGeneratorReconstruction(
     bright_doms_threshold_charge : float, optional
         The threshold charge a DOM must exceeded to be considered as a
         bright DOM. See exclude_bright_doms.
+    merge_pulses_time_threshold : double, optional
+        If provided, pulses within this time threshold will be merged together
+        into one pulse. The merged pulse obtains the time stamp and properties
+        of the first pulse.
     clean_up : bool, optional
         If True, temporarily created frame objects, such as the combined
         exclusions and masked pulses, are deleted from the frame once no
@@ -72,6 +77,7 @@ def ApplyEventGeneratorReconstruction(
         exclude_bright_doms=exclude_bright_doms,
         bright_doms_threshold_fraction=bright_doms_threshold_fraction,
         bright_doms_threshold_charge=bright_doms_threshold_charge,
+        merge_pulses_time_threshold=merge_pulses_time_threshold,
     )
 
     # apply event-generator reconstruction
@@ -98,6 +104,7 @@ def ApplyEventGeneratorVisualizeBestFit(
         exclude_bright_doms=True,
         bright_doms_threshold_fraction=0.4,
         bright_doms_threshold_charge=100.,
+        merge_pulses_time_threshold=None,
         clean_up=True,
         **egenerator_kwargs
         ):
@@ -135,6 +142,10 @@ def ApplyEventGeneratorVisualizeBestFit(
     bright_doms_threshold_charge : float, optional
         The threshold charge a DOM must exceeded to be considered as a
         bright DOM. See exclude_bright_doms.
+    merge_pulses_time_threshold : double, optional
+        If provided, pulses within this time threshold will be merged together
+        into one pulse. The merged pulse obtains the time stamp and properties
+        of the first pulse.
     clean_up : bool, optional
         If True, temporarily created frame objects, such as the combined
         exclusions and masked pulses, are deleted from the frame once no
@@ -155,6 +166,7 @@ def ApplyEventGeneratorVisualizeBestFit(
         exclude_bright_doms=exclude_bright_doms,
         bright_doms_threshold_fraction=bright_doms_threshold_fraction,
         bright_doms_threshold_charge=bright_doms_threshold_charge,
+        merge_pulses_time_threshold=merge_pulses_time_threshold,
     )
 
     # apply event-generator reconstruction
@@ -181,6 +193,7 @@ def CombineAndApplyExclusions(
         exclude_bright_doms=True,
         bright_doms_threshold_fraction=0.4,
         bright_doms_threshold_charge=100.,
+        merge_pulses_time_threshold=None,
         ):
     """Combine and Apply DOM and TimeWindow exclusions
 
@@ -212,6 +225,10 @@ def CombineAndApplyExclusions(
     bright_doms_threshold_charge : float, optional
         The threshold charge a DOM must exceeded to be considered as a
         bright DOM. See exclude_bright_doms.
+    merge_pulses_time_threshold : double, optional
+        If provided, pulses within this time threshold will be merged together
+        into one pulse. The merged pulse obtains the time stamp and properties
+        of the first pulse.
 
     Returns
     -------
@@ -224,8 +241,8 @@ def CombineAndApplyExclusions(
     list of str
         List of frame keys that were added.
 
-    Raises
-    ------
+    No Longer Raises
+    ----------------
     NotImplementedError
         Description
     """
@@ -271,5 +288,15 @@ def CombineAndApplyExclusions(
         partial_exclusion=partial_exclusion,
         verbose=False,
     )
+
+    if merge_pulses_time_threshold is not None:
+        # merge_pulses
+        tray.AddModule(
+            exclusions.get_merged_pulse_map, name + 'MergePulses',
+            pulse_key=masked_pulses_key,
+            time_threshold=merge_pulses_time_threshold,
+            output_key=masked_pulses_key + 'Merged',
+        )
+        masked_pulses_key = masked_pulses_key + 'Merged'
 
     return masked_pulses_key, excluded_dom_key, excluded_tw_key, added_keys
