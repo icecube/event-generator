@@ -298,5 +298,6 @@ def CombineAndApplyExclusions(
             output_key=masked_pulses_key + 'Merged',
         )
         masked_pulses_key = masked_pulses_key + 'Merged'
+        added_keys.append(masked_pulses_key)
 
     return masked_pulses_key, excluded_dom_key, excluded_tw_key, added_keys
