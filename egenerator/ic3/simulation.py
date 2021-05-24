@@ -152,8 +152,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 found_match = False
                 for param in self.param_names:
                     if param[-len(name):] == name:
-                        prefix_list.append(param[:-len(name)])
-                        found_match = True
+                        # only allow prefixes ending on '_'
+                        if param[-len(name)-1] == '_':
+                            prefix_list.append(param[:-len(name)])
+                            found_match = True
                 if not found_match:
                     msg = (
                         'Did not find a parameter name match for "{}". Model '
