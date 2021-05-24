@@ -142,32 +142,41 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # make sure that the only parameters that need to be set are provided
         included_parameters = [
                 'azimuth', 'energy', 'time', 'x', 'y', 'z', 'zenith']
+
+        # search if there is a common prefix that we can use
+        prefix_list = []
+        for name in included_parameters:
+            if name in self.param_names:
+                prefix_list.append('')
+            else:
+                found_match = False
+                for param in self.param_names:
+                    if param[-len(name):] == name:
+                        prefix_list.append(param[:-len(name)])
+                        found_match = True
+                if not found_match:
+                    msg = (
+                        'Did not find a parameter name match for "{}". Model '
+                        'Parameter names are: {}'
+                    ).format(name, self.param_names)
+                    raise ValueError(msg)
+
+        prefix_list = np.unique(prefix_list)
+        if len(prefix_list) != 1:
+            msg = 'Could not find common parameter prefix. Found: {}'.format(
+                prefix_list)
+            raise ValueError(msg)
+
+        self._prefix = prefix_list[0]
+
+        # double check that the prefix now works
         for name in self.param_names:
-            if name not in included_parameters:
+            if name[-len(self._prefix):] not in included_parameters:
                 raise KeyError('Unknown parameter name:', name)
 
         # Create concrete tensorflow function to obtain DOM expectations
         self.param_dtype = getattr(
             tf, self.manager.data_trafo.data['tensors']['x_parameters'].dtype)
-        # ---- TO DELETE [START] ----------------
-        # param_signature = tf.TensorSpec(
-        #     shape=[None, self.model.num_parameters], dtype=self.param_dtype)
-
-        # @tf.function(input_signature=(param_signature,))
-        # def get_model_tensors(parameter_tensor):
-        #     data_batch_dict = {
-        #         'x_pulses': tf.convert_to_tensor([[1., 9500.]]),
-        #         'x_pulses_ids': tf.convert_to_tensor([[0, 0, 0]]),
-        #         'x_dom_charge': None,
-        #         'x_parameters': parameter_tensor,
-        #     }
-        #     result_tensors = model.get_tensors(
-        #         data_batch_dict,
-        #         is_training=False,
-        #         parameter_tensor_name='x_parameters')
-
-        #     return result_tensors
-        # ---- TO DELETE [END] -----------------
         self.get_model_tensors = self.manager.get_model_tensors_function()
 
         # ---------------------------------------------------
@@ -290,7 +299,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         num_cascades = dom_charges.shape[0]
 
         cascade_times = cascade_sources.numpy()[
-            :, self.model.get_index('time')]
+            :, self.model.get_index(self._prefix + 'time')]
 
         cum_scale = np.cumsum(
             result_tensors['latent_var_scale'].numpy(), axis=-1)
@@ -410,7 +419,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 else:
                     value = getattr(cascade, name)
 
-                index = self.model.get_index(name)
+                index = self.model.get_index(self._prefix + name)
                 parameters[i, index] = value
 
         return tf.convert_to_tensor(parameters, dtype=self.param_dtype)
