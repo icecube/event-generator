@@ -173,7 +173,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # double check that the prefix now works
         for name in self.param_names:
-            if name[-len(self._prefix):] not in included_parameters:
+            if name[len(self._prefix):] not in included_parameters:
                 raise KeyError('Unknown parameter name:', name)
 
         # Create concrete tensorflow function to obtain DOM expectations
@@ -414,6 +414,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # now fill cascade parameters (x, y, z, zenith, azimuth, E, t)
         for i, cascade in enumerate(cascades):
             for name in self.param_names:
+
+                # remove prefix
+                name = name[len(self._prefix):]
+
                 if name in ['x', 'y', 'z']:
                     value = getattr(cascade.pos, name)
                 elif name in ['azimuth', 'zenith']:
