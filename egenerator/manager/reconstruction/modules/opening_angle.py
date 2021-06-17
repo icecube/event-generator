@@ -10,7 +10,7 @@ from egenerator.utils import angles, basis_functions
 class CircularizedAngularUncertainty:
 
     def __init__(self, manager, loss_module, function_cache,
-                 fit_paramater_list,
+                 fit_parameter_list,
                  reco_key,
                  covariance_key=None,
                  minimize_in_trafo_space=True,
@@ -28,7 +28,7 @@ class CircularizedAngularUncertainty:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        fit_paramater_list : bool or list of bool, optional
+        fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
@@ -65,7 +65,7 @@ class CircularizedAngularUncertainty:
 
         # store settings
         self.manager = manager
-        self.fit_paramater_list = fit_paramater_list
+        self.fit_parameter_list = fit_parameter_list
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
         self.num_fit_points = num_fit_points
@@ -82,22 +82,22 @@ class CircularizedAngularUncertainty:
             self.mapping['zenith'])
         self.azimuth_index = self.manager.models[0].get_index(
             self.mapping['azimuth'])
-        self.unc_fit_paramater_list = list(fit_paramater_list)
-        self.unc_fit_paramater_list[self.zenith_index] = False
-        self.unc_fit_paramater_list[self.azimuth_index] = False
+        self.unc_fit_parameter_list = list(fit_parameter_list)
+        self.unc_fit_parameter_list[self.zenith_index] = False
+        self.unc_fit_parameter_list[self.azimuth_index] = False
 
         # parameter input signature
         self.param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
 
         unc_param_signature = tf.TensorSpec(
-            shape=[None, np.sum(self.unc_fit_paramater_list, dtype=int)],
+            shape=[None, np.sum(self.unc_fit_parameter_list, dtype=int)],
             dtype=self.param_dtype)
         param_signature = tf.TensorSpec(
-            shape=[None, np.sum(fit_paramater_list, dtype=int)],
+            shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=self.param_dtype)
         param_signature_full = tf.TensorSpec(
-            shape=[None, len(fit_paramater_list)],
+            shape=[None, len(fit_parameter_list)],
             dtype=self.param_dtype)
 
         # data batch input signature
@@ -112,7 +112,7 @@ class CircularizedAngularUncertainty:
             input_signature=(
                 param_signature, data_batch_signature, param_signature_full),
             loss_module=loss_module,
-            fit_paramater_list=fit_paramater_list,
+            fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=None,
             parameter_tensor_name=parameter_tensor_name,
@@ -135,7 +135,7 @@ class CircularizedAngularUncertainty:
                 param_signature_full
             ),
             loss_module=loss_module,
-            fit_paramater_list=self.unc_fit_paramater_list,
+            fit_parameter_list=self.unc_fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=None,
             parameter_tensor_name=parameter_tensor_name,
@@ -163,7 +163,7 @@ class CircularizedAngularUncertainty:
             return manager.reconstruct_events(
                 data_batch, loss_module,
                 loss_and_gradients_function=loss_and_gradients_function,
-                fit_paramater_list=self.unc_fit_paramater_list,
+                fit_parameter_list=self.unc_fit_parameter_list,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 seed=seed_tensor,
                 parameter_tensor_name=parameter_tensor_name,
@@ -171,7 +171,7 @@ class CircularizedAngularUncertainty:
 
         self.unc_reconstruction_method = unc_reconstruction_method
 
-    def execute(self, data_batch, results):
+    def execute(self, data_batch, results, **kwargs):
         """Execute module for a given batch of data.
 
         Parameters
@@ -180,6 +180,8 @@ class CircularizedAngularUncertainty:
             A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
+        **kwargs
+            Additional keyword arguments.
 
         Returns
         -------
@@ -188,7 +190,7 @@ class CircularizedAngularUncertainty:
         """
 
         # The following assumes that result is the full hypothesis
-        assert np.all(self.fit_paramater_list)
+        assert np.all(self.fit_parameter_list)
 
         result_trafo = results[self.reco_key]['result_trafo']
         result_inv = results[self.reco_key]['result']

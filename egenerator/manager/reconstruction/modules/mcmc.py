@@ -6,7 +6,7 @@ import tensorflow as tf
 class MarkovChainMonteCarlo:
 
     def __init__(self, manager, loss_module, function_cache,
-                 fit_paramater_list,
+                 fit_parameter_list,
                  seed_tensor_name,
                  reco_key,
                  minimize_in_trafo_space=True,
@@ -29,7 +29,7 @@ class MarkovChainMonteCarlo:
             The LossModule object to use for the reconstruction steps.
         function_cache : FunctionCache object
             A cache to store and share created concrete tensorflow functions.
-        fit_paramater_list : TYPE
+        fit_parameter_list : TYPE
             Description
         seed_tensor_name : TYPE
             Description
@@ -65,7 +65,7 @@ class MarkovChainMonteCarlo:
 
         # store settings
         self.manager = manager
-        self.fit_paramater_list = fit_paramater_list
+        self.fit_parameter_list = fit_parameter_list
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
         self.mcmc_num_chains = mcmc_num_chains
@@ -78,7 +78,7 @@ class MarkovChainMonteCarlo:
         self.param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
             parameter_tensor_name].dtype)
         param_signature = tf.TensorSpec(
-            shape=[None, np.sum(fit_paramater_list, dtype=int)],
+            shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=self.param_dtype)
 
         data_batch_signature = manager.data_handler.get_data_set_signature()
@@ -87,7 +87,7 @@ class MarkovChainMonteCarlo:
         func_settings = dict(
             input_signature=(param_signature, data_batch_signature),
             loss_module=loss_module,
-            fit_paramater_list=fit_paramater_list,
+            fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
             seed=seed_tensor_name,
             parameter_tensor_name=parameter_tensor_name,
@@ -109,7 +109,7 @@ class MarkovChainMonteCarlo:
                 data_batch=data_batch,
                 loss_module=loss_module,
                 parameter_loss_function=self.parameter_loss_function,
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 num_chains=mcmc_num_chains,
                 seed=seed_tensor_name,
@@ -122,7 +122,7 @@ class MarkovChainMonteCarlo:
 
         self.run_mcmc_on_events = run_mcmc_on_events
 
-    def execute(self, data_batch, results):
+    def execute(self, data_batch, results, **kwargs):
         """Execute module for a given batch of data.
 
         Parameters
@@ -131,6 +131,8 @@ class MarkovChainMonteCarlo:
             A batch of data consisting of a tuple of data arrays.
         results : dict
             A dictrionary with the results of previous modules.
+        **kwargs
+            Additional keyword arguments.
 
         Returns
         -------
@@ -138,7 +140,7 @@ class MarkovChainMonteCarlo:
             Description
         """
 
-        num_params = len(self.fit_paramater_list)
+        num_params = len(self.fit_parameter_list)
         result_inv = results[self.reco_key]['result']
 
         assert len(result_inv) == 1
@@ -170,7 +172,7 @@ class MarkovChainMonteCarlo:
             tf.convert_to_tensor(
                 np.tile(result_inv, [self.mcmc_num_chains, 1]),
                 dtype=self.param_dtype),
-            [self.mcmc_num_chains, len(self.fit_paramater_list)])
+            [self.mcmc_num_chains, len(self.fit_parameter_list)])
         print('initial_position', initial_position)
         print('initial_position.shape', initial_position.shape)
         mcmc_start_t = timeit.default_timer()

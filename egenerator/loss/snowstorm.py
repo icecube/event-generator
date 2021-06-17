@@ -12,6 +12,18 @@ class SnowstormPriorLossModule(BaseComponent):
 
     """Calculates a loss for the default snowstorm configuration:
 
+    May also be used to impose uniform priors on any other model parameters.
+    Note: this prior is technically not a real uniform prior. First of all,
+    only the negative log loss (~ likelihood) is computed. For a uniform prior,
+    this should be:
+     -LLH = - ln[1./(upper_bound - lower_bound)]
+    if inside bounds and +infinity if outside.
+    Here, finite values are enforced. The negative log loss is set to zero
+    inside the uniform bounds, i.e. there is no effect and also no gradients
+    that need to be calculated. If outside the bounds, an exponential function
+    is applied. As a result, the prior applied here is not normalized, but
+    allows for finite gradients if outside the boundaries.
+
     Absorption:                 uniform [0.9, 1.1]
     AnisotropyScale             uniform [0., 2.0]
     DOMEfficiency               uniform [0.9, 1.1]
@@ -159,6 +171,10 @@ class SnowstormPriorLossModule(BaseComponent):
         TYPE
             Description
         """
+        if high <= low:
+            msg = 'Upper bound [{}] must be greater than lower bound [{}]'
+            raise ValueError(msg.format(high, low))
+
         scale = high - low
         exp_factor = 10
         normalization = np.exp(exp_factor)

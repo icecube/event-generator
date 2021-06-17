@@ -27,7 +27,7 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(CascadeGeneratorLabelModule, self).__init__(logger=logger)
+        super(DummyMuonFixedCascadesLabelModule, self).__init__(logger=logger)
 
     def _configure(self, config_data, trafo_log, float_precision, num_cascades,
                    label_key='LabelsDeepLearning'):

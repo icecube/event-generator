@@ -5,12 +5,12 @@ import ruamel.yaml as yaml
 import pickle
 import logging
 import inspect
-from getclass import getclass
 from copy import deepcopy
 import tensorflow as tf
 
 import egenerator
 from egenerator import misc
+from egenerator.utils.getclass import getclass
 from egenerator.settings import version_control
 
 

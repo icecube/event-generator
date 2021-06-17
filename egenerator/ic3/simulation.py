@@ -4,6 +4,7 @@ import tensorflow as tf
 import timeit
 
 from icecube import dataclasses, icetray
+from icecube.icetray.i3logging import log_info, log_warn
 
 from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.utils import basis_functions
@@ -126,7 +127,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             msg = '\nNumber of Model Variables:\n'
             msg += '\tFree: {}\n'
             msg += '\tTotal: {}'
-            print(msg.format(num_vars, num_total_vars))
+            log_info(msg.format(num_vars, num_total_vars))
 
         if len(self.manager.models) > 1:
             raise NotImplementedError(
@@ -141,32 +142,43 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # make sure that the only parameters that need to be set are provided
         included_parameters = [
                 'azimuth', 'energy', 'time', 'x', 'y', 'z', 'zenith']
+
+        # search if there is a common prefix that we can use
+        prefix_list = []
+        for name in included_parameters:
+            if name in self.param_names:
+                prefix_list.append('')
+            else:
+                found_match = False
+                for param in self.param_names:
+                    if param[-len(name):] == name:
+                        # only allow prefixes ending on '_'
+                        if param[-len(name)-1] == '_':
+                            prefix_list.append(param[:-len(name)])
+                            found_match = True
+                if not found_match:
+                    msg = (
+                        'Did not find a parameter name match for "{}". Model '
+                        'Parameter names are: {}'
+                    ).format(name, self.param_names)
+                    raise ValueError(msg)
+
+        prefix_list = np.unique(prefix_list)
+        if len(prefix_list) != 1:
+            msg = 'Could not find common parameter prefix. Found: {}'.format(
+                prefix_list)
+            raise ValueError(msg)
+
+        self._prefix = prefix_list[0]
+
+        # double check that the prefix now works
         for name in self.param_names:
-            if name not in included_parameters:
+            if name[len(self._prefix):] not in included_parameters:
                 raise KeyError('Unknown parameter name:', name)
 
         # Create concrete tensorflow function to obtain DOM expectations
-        # ---- TO DELETE [START] ----------------
-        # self.param_dtype = getattr(
-        #     tf, self.manager.data_trafo.data['tensors']['x_parameters'].dtype)
-        # param_signature = tf.TensorSpec(
-        #     shape=[None, self.model.num_parameters], dtype=self.param_dtype)
-
-        # @tf.function(input_signature=(param_signature,))
-        # def get_model_tensors(parameter_tensor):
-        #     data_batch_dict = {
-        #         'x_pulses': tf.convert_to_tensor([[1., 9500.]]),
-        #         'x_pulses_ids': tf.convert_to_tensor([[0, 0, 0]]),
-        #         'x_dom_charge': None,
-        #         'x_parameters': parameter_tensor,
-        #     }
-        #     result_tensors = model.get_tensors(
-        #         data_batch_dict,
-        #         is_training=False,
-        #         parameter_tensor_name='x_parameters')
-
-        #     return result_tensors
-        # ---- TO DELETE [END] -----------------
+        self.param_dtype = getattr(
+            tf, self.manager.data_trafo.data['tensors']['x_parameters'].dtype)
         self.get_model_tensors = self.manager.get_model_tensors_function()
 
         # ---------------------------------------------------
@@ -249,10 +261,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # timer after Sampling
         t_3 = timeit.default_timer()
 
-        print('Simulation took: {:3.3f}ms'.format((t_3 - t_0) * 1000))
-        print('\t Gathering Sources: {:3.3f}ms'.format((t_1 - t_0) * 1000))
-        print('\t Evaluating NN model: {:3.3f}ms'.format((t_2 - t_1) * 1000))
-        print('\t Sampling Pulses: {:3.3f}ms'.format((t_3 - t_2) * 1000))
+        log_info('Simulation took: {:3.3f}ms'.format((t_3 - t_0) * 1000))
+        log_info('\t Gathering Sources: {:3.3f}ms'.format((t_1 - t_0) * 1000))
+        log_info('\t Evaluating NN model: {:3.3f}ms'.format((t_2 - t_1) * 1000))
+        log_info('\t Sampling Pulses: {:3.3f}ms'.format((t_3 - t_2) * 1000))
 
         # write to frame
         frame[self.output_key] = pulses
@@ -289,7 +301,18 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         num_cascades = dom_charges.shape[0]
 
         cascade_times = cascade_sources.numpy()[
-            :, self.model.get_index('time')]
+            :, self.model.get_index(self._prefix + 'time')]
+
+        if self._prefix != '':
+
+            # allow for max 1-depth of nested results for mixture model comp.
+            if 'latent_var_scale' not in result_tensors:
+                result_tensors = result_tensors['nested_results'][
+                    self._prefix[:-1]]
+            log_warn(
+                'Using nested result tensors, this is potentially wrong, '
+                'since this is not the complete time PDF!'
+            )
 
         cum_scale = np.cumsum(
             result_tensors['latent_var_scale'].numpy(), axis=-1)
@@ -402,6 +425,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # now fill cascade parameters (x, y, z, zenith, azimuth, E, t)
         for i, cascade in enumerate(cascades):
             for name in self.param_names:
+
+                # remove prefix
+                name = name[len(self._prefix):]
+
                 if name in ['x', 'y', 'z']:
                     value = getattr(cascade.pos, name)
                 elif name in ['azimuth', 'zenith']:
@@ -409,7 +436,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 else:
                     value = getattr(cascade, name)
 
-                index = self.model.get_index(name)
+                index = self.model.get_index(self._prefix + name)
                 parameters[i, index] = value
 
         return tf.convert_to_tensor(parameters, dtype=self.param_dtype)
@@ -452,8 +479,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # check if we have a branch that we can't simulate
         if len(daughters) == 0 and parent.type not in self.dark_particles:
-            print(parent)
-            print(mc_tree)
+            log_warn(parent)
+            log_warn(mc_tree)
             raise NotImplementedError(
                 'Particle can not be simulated: ', parent.type)
 

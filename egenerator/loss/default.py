@@ -338,17 +338,10 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            norm_pulses = self.log_faculty(pulse_charges)
             norm_doms = self.log_faculty(dom_charges_true)
             if sort_loss_terms:
-                loss_terms[2] = norm_doms
-                loss_terms[2] = tf.tensor_scatter_nd_add(
-                    loss_terms[2],
-                    indices=data_batch_dict['x_pulses_ids'],
-                    updates=norm_pulses,
-                )
+                loss_terms[2] += norm_doms
             else:
-                loss_terms.append(norm_pulses)
                 loss_terms.append(norm_doms)
 
         return loss_terms
@@ -448,14 +441,9 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            if sort_loss_terms:
-                loss_terms[2] = tf.tensor_scatter_nd_add(
-                    loss_terms[2],
-                    indices=data_batch_dict['x_pulses_ids'],
-                    updates=self.log_faculty(pulse_charges),
-                )
-            else:
-                loss_terms.append(self.log_faculty(pulse_charges))
+            # pulse likelihood has everything included due to utilize
+            # asymmetric Gaussian
+            pass
 
         return loss_terms
 
@@ -577,17 +565,10 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config['config']['add_normalization_term']:
-            norm_pulses = self.log_faculty(pulse_charges)
             norm_doms = self.log_faculty(hits_true)
             if sort_loss_terms:
                 loss_terms[2] += norm_doms
-                loss_terms[2] = tf.tensor_scatter_nd_add(
-                    loss_terms[2],
-                    indices=data_batch_dict['x_pulses_ids'],
-                    updates=norm_pulses,
-                )
             else:
-                loss_terms.append(norm_pulses)
                 loss_terms.append(norm_doms)
 
         return loss_terms

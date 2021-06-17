@@ -203,9 +203,9 @@ class MultiSource(Source):
         if name is None:
             name = __name__
 
-        # collect all tensorflow variables before creation
-        variables_before = set([
-            v.ref() for v in tf.compat.v1.global_variables()])
+        # # collect all tensorflow variables before creation
+        # variables_before = set([
+        #     v.ref() for v in tf.compat.v1.global_variables()])
 
         # build architecture: create and save model weights
         # returns parameter_names
@@ -216,15 +216,15 @@ class MultiSource(Source):
         if data_trafo is not None:
             sub_components['data_trafo'] = data_trafo
 
-        # collect all tensorflow variables after creation and match
-        variables_after = set([
-            v.ref() for v in tf.compat.v1.global_variables()])
-        set_diff = variables_after - variables_before
-        model_variables = set([v.ref() for v in self.variables])
-        new_unaccounted_variables = set_diff - model_variables
-        if len(new_unaccounted_variables) > 0:
-            msg = 'Found new variables that are not part of the tf.Module: {}'
-            raise ValueError(msg.format(new_unaccounted_variables))
+        # # collect all tensorflow variables after creation and match
+        # variables_after = set([
+        #     v.ref() for v in tf.compat.v1.global_variables()])
+        # set_diff = variables_after - variables_before
+        # model_variables = set([v.ref() for v in self.variables])
+        # new_unaccounted_variables = set_diff - model_variables
+        # if len(new_unaccounted_variables) > 0:
+        #     msg = 'Found new variables that are not part of the tf.Module: {}'
+        #     raise ValueError(msg.format(new_unaccounted_variables))
 
         # get names of parameters
         self._untracked_data['name'] = name
@@ -244,6 +244,7 @@ class MultiSource(Source):
 
         return configuration, {}, sub_components
 
+    @tf.function
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
@@ -314,26 +315,19 @@ class MultiSource(Source):
         # get concrete functions of base sources.
         # That way tracing only needs to be applied once.
         # -----------------------------------------------
-        input_signature = None
-
-        concrete_get_tensors_funcs = {}
-        for base in set(self._untracked_data['sources'].values()):
-            base_source = self.sub_components[base]
-
-            @tf.function(input_signature=input_signature)
-            def concrete_function(data_batch_dict_i):
-                print('Tracing multi-source base: {}'.format(base))
-                return base_source.get_tensors(
-                                data_batch_dict_i,
-                                is_training=is_training,
-                                parameter_tensor_name='x_parameters')
-            concrete_get_tensors_funcs[base] = concrete_function
+        func_cache = ConcreteFunctionCache(
+            source_parameters=source_parameters,
+            sub_components=self.sub_components,
+            data_batch_dict=data_batch_dict,
+            is_training=is_training,
+        )
         # -----------------------------------------------
 
         dom_charges = None
         dom_charges_variance = None
         dom_cdf_exclusion_sum = None
         pulse_pdf = None
+        nested_results = {}
         for name, base in self._untracked_data['sources'].items():
 
             # get the base source
@@ -349,8 +343,9 @@ class MultiSource(Source):
                 if key != 'x_parameters':
                     data_batch_dict_i[key] = values
 
-            result_tensors_i = concrete_get_tensors_funcs[base](
-                                                            data_batch_dict_i)
+            result_tensors_i = func_cache.get_or_add_tf_func(
+                source_name=name, base_name=base)(data_batch_dict_i)
+            nested_results[name] = result_tensors_i
 
             dom_charges_i = result_tensors_i['dom_charges']
             dom_charges_variance_i = result_tensors_i['dom_charges_variance']
@@ -401,6 +396,288 @@ class MultiSource(Source):
                 pulse_pdf = pulse_pdf_i * pulse_weight_i
             else:
                 pulse_pdf += pulse_pdf_i * pulse_weight_i
+
+        # normalize pulse_pdf values: divide by total charge at DOM
+        pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
+                                          pulses_ids)
+
+        pulse_pdf /= (pulse_weight_total + 1e-6)
+
+        result_tensors = {
+            'dom_charges': dom_charges,
+            'dom_charges_variance': dom_charges_variance,
+            'pulse_pdf': pulse_pdf,
+            'nested_results': nested_results,
+        }
+
+        # normalize time exclusion sum: divide by total charge at DOM
+        if time_exclusions_exist:
+            dom_cdf_exclusion_sum /= dom_charges
+
+            result_tensors['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
+
+        return result_tensors
+
+    @tf.function
+    def get_tensors_batched(
+            self, data_batch_dict, is_training,
+            parameter_tensor_name='x_parameters'):
+        """Get tensors computed from input parameters and pulses.
+
+        Parameters are the hypothesis tensor of the source with
+        shape [-1, n_params]. The get_tensors method must compute all tensors
+        that are to be used in later steps. It returns these as a dictionary
+        of output tensors.
+
+        Note: this calculates the same as `get_tensors`, but models are first
+        lumped to together and then run through the base models as a batch.
+        In the curent implementation, this requires the duplication of the
+        input data which might lead to significantly higher memory usage.
+
+        Note: this implementation does not support output of nested result
+        tensors, which is required for the `pdf` and `sample_pulses` methods.
+        If these are needed, use `get_tensors` instead.
+
+        Parameters
+        ----------
+        data_batch_dict : dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom) of all pulses in
+                the batch of events.
+                Shape: [-1, 3]
+        is_training : bool, optional
+            Indicates whether currently in training or inference mode.
+            Must be provided if batch normalisation is used.
+            True: in training mode
+            False: inference mode.
+        parameter_tensor_name : str, optional
+            The name of the parameter tensor to use. Default: 'x_parameters'
+
+        Raises
+        ------
+        ValueError
+            Description
+
+        Returns
+        -------
+        dict of tf.Tensor
+            A dictionary of output tensors.
+            This  dictionary must at least contain:
+
+                'dom_charges': the predicted charge at each DOM
+                               Shape: [-1, 86, 60, 1]
+                'pulse_pdf': The likelihood evaluated for each pulse
+                             Shape: [-1]
+
+        """
+        self.assert_configured(True)
+
+        parameters = data_batch_dict[parameter_tensor_name]
+        pulses = data_batch_dict['x_pulses']
+        pulses_ids = data_batch_dict['x_pulses_ids']
+        source_names = sorted(self._untracked_data['sources'].keys())
+        n_events = tf.shape(data_batch_dict['x_dom_charge'])[0]
+
+        parameters = self.add_parameter_indexing(parameters)
+        source_parameters = self.get_source_parameters(parameters)
+
+        # check if time exclusions exist
+        tensors = self.data_trafo.data['tensors']
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            time_exclusions_exist = True
+            tws = data_batch_dict['x_time_exclusions']
+            tws_ids = data_batch_dict['x_time_exclusions_ids']
+        else:
+            time_exclusions_exist = False
+
+        # -----------------------------------------------
+        # get concrete functions of base sources.
+        # That way tracing only needs to be applied once.
+        # -----------------------------------------------
+        input_signature = None
+
+        concrete_tensor_funcs = {}
+        for base in set(self._untracked_data['sources'].values()):
+            base_source = self.sub_components[base]
+
+            @tf.function(input_signature=input_signature)
+            def concrete_function(data_batch_dict_i):
+                print('Tracing multi-source base: {}'.format(base))
+                return base_source.get_tensors(
+                                data_batch_dict_i,
+                                is_training=is_training,
+                                parameter_tensor_name='x_parameters')
+            concrete_tensor_funcs[base] = concrete_function
+
+        # --------------------------------------
+        # Get input tensors for each base source
+        # --------------------------------------
+        base_parameter_tensors = {}
+        base_parameter_count = {}
+        for base in set(self._untracked_data['sources'].values()):
+            base_parameter_tensors[base] = []
+            base_parameter_count[base] = 0
+
+        for source_name in source_names:
+
+            # get input parameters for Source i
+            base = self._untracked_data['sources'][source_name]
+            base_parameter_tensors[base].append(source_parameters[source_name])
+            base_parameter_count[base] += 1
+            print(
+                base, base_parameter_count[base],
+                source_parameters[source_name])
+
+        # concatenate tensors: [n_sources * n_batch, ...]
+        for base in set(self._untracked_data['sources'].values()):
+            base_parameter_tensors[base] = tf.concat(
+                base_parameter_tensors[base], axis=0,
+            )
+        # --------------------------------------
+
+        dom_charges = None
+        dom_charges_variance = None
+        dom_cdf_exclusion_sum = None
+        pulse_pdf = None
+        for base in set(self._untracked_data['sources'].values()):
+
+            # get the base source
+            n_sources = base_parameter_count[base]
+            sub_component = self.sub_components[base]
+
+            # get input parameters for base source i
+            parameters_i = base_parameter_tensors[base]
+            parameters_i = sub_component.add_parameter_indexing(parameters_i)
+
+            # create pulses, time windows and ids for each added
+            # source batch dimension
+            if n_sources > 1:
+                x_pulses_ids_i = []
+                if time_exclusions_exist:
+                    x_time_exclusions_ids_i = []
+
+                for i in range(n_sources):
+                    offset = [[i*n_events, 0, 0]]
+                    x_pulses_ids_i.append(pulses_ids + offset)
+                    if time_exclusions_exist:
+                        x_time_exclusions_ids_i.append(tws_ids + offset)
+
+                # put tensors together
+                x_pulses_i = tf.tile(pulses, multiples=[n_sources, 1])
+                x_pulses_ids_i = tf.concat(x_pulses_ids_i, axis=0)
+                if time_exclusions_exist:
+                    x_time_exclusions_i = tf.tile(tws, multiples=[n_sources, 1])
+                    x_time_exclusions_ids_i = tf.concat(
+                        x_time_exclusions_ids_i, axis=0)
+
+                # Get expected DOM charge and Likelihood evaluations for base i
+                data_batch_dict_i = {
+                    'x_parameters': parameters_i,
+                    'x_pulses': x_pulses_i,
+                    'x_pulses_ids': x_pulses_ids_i,
+                }
+                if time_exclusions_exist:
+                    data_batch_dict_i.update({
+                        'x_time_exclusions': x_time_exclusions_i,
+                        'x_time_exclusions_ids': x_time_exclusions_ids_i,
+                    })
+            else:
+                data_batch_dict_i = {'x_parameters': parameters_i}
+                x_pulses_ids_i = pulses_ids
+
+            set_keys = data_batch_dict_i.keys()
+
+            for key, values in data_batch_dict.items():
+                if key not in set_keys:
+                    data_batch_dict_i[key] = values
+
+            result_tensors_i = concrete_tensor_funcs[base](data_batch_dict_i)
+
+            # shape: [n_sources * n_batch, ...]
+            dom_charges_i = result_tensors_i['dom_charges']
+            dom_charges_variance_i = result_tensors_i['dom_charges_variance']
+            pulse_pdf_i = result_tensors_i['pulse_pdf']
+
+            if dom_charges_i.shape[1:] != [86, 60, 1]:
+                msg = 'DOM charges of source {!r} ({!r}) have an unexpected '
+                msg += 'shape {!r}.'
+                raise ValueError(msg.format(name, base, dom_charges_i.shape))
+
+            if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
+                msg = 'DOM charge variances of source {!r} ({!r}) have an '
+                msg += 'unexpected shape {!r}.'
+                raise ValueError(msg.format(name, base, dom_charges_i.shape))
+
+            if time_exclusions_exist:
+                dom_cdf_exclusion_sum_i = (
+                    result_tensors_i['dom_cdf_exclusion_sum']
+                )
+                if dom_cdf_exclusion_sum_i.shape[1:] != [86, 60, 1]:
+                    msg = 'DOM exclusions of source {!r} ({!r}) have an  '
+                    msg += 'unexpected shape {!r}.'
+                    raise ValueError(msg.format(
+                        name, base, dom_cdf_exclusion_sum_i.shape))
+
+            # reshape to: [n_sources, n_batch, 86, 60, 1]
+            dom_charges_i = tf.reshape(
+                dom_charges_i, [n_sources, -1, 86, 60, 1])
+            dom_charges_variance_i = tf.reshape(
+                dom_charges_variance_i, [n_sources, -1, 86, 60, 1])
+
+            # reshape to: [n_sources, n_pulses]
+            pulse_pdf_i = tf.reshape(
+                pulse_pdf_i, [n_sources, -1])
+
+            if time_exclusions_exist:
+                dom_cdf_exclusion_sum_i = tf.reshape(
+                    dom_cdf_exclusion_sum_i, [n_sources, -1, 86, 60, 1])
+
+            # accumulate charge
+            # (assumes that sources are linear and independent)
+            if dom_charges is None:
+                dom_charges = tf.reduce_sum(dom_charges_i, axis=0)
+                dom_charges_variance = tf.reduce_sum(
+                    dom_charges_variance_i, axis=0)
+                if time_exclusions_exist:
+                    dom_cdf_exclusion_sum = tf.reduce_sum((
+                        dom_cdf_exclusion_sum_i * dom_charges_i
+                    ), axis=0)
+            else:
+                dom_charges += tf.reduce_sum(dom_charges_i, axis=0)
+                dom_charges_variance += tf.reduce_sum(
+                    dom_charges_variance_i, axis=0)
+                if time_exclusions_exist:
+                    dom_cdf_exclusion_sum += tf.reduce_sum((
+                        dom_cdf_exclusion_sum_i * dom_charges_i
+                    ), axis=0)
+
+            # accumulate likelihood values
+            # (reweight by fraction of charge of source i vs total DOM charge)
+            pulse_weight_i = tf.gather_nd(
+                # shape: [n_sources * n_batch, 86, 60]
+                tf.squeeze(result_tensors_i['dom_charges'], axis=3),
+                # shape: [n_sources * n_pulses, 3], indexes to [b_i, s_i, d_i]
+                x_pulses_ids_i
+            )
+            # reshape to: [n_sources, n_pulses]
+            pulse_weight_i = tf.reshape(
+                pulse_weight_i, [n_sources, -1])
+
+            if pulse_pdf is None:
+                pulse_pdf = tf.reduce_sum(
+                    pulse_pdf_i * pulse_weight_i, axis=0)
+            else:
+                pulse_pdf += tf.reduce_sum(
+                    pulse_pdf_i * pulse_weight_i, axis=0)
 
         # normalize pulse_pdf values: divide by total charge at DOM
         pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
@@ -491,6 +768,249 @@ class MultiSource(Source):
                     dir_path=sub_dir_path, max_keep=max_keep,
                     protected=protected, description=description,
                     num_training_steps=num_training_steps)
+
+    def _flatten_nested_results(self, result_tensors, parent=None):
+        """Gather nested result tensors and return as flattened dictionary.
+
+        Parameters
+        ----------
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        parent : str, optional
+            The name of the parent Multi-Source object.
+            None, if no parent exists, i.e. this is the root Multi-Source
+            object.
+
+        Returns
+        -------
+        dict of tf.tensor
+            A dictionary of the flattend results and models:
+            {
+                model_name: (base_source, result_tensors_i),
+            }
+        """
+        flattened_results = {}
+        for name, result_tensors_i in result_tensors['nested_results'].items():
+
+            base_name = self._untracked_data['sources'][name]
+            base_source = self.sub_components[base_name]
+
+            if 'nested_results' in result_tensors_i:
+                # found another Multi-Source, so keep going
+                flattened_results_i = base_source._flatten_nested_results(
+                    result_tensors_i, parent=name)
+                flattened_results.update(flattened_results_i)
+            else:
+                # found a base source
+                values = (base_source, result_tensors_i)
+                if parent is None:
+                    flattened_results[name] = values
+                else:
+                    flattened_results['{}/{}'.format(parent, name)] = values
+
+        return flattened_results
+
+    def cdf(self, x, result_tensors, output_nested_pdfs=False,
+            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+        """Compute CDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the PDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Note: the PDF does not set values inside excluded time windows to zero,
+        but it does adjust the normalization. It is assumed that pulses will
+        already be masked before evaluated by Event-Generator. Therefore, an
+        extra check for exclusions is not performed due to performance issues.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        output_nested_pdfs : bool, optional
+            If True, the PDFs of the nested sources will be returned as a
+            dictionary:
+            {
+                # str: ([n_events, 86, 60, 1], [n_events, 86, 60, n_points])
+                source_name: (multi_source_fraction, pdf_values),
+            }
+            Note: that the PDFs need to be multiplied by
+            `multi_source_fraction` in order to obtain the mixture model for
+            the Multi-Source.
+        tw_exclusions : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusions are defined as a list of
+            [(t1_start, t1_stop), ..., (tn_start, tn_stop)]
+            Shape: [n_exclusions, 2]
+        tw_exclusions_ids : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusion ids define to which event and DOM the
+            time exclusions `tw_exclusions` belong to. They are defined
+            as a list of:
+            [(event1, string1, dom1), ..., (eventN, stringN, domN)]
+            Shape: [n_exclusions, 3]
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+        dict [optional]
+            A dictionary with the CDFs of the nested sources. See description
+            of `output_nested_pdfs`.
+        """
+        # dict: {model_name: (base_source, result_tensors_i)}
+        flattened_results = self._flatten_nested_results(result_tensors)
+
+        nested_cdfs = {}
+        cdf_values = None
+        dom_charges = result_tensors['dom_charges'].numpy()
+        for name, (base_source, result_tensors_i) in flattened_results.items():
+
+            # shape: [n_events, 86, 60, n_points]
+            cdf_values_i = base_source.cdf(
+                x, result_tensors_i,
+                tw_exclusions=tw_exclusions,
+                tw_exclusions_ids=tw_exclusions_ids,
+            )
+
+            # shape: [n_events, 86, 60, 1]
+            dom_charges_i = result_tensors_i['dom_charges'].numpy()
+
+            if cdf_values is None:
+                cdf_values = cdf_values_i * dom_charges_i
+            else:
+                cdf_values += cdf_values_i * dom_charges_i
+
+            if output_nested_pdfs:
+                multi_source_fraction = dom_charges_i / dom_charges
+                nested_cdfs[name] = (multi_source_fraction, cdf_values_i)
+
+        cdf_values /= dom_charges
+
+        if output_nested_pdfs:
+            return cdf_values, nested_cdfs
+        else:
+            return cdf_values
+
+    def pdf(self, x, result_tensors, output_nested_pdfs=False,
+            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+        """Compute PDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the PDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Note: the PDF does not set values inside excluded time windows to zero,
+        but it does adjust the normalization. It is assumed that pulses will
+        already be masked before evaluated by Event-Generator. Therefore, an
+        extra check for exclusions is not performed due to performance issues.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        output_nested_pdfs : bool, optional
+            If True, the PDFs of the nested sources will be returned as a
+            dictionary:
+            {
+                # str: ([n_events, 86, 60, 1], [n_events, 86, 60, n_points])
+                source_name: (multi_source_fraction, pdf_values),
+            }
+            Note: that the PDFs need to be multiplied by
+            `multi_source_fraction` in order to obtain the mixture model for
+            the Multi-Source.
+        tw_exclusions : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusions are defined as a list of
+            [(t1_start, t1_stop), ..., (tn_start, tn_stop)]
+            Shape: [n_exclusions, 2]
+        tw_exclusions_ids : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusion ids define to which event and DOM the
+            time exclusions `tw_exclusions` belong to. They are defined
+            as a list of:
+            [(event1, string1, dom1), ..., (eventN, stringN, domN)]
+            Shape: [n_exclusions, 3]
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The PDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+        dict [optional]
+            A dictionary with the PDFs of the nested sources. See description
+            of `output_nested_pdfs`.
+        """
+        # dict: {model_name: (base_source, result_tensors_i)}
+        flattened_results = self._flatten_nested_results(result_tensors)
+
+        nested_pdfs = {}
+        pdf_values = None
+        dom_charges = result_tensors['dom_charges'].numpy()
+        for name, (base_source, result_tensors_i) in flattened_results.items():
+
+            # shape: [n_events, 86, 60, n_points]
+            pdf_values_i = base_source.pdf(
+                x, result_tensors_i,
+                tw_exclusions=tw_exclusions,
+                tw_exclusions_ids=tw_exclusions_ids,
+            )
+
+            # shape: [n_events, 86, 60, 1]
+            dom_charges_i = result_tensors_i['dom_charges'].numpy()
+
+            if pdf_values is None:
+                pdf_values = pdf_values_i * dom_charges_i
+            else:
+                pdf_values += pdf_values_i * dom_charges_i
+
+            if output_nested_pdfs:
+                multi_source_fraction = dom_charges_i / dom_charges
+                nested_pdfs[name] = (multi_source_fraction, pdf_values_i)
+
+        pdf_values /= dom_charges
+
+        if output_nested_pdfs:
+            return pdf_values, nested_pdfs
+        else:
+            return pdf_values
 
     def load_weights(self, dir_path, checkpoint_number=None):
         """Load the model weights.
@@ -712,3 +1232,61 @@ class MultiSource(Source):
                 in_tensor, collect_name=collect_name))
 
         return tensor_list
+
+
+class ConcreteFunctionCache():
+
+    """Concrete Function Container
+    """
+
+    def __init__(self, source_parameters, sub_components,
+                 data_batch_dict, is_training, logger=None):
+        self.source_parameters = source_parameters
+        self.sub_components = sub_components
+        self.data_batch_dict = data_batch_dict
+        self.is_training = is_training
+        self.concrete_tensor_funcs = {}
+        self._logger = logger or logging.getLogger(__name__)
+
+    def get_or_add_tf_func(self, source_name, base_name):
+        """Retrieve concrete tf function from cache or add new one.
+
+        Parameters
+        ----------
+        source_name : str
+            The name of the Source object.
+        base_name : str
+            The name of the base source object.
+
+        Returns
+        -------
+        tf.Function
+            The concrete tensorflow function
+        """
+        if base_name not in self.concrete_tensor_funcs:
+            base_source = self.sub_components[base_name]
+
+            @tf.function
+            def concrete_function(data_batch_dict_i):
+                print('Tracing multi-source base: {} ({})'.format(
+                    base_name, base_source))
+                return base_source.get_tensors(
+                                data_batch_dict_i,
+                                is_training=self.is_training,
+                                parameter_tensor_name='x_parameters')
+
+            # get input parameters for Source i
+            parameters_i = self.source_parameters[source_name]
+            parameters_i = base_source.add_parameter_indexing(parameters_i)
+
+            # Create data batch for this source
+            data_batch_dict_i = {'x_parameters': parameters_i}
+            for key, values in self.data_batch_dict.items():
+                if key != 'x_parameters':
+                    data_batch_dict_i[key] = values
+
+            self.concrete_tensor_funcs[base_name] = (
+                concrete_function.get_concrete_function(data_batch_dict_i)
+            )
+
+        return self.concrete_tensor_funcs[base_name]

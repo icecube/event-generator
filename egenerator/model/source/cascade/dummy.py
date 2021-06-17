@@ -49,6 +49,7 @@ class DummyCascadeModel(Source):
 
         return parameter_names
 
+    @tf.function
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
@@ -107,7 +108,9 @@ class DummyCascadeModel(Source):
 
         tensor_dict = {
             'dom_charges': dom_charges,
+            'dom_charges_variance': dom_charges,
             'pulse_pdf': pulse_pdf,
+            'time_offsets': None,
         }
 
         return tensor_dict

@@ -1,8 +1,10 @@
 from __future__ import division, print_function
 import logging
+import numpy as np
 import tensorflow as tf
 
 from egenerator import misc
+from egenerator.utils import basis_functions
 from egenerator.model.base import Model
 from egenerator.manager.component import Configuration
 
@@ -63,6 +65,10 @@ class Source(Model):
     parameter_names : list of str
         The names of the n_params number of parameters.
     """
+
+    @property
+    def time_unit_in_ns(self):
+        return 1000.
 
     @property
     def data_trafo(self):
@@ -284,6 +290,7 @@ class Source(Model):
         self.assert_configured(False)
         raise NotImplementedError()
 
+    @tf.function
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
@@ -334,6 +341,345 @@ class Source(Model):
         """
         self.assert_configured(True)
         raise NotImplementedError()
+
+    def cdf(self, x, result_tensors,
+            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+        """Compute CDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the CDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Note: the PDF does not set values inside excluded time windows to zero,
+        but it does adjust the normalization. It is assumed that pulses will
+        already be masked before evaluated by Event-Generator. Therefore, an
+        extra check for exclusions is not performed due to performance issues.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        tw_exclusions : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusions are defined as a list of
+            [(t1_start, t1_stop), ..., (tn_start, tn_stop)]
+            Shape: [n_exclusions, 2]
+        tw_exclusions_ids : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusion ids define to which event and DOM the
+            time exclusions `tw_exclusions` belong to. They are defined
+            as a list of:
+            [(event1, string1, dom1), ..., (eventN, stringN, domN)]
+            Shape: [n_exclusions, 3]
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+
+        Raises
+        ------
+        NotImplementedError
+            If assymetric Gaussian latent variables are not present in
+            `result_tensors` dictionary.
+        """
+
+        x_orig = np.atleast_1d(x)
+        assert len(x_orig.shape) == 1, x_orig.shape
+        n_points = len(x_orig)
+
+        # shape: [1, 1, 1, 1, n_points]
+        x = np.reshape(x_orig, (1, 1, 1, 1, -1))
+
+        if result_tensors['time_offsets'] is not None:
+            # shape: [n_events]
+            t_offsets = result_tensors['time_offsets'].numpy()
+            # shape: [n_events, 1, 1, 1, 1]
+            t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
+            # shape: [n_events, 1, 1, 1, n_points]
+            x = x - t_offsets
+        else:
+            t_offsets = 0.
+
+        # internally we are working with different time units
+        x = x / self.time_unit_in_ns
+
+        # Check if the asymmetric Gaussian latent variables exist
+        for latent_name in ['mu', 'scale', 'sigma', 'r']:
+            if 'latent_var_' + latent_name not in result_tensors:
+                msg = 'PDF evaluation is not supported for this model: {}'
+                raise NotImplementedError(msg.format(
+                    self._untracked_data['name']))
+
+        # extract values
+        # shape: [n_events, 86, 60, n_components, 1]
+        mu = result_tensors['latent_var_mu'].numpy()[..., np.newaxis]
+        scale = result_tensors['latent_var_scale'].numpy()[..., np.newaxis]
+        sigma = result_tensors['latent_var_sigma'].numpy()[..., np.newaxis]
+        r = result_tensors['latent_var_r'].numpy()[..., np.newaxis]
+
+        # shape: [n_events, 86, 60, n_components, n_points]
+        mixture_cdf = basis_functions.asymmetric_gauss_cdf(
+            x=x, mu=mu, sigma=sigma, r=r
+        )
+
+        # uniformly scale up pdf values due to excluded regions
+        if 'dom_cdf_exclusion' in result_tensors:
+
+            # shape: [n_events, 86, 60, n_components]
+            dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
+
+            # shape: [n_events, 86, 60, n_components, 1]
+            dom_cdf_exclusion = dom_cdf_exclusion[..., np.newaxis]
+            scale /= (1. - dom_cdf_exclusion + 1e-3)
+
+        # shape: [n_events, 86, 60, n_points]
+        cdf_values = np.sum(mixture_cdf * scale, axis=3)
+
+        # apply time window exclusions:
+        if tw_exclusions is not None:
+            assert tw_exclusions_ids is not None, 'Both tw and ids needed!'
+
+            for tw, ids in zip(tw_exclusions, tw_exclusions_ids):
+
+                # get time points after exclusion window begin
+                t_after_start = x_orig >= tw[0]
+                t_before_stop = x_orig <= tw[1]
+                t_eval = np.zeros([n_points, 2])
+                t_eval[:, 0] = np.array(x_orig)
+                t_eval[:, 1] = np.array(x_orig)
+                t_eval[t_after_start, 0] = tw[0]
+                t_eval[t_after_start, 1] = np.where(
+                    t_before_stop[t_after_start],
+                    x_orig[t_after_start],
+                    tw[1],
+                )
+
+                # t_eval now defines the ranges of excluded region for each
+                # time point. We now need to subtract the CDF in this region
+                # Shape: [n_points, 2]
+                t_eval_trafo = (
+                    (t_eval - np.reshape(t_offsets, [-1, 1]))
+                    / self.time_unit_in_ns
+                )
+                # Shape: [n_points, 2]
+                cdf_exclusion_values = np.sum(
+                    # Shape: [n_points, 2, n_components]
+                    basis_functions.asymmetric_gauss_cdf(
+                        x=np.reshape(t_eval_trafo, [n_points, 2, 1]),
+                        mu=np.reshape(mu[ids[0], ids[1], ids[2]], [1, 1, -1]),
+                        sigma=np.reshape(
+                            sigma[ids[0], ids[1], ids[2]], [1, 1, -1]),
+                        r=np.reshape(r[ids[0], ids[1], ids[2]], [1, 1, -1]),
+                    ) * np.reshape(scale[ids[0], ids[1], ids[2]], [1, 1, -1]),
+                    axis=2,
+                )
+
+                # Shape: [n_points]
+                cdf_excluded = (
+                    cdf_exclusion_values[:, 1] - cdf_exclusion_values[:, 0]
+                )
+
+                cdf_values[ids[0], ids[1], ids[2]] -= cdf_excluded
+
+            eps = 1e-3
+            if (cdf_values < 0-eps).any():
+                self._logger.warning('CDF values below zero: {}'.format(
+                    cdf_values[cdf_values < 0-eps]))
+            if (cdf_values > 1+eps).any():
+                self._logger.warning('CDF values above one: {}'.format(
+                    cdf_values[cdf_values > 1+eps]))
+
+        return cdf_values
+
+    def pdf(self, x, result_tensors,
+            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+        """Compute PDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the PDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Note: the PDF does not set values inside excluded time windows to zero,
+        but it does adjust the normalization. It is assumed that pulses will
+        already be masked before evaluated by Event-Generator. Therefore, an
+        extra check for exclusions is not performed due to performance issues.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        tw_exclusions : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusions are defined as a list of
+            [(t1_start, t1_stop), ..., (tn_start, tn_stop)]
+            Shape: [n_exclusions, 2]
+        tw_exclusions_ids : list of list, optional
+            Optionally, time window exclusions may be applied. If these are
+            provided, both `tw_exclusions` and `tw_exclusions_ids` must be set.
+            Note: the event-generator does not internally modify the PDF
+            and sets it to zero when in an exclusion. It is assumed that pulses
+            are already masked. This reduces computation costs.
+            The time window exclusion ids define to which event and DOM the
+            time exclusions `tw_exclusions` belong to. They are defined
+            as a list of:
+            [(event1, string1, dom1), ..., (eventN, stringN, domN)]
+            Shape: [n_exclusions, 3]
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The PDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, 86, 60, n_points]
+
+        Raises
+        ------
+        NotImplementedError
+            If assymetric Gaussian latent variables are not present in
+            `result_tensors` dictionary.
+        """
+
+        x_orig = np.atleast_1d(x)
+        assert len(x_orig.shape) == 1, x_orig.shape
+
+        # shape: [1, 1, 1, 1, n_points]
+        x = np.reshape(x_orig, (1, 1, 1, 1, -1))
+
+        if result_tensors['time_offsets'] is not None:
+            # shape: [n_events]
+            t_offsets = result_tensors['time_offsets'].numpy()
+            # shape: [n_events, 1, 1, 1, 1]
+            t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
+            # shape: [n_events, 1, 1, 1, n_points]
+            x = x - t_offsets
+
+        # internally we are working with different time units
+        x = x / self.time_unit_in_ns
+
+        # Check if the asymmetric Gaussian latent variables exist
+        for latent_name in ['mu', 'scale', 'sigma', 'r']:
+            if 'latent_var_' + latent_name not in result_tensors:
+                msg = 'PDF evaluation is not supported for this model: {}'
+                raise NotImplementedError(msg.format(
+                    self._untracked_data['name']))
+
+        # extract values
+        # shape: [n_events, 86, 60, n_components, 1]
+        mu = result_tensors['latent_var_mu'].numpy()[..., np.newaxis]
+        scale = result_tensors['latent_var_scale'].numpy()[..., np.newaxis]
+        sigma = result_tensors['latent_var_sigma'].numpy()[..., np.newaxis]
+        r = result_tensors['latent_var_r'].numpy()[..., np.newaxis]
+
+        # shape: [n_events, 86, 60, n_components, n_points]
+        mixture_pdf = basis_functions.asymmetric_gauss(
+            x=x, mu=mu, sigma=sigma, r=r
+        )
+
+        # uniformly scale up pdf values due to excluded regions
+        if 'dom_cdf_exclusion' in result_tensors:
+
+            # shape: [n_events, 86, 60, n_components]
+            dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
+
+            # shape: [n_events, 86, 60, n_components, 1]
+            dom_cdf_exclusion = dom_cdf_exclusion[..., np.newaxis]
+            scale /= (1. - dom_cdf_exclusion + 1e-3)
+
+        # shape: [n_events, 86, 60, n_points]
+        pdf_values = np.sum(mixture_pdf * scale, axis=3)
+
+        # apply time window exclusions:
+        pdf_values = self._apply_pdf_time_window_exclusions(
+            times=x_orig,
+            pdf_values=pdf_values,
+            tw_exclusions=tw_exclusions,
+            tw_exclusions_ids=tw_exclusions_ids,
+        )
+
+        # invert back to PDF in ns
+        pdf_values = pdf_values / self.time_unit_in_ns
+
+        return pdf_values
+
+    def _apply_pdf_time_window_exclusions(
+            self, times, pdf_values, tw_exclusions, tw_exclusions_ids):
+        """Apply time window exclusions
+
+        PDF values that correspond to excluded time windows are set to zero.
+        Note: internally, the event-generator does not apply these exclusions.
+        It is assumed that the pulses are already masked. However, the PDF
+        is renormalized to account for the excluded regions.
+
+        Parameters
+        ----------
+        times : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: [n_points]
+        pdf_values : array_like
+            The PDF values at the specified times.
+            Shape: [n_events, 86, 60, n_points]
+        tw_exclusions : list of list, optional
+            The time window exclusions to apply.
+            These are defined as a list of:
+            [(t1_start, t1_stop), ..., (tn_start, tn_stop)]
+            Shape: [n_exclusions, 2]
+        tw_exclusions_ids : list of list, optional
+            The time window exclusion ids define to which event and DOM the
+            time exclusions `tw_exclusions` belong to. They are defined
+            as a list of:
+            [(event1, string1, dom1), ..., (eventN, stringN, domN)]
+            Shape: [n_exclusions, 3]
+
+        Returns
+        -------
+        array_like
+            The corrected PDF values with the time exclusions applied.
+            Shape: [n_events, 86, 60, n_points]
+        """
+        if tw_exclusions is not None:
+            assert tw_exclusions_ids is not None, 'Both tw and ids needed!'
+
+            mask_excluded = np.zeros_like(pdf_values, dtype=bool)
+            for tw, ids in zip(tw_exclusions, tw_exclusions_ids):
+                t_excluded = np.logical_and(times >= tw[0], times <= tw[1])
+
+                mask_excluded[ids[0], ids[1], ids[2], t_excluded] = True
+            pdf_values[mask_excluded] = -float('inf')
+
+        return pdf_values
 
     # def _get_top_node(self):
     #     """Helper function to get the top

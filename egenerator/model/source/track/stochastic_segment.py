@@ -171,6 +171,7 @@ class StochasticTrackSegmentModel(Source):
         )
         return distance
 
+    @tf.function
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
@@ -677,6 +678,7 @@ class StochasticTrackSegmentModel(Source):
         # -------------------------------------------
 
         # offset PDF evaluation times with cascade vertex time
+        tensor_dict['time_offsets'] = parameters[:, 6]
         t_pdf = pulse_times - tf.gather(parameters[:, 6],
                                         indices=pulse_batch_id)
         # new shape: [None, 1]
@@ -684,7 +686,7 @@ class StochasticTrackSegmentModel(Source):
         t_pdf = tf.ensure_shape(t_pdf, [None, 1])
 
         # scale time range down to avoid big numbers:
-        t_scale = 0.001  # 1./ns
+        t_scale = 1. / self.time_unit_in_ns  # [1./ns]
         average_t_dist = 1000. * t_scale
         t_pdf = t_pdf * t_scale
 

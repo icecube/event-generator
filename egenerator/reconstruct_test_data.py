@@ -53,7 +53,7 @@ def main(config_files, reco_config_file=None):
     # ------------------
     # Create loss module
     # ------------------
-    loss_module = build_loss_module(config)
+    loss_module = build_loss_module(config['loss_module_settings'])
 
     # ------------------
     # Create misc module
@@ -131,8 +131,10 @@ def main(config_files, reco_config_file=None):
         if not os.path.exists(os.path.join(manager_dir, 'configuration.yaml')):
             msg = 'Could not find a saved model at {!r}!'
             raise ValueError(msg.format(manager_dir))
+        print('Restoring Manager from file')
 
     else:
+        print('Rebuilding Manager from scratch (make sure to load models...)')
         if len(seed_names) > 0:
             # Model Manager is being built from scratch, so we need to pass
             # the data handler settings with the modified misc module
@@ -153,9 +155,9 @@ def main(config_files, reco_config_file=None):
         # load manager objects and extract models and a data_handler
         model_manger,  _, data_handler, data_transformer = build_manager(
             SetupManager([config_file]).get_config(),
-            restore=True,
+            restore=manager_config['restore_model'],
             modified_sub_components=deepcopy(modified_sub_components),
-            allow_rebuild_base_sources=False,
+            allow_rebuild_base_sources=not manager_config['restore_model'],
         )
         models.extend(model_manger.models)
 

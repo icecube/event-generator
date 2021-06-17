@@ -308,8 +308,12 @@ class DataTransformer(BaseComponent):
             data_shape.pop(tensor.trafo_batch_axis)
 
             if list(data_shape) != trafo_shape:
-                msg = 'Shape of data {!r} does not match expected shape {!r}'
-                raise ValueError(msg.format(data_shape, trafo_shape))
+                msg = (
+                    'Shape of data {} for tensor {} does not match '
+                    'expected shape {}'
+                )
+                raise ValueError(msg.format(
+                    data_shape, tensor_name, trafo_shape))
 
         is_tf = tf.is_tensor(data)
 

@@ -104,6 +104,7 @@ class DefaultCascadeModel(Source):
 
         return parameter_names
 
+    @tf.function
     def get_tensors(self, data_batch_dict, is_training,
                     parameter_tensor_name='x_parameters'):
         """Get tensors computed from input parameters and pulses.
@@ -303,6 +304,7 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
 
         # offset PDF evaluation times with cascade vertex time
+        tensor_dict['time_offsets'] = parameters[:, 6]
         t_pdf = pulse_times - tf.gather(parameters[:, 6],
                                         indices=pulse_batch_id)
         if time_exclusions_exist:
@@ -324,7 +326,7 @@ class DefaultCascadeModel(Source):
         t_pdf = tf.ensure_shape(t_pdf, [None, 1])
 
         # scale time range down to avoid big numbers:
-        t_scale = 0.001  # 1./ns
+        t_scale = 1. / self.time_unit_in_ns  # [1./ns]
         average_t_dist = 1000. * t_scale
         t_pdf = t_pdf * t_scale
         if time_exclusions_exist:
@@ -523,7 +525,10 @@ class DefaultCascadeModel(Source):
 
         # scale charges by cascade energy
         if config['scale_charge']:
-            scale_factor = tf.expand_dims(parameter_list[5], axis=-1) / 10000.0
+            # make sure cascade energy does not turn negative
+            cascade_energy = tf.clip_by_value(
+                parameter_list[5], 0., float('inf'))
+            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
             dom_charges *= scale_factor
 
         # scale charges by realtive DOM efficiency

@@ -2,6 +2,7 @@ import os
 import tensorflow as tf
 
 from icecube import dataclasses, icetray
+from icecube.icetray.i3logging import log_info, log_warn
 
 from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.manager.reconstruction.tray import ReconstructionTray
@@ -47,7 +48,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'The output base key to which results will be saved',
                           'EventGenerator')
         self.AddParameter('pulse_key',
-                          'The pulses to use for the reconstruction.',
+                          'The pulses to use for the reconstruction. Note: '
+                          'pulses in exclusion windows must have already been '
+                          'excluded!',
                           'InIceDSTPulses')
         self.AddParameter('dom_exclusions_key',
                           'The DOM exclusions to use.',
@@ -102,6 +105,17 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'Perform minimization in normalized coordinates if '
                           'True (this is usually desired).',
                           True)
+        self.AddParameter('parameter_boundaries',
+                          'A dictionary which specifies the boundaries of '
+                          'parameter values. Internally a pseudo uniform '
+                          'prior is applied to penalize exceeding beyond '
+                          'these boundaries. This is a "pseudo" uniform prior '
+                          'because this will not affect the LLH values if the '
+                          'parameters are in bounds. The specified parameter '
+                          'boundaries must be a dictionary of the format: '
+                          '{"ParamName": [lower_bound, upper_bound]} '
+                          'and the boundaries must be finite',
+                          None)
         self.AddParameter('minimize_parameter_dict',
                           'A dictionary with elements fit_parameter: boolean '
                           'that indicates whether the parameter will be fit '
@@ -169,6 +183,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         # Reconstruction specific settings
         self.minimize_in_trafo_space = \
             self.GetParameter('minimize_in_trafo_space')
+        self.parameter_boundaries = self.GetParameter('parameter_boundaries')
         self.minimize_parameter_default_value = \
             self.GetParameter('minimize_parameter_default_value')
         self.minimize_parameter_dict = \
@@ -199,11 +214,26 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             else:
                 manager_dirs.append(name)
 
+        # Add boundaries (approximate uniform priors)
+        if self.parameter_boundaries is not None:
+            additional_loss_modules = [{
+                'loss_module':
+                    'egenerator.loss.snowstorm.SnowstormPriorLossModule',
+                'config': {
+                    'sigmas': [],
+                    'uniform_parameters': self.parameter_boundaries,
+                },
+            }]
+        else:
+            additional_loss_modules = None
+
         # Build and configure SourceManager
         self.manager_configurator = ManagerConfigurator(
             manager_dirs=manager_dirs,
             reco_config_dir=None,
             load_labels=False,
+            replace_existing_loss_modules=False,
+            additional_loss_modules=additional_loss_modules,
             misc_setting_updates={
                 'seed_names': self.seed_keys,
             },
@@ -232,7 +262,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             msg = '\nNumber of Model Variables:\n'
             msg += '\tFree: {}\n'
             msg += '\tTotal: {}'
-            print(msg.format(num_vars, num_total_vars))
+            log_info(msg.format(num_vars, num_total_vars))
 
         # ------------------------------
         # Gather Reconstruction Settings
@@ -245,11 +275,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 self.log_names.append(name)
 
         # get a list of parameters to fit
-        fit_paramater_list = [self.minimize_parameter_default_value
+        fit_parameter_list = [self.minimize_parameter_default_value
                               for i in
                               range(self.manager.models[0].num_parameters)]
         for name, value in self.minimize_parameter_dict.items():
-            fit_paramater_list[self.manager.models[0].get_index(name)] = value
+            fit_parameter_list[self.manager.models[0].get_index(name)] = value
 
         # parameter input signature
         parameter_tensor_name = 'x_parameters'
@@ -271,7 +301,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'Reconstruction',
                 name=reco_name,
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 seed_tensor_name=seed_tensor_name,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
@@ -290,7 +320,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'CovarianceMatrix',
                 name='covariance',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
                 parameter_tensor_name=parameter_tensor_name,
@@ -304,7 +334,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'GoodnessOfFit',
                 name='GoodnessOfFit',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
@@ -322,7 +352,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.reco_tray.add_module(
                 'CircularizedAngularUncertainty',
                 name='CircularizedAngularUncertainty',
-                fit_paramater_list=fit_paramater_list,
+                fit_parameter_list=fit_parameter_list,
                 reco_key='reco',
                 covariance_key=covariance_key,
                 minimize_in_trafo_space=self.minimize_in_trafo_space,
@@ -379,6 +409,10 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     )
                 else:
                     setattr(particle, key, result_dict[param])
+
+            # transform zenith and azimuth to proper range:
+            particle.dir = dataclasses.I3Direction(
+                particle.dir.x, particle.dir.y, particle.dir.z)
 
             # set particle shape to infinite track even though this is not
             # necessarily true. This will allow for visualization in steamshovel
