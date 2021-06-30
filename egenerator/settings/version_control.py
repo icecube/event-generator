@@ -13,7 +13,8 @@ def get_git_infos():
     sha = str(repo.head.object.hexsha)
     short_sha = str(repo.git.rev_parse(sha, short=7))
     try:
-        origin = str(repo.git.execute(["git", "remote", "get-url", "origin"]))
+        origin = str(
+            repo.git.execute(["git", "config", "--get", "remote.origin.url"]))
     except git.exc.GitCommandError:
         origin = None
     uncommitted_changes = repo.is_dirty()
