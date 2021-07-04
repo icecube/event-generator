@@ -328,7 +328,7 @@ class MultiSource(Source):
         dom_cdf_exclusion_sum = None
         pulse_pdf = None
         nested_results = {}
-        for name, base in self._untracked_data['sources'].items():
+        for name, base in sorted(self._untracked_data['sources'].items()):
 
             # get the base source
             sub_component = self.sub_components[base]
@@ -883,7 +883,8 @@ class MultiSource(Source):
         nested_cdfs = {}
         cdf_values = None
         dom_charges = result_tensors['dom_charges'].numpy()
-        for name, (base_source, result_tensors_i) in flattened_results.items():
+        for name, (base_source, result_tensors_i) in sorted(
+                flattened_results.items()):
 
             # shape: [n_events, 86, 60, n_points]
             cdf_values_i = base_source.cdf(
@@ -984,7 +985,8 @@ class MultiSource(Source):
         nested_pdfs = {}
         pdf_values = None
         dom_charges = result_tensors['dom_charges'].numpy()
-        for name, (base_source, result_tensors_i) in flattened_results.items():
+        for name, (base_source, result_tensors_i) in sorted(
+                flattened_results.items()):
 
             # shape: [n_events, 86, 60, n_points]
             pdf_values_i = base_source.pdf(

@@ -120,7 +120,7 @@ class Model(tf.Module, BaseComponent):
         self._untracked_data['variables'] = list(self.variables)
 
         # collect any variables from sub_components as well
-        for name, sub_component in sub_components.items():
+        for name, sub_component in sorted(sub_components.items()):
             if issubclass(type(sub_component), tf.Module):
                 self._untracked_data['variables'].extend(
                     sub_component.variables)

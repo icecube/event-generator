@@ -144,7 +144,8 @@ class MultiLossModule(BaseComponent):
         """
         loss_terms = []
         loss = None
-        for loss_module in self.sub_components.values():
+        for key in sorted(self.sub_components.keys()):
+            loss_module = self.sub_components[key]
             loss_i = loss_module.get_loss(
                 data_batch_dict=data_batch_dict,
                 result_tensors=result_tensors,

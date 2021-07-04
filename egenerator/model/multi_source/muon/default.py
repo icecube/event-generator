@@ -121,8 +121,9 @@ class DefaultMultiCascadeModel(MultiSource):
                                         self._untracked_data['num_cascades'])
 
         source_parameter_dict = {}
-        for cascade, dist in zip(self._untracked_data['sources'].keys(),
-                                 cascade_distances):
+        for cascade, dist in zip(
+                sorted(self._untracked_data['sources'].keys()),
+                cascade_distances):
 
             # calculate position and time of cascade
             cascade_x = closest_x + dist * dir_x

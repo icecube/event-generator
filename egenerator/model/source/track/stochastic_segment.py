@@ -771,7 +771,7 @@ class StochasticTrackSegmentModel(Source):
         if is_training:
             # Ensure finite values
             asserts = []
-            for name, tensor in tensor_dict.items():
+            for name, tensor in sorted(tensor_dict.items()):
                 assert_finite = tf.Assert(
                     tf.math.is_finite(tf.reduce_mean(tensor)),
                     [name, tf.reduce_mean(tensor)])

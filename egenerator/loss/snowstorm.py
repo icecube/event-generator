@@ -260,7 +260,8 @@ class SnowstormPriorLossModule(BaseComponent):
         loss_terms = []
 
         # compute loss for uniform priors
-        for name, bounds in self.untracked_data['uniform_parameters'].items():
+        for name, bounds in sorted(
+                self.untracked_data['uniform_parameters'].items()):
             values = parameters.params[name]
             loss_terms.append(self.uniform_log_prior_loss(values, *bounds))
 

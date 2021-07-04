@@ -100,7 +100,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
         dir_z = -tf.cos(zenith)
 
         source_parameter_dict = {}
-        for cascade in self._untracked_data['sources'].keys():
+        for cascade in sorted(self._untracked_data['sources'].keys()):
 
             if cascade == 'starting_cascade':
                 source_parameter_dict[cascade] = tf.stack(
