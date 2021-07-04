@@ -919,7 +919,7 @@ class BaseComponent(object):
             msg += 'Make sure they are still compatible. '
             msg += 'Saved component was created with version {!r}, but this is'
             msg += ' version {!r}.'
-            self._logger.warning(msg.format(
+            self._logger.info(msg.format(
                 config_dict['event_generator_version'],
                 egenerator.__version__))
 
