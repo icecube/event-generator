@@ -916,9 +916,12 @@ class BaseComponent(object):
         # check if the version is correct
         if config_dict['event_generator_version'] != egenerator.__version__:
             msg = 'Event-Generator versions do not match. '
+            msg += 'Make sure they are still compatible. '
             msg += 'Saved component was created with version {!r}, but this is'
             msg += ' version {!r}.'
-            self._logger.warning(msg.format())
+            self._logger.warning(msg.format(
+                config_dict['event_generator_version'],
+                egenerator.__version__))
 
         # check if this is the correct class
         if self.configuration.class_string != \
