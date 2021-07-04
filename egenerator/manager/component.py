@@ -918,7 +918,7 @@ class BaseComponent(object):
             msg = 'Event-Generator versions do not match. '
             msg += 'Saved component was created with version {!r}, but this is'
             msg += ' version {!r}.'
-            self.logger.warning(msg.format())
+            self._logger.warning(msg.format())
 
         # check if this is the correct class
         if self.configuration.class_string != \
