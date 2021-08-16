@@ -9,6 +9,8 @@
 # Provide a unique name for the model
 unique_name: 'cascade_14param_noise_tw_Spice321'
 
+# the float precision to use
+float_precision: 'float64'
 
 #------------------
 # Training settings
