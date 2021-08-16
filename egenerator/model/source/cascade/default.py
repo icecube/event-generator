@@ -176,6 +176,9 @@ class DefaultCascadeModel(Source):
             time_exclusions_exist = False
         print('\t Applying time exclusions:', time_exclusions_exist)
 
+        # get parameters tensor dtype
+        param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
+
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
 
@@ -269,8 +272,8 @@ class DefaultCascadeModel(Source):
         if config['add_dom_coordinates']:
 
             # transform coordinates to correct scale with mean 0 std dev 1
-            dom_coords = np.expand_dims(detector.x_coords.astype(np.float32),
-                                        axis=0)
+            dom_coords = np.expand_dims(
+                detector.x_coords.astype(param_dtype_np), axis=0)
             # scale of coordinates is ~-500m to ~500m with std dev of ~ 284m
             dom_coords /= 284.
 

@@ -138,6 +138,9 @@ class DefaultNoiseModel(Source):
             time_exclusions_exist = False
         print('\t Applying time exclusions:', time_exclusions_exist)
 
+        # get parameters tensor dtype
+        param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
+
         # shape: [n_pulses, 2]
         pulses = data_batch_dict['x_pulses']
 
@@ -157,7 +160,9 @@ class DefaultNoiseModel(Source):
         # compute the expected charge at each DOM based off of noise rate
         # shape: [1, 86, 60, 1]
         dom_noise_rates = tf.reshape(
-            detector.dom_noise_rates.astype(np.float32), shape=[1, 86, 60, 1])
+            detector.dom_noise_rates.astype(param_dtype_np),
+            shape=[1, 86, 60, 1],
+        )
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges = dom_noise_rates * livetime_exp

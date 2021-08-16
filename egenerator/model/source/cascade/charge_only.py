@@ -171,6 +171,10 @@ class ChargeOnlyCascadeModel(Source):
 
         num_features = parameters.get_shape().as_list()[-1]
 
+        # get parameters tensor dtype
+        tensors = self.data_trafo.data['tensors']
+        param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
+
         # -----------------------------------
         # Calculate input values for DOMs
         # -----------------------------------
@@ -251,8 +255,8 @@ class ChargeOnlyCascadeModel(Source):
         if config['add_dom_coordinates']:
 
             # transform coordinates to correct scale with mean 0 std dev 1
-            dom_coords = np.expand_dims(detector.x_coords.astype(np.float32),
-                                        axis=0)
+            dom_coords = np.expand_dims(
+                detector.x_coords.astype(param_dtype_np), axis=0)
             # scale of coordinates is ~-500m to ~500m with std dev of ~ 284m
             dom_coords /= 284.
 
