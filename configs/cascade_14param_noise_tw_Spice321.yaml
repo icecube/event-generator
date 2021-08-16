@@ -10,7 +10,7 @@
 unique_name: 'cascade_14param_noise_tw_Spice321'
 
 # the float precision to use
-float_precision: 'float64'
+float_precision: 'float32'
 
 #------------------
 # Training settings
@@ -108,7 +108,7 @@ reconstruction_settings: {
         'cascade_HoleIceForward_Unified_01': 0.,
         'cascade_Scattering': 1.,
     },
-    'seed_float_precision': 'float64',
+    'seed_float_precision': 'float32',
 
     # choose the otpimizer iterface:
     #   'scipy' or 'tfp' (tensorflow_probability)
@@ -317,7 +317,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # Add normalization terms to llh if True
             'add_normalization_term': False,
             # choose the loss function to use
@@ -330,7 +330,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # Add normalization terms to llh if True
             'add_normalization_term': False,
             # choose the loss function to use
@@ -376,7 +376,7 @@ evaluation_module_settings: {
 # Data Transformation settings
 #-----------------------------
 data_trafo_settings: {
-    'float_precision': 'float64',
+    'float_precision': 'float32',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
     'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_mixed_cascade_no_fourier_pulse_data_noise_tw',
@@ -403,7 +403,7 @@ data_handler_settings: {
         'pulse_key': 'InIceDSTPulses_masked',
         'dom_exclusions_key': 'combined_exclusions_DOMs',
         'time_exclusions_key': 'combined_exclusions_TimeWindowsHDF5',
-        'float_precision': 'float64',
+        'float_precision': 'float32',
         'add_charge_quantiles': False,
         'discard_pulses_from_excluded_doms': False,
     },
@@ -424,7 +424,7 @@ data_handler_settings: {
         'additional_labels': ['energy_fraction_hadron'],
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 6,
-        'float_precision': 'float64',
+        'float_precision': 'float32',
     },
 
     # ---------------------
