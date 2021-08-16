@@ -349,8 +349,8 @@ loss_module_settings: [
                 'cascade_AnisotropyScale': [0., 2.0],
                 'cascade_DOMEfficiency': [0.9, 1.1],
                 'cascade_Scattering': [0.9, 1.1],
-                'cascade_HoleIceForward_Unified_00': [-0.65, 0.60],
-                'cascade_HoleIceForward_Unified_01': [-0.08, 0.08],
+                'cascade_HoleIceForward_Unified_00': [-1.0, 1.0], #[-0.65, 0.60],
+                'cascade_HoleIceForward_Unified_01': [-0.2, 0.2], #[-0.08, 0.08],
             },
 
             # define fourier component sigmas
@@ -524,7 +524,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [25, 500, 500, 500, 42],
+                'num_filters_list' : [25, 100, 100, 100, 42],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution',
