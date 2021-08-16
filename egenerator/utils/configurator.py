@@ -244,7 +244,7 @@ class ManagerConfigurator:
         tf.random.set_seed(tf_random_seed)
 
         # limit GPU usage
-        gpu_devices = tf.config.experimental.list_physical_devices('GPU')
+        gpu_devices = tf.config.list_physical_devices('GPU')
         for device in gpu_devices:
             tf.config.experimental.set_memory_growth(device, True)
 
