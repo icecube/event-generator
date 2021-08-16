@@ -111,6 +111,7 @@ class SystematicsCascadeModel(Source):
             dilation_rate_list=None,
             hex_num_rotations_list=1,
             method_list=config['method_list'],
+            float_precision=confg['float_precision'],
             )
 
         self._untracked_data['shared_conv_layer'] = tfs.ConvNdLayers(
@@ -130,6 +131,7 @@ class SystematicsCascadeModel(Source):
             dilation_rate_list=None,
             hex_num_rotations_list=1,
             method_list=config['method_list_2'],
+            float_precision=confg['float_precision'],
             )
 
         return parameter_names

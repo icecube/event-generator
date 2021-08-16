@@ -98,6 +98,7 @@ class ChargeOnlyCascadeModel(Source):
             dilation_rate_list=None,
             hex_num_rotations_list=1,
             method_list=config['method_list'],
+            float_precision=confg['float_precision'],
             )
 
         return parameter_names
