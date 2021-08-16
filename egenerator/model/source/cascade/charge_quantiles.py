@@ -108,7 +108,6 @@ class ChargeQuantileCascadeModel(Source):
             dilation_rate_list=None,
             hex_num_rotations_list=1,
             method_list=config['method_list'],
-            float_precision=config['float_precision'],
             )
 
         # ----------------------------------------------------
@@ -132,7 +131,6 @@ class ChargeQuantileCascadeModel(Source):
             activation_list=config['fc_activation_list'],
             use_batch_normalisation_list=config['fc_use_batch_norm_list'],
             use_residual_list=config['fc_use_residual_list'],
-            float_precision=config['float_precision'],
         )
 
         return parameter_names
