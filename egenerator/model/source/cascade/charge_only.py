@@ -307,7 +307,8 @@ class ChargeOnlyCascadeModel(Source):
 
         # scale charges by relative DOM efficiency
         if config['scale_charge_by_relative_dom_efficiency']:
-            dom_charges *= tf.expand_dims(detector.rel_dom_eff, axis=-1)
+            dom_charges *= tf.expand_dims(
+                detector.rel_dom_eff.astype(param_dtype_np), axis=-1)
 
         # scale charges by global DOM efficiency
         if config['scale_charge_by_global_dom_efficiency']:
