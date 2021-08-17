@@ -529,6 +529,9 @@ class StochasticTrackSegmentModel(Source):
         dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
                                            axis=-1)
 
+        # clip value range for more stability during training
+        dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20., 15)
+
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
 

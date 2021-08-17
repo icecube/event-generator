@@ -813,14 +813,12 @@ class BaseModelManager(Model):
 
                 # print out loss to console
                 msg = 'Step: {:08d}, Runtime: {:2.2f}s, Time/Step: {:3.3f}s'
-                self._logger.info(msg.format(
+                print(msg.format(
                     step, validation_time - start_time,
                     time_diff /
                     opt_config['validation_frequency']))
-                self._logger.info(
-                    '\t[Train]      {:3.3f}'.format(loss_training))
-                self._logger.info(
-                    '\t[Validation] {:3.3f}'.format(loss_validation))
+                print('\t[Train]      {:3.3f}'.format(loss_training))
+                print('\t[Validation] {:3.3f}'.format(loss_validation))
 
             # ------------------------------------------------
             # Perform additional evaluations on validation set
