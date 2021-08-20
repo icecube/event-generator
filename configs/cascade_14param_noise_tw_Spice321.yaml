@@ -100,13 +100,13 @@ reconstruction_settings: {
                          ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
-        'cascade_energy_fraction_hadron': 0.5,
-        'cascade_Absorption': 1.,
-        'cascade_AnisotropyScale': 1.,
-        'cascade_DOMEfficiency': 1.,
-        'cascade_HoleIceForward_Unified_00': 0.,
-        'cascade_HoleIceForward_Unified_01': 0.,
-        'cascade_Scattering': 1.,
+        'energy_fraction_hadron': 0.5,
+        'Absorption': 1.,
+        'AnisotropyScale': 1.,
+        'DOMEfficiency': 1.,
+        'HoleIceForward_Unified_00': 0.,
+        'HoleIceForward_Unified_01': 0.,
+        'Scattering': 1.,
     },
     'seed_float_precision': 'float64',
 
@@ -298,9 +298,9 @@ data_iterator_settings: {
             # SpiceLea variable
             # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # SpiceLea const
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # Spice3.2.1 variable no fourier
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
         ],
     },
 }
