@@ -192,10 +192,10 @@ data_iterator_settings: {
         'batch_size': 32,
         'num_splits': ,
         'file_capacity': 10,
-        'batch_capacity': 500,
-        'dataset_capacity': 500,
+        'batch_capacity': 100,
+        'dataset_capacity': 5,
         'num_jobs': 10,
-        'num_add_files': 20,
+        'num_add_files': 10,
         'num_repetitions': 3,
         'input_data': [
 
