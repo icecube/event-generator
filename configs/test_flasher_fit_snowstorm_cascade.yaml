@@ -332,7 +332,7 @@ evaluation_module_settings: {
 data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
-    'num_batches': 5000,
+    'num_batches': 500,
     'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_test_flasher_fit_snowstorm_cascade',
 }
 
@@ -354,7 +354,7 @@ data_handler_settings: {
 
     # settings for the data module
     'data_settings':{
-        'pulse_key': 'InIceDSTPulses',
+        'pulse_key': 'InIceDSTPulses_masked',
         'dom_exclusions_key': 'BadDomsList',
         'time_exclusions_key': ,
         'float_precision': 'float64',
