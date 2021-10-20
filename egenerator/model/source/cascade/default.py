@@ -48,6 +48,12 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(False)
 
+        # backwards compatibility for models that didn't define precision
+        if 'float_precision' in config:
+            float_precision = config['float_precision']
+        else:
+            float_precision = 'float32'
+
         # ---------------------------------------------
         # Define input parameters of cascade hypothesis
         # ---------------------------------------------
@@ -77,6 +83,7 @@ class DefaultCascadeModel(Source):
         if config['num_local_vars'] > 0:
             self._untracked_data['local_vars'] = new_weights(
                     shape=[1, 86, 60, config['num_local_vars']],
+                    float_precision=float_precision,
                     name='local_dom_input_variables')
             num_inputs += config['num_local_vars']
 
@@ -100,6 +107,7 @@ class DefaultCascadeModel(Source):
             dilation_rate_list=None,
             hex_num_rotations_list=1,
             method_list=config['method_list'],
+            float_precision=float_precision,
             )
 
         return parameter_names

@@ -9,9 +9,6 @@
 # Provide a unique name for the model
 unique_name: 'test_flasher_fit_snowstorm_cascade'
 
-# the float precision to use
-float_precision: 'float64'
-
 #------------------
 # Training settings
 #------------------
@@ -441,7 +438,7 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-            config: {},
+            config: {'float_precision': float64},
         },
 
         cascade: {
@@ -459,6 +456,7 @@ model_settings: {
                 'prevent_mixture_component_swapping': False,
                 'estimate_charge_distribution': 'negative_binomial',
                 'num_latent_models': 10,
+                'float_precision': float64,
 
                 # This is a list of labels in addition to
                 # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters

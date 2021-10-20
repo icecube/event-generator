@@ -600,7 +600,7 @@ class Model(tf.Module, BaseComponent):
             file_basename = info['file_basename']
 
         file_path = os.path.join(dir_path, file_basename)
-        self._untracked_data['checkpoint'].restore(file_path)
+        self._untracked_data['checkpoint'].read(file_path)
 
     def _load(self, dir_path, checkpoint_number=None):
         """Load the model weights.

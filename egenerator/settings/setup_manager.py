@@ -33,9 +33,7 @@ class SetupManager:
     """
 
     # define default config
-    _default_config = {
-                        'float_precision': 'float32',
-                     }
+    _default_config = {}
 
     def __init__(self, config_files):
         """Initializes the Event-Generator Setup Manager
@@ -102,15 +100,6 @@ class SetupManager:
             new_config.update(config_update)
         config = dict(self._default_config)
         config.update(new_config)
-
-        # define numpy and tensorflow float precision
-        config['tf_float_precision'] = getattr(tf, config['float_precision'])
-        config['np_float_precision'] = getattr(np, config['float_precision'])
-        try:
-            import tfscripts as tfs
-            tfs.FLOAT_PRECISION = config['tf_float_precision']
-        except ImportError:
-            self.logger.warning('Could not import tfscripts package.')
 
         # get git repo information
         config['git_short_sha'] = str(version_control.short_sha)
