@@ -35,8 +35,7 @@ def get_dist_to_shower_max(ref_energy, eps=1e-6):
 
 
 def shift_to_maximum(
-        self, x, y, z, zenith, azimuth, ref_energy, t,
-        eps=1e-6, reverse=False):
+        x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6, reverse=False):
     """Shift cascade to/from shower maximum
 
     PPC does its own cascade extension, leaving the showers at the
