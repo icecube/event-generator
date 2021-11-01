@@ -89,7 +89,7 @@ reconstruction_settings: {
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['cascade_x', 'cascade_y', 'cascade_z',
                              'cascade_zenith', 'cascade_azimuth',
-                             'cascade_energy', 'cascade_time',
+                             'cascade_energy', 'cascade_t',
                              'Absorption', 'AnisotropyScale', 'DOMEfficiency',
                              'HoleIceForward_Unified_00',
                              'HoleIceForward_Unified_01',
