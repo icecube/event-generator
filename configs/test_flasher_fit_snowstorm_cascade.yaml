@@ -136,6 +136,7 @@ reconstruction_settings: {
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
+        'cascade_time': True,
         'cascade_Absorption': True,
         'cascade_AnisotropyScale': True,
         'cascade_DOMEfficiency': True,
