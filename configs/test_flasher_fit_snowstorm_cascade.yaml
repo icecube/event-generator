@@ -135,12 +135,12 @@ reconstruction_settings: {
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
-        'Absorption': True,
-        'AnisotropyScale': True,
-        'DOMEfficiency': True,
-        'HoleIceForward_Unified_00': True,
-        'HoleIceForward_Unified_01': True,
-        'Scattering': True,
+        'cascade_Absorption': True,
+        'cascade_AnisotropyScale': True,
+        'cascade_DOMEfficiency': True,
+        'cascade_HoleIceForward_Unified_00': True,
+        'cascade_HoleIceForward_Unified_01': True,
+        'cascade_Scattering': True,
     },
 }
 
