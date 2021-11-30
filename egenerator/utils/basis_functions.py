@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from scipy import special
+from scipy import stats
 
 
 def tf_gauss(x, mu, sigma):
@@ -404,6 +405,53 @@ def log_negative_binomial(x, mu, alpha, add_normalization_term=False):
     return gamma_terms + term1 + term2
 
 
+def convert_neg_binomial_params(mu, alpha_or_var, param_is_alpha):
+    """Converts parameterization of negative binomial PDF
+
+    The parameterization chosen here is defined by the mean mu and
+    the over-dispersion factor alpha (or directly by variance).
+
+        Var(x) = mu + alpha*mu**2
+
+    [https://arxiv.org/pdf/1704.04110.pdf page 4]
+
+    Alpha must be greater than zero (best if >5e-5 due to numerical issues).
+
+    Parameters
+    ----------
+    mu : array_like
+        Mean of the distribution.
+        Must be greater equal zero.
+    alpha_or_var : array_like
+        if param_is_alpha == True:
+            The over-dispersion parameter.
+            Must be greater zero.
+        if param_is_alpha == False:
+            The expected variance.
+            Must be greater zero.
+    param_is_alpha : bool
+        If True, the parameter passed as `alpha_or_var` is alpha.
+        If False, the parameter passed as `alpha_or_var` is the variance.
+
+    Returns
+    -------
+    array_like
+        Parameter `p` for parameterization as used by scipy.stats.nbinom
+        and numpy.random.negative_binomial.
+    array_like
+        Parameter `r` for parameterization as used by scipy.stats.nbinom
+        and numpy.random.negative_binomial.
+    """
+    eps = 1e-6
+    if param_is_alpha:
+        var = mu + alpha_or_var*mu**2
+    else:
+        var = alpha_or_var
+    p = 1 - (var - mu) / var
+    r = (mu**2) / (var - mu + eps)
+    return p, r
+
+
 def sample_from_negative_binomial(rng, mu, alpha_or_var, param_is_alpha,
                                   size=None):
     """Sample points from the negative binomial distribution.
@@ -442,14 +490,89 @@ def sample_from_negative_binomial(rng, mu, alpha_or_var, param_is_alpha,
     array_like
         The sampled points from the negative binomial distribution.
     """
-    eps = 1e-6
-    if param_is_alpha:
-        var = mu + alpha_or_var*mu**2
-    else:
-        var = alpha_or_var
-    p = 1 - (var - mu) / var
-    r = (mu**2) / (var - mu + eps)
+    p, r = convert_neg_binomial_params(
+        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha)
     return rng.negative_binomial(r, p, size=size)
+
+
+def negative_binomial_cdf(x, mu, alpha_or_var, param_is_alpha):
+    """Computes the CDF of the negative binomial PDF
+
+    The parameterization chosen here is defined by the mean mu and
+    the over-dispersion factor alpha.
+
+        Var(x) = mu + alpha*mu**2
+
+    [https://arxiv.org/pdf/1704.04110.pdf page 4]
+
+    Alpha must be greater than zero (best if >5e-5 due to numerical issues).
+
+    Parameters
+    ----------
+    x : array_like
+        The input values.
+    mu : array_like
+        Mean of the distribution.
+        Must be greater equal zero.
+    alpha_or_var : array_like
+        if param_is_alpha == True:
+            The over-dispersion parameter.
+            Must be greater zero.
+        if param_is_alpha == False:
+            The expected variance.
+            Must be greater zero.
+    param_is_alpha : bool
+        If True, the parameter passed as `alpha_or_var` is alpha.
+        If False, the parameter passed as `alpha_or_var` is the variance.
+
+    Returns
+    -------
+    array_like
+        CDF of the negative binomal PDF evaluated at x.
+    """
+    p, r = convert_neg_binomial_params(
+        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha)
+    return stats.nbinom(r, p).cdf(x)
+
+
+def negative_binomial_ppf(q, mu, alpha_or_var, param_is_alpha):
+    """Computes the PPF of the negative binomial PDF
+
+    The parameterization chosen here is defined by the mean mu and
+    the over-dispersion factor alpha.
+
+        Var(x) = mu + alpha*mu**2
+
+    [https://arxiv.org/pdf/1704.04110.pdf page 4]
+
+    Alpha must be greater than zero (best if >5e-5 due to numerical issues).
+
+    Parameters
+    ----------
+    q : array_like
+        The quantiles at which to evaluate the PPF.
+    mu : array_like
+        Mean of the distribution.
+        Must be greater equal zero.
+    alpha_or_var : array_like
+        if param_is_alpha == True:
+            The over-dispersion parameter.
+            Must be greater zero.
+        if param_is_alpha == False:
+            The expected variance.
+            Must be greater zero.
+    param_is_alpha : bool
+        If True, the parameter passed as `alpha_or_var` is alpha.
+        If False, the parameter passed as `alpha_or_var` is the variance.
+
+    Returns
+    -------
+    array_like
+        PPF of the negative binomal PDF evaluated at x.
+    """
+    p, r = convert_neg_binomial_params(
+        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha)
+    return stats.nbinom(r, p).ppf(q)
 
 
 def tf_rayleigh(x, sigma):
