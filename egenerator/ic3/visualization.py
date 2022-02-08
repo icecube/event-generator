@@ -73,6 +73,10 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
             'this as a job on a cluster you might want to limit '
             '"num_threads" to the amount of allocated CPUs.',
             1)
+        self.AddParameter(
+            'n_doms_x', 'Number of DOMs to plot along x-axis.', 5)
+        self.AddParameter(
+            'n_doms_y', 'Number of DOMs to plot along y-axis.', 5)
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -85,6 +89,8 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         self.dom_exclusions_key = self.GetParameter('dom_exclusions_key')
         self.time_exclusions_key = self.GetParameter('time_exclusions_key')
         self.num_threads = self.GetParameter('num_threads')
+        self.n_doms_x = self.GetParameter('n_doms_x')
+        self.n_doms_y = self.GetParameter('n_doms_y')
 
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
@@ -148,6 +154,8 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
             name='VisualizePulseLikelihood',
             reco_key=self.reco_key,
             output_dir=self.output_dir,
+            n_doms_x=self.n_doms_x,
+            n_doms_y=self.n_doms_y,
             pdf_file_template='dom_pdf_{run_id:06d}_{event_id:06d}.png',
             cdf_file_template='dom_cdf_{run_id:06d}_{event_id:06d}.png',
         )
