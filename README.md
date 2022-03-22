@@ -1,6 +1,6 @@
 | Testing | Coverage | Documentation |
 | :-----: | :------: | :-----------: |
-| [![Build Status](https://travis-ci.org/mhuen/event-generator.svg?branch=master)](https://travis-ci.org/mhuen/event-generator) | [![Coverage Status](https://codecov.io/gh/mhuen/event-generator/branch/master/graph/badge.svg)](https://codecov.io/gh/mhuen/event-generator/branch/master) | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://mhuen.github.io/event-generator) |
+| [![Build Status](https://travis-ci.com/icecube/event-generator.svg?branch=master)](https://travis-ci.com/icecube/event-generator) | [![Coverage Status](https://codecov.io/gh/icecube/event-generator/branch/master/graph/badge.svg)](https://codecov.io/gh/icecube/event-generator/branch/master) | [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://user-web.icecube.wisc.edu/~mhuennefeld/docs/event_generator/html/) |
 
 # event-generator
 event-generator is a package designed for the IceCube neutrino telescope. It can be used to generate and reconstruct arbitrary event
@@ -8,7 +8,7 @@ hypotheses.
 
 ## Documentation
 
-The documentation for the package can be found here: <https://mhuen.github.io/event-generator/>
+The documentation for the package can be found here: <https://user-web.icecube.wisc.edu/~mhuennefeld/docs/event_generator/html/>
 
 More example code and examples will be added as time permits.
 
