@@ -914,6 +914,8 @@ class DefaultLossModule(BaseComponent):
             x=hits_true,
             mu=hits_pred,
             alpha=dom_charges_alpha,
+            add_normalization_term=self.configuration.config[
+                'config']['add_normalization_term'],
         )
 
         # throw error if this is being used with time window exclusions
@@ -1062,6 +1064,8 @@ class DefaultLossModule(BaseComponent):
             x=event_charges_true,
             mu=event_charges_pred,
             alpha=event_charges_alpha,
+            add_normalization_term=self.configuration.config[
+                'config']['add_normalization_term'],
         )
 
         if sort_loss_terms:

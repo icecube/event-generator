@@ -181,7 +181,7 @@ data_iterator_settings: {
         'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
-            # Snowstorm EM datasets
+            # Snowstorm EM datasets  (HL: [[-1., 1.], [-0.2, 0.2]])
             # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data_v02__with_slc_deadtime/datasets/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
 
@@ -192,7 +192,7 @@ data_iterator_settings: {
             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
             '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data_v02__with_slc_deadtime/datasets/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
 
-            # SnowStorm Mixed EM/Hadronic cascades
+            # SnowStorm Mixed EM/Hadronic cascades (HL: [[-0.65, 0.60], [-0.08, 0.08]])
             '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data_v02__with_slc_deadtime/datasets/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
             '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data_v02__with_slc_deadtime/datasets/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
             '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data_v02__with_slc_deadtime/datasets/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
