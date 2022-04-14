@@ -2,7 +2,7 @@ from icecube import icetray
 
 from egenerator.ic3.reconstruction import EventGeneratorReconstruction
 from egenerator.ic3.visualization import EventGeneratorVisualizeBestFit
-from egenerator.ic3.utils import exclusions, bright_doms
+from egenerator.utils.ic3 import exclusions, bright_doms
 
 
 @icetray.traysegment
