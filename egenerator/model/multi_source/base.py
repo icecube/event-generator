@@ -375,7 +375,7 @@ class MultiSource(Source):
                 # a specific DOM. We will need to re-normalize, once everything
                 # from all sources is there at a particular DOM.
                 pulse_cdf_exclusion = tf.gather_nd(
-                    dom_cdf_exclusion_sum_i, pulses_ids)
+                    tf.squeeze(dom_cdf_exclusion_sum_i, axis=-1), pulses_ids)
                 pulse_pdf_i *= (1. - pulse_cdf_exclusion + 1e-3)
 
             # accumulate charge
@@ -425,7 +425,7 @@ class MultiSource(Source):
 
             # Also re-normalize PDF for exclusions if present
             pulse_cdf_exclusion = tf.gather_nd(
-                dom_cdf_exclusion_sum, pulses_ids)
+                tf.squeeze(dom_cdf_exclusion_sum, axis=-1), pulses_ids)
             result_tensors['pulse_pdf'] /= (1. - pulse_cdf_exclusion + 1e-3)
 
         return result_tensors
