@@ -290,7 +290,8 @@ class DefaultNoiseModel(Source):
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
-            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
+            pulse_cdf_exclusion = tf.gather_nd(
+                dom_cdf_exclusion_sum, pulses_ids)
             pulse_pdf /= tf.squeeze(1. - pulse_cdf_exclusion + 1e-3, axis=-1)
 
         # add tensors to tensor dictionary
@@ -304,7 +305,6 @@ class DefaultNoiseModel(Source):
         tensor_dict['pulse_pdf'] = pulse_pdf
 
         if time_exclusions_exist:
-            tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
         # -------------------------------------------
 
@@ -385,10 +385,11 @@ class DefaultNoiseModel(Source):
         livetime = time_window[..., 1] - time_window[..., 0]
 
         # Shape: [n_events, 86, 60, 1]
-        if 'dom_cdf_exclusion' in result_tensors:
-            dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
+        if 'dom_cdf_exclusion_sum' in result_tensors:
+            dom_cdf_exclusion_sum = result_tensors[
+                'dom_cdf_exclusion_sum'].numpy()
         else:
-            dom_cdf_exclusion = np.zeros((len(time_window), 86, 60, 1))
+            dom_cdf_exclusion_sum = np.zeros((len(time_window), 86, 60, 1))
 
         # shape: [n_events, 1, 1, n_points]
         t_end = np.where(
@@ -400,7 +401,7 @@ class DefaultNoiseModel(Source):
         # Shape: [n_events, 86, 60, n_points]
         cdf_values = (
             (t_end - time_window[..., 0])
-            / livetime / (1. - dom_cdf_exclusion + 1e-3)
+            / livetime / (1. - dom_cdf_exclusion_sum + 1e-3)
         )
 
         # apply time window exclusions:
@@ -438,7 +439,8 @@ class DefaultNoiseModel(Source):
                 # Shape: [n_points]
                 cdf_excluded = (
                     (t_eval[:, 1] - t_eval[:, 0]) / livetime[ids[0], 0, 0, 0]
-                    / (1. - dom_cdf_exclusion[ids[0], ids[1], ids[2]] + 1e-3)
+                    / (1. - dom_cdf_exclusion_sum[ids[0], ids[1], ids[2]]
+                        + 1e-3)
                 )
 
                 # subtract excluded region
@@ -532,13 +534,14 @@ class DefaultNoiseModel(Source):
         time_window = np.reshape(time_window, [-1, 1, 1, 1, 2])
 
         # Shape: [n_events, 86, 60, 1]
-        if 'dom_cdf_exclusion' in result_tensors:
-            dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
+        if 'dom_cdf_exclusion_sum' in result_tensors:
+            dom_cdf_exclusion_sum = result_tensors[
+                'dom_cdf_exclusion_sum'].numpy()
         else:
-            dom_cdf_exclusion = np.zeros((len(time_window), 86, 60, 1))
+            dom_cdf_exclusion_sum = np.zeros((len(time_window), 86, 60, 1))
 
         # Shape: [n_events, 86, 60, 1]
-        pdf_values = pdf_constant / (1. - dom_cdf_exclusion + 1e-3)
+        pdf_values = pdf_constant / (1. - dom_cdf_exclusion_sum + 1e-3)
 
         # Shape: [n_events, 86, 60, n_points]
         pdf_values = np.tile(pdf_values, reps=(1, 1, 1, n_points))

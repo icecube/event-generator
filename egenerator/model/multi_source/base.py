@@ -371,6 +371,13 @@ class MultiSource(Source):
                     raise ValueError(msg.format(
                         name, base, dom_cdf_exclusion_sum_i.shape))
 
+                # undo re-normalization of PDF for the individual source at
+                # a specific DOM. We will need to re-normalize, once everything
+                # from all sources is there at a particular DOM.
+                pulse_cdf_exclusion = tf.gather_nd(
+                    dom_cdf_exclusion_sum_i, pulses_ids)
+                pulse_pdf_i *= (1. - pulse_cdf_exclusion + 1e-3)
+
             # accumulate charge
             # (assumes that sources are linear and independent)
             if dom_charges is None:
@@ -415,6 +422,11 @@ class MultiSource(Source):
             dom_cdf_exclusion_sum /= dom_charges
 
             result_tensors['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
+
+            # Also re-normalize PDF for exclusions if present
+            pulse_cdf_exclusion = tf.gather_nd(
+                dom_cdf_exclusion_sum, pulses_ids)
+            result_tensors['pulse_pdf'] /= (1. - pulse_cdf_exclusion + 1e-3)
 
         return result_tensors
 

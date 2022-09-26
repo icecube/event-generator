@@ -520,7 +520,6 @@ class DefaultCascadeModel(Source):
                         dom_cdf_exclusion_sum, 0., 1.)
                 )
 
-            tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
             tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
 
         # -------------------------------------------
@@ -689,7 +688,8 @@ class DefaultCascadeModel(Source):
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
-            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
+            pulse_cdf_exclusion = tf.gather_nd(
+                dom_cdf_exclusion_sum, pulses_ids)
             pulse_latent_scale /= (1. - pulse_cdf_exclusion + 1e-3)
 
         # ensure shapes
