@@ -290,9 +290,10 @@ class DefaultNoiseModel(Source):
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
-            pulse_cdf_exclusion = tf.gather_nd(
-                dom_cdf_exclusion_sum, pulses_ids)
-            pulse_pdf /= tf.squeeze(1. - pulse_cdf_exclusion + 1e-3, axis=-1)
+            # shape: [n_pulses, 1] --> squeeze --> [n_pulses]
+            pulse_cdf_exclusion = tf.squeeze(tf.gather_nd(
+                dom_cdf_exclusion_sum, pulses_ids), axis=1)
+            pulse_pdf /= (1. - pulse_cdf_exclusion + 1e-3)
 
         # add tensors to tensor dictionary
         tensor_dict['time_offsets'] = None
