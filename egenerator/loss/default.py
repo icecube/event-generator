@@ -1149,7 +1149,7 @@ class DefaultLossModule(BaseComponent):
         """
 
         # underneath 5e-5 the log_negative_binomial function becomes unstable
-        eps = 5e-5
+        eps = 1e-7
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
 
@@ -1158,13 +1158,6 @@ class DefaultLossModule(BaseComponent):
         hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
         dom_charges_variance = tf.squeeze(
             result_tensors['dom_charges_variance'], axis=-1)
-
-        # shape: [n_batch, 1, 1]
-        event_total = tf.reduce_sum(hits_pred, axis=[1, 2], keepdims=True)
-
-        # shape: [n_batch, 86, 60]
-        dom_pdf = hits_pred / event_total
-        llh_dom = hits_true * tf.math.log(dom_pdf + eps)
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -1176,12 +1169,22 @@ class DefaultLossModule(BaseComponent):
             )
 
         # mask out dom exclusions
+        # Note that this needs to be done prior to computing `event_total`
+        # such that the PDF is properly normalized over active DOMs
         if ('x_dom_exclusions' in tensors.names and
                 tensors.list[tensors.get_index('x_dom_exclusions')].exists):
             mask_valid = tf.cast(
                 tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
                 dtype=dtype)
-            llh_dom = llh_dom * mask_valid
+            hits_true = hits_true * mask_valid
+            hits_pred = hits_pred * mask_valid
+
+        # shape: [n_batch, 1, 1]
+        event_total = tf.reduce_sum(hits_pred, axis=[1, 2], keepdims=True)
+
+        # shape: [n_batch, 86, 60]
+        dom_pdf = hits_pred / event_total
+        llh_dom = hits_true * tf.math.log(dom_pdf + eps)
 
         if sort_loss_terms:
             loss_terms = [
