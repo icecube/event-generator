@@ -225,7 +225,7 @@ class VisualizePulseLikelihood:
 
     def plot_meta_data(
             self, ax, event_header, reco_result,
-            event_charge=None, max_params=9, fontsize=8):
+            event_charge=None, max_params=9, fontsize=8, max_width=15):
         """Plot Event Meta Data
 
         Parameters
@@ -243,6 +243,8 @@ class VisualizePulseLikelihood:
             Maximum number of best fit parameters to display.
         fontsize : float, optional
             The font size for the meta data.
+        max_width : int, optional
+            Defines how wide the text box will be (2*max_width).
         """
         ax.axis('off')
 
@@ -259,7 +261,6 @@ class VisualizePulseLikelihood:
             textstr += 'Event Charge: {:3.1f} PE\n'.format(event_charge)
 
         textstr += 'Best Fit Parameters:\n'
-        max_width = 15
         for i, param in enumerate(
                 self.manager.models[0].parameter_names[:max_params]):
 
@@ -274,7 +275,7 @@ class VisualizePulseLikelihood:
         red_key = self.reco_key.replace('EventGenerator_', '')
         reco_len = len(red_key)
         index = 0
-        step_size = 30
+        step_size = 2 * max_width
         while index < reco_len:
             textstr += '{}\n'.format(red_key[index:index+step_size])
             index += step_size
