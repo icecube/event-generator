@@ -225,7 +225,7 @@ class VisualizePulseLikelihood:
 
     def plot_meta_data(
             self, ax, event_header, reco_result,
-            event_charge=None, max_params=9):
+            event_charge=None, max_params=9, fontsize=8):
         """Plot Event Meta Data
 
         Parameters
@@ -241,6 +241,8 @@ class VisualizePulseLikelihood:
             If provided, the total event charge will be displayed.
         max_params : int, optional
             Maximum number of best fit parameters to display.
+        fontsize : float, optional
+            The font size for the meta data.
         """
         ax.axis('off')
 
@@ -281,7 +283,7 @@ class VisualizePulseLikelihood:
             boxstyle='round', edgecolor='0.8', facecolor='white', alpha=0.5)
         ax.text(
             0.0, 1.0, textstr,
-            transform=ax.transAxes, fontsize=8,
+            transform=ax.transAxes, fontsize=fontsize,
             verticalalignment='top',
             horizontalalignment='left',
             bbox=props)
@@ -304,6 +306,7 @@ class VisualizePulseLikelihood:
             num_bins=30,
             figsize_scale_x=3,
             figsize_scale_y=3,
+            meta_data_kwargs={},
             ):
         """Crate DOM PDF plots
 
@@ -351,6 +354,8 @@ class VisualizePulseLikelihood:
             The figsize along the x-axis for an individual sub-plot.
         figsize_scale_y : float, optional
             The figsize along the y-axis for an individual sub-plot.
+        meta_data_kwargs : dict, optional
+            Additional kwargs passed on to `plot_meta_data`.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -399,6 +404,7 @@ class VisualizePulseLikelihood:
                 event_header=event_header,
                 reco_result=reco_result,
                 event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
+                **meta_data_kwargs
             )
             dom_axes = axes.ravel()[1:]
 
@@ -558,6 +564,7 @@ class VisualizePulseLikelihood:
             scale_by_charge=False,
             event_header=None,
             yscale='log',
+            meta_data_kwargs={},
             ):
         """Crate DOM CDF plots
 
@@ -599,6 +606,8 @@ class VisualizePulseLikelihood:
             If provided, the first axis will be used to display meta data.
         yscale : str, optional
             The scale of the y-axis.
+        meta_data_kwargs : dict, optional
+            Additional kwargs passed on to `plot_meta_data`.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -646,6 +655,7 @@ class VisualizePulseLikelihood:
                 event_header=event_header,
                 reco_result=reco_result,
                 event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
+                **meta_data_kwargs
             )
             dom_axes = axes.ravel()[1:]
 
