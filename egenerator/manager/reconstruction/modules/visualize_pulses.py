@@ -294,6 +294,7 @@ class VisualizePulseLikelihood:
             scale_by_charge=False,
             event_header=None,
             yscale='log',
+            num_bins=30,
             ):
         """Crate DOM PDF plots
 
@@ -335,6 +336,8 @@ class VisualizePulseLikelihood:
             If provided, the first axis will be used to display meta data.
         yscale : str, optional
             The scale of the y-axis.
+        num_bins : int, optional
+            The number of time bins to use for the pulse histogram.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -404,7 +407,7 @@ class VisualizePulseLikelihood:
             min_time, max_time = self.compute_time_range(
                 pulses, limit_charge_fraction=limit_charge_fraction)
 
-            pulse_bins = np.linspace(min_time, max_time, 30)
+            pulse_bins = np.linspace(min_time, max_time, num_bins)
             _pulse_bin_width = np.unique(np.diff(pulse_bins))
             pulse_bin_width = _pulse_bin_width[0]
             assert np.allclose(
