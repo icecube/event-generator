@@ -37,11 +37,13 @@ class VisualizePulseLikelihood:
             filled via str.format(). This includes a counter `event_counter`
             as well as any information that is passed via the `event_header`
             to the tray.execute() method.
+            If None, no PDF plot will be made.
         cdf_file_template : str, optional
             The file template for CDF plots. Available parameters that are
             filled via str.format(). This includes a counter `event_counter`
             as well as any information that is passed via the `event_header`
             to the tray.execute() method.
+            If None, no CDF plot will be made.
         n_doms_x : int, optional
             The number of DOMs to plot along the x-axis.
             Total number of plotted DOMs is `n_doms_x` * `n_doms_y`.
@@ -184,34 +186,39 @@ class VisualizePulseLikelihood:
         format_cfg = {'event_counter': self.event_counter}
         format_cfg.update(dict(event_header))
 
-        pdf_file_name = os.path.join(
-            self.output_dir, self.pdf_file_template.format(**format_cfg))
-        cdf_file_name = os.path.join(
-            self.output_dir, self.cdf_file_template.format(**format_cfg))
+        if self.pdf_file_template is not None:
+            pdf_file_name = os.path.join(
+                self.output_dir, self.pdf_file_template.format(**format_cfg))
 
-        self.plot_dom_pdf(
-            reco_result=reco_result,
-            data_batch_dict=data_batch_dict,
-            result_tensors=result_tensors,
-            losses=(loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
-            file_name=pdf_file_name,
-            n_doms_x=self.n_doms_x,
-            n_doms_y=self.n_doms_y,
-            event_header=event_header,
-            **self.dom_pdf_kwargs
-        )
+            self.plot_dom_pdf(
+                reco_result=reco_result,
+                data_batch_dict=data_batch_dict,
+                result_tensors=result_tensors,
+                losses=(
+                    loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
+                file_name=pdf_file_name,
+                n_doms_x=self.n_doms_x,
+                n_doms_y=self.n_doms_y,
+                event_header=event_header,
+                **self.dom_pdf_kwargs
+            )
 
-        self.plot_dom_cdf(
-            reco_result=reco_result,
-            data_batch_dict=data_batch_dict,
-            result_tensors=result_tensors,
-            losses=(loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
-            file_name=cdf_file_name,
-            n_doms_x=self.n_doms_x,
-            n_doms_y=self.n_doms_y,
-            event_header=event_header,
-            **self.dom_cdf_kwargs
-        )
+        if self.cdf_file_template is not None:
+            cdf_file_name = os.path.join(
+                self.output_dir, self.cdf_file_template.format(**format_cfg))
+
+            self.plot_dom_cdf(
+                reco_result=reco_result,
+                data_batch_dict=data_batch_dict,
+                result_tensors=result_tensors,
+                losses=(
+                    loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
+                file_name=cdf_file_name,
+                n_doms_x=self.n_doms_x,
+                n_doms_y=self.n_doms_y,
+                event_header=event_header,
+                **self.dom_cdf_kwargs
+            )
 
         self.event_counter += 1
         return {}
