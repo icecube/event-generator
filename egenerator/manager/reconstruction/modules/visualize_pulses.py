@@ -504,7 +504,7 @@ class VisualizePulseLikelihood:
             # -----------
             loss = loss_dom[string, dom]
             ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
-                string+1, dom+1, loss))
+                string+1, dom+1, -loss))
             ax.set_yscale('log')
             ax.set_xlabel('Time [ns]')
             if scale_by_charge:
@@ -742,7 +742,7 @@ class VisualizePulseLikelihood:
             # -----------
             loss = loss_dom[string, dom]
             ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
-                string+1, dom+1, loss))
+                string+1, dom+1, -loss))
             ax.set_yscale('log')
             ax.set_xlabel('Time [ns]')
             if scale_by_charge:
