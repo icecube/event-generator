@@ -302,6 +302,8 @@ class VisualizePulseLikelihood:
             event_header=None,
             yscale='log',
             num_bins=30,
+            figsize_scale_x=3,
+            figsize_scale_y=3,
             ):
         """Crate DOM PDF plots
 
@@ -345,6 +347,10 @@ class VisualizePulseLikelihood:
             The scale of the y-axis.
         num_bins : int, optional
             The number of time bins to use for the pulse histogram.
+        figsize_scale_x : float, optional
+            The figsize along the x-axis for an individual sub-plot.
+        figsize_scale_y : float, optional
+            The figsize along the y-axis for an individual sub-plot.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -382,7 +388,8 @@ class VisualizePulseLikelihood:
             doms_zb.append(flat_index % 60)
 
         fig, axes = plt.subplots(
-            n_doms_y, n_doms_x, figsize=(3*n_doms_x, 3*n_doms_y))
+            n_doms_y, n_doms_x,
+            figsize=(figsize_scale_x*n_doms_x, figsize_scale_y*n_doms_y))
 
         if event_header is None:
             dom_axes = axes.ravel()
