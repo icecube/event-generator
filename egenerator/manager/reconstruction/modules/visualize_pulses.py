@@ -15,6 +15,8 @@ class VisualizePulseLikelihood:
                  n_doms_x=5,
                  n_doms_y=5,
                  parameter_tensor_name='x_parameters',
+                 dom_pdf_kwargs={},
+                 dom_cdf_kwargs={},
                  ):
         """Initialize module and setup tensorflow functions.
 
@@ -48,6 +50,10 @@ class VisualizePulseLikelihood:
             Total number of plotted DOMs is `n_doms_x` * `n_doms_y`.
         parameter_tensor_name : str, optional
             Description
+        dom_pdf_kwargs : dict, optional
+            Additional keyword arguments passed on to `plot_dom_pdf`.
+        dom_cdf_kwargs : dict, optional
+            Additional keyword arguments passed on to `plot_dom_cdf`.
         """
 
         # store settings
@@ -60,6 +66,8 @@ class VisualizePulseLikelihood:
         self.n_doms_x = n_doms_x
         self.n_doms_y = n_doms_y
         self.parameter_tensor_name = parameter_tensor_name
+        self.dom_pdf_kwargs = dom_pdf_kwargs
+        self.dom_cdf_kwargs = dom_cdf_kwargs
 
         if not os.path.exists(output_dir):
             print('Creating output directory: {}'.format(output_dir))
@@ -190,6 +198,7 @@ class VisualizePulseLikelihood:
             n_doms_x=self.n_doms_x,
             n_doms_y=self.n_doms_y,
             event_header=event_header,
+            **self.dom_pdf_kwargs
         )
 
         self.plot_dom_cdf(
@@ -201,6 +210,7 @@ class VisualizePulseLikelihood:
             n_doms_x=self.n_doms_x,
             n_doms_y=self.n_doms_y,
             event_header=event_header,
+            **self.dom_cdf_kwargs
         )
 
         self.event_counter += 1
