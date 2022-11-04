@@ -456,6 +456,7 @@ class VisualizePulseLikelihood:
                     if scale_by_charge:
                         plot_values = (
                             pdf_i_comp * charge_values[event, string, dom]
+                            * pulse_bin_width
                         )
                     else:
                         plot_values = pdf_i_comp
