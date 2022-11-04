@@ -77,6 +77,12 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
             'n_doms_x', 'Number of DOMs to plot along x-axis.', 5)
         self.AddParameter(
             'n_doms_y', 'Number of DOMs to plot along y-axis.', 5)
+        self.AddParameter(
+            'dom_pdf_kwargs',
+            'Additional keyword arguments passed on to `plot_dom_pdf`.', {})
+        self.AddParameter(
+            'dom_cdf_kwargs',
+            'Additional keyword arguments passed on to `plot_dom_cdf`.', {})
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -91,6 +97,8 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         self.num_threads = self.GetParameter('num_threads')
         self.n_doms_x = self.GetParameter('n_doms_x')
         self.n_doms_y = self.GetParameter('n_doms_y')
+        self.dom_pdf_kwargs = self.GetParameter('dom_pdf_kwargs')
+        self.dom_cdf_kwargs = self.GetParameter('dom_cdf_kwargs')
 
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
@@ -158,6 +166,8 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
             n_doms_y=self.n_doms_y,
             pdf_file_template='dom_pdf_{run_id:06d}_{event_id:06d}.png',
             cdf_file_template='dom_cdf_{run_id:06d}_{event_id:06d}.png',
+            dom_pdf_kwargs=self.dom_pdf_kwargs,
+            dom_cdf_kwargs=self.dom_cdf_kwargs,
         )
 
     def Physics(self, frame):
