@@ -293,6 +293,7 @@ class VisualizePulseLikelihood:
             limit_y_range=True,
             scale_by_charge=False,
             event_header=None,
+            yscale='log',
             ):
         """Crate DOM PDF plots
 
@@ -332,6 +333,8 @@ class VisualizePulseLikelihood:
             is shown, rather than the normalized PDF.
         event_header : dict, optional
             If provided, the first axis will be used to display meta data.
+        yscale : str, optional
+            The scale of the y-axis.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -506,7 +509,7 @@ class VisualizePulseLikelihood:
             loss = loss_dom[string, dom]
             ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
                 string+1, dom+1, -loss))
-            ax.set_yscale('log')
+            ax.set_yscale(yscale)
             ax.set_xlabel('Time [ns]')
             if scale_by_charge:
                 ax.set_ylabel('Charge per bin [PE/{:3.0f}ns]'.format(
@@ -537,6 +540,7 @@ class VisualizePulseLikelihood:
             limit_y_range=True,
             scale_by_charge=False,
             event_header=None,
+            yscale='log',
             ):
         """Crate DOM CDF plots
 
@@ -576,6 +580,8 @@ class VisualizePulseLikelihood:
             is shown, rather than the normalized CDF.
         event_header : dict, optional
             If provided, the first axis will be used to display meta data.
+        yscale : str, optional
+            The scale of the y-axis.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -744,7 +750,7 @@ class VisualizePulseLikelihood:
             loss = loss_dom[string, dom]
             ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
                 string+1, dom+1, -loss))
-            ax.set_yscale('log')
+            ax.set_yscale(yscale)
             ax.set_xlabel('Time [ns]')
             if scale_by_charge:
                 ax.set_ylabel('Cumulative Charge')
