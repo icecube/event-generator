@@ -184,7 +184,8 @@ class VisualizePulseLikelihood:
         )
 
         format_cfg = {'event_counter': self.event_counter}
-        format_cfg.update(dict(event_header))
+        if event_header is not None:
+            format_cfg.update(dict(event_header))
 
         if self.pdf_file_template is not None:
             pdf_file_name = os.path.join(
