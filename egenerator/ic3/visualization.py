@@ -93,6 +93,8 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
             'The file template name to which the CDF will be saved to',
             'dom_cdf_{run_id:06d}_{event_id:06d}.png'
         )
+        self.AddParameter(
+            'add_event_header', 'Add event information.', True)
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -111,6 +113,7 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         self.cdf_file_template = self.GetParameter('cdf_file_template')
         self.dom_pdf_kwargs = self.GetParameter('dom_pdf_kwargs')
         self.dom_cdf_kwargs = self.GetParameter('dom_cdf_kwargs')
+        self.add_event_header = self.GetParameter('add_event_header')
 
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
@@ -196,7 +199,7 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         assert n == 1, "Currently only 1-event at a time is supported"
 
         # collect event meta data
-        if 'I3EventHeader' in frame:
+        if 'I3EventHeader' in frame and self.add_event_header:
             header = frame['I3EventHeader']
             event_header = {
                 'run_id': header.run_id,
