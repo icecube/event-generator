@@ -15,6 +15,8 @@ class VisualizePulseLikelihood:
                  n_doms_x=5,
                  n_doms_y=5,
                  parameter_tensor_name='x_parameters',
+                 dom_pdf_kwargs={},
+                 dom_cdf_kwargs={},
                  ):
         """Initialize module and setup tensorflow functions.
 
@@ -35,11 +37,13 @@ class VisualizePulseLikelihood:
             filled via str.format(). This includes a counter `event_counter`
             as well as any information that is passed via the `event_header`
             to the tray.execute() method.
+            If None, no PDF plot will be made.
         cdf_file_template : str, optional
             The file template for CDF plots. Available parameters that are
             filled via str.format(). This includes a counter `event_counter`
             as well as any information that is passed via the `event_header`
             to the tray.execute() method.
+            If None, no CDF plot will be made.
         n_doms_x : int, optional
             The number of DOMs to plot along the x-axis.
             Total number of plotted DOMs is `n_doms_x` * `n_doms_y`.
@@ -48,6 +52,10 @@ class VisualizePulseLikelihood:
             Total number of plotted DOMs is `n_doms_x` * `n_doms_y`.
         parameter_tensor_name : str, optional
             Description
+        dom_pdf_kwargs : dict, optional
+            Additional keyword arguments passed on to `plot_dom_pdf`.
+        dom_cdf_kwargs : dict, optional
+            Additional keyword arguments passed on to `plot_dom_cdf`.
         """
 
         # store settings
@@ -60,6 +68,8 @@ class VisualizePulseLikelihood:
         self.n_doms_x = n_doms_x
         self.n_doms_y = n_doms_y
         self.parameter_tensor_name = parameter_tensor_name
+        self.dom_pdf_kwargs = dom_pdf_kwargs
+        self.dom_cdf_kwargs = dom_cdf_kwargs
 
         if not os.path.exists(output_dir):
             print('Creating output directory: {}'.format(output_dir))
@@ -174,41 +184,49 @@ class VisualizePulseLikelihood:
         )
 
         format_cfg = {'event_counter': self.event_counter}
-        format_cfg.update(dict(event_header))
+        if event_header is not None:
+            format_cfg.update(dict(event_header))
 
-        pdf_file_name = os.path.join(
-            self.output_dir, self.pdf_file_template.format(**format_cfg))
-        cdf_file_name = os.path.join(
-            self.output_dir, self.cdf_file_template.format(**format_cfg))
+        if self.pdf_file_template is not None:
+            pdf_file_name = os.path.join(
+                self.output_dir, self.pdf_file_template.format(**format_cfg))
 
-        self.plot_dom_pdf(
-            reco_result=reco_result,
-            data_batch_dict=data_batch_dict,
-            result_tensors=result_tensors,
-            losses=(loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
-            file_name=pdf_file_name,
-            n_doms_x=self.n_doms_x,
-            n_doms_y=self.n_doms_y,
-            event_header=event_header,
-        )
+            self.plot_dom_pdf(
+                reco_result=reco_result,
+                data_batch_dict=data_batch_dict,
+                result_tensors=result_tensors,
+                losses=(
+                    loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
+                file_name=pdf_file_name,
+                n_doms_x=self.n_doms_x,
+                n_doms_y=self.n_doms_y,
+                event_header=event_header,
+                **self.dom_pdf_kwargs
+            )
 
-        self.plot_dom_cdf(
-            reco_result=reco_result,
-            data_batch_dict=data_batch_dict,
-            result_tensors=result_tensors,
-            losses=(loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
-            file_name=cdf_file_name,
-            n_doms_x=self.n_doms_x,
-            n_doms_y=self.n_doms_y,
-            event_header=event_header,
-        )
+        if self.cdf_file_template is not None:
+            cdf_file_name = os.path.join(
+                self.output_dir, self.cdf_file_template.format(**format_cfg))
+
+            self.plot_dom_cdf(
+                reco_result=reco_result,
+                data_batch_dict=data_batch_dict,
+                result_tensors=result_tensors,
+                losses=(
+                    loss_scalar.numpy(), loss_event.numpy(), loss_dom.numpy()),
+                file_name=cdf_file_name,
+                n_doms_x=self.n_doms_x,
+                n_doms_y=self.n_doms_y,
+                event_header=event_header,
+                **self.dom_cdf_kwargs
+            )
 
         self.event_counter += 1
         return {}
 
     def plot_meta_data(
             self, ax, event_header, reco_result,
-            event_charge=None, max_params=9):
+            event_charge=None, max_params=9, fontsize=8, max_width=15):
         """Plot Event Meta Data
 
         Parameters
@@ -224,6 +242,10 @@ class VisualizePulseLikelihood:
             If provided, the total event charge will be displayed.
         max_params : int, optional
             Maximum number of best fit parameters to display.
+        fontsize : float, optional
+            The font size for the meta data.
+        max_width : int, optional
+            Defines how wide the text box will be (2*max_width).
         """
         ax.axis('off')
 
@@ -240,7 +262,6 @@ class VisualizePulseLikelihood:
             textstr += 'Event Charge: {:3.1f} PE\n'.format(event_charge)
 
         textstr += 'Best Fit Parameters:\n'
-        max_width = 15
         for i, param in enumerate(
                 self.manager.models[0].parameter_names[:max_params]):
 
@@ -255,7 +276,7 @@ class VisualizePulseLikelihood:
         red_key = self.reco_key.replace('EventGenerator_', '')
         reco_len = len(red_key)
         index = 0
-        step_size = 30
+        step_size = 2 * max_width
         while index < reco_len:
             textstr += '{}\n'.format(red_key[index:index+step_size])
             index += step_size
@@ -264,7 +285,7 @@ class VisualizePulseLikelihood:
             boxstyle='round', edgecolor='0.8', facecolor='white', alpha=0.5)
         ax.text(
             0.0, 1.0, textstr,
-            transform=ax.transAxes, fontsize=8,
+            transform=ax.transAxes, fontsize=fontsize,
             verticalalignment='top',
             horizontalalignment='left',
             bbox=props)
@@ -283,6 +304,11 @@ class VisualizePulseLikelihood:
             limit_y_range=True,
             scale_by_charge=False,
             event_header=None,
+            yscale='log',
+            num_bins=30,
+            figsize_scale_x=3,
+            figsize_scale_y=3,
+            meta_data_kwargs={},
             ):
         """Crate DOM PDF plots
 
@@ -322,6 +348,16 @@ class VisualizePulseLikelihood:
             is shown, rather than the normalized PDF.
         event_header : dict, optional
             If provided, the first axis will be used to display meta data.
+        yscale : str, optional
+            The scale of the y-axis.
+        num_bins : int, optional
+            The number of time bins to use for the pulse histogram.
+        figsize_scale_x : float, optional
+            The figsize along the x-axis for an individual sub-plot.
+        figsize_scale_y : float, optional
+            The figsize along the y-axis for an individual sub-plot.
+        meta_data_kwargs : dict, optional
+            Additional kwargs passed on to `plot_meta_data`.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -359,7 +395,8 @@ class VisualizePulseLikelihood:
             doms_zb.append(flat_index % 60)
 
         fig, axes = plt.subplots(
-            n_doms_y, n_doms_x, figsize=(3*n_doms_x, 3*n_doms_y))
+            n_doms_y, n_doms_x,
+            figsize=(figsize_scale_x*n_doms_x, figsize_scale_y*n_doms_y))
 
         if event_header is None:
             dom_axes = axes.ravel()
@@ -369,6 +406,7 @@ class VisualizePulseLikelihood:
                 event_header=event_header,
                 reco_result=reco_result,
                 event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
+                **meta_data_kwargs
             )
             dom_axes = axes.ravel()[1:]
 
@@ -391,7 +429,7 @@ class VisualizePulseLikelihood:
             min_time, max_time = self.compute_time_range(
                 pulses, limit_charge_fraction=limit_charge_fraction)
 
-            pulse_bins = np.linspace(min_time, max_time, 30)
+            pulse_bins = np.linspace(min_time, max_time, num_bins)
             _pulse_bin_width = np.unique(np.diff(pulse_bins))
             pulse_bin_width = _pulse_bin_width[0]
             assert np.allclose(
@@ -446,6 +484,7 @@ class VisualizePulseLikelihood:
                     if scale_by_charge:
                         plot_values = (
                             pdf_i_comp * charge_values[event, string, dom]
+                            * pulse_bin_width
                         )
                     else:
                         plot_values = pdf_i_comp
@@ -462,7 +501,7 @@ class VisualizePulseLikelihood:
             pdf_i = pdf[event, string, dom]
             if scale_by_charge:
                 plot_values = (
-                    pdf_i * charge_values[event, string, dom]
+                    pdf_i * charge_values[event, string, dom] * pulse_bin_width
                 )
             else:
                 plot_values = pdf_i
@@ -494,8 +533,8 @@ class VisualizePulseLikelihood:
             # -----------
             loss = loss_dom[string, dom]
             ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
-                string+1, dom+1, loss))
-            ax.set_yscale('log')
+                string+1, dom+1, -loss))
+            ax.set_yscale(yscale)
             ax.set_xlabel('Time [ns]')
             if scale_by_charge:
                 ax.set_ylabel('Charge per bin [PE/{:3.0f}ns]'.format(
@@ -526,6 +565,8 @@ class VisualizePulseLikelihood:
             limit_y_range=True,
             scale_by_charge=False,
             event_header=None,
+            yscale='log',
+            meta_data_kwargs={},
             ):
         """Crate DOM CDF plots
 
@@ -565,6 +606,10 @@ class VisualizePulseLikelihood:
             is shown, rather than the normalized CDF.
         event_header : dict, optional
             If provided, the first axis will be used to display meta data.
+        yscale : str, optional
+            The scale of the y-axis.
+        meta_data_kwargs : dict, optional
+            Additional kwargs passed on to `plot_meta_data`.
         """
         from matplotlib import pyplot as plt
         import itertools
@@ -612,6 +657,7 @@ class VisualizePulseLikelihood:
                 event_header=event_header,
                 reco_result=reco_result,
                 event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
+                **meta_data_kwargs
             )
             dom_axes = axes.ravel()[1:]
 
@@ -732,8 +778,8 @@ class VisualizePulseLikelihood:
             # -----------
             loss = loss_dom[string, dom]
             ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
-                string+1, dom+1, loss))
-            ax.set_yscale('log')
+                string+1, dom+1, -loss))
+            ax.set_yscale(yscale)
             ax.set_xlabel('Time [ns]')
             if scale_by_charge:
                 ax.set_ylabel('Cumulative Charge')
