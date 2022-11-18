@@ -1314,7 +1314,7 @@ class SourceManager(BaseModelManager):
 
         """
 
-        num_params = np.sum(fit_parameter_list)
+        num_params = np.sum(fit_parameter_list, dtype=int)
         assert initial_position.shape[1] == num_params
         initial_position = tf.ensure_shape(initial_position,
                                            [num_chains, num_params])

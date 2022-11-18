@@ -84,6 +84,9 @@ class MarkovChainMonteCarlo:
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=self.param_dtype)
+        param_signature_full = tf.TensorSpec(
+            shape=[None, len(fit_parameter_list)],
+            dtype=param_dtype)
 
         data_batch_signature = manager.data_handler.get_data_set_signature()
 
@@ -145,9 +148,6 @@ class MarkovChainMonteCarlo:
         TYPE
             Description
         """
-
-        num_params = len(self.fit_parameter_list)
-
         # get seed: either from seed tensor or from previous results
         if 'result' in results[self.reco_key]:
             # this is a previous reconstruction result
