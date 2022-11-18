@@ -195,7 +195,8 @@ class MarkovChainMonteCarlo:
             step_size = steps[0][0]
             if self.minimize_in_trafo_space:
                 step_size *= self.manager.data_trafo.data[
-                                        self.parameter_tensor_name+'_std']
+                    self.parameter_tensor_name+'_std'][
+                        self.fit_parameter_list]
 
         num_accepted = np.sum(accepted)
         num_samples = samples.shape[0] * samples.shape[1]
