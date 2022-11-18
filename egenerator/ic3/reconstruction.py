@@ -81,6 +81,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'the posterior for the sampling, otherwise the '
                           'samples will simply be set to the best fit point.',
                           False)
+        self.AddParameter('add_mcmc_samples',
+                          'Add samples from a Markov-Chain-Monte-Carlo. '
+                          'Settings for MCMC are defined in key '
+                          '`mcmc_settings`.'
+                          False)
         self.AddParameter('label_key',
                           'Only relevant if labels are being loaded. '
                           'The key from which to load labels.',
@@ -162,6 +167,17 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                               'add_per_dom_calculation': True,
                               'normalize_by_total_charge': False,
                           })
+        self.AddParameter('mcmc_settings',
+                          'Only relevant if `add_mcmc_samples` is set '
+                          ' to "True". Defines settings for MCMC sampling.',
+                          {
+                            'mcmc_num_chains': 10,
+                            'mcmc_method': 'HamiltonianMonteCarlo',
+                            'mcmc_num_results': 1000,
+                            'mcmc_num_burnin_steps': 100,
+                            'mcmc_num_steps_between_results': 0,
+                            'mcmc_num_parallel_iterations': 1,
+                          })
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -176,6 +192,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.add_circular_err = self.GetParameter('add_circular_err')
         self.add_covariances = self.GetParameter('add_covariances')
         self.add_goodness_of_fit = self.GetParameter('add_goodness_of_fit')
+        self.add_mcmc_samples = self.GetParameter('add_mcmc_samples')
         self.label_key = self.GetParameter('label_key')
         self.snowstorm_key = self.GetParameter('snowstorm_key')
         self.num_threads = self.GetParameter('num_threads')
@@ -195,6 +212,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.tf_optimizer_settings = self.GetParameter('tf_optimizer_settings')
         self.goodness_of_fit_settings = \
             self.GetParameter('goodness_of_fit_settings')
+        self.mcmc_settings = self.GetParameter('mcmc_settings')
 
         if 'reconstruct_samples' not in self.goodness_of_fit_settings:
             self.goodness_of_fit_settings['reconstruct_samples'] = True
@@ -360,6 +378,19 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 scipy_optimizer_settings=self.scipy_optimizer_settings,
             )
 
+        # add MCMC
+        if self.add_mcmc_samples:
+            self.reco_tray.add_module(
+                'MarkovChainMonteCarlo',
+                name='MarkovChainMonteCarlo',
+                fit_parameter_list=fit_parameter_list,
+                seed_tensor_name='reco',
+                reco_key='reco',
+                minimize_in_trafo_space=self.minimize_in_trafo_space,
+                parameter_tensor_name=parameter_tensor_name,
+                **self.mcmc_settings
+            )
+
     def Physics(self, frame):
         """Apply Event-Generator model to physics frames.
 
@@ -483,6 +514,23 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 results['CircularizedAngularUncertainty']['circular_unc'])
             result_dict['runtime_circular_err'] = float(
                 results['CircularizedAngularUncertainty']['runtime'])
+
+        # write MCMC samples to frame
+        if self.add_mcmc_samples:
+            mcmc_res = results['MarkovChainMonteCarlo']
+            num_accepted = len(mcmc_res['log_prob_values'])
+
+            if num_accepted > 0:
+                # create vectors for output quantities
+                vectors = {}
+                for i, n in enumerate(self.manager.models[0].parameter_names):
+                    vectors[n] = dataclasses.I3VectorFloat(
+                        mcmc_res['samples'][i])
+                vectors['log_prob_values'] = dataclasses.I3VectorFloat(
+                    mcmc_res['log_prob_values'])
+
+            for n, vector in vectors.items():
+                frame[self.output_key + '_MCMC_' + n] = vector
 
         # save to frame
         frame[self.output_key] = result_dict

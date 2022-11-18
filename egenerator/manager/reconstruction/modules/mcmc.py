@@ -112,7 +112,6 @@ class MarkovChainMonteCarlo:
                 fit_parameter_list=fit_parameter_list,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 num_chains=mcmc_num_chains,
-                seed=seed_tensor_name,
                 method=mcmc_method,
                 num_results=mcmc_num_results,
                 num_burnin_steps=mcmc_num_burnin_steps,

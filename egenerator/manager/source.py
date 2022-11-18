@@ -1226,7 +1226,6 @@ class SourceManager(BaseModelManager):
                            fit_parameter_list,
                            minimize_in_trafo_space=True,
                            num_chains=1,
-                           seed=None,
                            num_results=100,
                            num_burnin_steps=100,
                            num_parallel_iterations=1,
@@ -1262,8 +1261,6 @@ class SourceManager(BaseModelManager):
             minimization.
         num_chains : int, optional
             Number of chains to run
-        seed : str, optional
-            Name of seed tensor
         num_results : int, optional
             The number of chain steps to perform after burnin phase.
         num_burnin_steps : int, optional
