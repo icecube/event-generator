@@ -2,6 +2,8 @@ import timeit
 import numpy as np
 import tensorflow as tf
 
+from egenerator.manager.reconstruction.modules.utils import trafo
+
 
 class MarkovChainMonteCarlo:
 
@@ -18,6 +20,7 @@ class MarkovChainMonteCarlo:
                  mcmc_num_parallel_iterations=1,
                  mcmc_method='HamiltonianMonteCarlo',
                  random_seed=42,
+                 verbose=True,
                  ):
         """Initialize module and setup tensorflow functions.
 
@@ -33,8 +36,13 @@ class MarkovChainMonteCarlo:
             Description
         seed_tensor_name : TYPE
             Description
-        minimize_in_trafo_space : bool, optional
+        reco_key : TYPE
             Description
+        minimize_in_trafo_space : bool, optional
+            If True, the MCMC is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            finding proper samples.
         parameter_tensor_name : str, optional
             Description
         mcmc_num_chains : int, optional
@@ -51,16 +59,10 @@ class MarkovChainMonteCarlo:
             HamiltonianMonteCarlo
             RandomWalkMetropolis
             NoUTurnSampler
-
-        Raises
-        ------
-        NotImplementedError
+        random_seed : int, optional
             Description
-
-        Deleted Parameters
-        ------------------
-        **settings
-            Description
+        verbose : bool, optional
+            If True, additional information will be printed to the console.
         """
 
         # store settings
@@ -70,6 +72,8 @@ class MarkovChainMonteCarlo:
         self.parameter_tensor_name = parameter_tensor_name
         self.mcmc_num_chains = mcmc_num_chains
         self.reco_key = reco_key
+        self.seed_tensor_name = seed_tensor_name
+        self.verbose = verbose
 
         # specify a random number generator for reproducibility
         self.rng = np.random.RandomState(random_seed)
@@ -80,16 +84,20 @@ class MarkovChainMonteCarlo:
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=self.param_dtype)
+        param_signature_full = tf.TensorSpec(
+            shape=[None, len(fit_parameter_list)],
+            dtype=self.param_dtype)
 
         data_batch_signature = manager.data_handler.get_data_set_signature()
 
         # get normal parameter loss function
         func_settings = dict(
-            input_signature=(param_signature, data_batch_signature),
+            input_signature=(
+                param_signature, data_batch_signature, param_signature_full),
             loss_module=loss_module,
             fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -102,8 +110,9 @@ class MarkovChainMonteCarlo:
                 **func_settings)
             function_cache.add(self.parameter_loss_function, func_settings)
 
-        @tf.function(input_signature=(param_signature, data_batch_signature))
-        def run_mcmc_on_events(initial_position, data_batch):
+        @tf.function(input_signature=(
+            param_signature, data_batch_signature, param_signature_full))
+        def run_mcmc_on_events(initial_position, data_batch, seed):
             return manager.run_mcmc_on_events(
                 initial_position=initial_position,
                 data_batch=data_batch,
@@ -112,13 +121,13 @@ class MarkovChainMonteCarlo:
                 fit_parameter_list=fit_parameter_list,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 num_chains=mcmc_num_chains,
-                seed=seed_tensor_name,
                 method=mcmc_method,
                 num_results=mcmc_num_results,
                 num_burnin_steps=mcmc_num_burnin_steps,
                 num_steps_between_results=mcmc_num_steps_between_results,
                 num_parallel_iterations=mcmc_num_parallel_iterations,
-                parameter_tensor_name=parameter_tensor_name)
+                parameter_tensor_name=parameter_tensor_name,
+                seed=seed)
 
         self.run_mcmc_on_events = run_mcmc_on_events
 
@@ -139,44 +148,38 @@ class MarkovChainMonteCarlo:
         TYPE
             Description
         """
-
-        num_params = len(self.fit_parameter_list)
-        result_inv = results[self.reco_key]['result']
+        # get seed: either from seed tensor or from previous results
+        if 'result' in results[self.reco_key]:
+            # this is a previous reconstruction result
+            result_inv = results[self.reco_key]['result']
+        else:
+            # this could be a seed tensor
+            result_inv = results[self.reco_key]
 
         assert len(result_inv) == 1
-        result_inv = result_inv[0]
 
-        # # 0, 1, 2,      3,       4,      5,    6
-        # # x, y, z, zenith, azimuth, energy, time
-        # scale = np.array([10., 10., 10., 0.2, 0.2, 0., 20.])
-        # scale = 0
-        # low = result_inv - scale
-        # high = result_inv + scale
-        # # low[3] = 0.0
-        # # low[4] = 0.0
-        # # high[3] = np.pi
-        # # high[4] = 2*np.pi
-        # low[5] *= 0.9
-        # high[5] *= 1.1
-        # initial_position = self.rng.uniform(
-        #     low=low, high=high, size=[self.mcmc_num_chains, num_params])
-        # initial_position = tf.convert_to_tensor(initial_position,
-        #                                         dtype=self.param_dtype)
-
-        # if self.minimize_in_trafo_space:
-        #     initial_position = self.manager.data_trafo.transform(
-        #                             data=initial_position,
-        #                             tensor_name=self.parameter_tensor_name)
-
-        initial_position = tf.reshape(
-            tf.convert_to_tensor(
-                np.tile(result_inv, [self.mcmc_num_chains, 1]),
-                dtype=self.param_dtype),
+        initial_position = np.reshape(
+            np.tile(result_inv[0], [self.mcmc_num_chains, 1]),
             [self.mcmc_num_chains, len(self.fit_parameter_list)])
-        print('initial_position', initial_position)
-        print('initial_position.shape', initial_position.shape)
+
+        if self.minimize_in_trafo_space:
+            initial_position = self.manager.data_trafo.transform(
+                                    data=initial_position,
+                                    tensor_name=self.parameter_tensor_name)
+
+        # get seed parameters
+        if np.all(self.fit_parameter_list):
+            initial_position = initial_position
+        else:
+            # get seed parameters
+            initial_position = initial_position[..., self.fit_parameter_list]
+
+        initial_position = tf.convert_to_tensor(
+            initial_position, dtype=self.param_dtype)
+
         mcmc_start_t = timeit.default_timer()
-        samples, trace = self.run_mcmc_on_events(initial_position, data_batch)
+        samples, trace = self.run_mcmc_on_events(
+            initial_position, data_batch, result_inv)
         mcmc_end_t = timeit.default_timer()
 
         samples = samples.numpy()
@@ -184,28 +187,47 @@ class MarkovChainMonteCarlo:
         log_prob_values = trace[1].numpy()
         if len(trace) > 2:
             steps = trace[2].numpy()
-            step_size = steps[0][0]
+            step_size_trafo = steps[0][0]
             if self.minimize_in_trafo_space:
-                step_size *= self.manager.data_trafo.data[
-                                        self.parameter_tensor_name+'_std']
+                step_size = step_size_trafo * self.manager.data_trafo.data[
+                    self.parameter_tensor_name+'_std'][
+                        self.fit_parameter_list]
+            else:
+                step_size = step_size_trafo
 
         num_accepted = np.sum(accepted)
         num_samples = samples.shape[0] * samples.shape[1]
+        acceptance_ratio = float(num_accepted) / num_samples
+
         samples = samples[accepted]
         log_prob_values = log_prob_values[accepted]
-        print('MCMC Results took {:3.3f}s:'.format(
-            mcmc_end_t - mcmc_start_t))
-        print('\tAcceptance Ratio: {:2.1f}%'.format(
-            (100. * num_accepted) / num_samples))
-        msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
-        if len(trace) > 2:
-            print('\tStepsize: ' + msg.format(*step_size))
-        msg = '{:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f}'
+
+        # invert possible transformation and put full hypothesis together
+        samples = trafo.get_reco_result_batch(
+            result_trafo=samples,
+            seed_tensor=np.tile(result_inv[0], [len(samples), 1]),
+            fit_parameter_list=self.fit_parameter_list,
+            minimize_in_trafo_space=self.minimize_in_trafo_space,
+            data_trafo=self.manager.data_trafo,
+            parameter_tensor_name=self.parameter_tensor_name)
+
+        if self.verbose:
+            print('MCMC Results took {:3.3f}s:'.format(
+                mcmc_end_t - mcmc_start_t))
+            print('\tAcceptance Ratio: {:2.1f}%'.format(100.*acceptance_ratio))
+            msg = ''
+            for s in step_size:
+                msg += '{:1.4f} '
+            if len(trace) > 2:
+                print('\tStepsize [sampled space]: ' + msg.format(
+                    *step_size_trafo))
+                print('\tStepsize [true space]: ' + msg.format(*step_size))
 
         # gather results
         results = {
             'samples': samples,
             'log_prob_values': log_prob_values,
+            'acceptance_ratio': acceptance_ratio,
         }
 
         return results
