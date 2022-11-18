@@ -560,12 +560,13 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     # create some dummy values so that we fill in NaNs
                     values = np.ones(10) * float('nan')
 
-                result_dict['MCMC_{}_median'.format(n)] = np.median(values)
+                result_dict['MCMC_{}_median'.format(n)] = float(
+                    np.median(values))
                 for q in self.mcmc_quantiles:
-                    result_dict['MCMC_{}_q{:3.3f}_lower'.format(n, q)] = \
-                        np.quantile(values, 0.5 - 0.5*q)
-                    result_dict['MCMC_{}_q{:3.3f}_upper'.format(n, q)] = \
-                        np.quantile(values, 0.5 + 0.5*q)
+                    result_dict['MCMC_{}_q{:3.3f}_lower'.format(n, q)] = float(
+                        np.quantile(values, 0.5 - 0.5*q))
+                    result_dict['MCMC_{}_q{:3.3f}_upper'.format(n, q)] = float(
+                        np.quantile(values, 0.5 + 0.5*q))
 
             if num_accepted > 0:
                 # create vectors for output quantities
