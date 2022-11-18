@@ -208,6 +208,9 @@ class MarkovChainMonteCarlo:
         print('samples post sel:', samples.shape)
         print('log_prob_values post sel:', log_prob_values.shape)
 
+        print('debug samples', samples.shape)
+        print('debug result_inv', result_inv.shape)
+        print('debug fit_parameter_list', self.fit_parameter_list)
         # invert possible transformation and put full hypothesis together
         samples = trafo.get_reco_result_batch(
             result_trafo=samples,
