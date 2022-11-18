@@ -1400,15 +1400,6 @@ class SourceManager(BaseModelManager):
                 kernel=adaptive_hmc,
                 trace_fn=trace_fn,
                 parallel_iterations=num_parallel_iterations)
-            # samples = tf.reshape(samples,
-            #                      [num_chains*num_results, num_params])
-            # if minimize_in_trafo_space:
-            #     samples = self.data_trafo.inverse_transform(
-            #         data=samples, tensor_name=parameter_tensor_name)
-
-            # samples = tf.reshape(samples,
-            #                      [num_results, num_chains, num_params])
-            print('runchaing samples.shape', samples.shape)
 
             return samples, trace
         return run_chain()

@@ -2,6 +2,8 @@ import timeit
 import numpy as np
 import tensorflow as tf
 
+from egenerator.manager.reconstruction.modules.utils import trafo
+
 
 class MarkovChainMonteCarlo:
 
