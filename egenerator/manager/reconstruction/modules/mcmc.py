@@ -155,10 +155,8 @@ class MarkovChainMonteCarlo:
 
         assert len(result_inv) == 1
 
-        initial_position = tf.reshape(
-            tf.convert_to_tensor(
-                np.tile(result_inv[0], [self.mcmc_num_chains, 1]),
-                dtype=self.param_dtype),
+        initial_position = np.reshape(
+            np.tile(result_inv[0], [self.mcmc_num_chains, 1]),
             [self.mcmc_num_chains, len(self.fit_parameter_list)])
         print('initial_position', initial_position)
         print('initial_position.shape', initial_position.shape)
@@ -175,7 +173,11 @@ class MarkovChainMonteCarlo:
         else:
             # get seed parameters
             initial_position = initial_position[..., self.fit_parameter_list]
+
         print('initial_position.shape [fit_parameter_list]', initial_position.shape)
+
+        initial_position = tf.convert_to_tensor(
+            initial_position, dtype=self.param_dtype)
 
         mcmc_start_t = timeit.default_timer()
         samples, trace = self.run_mcmc_on_events(initial_position, data_batch)
