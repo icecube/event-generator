@@ -174,7 +174,7 @@ class MarkovChainMonteCarlo:
             initial_position = initial_position
         else:
             # get seed parameters
-            initial_position = initial_position[..., fit_parameter_list]
+            initial_position = initial_position[..., self.fit_parameter_list]
         print('initial_position.shape [fit_parameter_list]', initial_position.shape)
 
         mcmc_start_t = timeit.default_timer()
