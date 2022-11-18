@@ -295,7 +295,9 @@ class Reconstruction:
 
 class SelectBestReconstruction:
 
-    def __init__(self, manager, loss_module, function_cache, reco_names):
+    def __init__(
+            self, manager, loss_module, function_cache, reco_names,
+            verbose=True):
         """Initialize reconstruction module and setup tensorflow functions.
 
         Parameters
@@ -310,15 +312,13 @@ class SelectBestReconstruction:
             A list of reco names from previous reconstruction modules. The
             best reconstruction, e.g. lowest reco loss, will be chosen from
             these reconstructions.
-
-        Raises
-        ------
-        ValueError
-            Description
+        verbose : bool, optional
+            If True, additional information will be printed to the console.
         """
 
         # store settings
         self.reco_names = reco_names
+        self.verbose = verbose
 
     def execute(self, data_batch, results, **kwargs):
         """Execute selection.
