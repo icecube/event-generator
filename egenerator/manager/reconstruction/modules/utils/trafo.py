@@ -62,7 +62,9 @@ def get_reco_result_batch(result_trafo,
                 result_counter += 1
             else:
                 cascade_reco_batch.append(cascade_seed_batch_trafo[:, i])
+        print('cascade_reco_batch', cascade_reco_batch.shape)
         cascade_reco_batch = np.array(cascade_reco_batch).T
+        print('cascade_reco_batch nump', cascade_reco_batch.shape)
 
     # transform back if minimization was performed in trafo space
     if minimize_in_trafo_space:
