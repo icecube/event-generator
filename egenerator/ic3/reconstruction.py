@@ -562,9 +562,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
                 result_dict['MCMC_{}_median'.format(n)] = np.median(values)
                 for q in self.mcmc_quantiles:
-                    result_dict['MCMC_{}_q{:3.3f}_lower'.format(n)] = \
+                    result_dict['MCMC_{}_q{:3.3f}_lower'.format(n, q)] = \
                         np.quantile(values, 0.5 - 0.5*q)
-                    result_dict['MCMC_{}_q{:3.3f}_upper'.format(n)] = \
+                    result_dict['MCMC_{}_q{:3.3f}_upper'.format(n, q)] = \
                         np.quantile(values, 0.5 + 0.5*q)
 
             if num_accepted > 0:
