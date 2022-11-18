@@ -1238,6 +1238,7 @@ class SourceManager(BaseModelManager):
                            num_burnin_steps=100,
                            num_parallel_iterations=1,
                            num_steps_between_results=0,
+                           step_size=0.01,
                            method='HamiltonianMonteCarlo',
                            mcmc_seed=42,
                            parameter_tensor_name='x_parameters',
@@ -1284,6 +1285,14 @@ class SourceManager(BaseModelManager):
         num_steps_between_results : int, optional
             The number of steps between accepted results. This applies
             thinning to the sampled point and can reduce correlation.
+        step_size : float or array_like or str, optional
+            The step size for the parameters may be provided as a list of
+            float for each parameter (in original physics parameter space,
+            but in log10 for variables fit in log10 if
+            `minimize_in_trafo_space` is set to true),
+            a single float for all parameters (in transformed parameter space),
+            or as a string for one of the implemented methods consisting
+            of: [].
         method : str, optional
             The MCMC method to use:
             'HamiltonianMonteCarlo', 'RandomWalkMetropolis', ...
@@ -1337,15 +1346,32 @@ class SourceManager(BaseModelManager):
                     x[i], data_batch, seed_array))
             return tf.stack(log_prob_list, axis=0)
 
+        # -----------------
         # Define step sizes
-        if minimize_in_trafo_space:
-            step_size = [[0.01 for p in range(num_params)]]
-        else:
-            # step sizes for x, y, z, zenith, azimuth, energy, time
-            step_size = [[.5, .5, .5, 0.02, 0.02, 10., 1.]]
-            if method == 'HamiltonianMonteCarlo':
-                step_size = [[.1, .1, .1, 0.01, 0.02, 10., 1.]]
+        # -----------------
+        if isinstance(step_size, float):
+            step_size_trafo = [[
+                step_size for p in range(len(fit_parameter_list))]]
+            step_size = step_size_trafo * self.data_trafo.data[
+                parameter_tensor_name+'_std']
 
+        elif isinstance(step_size, str):
+            if step_size == 'covariance':
+                raise NotImplementedError
+            else:
+                raise ValueError('Stepsize method not understood: {}'.format(
+                    step_size))
+        else:
+            assert len(step_size) == len(fit_parameter_list)
+            step_size = [step_size]
+            step_size_trafo = step_size / self.data_trafo.data[
+                parameter_tensor_name+'_std']
+
+        # use transformed step size if needed
+        if minimize_in_trafo_space:
+            step_size = step_size_trafo
+
+        # only select those which we are fitting
         if num_params != len(step_size):
             step_size = [[
                 s for (s, f) in zip(step_size[0], fit_parameter_list) if f
@@ -1359,7 +1385,9 @@ class SourceManager(BaseModelManager):
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
         step_size = tf.reshape(step_size, [1, num_params])
 
+        # ------------------------
         # Define transition kernel
+        # ------------------------
         if method == 'HamiltonianMonteCarlo':
             adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
                 tfp.mcmc.HamiltonianMonteCarlo(
@@ -1369,6 +1397,8 @@ class SourceManager(BaseModelManager):
                     #     shape=(), minval=1, maxval=30,
                     #     dtype=tf.int32, seed=mcmc_seed),
                     step_size=step_size),
+                adaptation_rate=0.03,
+                reduce_fn=tfp.math.reduce_log_harmonic_mean_exp,
                 num_adaptation_steps=int(num_burnin_steps * 0.8))
 
         elif method == 'NoUTurnSampler':
