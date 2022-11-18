@@ -1348,7 +1348,7 @@ class SourceManager(BaseModelManager):
 
             if num_params != len(step_size):
                 step_size = [[
-                    s for (s, f) in zip(step_size, fit_parameter_list) if f
+                    s for (s, f) in zip(step_size[0], fit_parameter_list) if f
                 ]]
 
         step_size = np.array(step_size)
