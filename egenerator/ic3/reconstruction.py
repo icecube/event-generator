@@ -139,6 +139,22 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'parameters will default to '
                           '`minimize_parameter_default_value`.',
                           True)
+        self.AddParameter('missing_seed_value_dict',
+                          'If a certain model parameter does not exist in the '
+                          'frame key set via `seed_keys`, a default value may '
+                          'be specified with the `missing_seed_value_dict` '
+                          'dictionary. Entries have the format: '
+                          '{parameter_name}: default_value.'
+                          {})
+        self.AddParameter('missing_seed_value',
+                          'If a model parameter key is not given in the '
+                          'provided seed_key, it can be replaced with a '
+                          'default value defined in `missing_seed_value`. '
+                          'Note that this value will be set for any and all '
+                          'parameters that are not found. Keep in mind that '
+                          'this will also work if the wrong frame key is '
+                          'provided by accident to `seed_keys`.',
+                          None)
         self.AddParameter('reco_optimizer_interface',
                           'The reconstruction interface to use. Options are: '
                           '"scipy" or "tfp" (tensorflow_probability).',
@@ -214,8 +230,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.GetParameter('goodness_of_fit_settings')
         self.mcmc_settings = self.GetParameter('mcmc_settings')
 
-        self.missing_value_dict = {}
-        self.missing_value = None
+        self.missing_seed_value_dict = \
+            self.GetParameter('missing_seed_value_dict')
+        self.missing_seed_value = self.GetParameter('missing_seed_value')
 
         if 'reconstruct_samples' not in self.goodness_of_fit_settings:
             self.goodness_of_fit_settings['reconstruct_samples'] = True
@@ -257,8 +274,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             additional_loss_modules=additional_loss_modules,
             misc_setting_updates={
                 'seed_names': self.seed_keys,
-                'missing_value_dict': self.missing_value_dict,
-                'missing_value': self.missing_value,
+                'missing_value_dict': self.missing_seed_value_dict,
+                'missing_value': self.missing_seed_value,
             },
             label_setting_updates={
                 'label_key': self.label_key,
