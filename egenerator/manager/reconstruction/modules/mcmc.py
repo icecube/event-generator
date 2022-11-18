@@ -227,7 +227,9 @@ class MarkovChainMonteCarlo:
                 mcmc_end_t - mcmc_start_t))
             print('\tAcceptance Ratio: {:2.1f}%'.format(
                 (100. * num_accepted) / num_samples))
-            msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
+            msg = ''
+            for s in step_size:
+                msg += '{:1.4f} '
             if len(trace) > 2:
                 print('\tStepsize [sampled space]: ' + msg.format(
                     *step_size_trafo))
