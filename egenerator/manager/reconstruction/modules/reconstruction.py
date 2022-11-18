@@ -17,6 +17,7 @@ class Reconstruction:
                  scipy_optimizer_settings={'method': 'BFGS'},
                  tf_optimizer_settings={'method': 'bfgs_minimize',
                                         'x_tolerance': 0.001},
+                 verbose=True,
                  ):
         """Initialize reconstruction module and setup tensorflow functions.
 
@@ -54,6 +55,8 @@ class Reconstruction:
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
+        randomize_seed : bool, optional
+            Description
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
         reco_optimizer_interface : str, optional
@@ -65,6 +68,8 @@ class Reconstruction:
         tf_optimizer_settings : dict, optional
             Settings that will be passed on to the tensorflow probability
             minimizer.
+        verbose : bool, optional
+            If True, additional information will be printed to the console.
 
         Raises
         ------
@@ -80,6 +85,7 @@ class Reconstruction:
         self.seed_tensor_name = seed_tensor_name
         self.seed_from_previous_module = seed_from_previous_module
         self.randomize_seed = randomize_seed
+        self.verbose = verbose
 
         if not self.seed_from_previous_module:
             self.seed_index = manager.data_handler.tensors.get_index(
@@ -253,7 +259,8 @@ class Reconstruction:
             # # set vertex to MC truth
             # x0[:, :3] = x_true[:, :3]
             # x0[:, 6] = x_true[:, 6]
-            print('New Seed:', x0)
+            if self.verbose:
+                print('New Seed:', x0)
 
             seed_tensor = x0
         # -------------------
@@ -338,8 +345,9 @@ class SelectBestReconstruction:
         for reco_name in self.reco_names:
             reco_results = results[reco_name]
 
-            print('Loss: {:3.3f} | {}'.format(
-                reco_results['loss_reco'], reco_name))
+            if self.verbose:
+                print('Loss: {:3.3f} | {}'.format(
+                    reco_results['loss_reco'], reco_name))
 
             # check if it has a lower loss
             if reco_results['loss_reco'] < min_loss:

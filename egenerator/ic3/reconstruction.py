@@ -525,7 +525,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 vectors = {}
                 for i, n in enumerate(self.manager.models[0].parameter_names):
                     vectors[n] = dataclasses.I3VectorFloat(
-                        mcmc_res['samples'][i])
+                        mcmc_res['samples'][:, i])
                 vectors['log_prob_values'] = dataclasses.I3VectorFloat(
                     mcmc_res['log_prob_values'])
 

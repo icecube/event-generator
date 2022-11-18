@@ -20,6 +20,7 @@ class MarkovChainMonteCarlo:
                  mcmc_num_parallel_iterations=1,
                  mcmc_method='HamiltonianMonteCarlo',
                  random_seed=42,
+                 verbose=True,
                  ):
         """Initialize module and setup tensorflow functions.
 
@@ -34,6 +35,8 @@ class MarkovChainMonteCarlo:
         fit_parameter_list : TYPE
             Description
         seed_tensor_name : TYPE
+            Description
+        reco_key : TYPE
             Description
         minimize_in_trafo_space : bool, optional
             If True, the MCMC is performed in transformed and normalized
@@ -56,16 +59,10 @@ class MarkovChainMonteCarlo:
             HamiltonianMonteCarlo
             RandomWalkMetropolis
             NoUTurnSampler
-
-        Raises
-        ------
-        NotImplementedError
+        random_seed : int, optional
             Description
-
-        Deleted Parameters
-        ------------------
-        **settings
-            Description
+        verbose : bool, optional
+            If True, additional information will be printed to the console.
         """
 
         # store settings
@@ -76,6 +73,7 @@ class MarkovChainMonteCarlo:
         self.mcmc_num_chains = mcmc_num_chains
         self.reco_key = reco_key
         self.seed_tensor_name = seed_tensor_name
+        self.verbose = verbose
 
         # specify a random number generator for reproducibility
         self.rng = np.random.RandomState(random_seed)
@@ -195,8 +193,13 @@ class MarkovChainMonteCarlo:
 
         num_accepted = np.sum(accepted)
         num_samples = samples.shape[0] * samples.shape[1]
+
+        print('samples pre sel:', samples.shape)
+        print('log_prob_values pre sel:', log_prob_values.shape)
         samples = samples[accepted]
         log_prob_values = log_prob_values[accepted]
+        print('samples post sel:', samples.shape)
+        print('log_prob_values post sel:', log_prob_values.shape)
 
         # invert possible transformation and put full hypothesis together
         samples = trafo.get_reco_result_batch(
@@ -207,13 +210,14 @@ class MarkovChainMonteCarlo:
             data_trafo=self.manager.data_trafo,
             parameter_tensor_name=self.parameter_tensor_name)
 
-        print('MCMC Results took {:3.3f}s:'.format(
-            mcmc_end_t - mcmc_start_t))
-        print('\tAcceptance Ratio: {:2.1f}%'.format(
-            (100. * num_accepted) / num_samples))
-        msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
-        if len(trace) > 2:
-            print('\tStepsize: ' + msg.format(*step_size))
+        if self.verbose:
+            print('MCMC Results took {:3.3f}s:'.format(
+                mcmc_end_t - mcmc_start_t))
+            print('\tAcceptance Ratio: {:2.1f}%'.format(
+                (100. * num_accepted) / num_samples))
+            msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
+            if len(trace) > 2:
+                print('\tStepsize: ' + msg.format(*step_size))
 
         # gather results
         results = {
