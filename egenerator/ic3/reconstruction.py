@@ -229,6 +229,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.goodness_of_fit_settings = \
             self.GetParameter('goodness_of_fit_settings')
         self.mcmc_settings = self.GetParameter('mcmc_settings')
+        self.mcmc_quantiles = [0.5, 0.68, 0.9]
 
         self.missing_seed_value_dict = \
             self.GetParameter('missing_seed_value_dict')
@@ -321,6 +322,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         for name, value in self.minimize_parameter_dict.items():
             fit_parameter_list[self.manager.models[0].get_index(name)] = value
         self.fit_parameter_list = fit_parameter_list
+
+        self.fitted_parameters = []
+        for i, n in enumerate(self.manager.models[0].parameter_names):
+            if self.fit_parameter_list[i]:
+                self.fitted_parameters.append(n)
 
         # parameter input signature
         parameter_tensor_name = 'x_parameters'
@@ -542,14 +548,30 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         if self.add_mcmc_samples:
             mcmc_res = results['MarkovChainMonteCarlo']
             num_accepted = len(mcmc_res['log_prob_values'])
+            result_dict['MCMC_acceptance_ratio'] = mcmc_res['acceptance_ratio']
+
+            # fill in median and quantiles
+            for i, n in enumerate(self.fitted_parameters):
+
+                if num_accepted > 0:
+                    values = mcmc_res['samples'][:, i]
+                else:
+                    # create some dummy values so that we fill in NaNs
+                    values = np.ones(12) * float('nan')
+
+                result_dict['MCMC_{}_median'.format(n)] = np.median(values)
+                for q in self.mcmc_quantiles:
+                    result_dict['MCMC_{}_q{:3.3f}_lower'.format(n)] = \
+                        np.quantile(values, 0.5 - 0.5*q)
+                    result_dict['MCMC_{}_q{:3.3f}_upper'.format(n)] = \
+                        np.quantile(values, 0.5 + 0.5*q)
 
             if num_accepted > 0:
                 # create vectors for output quantities
                 vectors = {}
-                for i, n in enumerate(self.manager.models[0].parameter_names):
-                    if self.fit_parameter_list[i]:
-                        vectors[n] = dataclasses.I3VectorFloat(
-                            mcmc_res['samples'][:, i])
+                for i, n in enumerate(self.fitted_parameters):
+                    vectors[n] = dataclasses.I3VectorFloat(
+                        mcmc_res['samples'][:, i])
                 vectors['log_prob_values'] = dataclasses.I3VectorFloat(
                     mcmc_res['log_prob_values'])
 

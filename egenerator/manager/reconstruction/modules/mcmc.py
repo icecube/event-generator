@@ -161,14 +161,11 @@ class MarkovChainMonteCarlo:
         initial_position = np.reshape(
             np.tile(result_inv[0], [self.mcmc_num_chains, 1]),
             [self.mcmc_num_chains, len(self.fit_parameter_list)])
-        print('initial_position', initial_position)
-        print('initial_position.shape', initial_position.shape)
 
         if self.minimize_in_trafo_space:
             initial_position = self.manager.data_trafo.transform(
                                     data=initial_position,
                                     tensor_name=self.parameter_tensor_name)
-            print('initial_position [norm]', initial_position)
 
         # get seed parameters
         if np.all(self.fit_parameter_list):
@@ -176,8 +173,6 @@ class MarkovChainMonteCarlo:
         else:
             # get seed parameters
             initial_position = initial_position[..., self.fit_parameter_list]
-
-        print('initial_position.shape [fit_parameter_list]', initial_position.shape)
 
         initial_position = tf.convert_to_tensor(
             initial_position, dtype=self.param_dtype)
@@ -202,17 +197,11 @@ class MarkovChainMonteCarlo:
 
         num_accepted = np.sum(accepted)
         num_samples = samples.shape[0] * samples.shape[1]
+        acceptance_ratio = float(num_accepted) / num_samples
 
-        print('samples pre sel:', samples.shape)
-        print('log_prob_values pre sel:', log_prob_values.shape)
         samples = samples[accepted]
         log_prob_values = log_prob_values[accepted]
-        print('samples post sel:', samples.shape)
-        print('log_prob_values post sel:', log_prob_values.shape)
 
-        print('debug samples', samples.shape)
-        print('debug result_inv', result_inv.shape)
-        print('debug fit_parameter_list', self.fit_parameter_list)
         # invert possible transformation and put full hypothesis together
         samples = trafo.get_reco_result_batch(
             result_trafo=samples,
@@ -225,8 +214,7 @@ class MarkovChainMonteCarlo:
         if self.verbose:
             print('MCMC Results took {:3.3f}s:'.format(
                 mcmc_end_t - mcmc_start_t))
-            print('\tAcceptance Ratio: {:2.1f}%'.format(
-                (100. * num_accepted) / num_samples))
+            print('\tAcceptance Ratio: {:2.1f}%'.format(100.*acceptance_ratio))
             msg = ''
             for s in step_size:
                 msg += '{:1.4f} '
@@ -239,6 +227,7 @@ class MarkovChainMonteCarlo:
         results = {
             'samples': samples,
             'log_prob_values': log_prob_values,
+            'acceptance_ratio': acceptance_ratio,
         }
 
         return results
