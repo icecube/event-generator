@@ -192,11 +192,13 @@ class MarkovChainMonteCarlo:
         log_prob_values = trace[1].numpy()
         if len(trace) > 2:
             steps = trace[2].numpy()
-            step_size = steps[0][0]
+            step_size_trafo = steps[0][0]
             if self.minimize_in_trafo_space:
-                step_size *= self.manager.data_trafo.data[
+                step_size = step_size_trafo * self.manager.data_trafo.data[
                     self.parameter_tensor_name+'_std'][
                         self.fit_parameter_list]
+            else:
+                step_size = step_size_trafo
 
         num_accepted = np.sum(accepted)
         num_samples = samples.shape[0] * samples.shape[1]
@@ -227,7 +229,9 @@ class MarkovChainMonteCarlo:
                 (100. * num_accepted) / num_samples))
             msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
             if len(trace) > 2:
-                print('\tStepsize: ' + msg.format(*step_size))
+                print('\tStepsize [sampled space]: ' + msg.format(
+                    *step_size_trafo))
+                print('\tStepsize [true space]: ' + msg.format(*step_size))
 
         # gather results
         results = {
