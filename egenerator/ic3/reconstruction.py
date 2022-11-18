@@ -144,7 +144,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'frame key set via `seed_keys`, a default value may '
                           'be specified with the `missing_seed_value_dict` '
                           'dictionary. Entries have the format: '
-                          '{parameter_name}: default_value.',
+                          r'{parameter_name}: default_value.',
                           {})
         self.AddParameter('missing_seed_value',
                           'If a model parameter key is not given in the '
