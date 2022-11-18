@@ -19,6 +19,7 @@ class MarkovChainMonteCarlo:
                  mcmc_num_steps_between_results=0,
                  mcmc_num_parallel_iterations=1,
                  mcmc_method='HamiltonianMonteCarlo',
+                 mcmc_step_size=0.01,
                  random_seed=42,
                  verbose=True,
                  ):
@@ -59,6 +60,14 @@ class MarkovChainMonteCarlo:
             HamiltonianMonteCarlo
             RandomWalkMetropolis
             NoUTurnSampler
+        mcmc_step_size : float or array_like or str, optional
+            The step size for the parameters may be provided as a list of
+            float for each parameter (in original physics parameter space,
+            but in log10 for variables fit in log10 if
+            `minimize_in_trafo_space` is set to true),
+            a single float for all parameters (in transformed parameter space),
+            or as a string for one of the implemented methods consisting
+            of: [].
         random_seed : int, optional
             Description
         verbose : bool, optional
@@ -125,6 +134,7 @@ class MarkovChainMonteCarlo:
                 num_results=mcmc_num_results,
                 num_burnin_steps=mcmc_num_burnin_steps,
                 num_steps_between_results=mcmc_num_steps_between_results,
+                step_size=mcmc_step_size,
                 num_parallel_iterations=mcmc_num_parallel_iterations,
                 parameter_tensor_name=parameter_tensor_name,
                 seed=seed)
