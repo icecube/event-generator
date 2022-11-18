@@ -84,7 +84,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.AddParameter('add_mcmc_samples',
                           'Add samples from a Markov-Chain-Monte-Carlo. '
                           'Settings for MCMC are defined in key '
-                          '`mcmc_settings`.'
+                          '`mcmc_settings`.',
                           False)
         self.AddParameter('label_key',
                           'Only relevant if labels are being loaded. '
