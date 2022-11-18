@@ -195,6 +195,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                             'mcmc_num_steps_between_results': 0,
                             'mcmc_num_parallel_iterations': 1,
                           })
+        self.AddParameter('mcmc_quantiles',
+                          'Only relevant if `add_mcmc_samples` is set '
+                          ' to "True". Defines quantiles of MCMC samples to '
+                          'add to result frame key of reconstruction.',
+                          [0.5, 0.68, 0.9])
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -230,7 +235,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.goodness_of_fit_settings = \
             self.GetParameter('goodness_of_fit_settings')
         self.mcmc_settings = self.GetParameter('mcmc_settings')
-        self.mcmc_quantiles = [0.5, 0.68, 0.9]
+        self.mcmc_quantiles = self.GetParameter('mcmc_quantiles')
 
         self.missing_seed_value_dict = \
             self.GetParameter('missing_seed_value_dict')
