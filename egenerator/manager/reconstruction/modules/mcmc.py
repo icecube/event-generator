@@ -34,7 +34,10 @@ class MarkovChainMonteCarlo:
         seed_tensor_name : TYPE
             Description
         minimize_in_trafo_space : bool, optional
-            Description
+            If True, the MCMC is performed in transformed and normalized
+            parameter space. This is usually desired, because the scales of
+            the parameters will all be normalized which should facilitate
+            finding proper samples.
         parameter_tensor_name : str, optional
             Description
         mcmc_num_chains : int, optional
@@ -70,6 +73,7 @@ class MarkovChainMonteCarlo:
         self.parameter_tensor_name = parameter_tensor_name
         self.mcmc_num_chains = mcmc_num_chains
         self.reco_key = reco_key
+        self.seed_tensor_name = seed_tensor_name
 
         # specify a random number generator for reproducibility
         self.rng = np.random.RandomState(random_seed)
@@ -89,7 +93,7 @@ class MarkovChainMonteCarlo:
             loss_module=loss_module,
             fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=seed_tensor_name,
+            seed=self.seed_tensor_name,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -140,40 +144,39 @@ class MarkovChainMonteCarlo:
         """
 
         num_params = len(self.fit_parameter_list)
-        result_inv = results[self.reco_key]['result']
+
+        # get seed: either from seed tensor or from previous results
+        if 'result' in results[self.reco_key]:
+            # this is a previous reconstruction result
+            result_inv = results[self.reco_key]['results']
+        else:
+            # this could be a seed tensor
+            result_inv = results[self.reco_key]
 
         assert len(result_inv) == 1
-        result_inv = result_inv[0]
-
-        # # 0, 1, 2,      3,       4,      5,    6
-        # # x, y, z, zenith, azimuth, energy, time
-        # scale = np.array([10., 10., 10., 0.2, 0.2, 0., 20.])
-        # scale = 0
-        # low = result_inv - scale
-        # high = result_inv + scale
-        # # low[3] = 0.0
-        # # low[4] = 0.0
-        # # high[3] = np.pi
-        # # high[4] = 2*np.pi
-        # low[5] *= 0.9
-        # high[5] *= 1.1
-        # initial_position = self.rng.uniform(
-        #     low=low, high=high, size=[self.mcmc_num_chains, num_params])
-        # initial_position = tf.convert_to_tensor(initial_position,
-        #                                         dtype=self.param_dtype)
-
-        # if self.minimize_in_trafo_space:
-        #     initial_position = self.manager.data_trafo.transform(
-        #                             data=initial_position,
-        #                             tensor_name=self.parameter_tensor_name)
 
         initial_position = tf.reshape(
             tf.convert_to_tensor(
-                np.tile(result_inv, [self.mcmc_num_chains, 1]),
+                np.tile(result_inv[0], [self.mcmc_num_chains, 1]),
                 dtype=self.param_dtype),
             [self.mcmc_num_chains, len(self.fit_parameter_list)])
         print('initial_position', initial_position)
         print('initial_position.shape', initial_position.shape)
+
+        if self.minimize_in_trafo_space:
+            initial_position = self.manager.data_trafo.transform(
+                                    data=initial_position,
+                                    tensor_name=self.parameter_tensor_name)
+            print('initial_position [norm]', initial_position)
+
+        # get seed parameters
+        if np.all(self.fit_parameter_list):
+            initial_position = initial_position
+        else:
+            # get seed parameters
+            initial_position = initial_position[..., fit_parameter_list]
+        print('initial_position.shape [fit_parameter_list]', initial_position.shape)
+
         mcmc_start_t = timeit.default_timer()
         samples, trace = self.run_mcmc_on_events(initial_position, data_batch)
         mcmc_end_t = timeit.default_timer()
@@ -192,6 +195,16 @@ class MarkovChainMonteCarlo:
         num_samples = samples.shape[0] * samples.shape[1]
         samples = samples[accepted]
         log_prob_values = log_prob_values[accepted]
+
+        # invert possible transformation and put full hypothesis together
+        samples = trafo.get_reco_result_batch(
+            result_trafo=samples,
+            seed_tensor=result_inv,
+            fit_parameter_list=self.fit_parameter_list,
+            minimize_in_trafo_space=self.minimize_in_trafo_space,
+            data_trafo=self.manager.data_trafo,
+            parameter_tensor_name=self.parameter_tensor_name)
+
         print('MCMC Results took {:3.3f}s:'.format(
             mcmc_end_t - mcmc_start_t))
         print('\tAcceptance Ratio: {:2.1f}%'.format(
