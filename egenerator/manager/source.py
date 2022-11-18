@@ -1397,6 +1397,8 @@ class SourceManager(BaseModelManager):
                     #     shape=(), minval=1, maxval=30,
                     #     dtype=tf.int32, seed=mcmc_seed),
                     step_size=step_size),
+                adaptation_rate=0.03,
+                reduce_fn=tfp.math.reduce_log_harmonic_mean_exp,
                 num_adaptation_steps=int(num_burnin_steps * 0.8))
 
         elif method == 'NoUTurnSampler':
