@@ -1,5 +1,6 @@
 import os
 import tensorflow as tf
+import numpy as np
 
 from icecube import dataclasses, icetray
 from icecube.icetray.i3logging import log_info, log_warn
