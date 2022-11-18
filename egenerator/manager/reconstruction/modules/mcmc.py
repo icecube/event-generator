@@ -86,7 +86,7 @@ class MarkovChainMonteCarlo:
             dtype=self.param_dtype)
         param_signature_full = tf.TensorSpec(
             shape=[None, len(fit_parameter_list)],
-            dtype=param_dtype)
+            dtype=self.param_dtype)
 
         data_batch_signature = manager.data_handler.get_data_set_signature()
 
