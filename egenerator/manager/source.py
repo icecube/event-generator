@@ -1309,8 +1309,8 @@ class SourceManager(BaseModelManager):
             Description
         """
 
-        num_params = initial_position.shape[1]
-        assert np.sum(fit_parameter_list) == num_params
+        num_params = np.sum(fit_parameter_list)
+        assert initial_position.shape[1] == num_params
         initial_position = tf.ensure_shape(initial_position,
                                            [num_chains, num_params])
 
@@ -1346,7 +1346,7 @@ class SourceManager(BaseModelManager):
         parameter_dtype = getattr(tf, param_tensor.dtype)
 
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
-        step_size = tf.reshape(step_size, [1, len(fit_parameter_list)])
+        step_size = tf.reshape(step_size, [1, num_params])
 
         # Define transition kernel
         if method == 'HamiltonianMonteCarlo':
