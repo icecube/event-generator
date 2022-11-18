@@ -529,8 +529,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 vectors['log_prob_values'] = dataclasses.I3VectorFloat(
                     mcmc_res['log_prob_values'])
 
-            for n, vector in vectors.items():
-                frame[self.output_key + '_MCMC_' + n] = vector
+                for n, vector in vectors.items():
+                    frame[self.output_key + '_MCMC_' + n] = vector
 
         # save to frame
         frame[self.output_key] = result_dict
