@@ -558,7 +558,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     values = mcmc_res['samples'][:, i]
                 else:
                     # create some dummy values so that we fill in NaNs
-                    values = np.ones(12) * float('nan')
+                    values = np.ones(10) * float('nan')
 
                 result_dict['MCMC_{}_median'.format(n)] = np.median(values)
                 for q in self.mcmc_quantiles:

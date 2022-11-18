@@ -1339,17 +1339,17 @@ class SourceManager(BaseModelManager):
 
         # Define step sizes
         if minimize_in_trafo_space:
-            step_size = [[0.1 for p in range(num_params)]]
+            step_size = [[0.01 for p in range(num_params)]]
         else:
             # step sizes for x, y, z, zenith, azimuth, energy, time
             step_size = [[.5, .5, .5, 0.02, 0.02, 10., 1.]]
             if method == 'HamiltonianMonteCarlo':
                 step_size = [[.1, .1, .1, 0.01, 0.02, 10., 1.]]
 
-            if num_params != len(step_size):
-                step_size = [[
-                    s for (s, f) in zip(step_size[0], fit_parameter_list) if f
-                ]]
+        if num_params != len(step_size):
+            step_size = [[
+                s for (s, f) in zip(step_size[0], fit_parameter_list) if f
+            ]]
 
         step_size = np.array(step_size)
 

@@ -268,8 +268,6 @@ class Reconstruction:
         result_trafo, result_object = self.reconstruction_method(
             data_batch, seed_tensor)
 
-        print('reco: seed_tensor', seed_tensor)
-        print('reco: result_trafo', result_trafo)
         # invert possible transformation and put full hypothesis together
         result = trafo.get_reco_result_batch(
             result_trafo=result_trafo,
@@ -278,7 +276,6 @@ class Reconstruction:
             minimize_in_trafo_space=self.minimize_in_trafo_space,
             data_trafo=self.manager.data_trafo,
             parameter_tensor_name=self.parameter_tensor_name)
-        print('reco: result', result)
 
         loss_seed = self.parameter_loss_function(
             seed_tensor, data_batch).numpy()
