@@ -89,11 +89,12 @@ class MarkovChainMonteCarlo:
 
         # get normal parameter loss function
         func_settings = dict(
-            input_signature=(param_signature, data_batch_signature),
+            input_signature=(
+                param_signature, data_batch_signature, param_signature_full),
             loss_module=loss_module,
             fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
-            seed=self.seed_tensor_name,
+            seed=None,
             parameter_tensor_name=parameter_tensor_name,
         )
 
@@ -106,8 +107,9 @@ class MarkovChainMonteCarlo:
                 **func_settings)
             function_cache.add(self.parameter_loss_function, func_settings)
 
-        @tf.function(input_signature=(param_signature, data_batch_signature))
-        def run_mcmc_on_events(initial_position, data_batch):
+        @tf.function(input_signature=(
+            param_signature, data_batch_signature, param_signature_full))
+        def run_mcmc_on_events(initial_position, data_batch, seed):
             return manager.run_mcmc_on_events(
                 initial_position=initial_position,
                 data_batch=data_batch,
@@ -121,7 +123,8 @@ class MarkovChainMonteCarlo:
                 num_burnin_steps=mcmc_num_burnin_steps,
                 num_steps_between_results=mcmc_num_steps_between_results,
                 num_parallel_iterations=mcmc_num_parallel_iterations,
-                parameter_tensor_name=parameter_tensor_name)
+                parameter_tensor_name=parameter_tensor_name,
+                seed=seed)
 
         self.run_mcmc_on_events = run_mcmc_on_events
 
@@ -180,7 +183,8 @@ class MarkovChainMonteCarlo:
             initial_position, dtype=self.param_dtype)
 
         mcmc_start_t = timeit.default_timer()
-        samples, trace = self.run_mcmc_on_events(initial_position, data_batch)
+        samples, trace = self.run_mcmc_on_events(
+            initial_position, data_batch, result_inv)
         mcmc_end_t = timeit.default_timer()
 
         samples = samples.numpy()

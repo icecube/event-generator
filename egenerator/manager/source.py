@@ -1240,7 +1240,8 @@ class SourceManager(BaseModelManager):
                            num_steps_between_results=0,
                            method='HamiltonianMonteCarlo',
                            mcmc_seed=42,
-                           parameter_tensor_name='x_parameters'):
+                           parameter_tensor_name='x_parameters',
+                           seed='x_parameters'):
         """Reconstruct events with tensorflow probability interface.
 
         Parameters
@@ -1261,7 +1262,7 @@ class SourceManager(BaseModelManager):
             method.
         parameter_loss_function : tf.function
             The tensorflow function:
-                f(parameters, data_batch) -> loss
+                f(parameters, data_batch, seed_tensor) -> loss
         fit_parameter_list : bool or list of bool, optional
             Indicates whether a parameter is to be sampled.
             The ith element in the list specifies if the ith parameter
@@ -1290,6 +1291,11 @@ class SourceManager(BaseModelManager):
             The seed value for the MCMC chain.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
+        seed : str or array_like
+            This specifies the tensor that is being used as a seed for the
+            reconstruction. This can either be the name of the data tensor
+            within the `data_batch`, or by a separate tensor.
+            The tensor should *NOT* be transformed.
 
         Returns
         -------
@@ -1303,16 +1309,21 @@ class SourceManager(BaseModelManager):
 
         Raises
         ------
-        NotImplementedError
-            Description
         ValueError
             Description
+
         """
 
         num_params = np.sum(fit_parameter_list)
         assert initial_position.shape[1] == num_params
         initial_position = tf.ensure_shape(initial_position,
                                            [num_chains, num_params])
+
+        if isinstance(seed, str):
+            seed_index = self.data_handler.tensors.get_index(seed)
+            seed_array = data_batch[seed_index]
+        else:
+            seed_array = seed
 
         def unnormalized_log_prob(x):
             """This needs to be the *positive* log(prob).
@@ -1323,7 +1334,7 @@ class SourceManager(BaseModelManager):
             log_prob_list = []
             for i in range(num_chains):
                 log_prob_list.append(-parameter_loss_function(
-                    x[i], data_batch))
+                    x[i], data_batch, seed_array))
             return tf.stack(log_prob_list, axis=0)
 
         # Define step sizes
