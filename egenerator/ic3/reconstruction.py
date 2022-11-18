@@ -214,6 +214,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.GetParameter('goodness_of_fit_settings')
         self.mcmc_settings = self.GetParameter('mcmc_settings')
 
+        self.missing_value_dict = {}
+        self.missing_value = None
+
         if 'reconstruct_samples' not in self.goodness_of_fit_settings:
             self.goodness_of_fit_settings['reconstruct_samples'] = True
         if 'add_per_dom_calculation' not in self.goodness_of_fit_settings:
@@ -254,6 +257,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             additional_loss_modules=additional_loss_modules,
             misc_setting_updates={
                 'seed_names': self.seed_keys,
+                'missing_value_dict': self.missing_value_dict,
+                'missing_value': self.missing_value,
             },
             label_setting_updates={
                 'label_key': self.label_key,
@@ -297,7 +302,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                               for i in
                               range(self.manager.models[0].num_parameters)]
         for name, value in self.minimize_parameter_dict.items():
-            fit_parameter_list[self.manager.models[0].get_index(name)] = value
+            fit_parameter_list[self.manager.models[0].get_index(name)] =
+        self.fit_parameter_list = fit_parameter_list
 
         # parameter input signature
         parameter_tensor_name = 'x_parameters'
@@ -524,8 +530,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 # create vectors for output quantities
                 vectors = {}
                 for i, n in enumerate(self.manager.models[0].parameter_names):
-                    vectors[n] = dataclasses.I3VectorFloat(
-                        mcmc_res['samples'][:, i])
+                    if self.fit_parameter_list[i]:
+                        vectors[n] = dataclasses.I3VectorFloat(
+                            mcmc_res['samples'][:, i])
                 vectors['log_prob_values'] = dataclasses.I3VectorFloat(
                     mcmc_res['log_prob_values'])
 
