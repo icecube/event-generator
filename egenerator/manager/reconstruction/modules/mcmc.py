@@ -214,7 +214,7 @@ class MarkovChainMonteCarlo:
         # invert possible transformation and put full hypothesis together
         samples = trafo.get_reco_result_batch(
             result_trafo=samples,
-            seed_tensor=result_inv,
+            seed_tensor=np.tile(result_inv[0], [len(samples), 1]),
             fit_parameter_list=self.fit_parameter_list,
             minimize_in_trafo_space=self.minimize_in_trafo_space,
             data_trafo=self.manager.data_trafo,
