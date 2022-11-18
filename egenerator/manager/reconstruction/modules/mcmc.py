@@ -148,7 +148,7 @@ class MarkovChainMonteCarlo:
         # get seed: either from seed tensor or from previous results
         if 'result' in results[self.reco_key]:
             # this is a previous reconstruction result
-            result_inv = results[self.reco_key]['results']
+            result_inv = results[self.reco_key]['result']
         else:
             # this could be a seed tensor
             result_inv = results[self.reco_key]
@@ -212,7 +212,6 @@ class MarkovChainMonteCarlo:
         msg = '{:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f} {:1.4f}'
         if len(trace) > 2:
             print('\tStepsize: ' + msg.format(*step_size))
-        msg = '{:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f} {:1.2f}'
 
         # gather results
         results = {
