@@ -663,13 +663,12 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 frame[out_base + '_ipix'] = indices
 
             # write out info on scan minimum
-            scan_dict = dataclasses.I3MapStringDouble()
-            scan_dict['loss'] = scan_res['scan_min_val']
-            scan_dict['nside'] = scan_res['scan_min_nside']
-            scan_dict['ipix'] = scan_res['scan_min_ipix']
+            result_dict['SkyScan_min_loss'] = scan_res['scan_min_val']
+            result_dict['SkyScan_min_nside'] = scan_res['scan_min_nside']
+            result_dict['SkyScan_min_ipix'] = scan_res['scan_min_ipix']
             for i, name in enumerate(self.manager.models[0].parameter_names):
-                scan_dict[name] = float(scan_res['scan_min_fit'][i])
-            frame[self.output_key + '_SkyScan'] = scan_dict
+                result_dict['SkyScan_min_' + name] = float(
+                    scan_res['scan_min_fit'][i])
 
         # save to frame
         frame[self.output_key] = result_dict
