@@ -648,7 +648,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         if self.add_skyscan:
             scan_res = results['SkyScanner']
 
-            for nside, llh_dict in scan_res['skyscan_llh']:
+            for nside, llh_dict in scan_res['skyscan_llh'].items():
 
                 llh_values = []
                 indices = []
