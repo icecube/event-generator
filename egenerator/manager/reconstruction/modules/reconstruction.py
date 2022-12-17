@@ -458,8 +458,12 @@ class SkyScanner:
                 seed = results['reco']['result']
             else:
                 seed = data_batch[seed_name]
-            focus_zeniths.append(seed[self.zenith_index])
-            focus_azimuths.append(seed[self.azimuth_index])
+
+            # currently only support single batch
+            assert len(seed) == 1, seed
+
+            focus_zeniths.append(seed[0][self.zenith_index])
+            focus_azimuths.append(seed[0][self.azimuth_index])
 
         scan_pixels = skyscan.get_scan_pixels(
             default_nside=self.skyscan_nside,
