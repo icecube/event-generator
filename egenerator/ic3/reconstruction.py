@@ -657,7 +657,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     llh_values.append(llh_val)
 
                 llh_values = dataclasses.I3VectorFloat(llh_values)
-                indices = dataclasses.I3VectorInt(indices)
+                indices = dataclasses.I3VectorUInt64(indices)
 
                 out_base = self.output_key + '_SkyScan_{:03d}'.format(nside)
                 frame[out_base + '_loss'] = llh_values
