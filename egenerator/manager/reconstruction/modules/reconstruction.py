@@ -521,7 +521,8 @@ class SkyScanner:
                 results_i = {'SkyScanSeed': {'result': skyscanseed}}
 
                 # run reconstruction for this seed
-                results_i = self.reco_module(data_batch, results_i, **kwargs)
+                results_i = self.reco_module.execute(
+                    data_batch, results_i, **kwargs)
 
                 # extract best-fit params and llh
                 skyscan_llh_i[ipix] = results_i['loss_reco']
