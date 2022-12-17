@@ -359,7 +359,8 @@ class SkyScanner:
         skyscan_focus_seeds : list of str, optional
             A list of tensor names that will be used to define which parts
             of the sky to scan in increased resolution. These tensors must
-            be included in the input data batch.
+            be included in the input data batch or if set to 'reco' they
+            will use the result of a previous reconstruction module.
             The parameter `skyscan_focus_bounds` and `skyscan_focus_nsides`
             define how this increased resolution scan around these seed
             directions will be performed.
@@ -454,7 +455,10 @@ class SkyScanner:
         focus_zeniths = []
         focus_azimuths = []
         for seed_name in self.skyscan_focus_seeds:
-            seed = data_batch[seed_name]
+            if seed_name == 'reco':
+                seed = results['reco']['result']
+            else:
+                seed = data_batch[seed_name]
             focus_zeniths.append(seed[self.zenith_index])
             focus_azimuths.append(seed[self.azimuth_index])
 
