@@ -214,7 +214,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'If provided this I3Frame key will be used to '
                           'specify the seed that will be used for the skyscan '
                           'reconstructions. If set to "reco", the result of '
-                          'the reconstruction module will be used.'
+                          'the reconstruction module will be used.',
                           'reco')
         self.AddParameter('skyscan_settings',
                           'Only relevant if `add_skyscan` is set '
