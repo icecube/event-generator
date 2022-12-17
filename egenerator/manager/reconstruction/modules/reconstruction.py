@@ -396,9 +396,8 @@ class SkyScanner:
         self.skyscan_focus_seeds = skyscan_focus_seeds
         self.verbose = verbose
 
-        self.zenith_index = manager.data_handler.tensors.get_index(zenith_key)
-        self.aziumuth_index = manager.data_handler.tensors.get_index(
-            azimuth_key)
+        self.zenith_index = manager.models[0].get_index(zenith_key)
+        self.aziumuth_index = manager.models[0].get_index(azimuth_key)
 
         # sanity checks (same length and sorted bounds)
         assert len(self.skyscan_focus_bounds) == len(self.skyscan_focus_nsides)
@@ -493,6 +492,7 @@ class SkyScanner:
             skyscan_res_i = {}
 
             for ipix in ipix_list:
+                print(nside, ipix)
                 theta, phi = hp.pix2ang(nside, ipix)
 
                 # get seed either from previous reconstruction result
