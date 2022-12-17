@@ -397,7 +397,7 @@ class SkyScanner:
         self.verbose = verbose
 
         self.zenith_index = manager.models[0].get_index(zenith_key)
-        self.aziumuth_index = manager.models[0].get_index(azimuth_key)
+        self.azimuth_index = manager.models[0].get_index(azimuth_key)
 
         # sanity checks (same length and sorted bounds)
         assert len(self.skyscan_focus_bounds) == len(self.skyscan_focus_nsides)
