@@ -511,8 +511,9 @@ class SkyScanner:
                         self.seed_tensor_name)
                     skyscanseed = np.array(data_batch[seed_index])
 
-                skyscanseed[self.zenith_index] = theta
-                skyscanseed[self.azimuth_index] = phi
+                assert len(skyscanseed) == 1, skyscanseed
+                skyscanseed[self.zenith_index][0] = theta
+                skyscanseed[self.azimuth_index][0] = phi
 
                 # create pseudo results dict to pass on to reconstruction
                 # module which will pull the seed of the "previous"
