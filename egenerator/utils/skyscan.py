@@ -81,3 +81,79 @@ def get_scan_pixels(
         scan_pixels[nside] = list(ipix)
 
     return scan_pixels
+
+
+def fill_skymap(nside, indices, values):
+    """Fill a skymap from reduced representation of indices and values
+
+    Parameters
+    ----------
+    nside : int
+        The nside of the skymap.
+    indices : array_like
+        The healpix pixel indices corresponding to each of the
+        provided `values`-
+    values : array_like
+        The values for each healpix pixel corresponding to the
+        index as provided in `indices`.
+
+    Returns
+    -------
+    array_like
+        The filled skymap. Missing values are set to 'NaN'.
+        Shape: [npix(nside)]
+    """
+    assert len(indices) == len(values)
+    indices = np.asarray(indices)
+    values = np.asarray(values)
+
+    skymap = np.empty(hp.nside2npix(nside))
+    skymap[:] = float('nan')
+
+    skymap[indices] = values
+    return skymap
+
+
+def combine_skymaps(*skymaps):
+    """Combine multi-resolution skymaps
+
+    Parameters
+    ----------
+    *skymaps
+        The healpix skymaps to be combined.
+        These must be provided as an array_like object with values
+        corresponding to each healpix pixel.
+
+    Returns
+    -------
+    array_like
+        The combined skymap. This skymap will have an nside equal to
+        the highest nside of any of the provided skymaps.
+    """
+    skymaps = np.asarray(skymaps)
+
+    # find out highest nside and sort maps
+    nsides = []
+    max_nside = 1
+    for skymap in skymaps:
+        nside = hp.get_nside(skymap)
+        nsides.append(nside)
+        if nside > max_nside:
+            max_nside = nside
+
+    # sort maps
+    skymaps_sorted = skymaps[np.argsort(nsides)]
+
+    # now up-scale all skymaps to highest nside
+    skymaps_upscaled = []
+    for skymap in skymaps_sorted:
+        skymaps_upscaled.append(hp.ud_grade(skymap, nside_out=max_nside))
+
+    # now combine everything, overwriting with higher resolution map
+    # if values are finite
+    combined_map = skymaps_upscaled[0]
+    for skymap in skymaps_upscaled[1:]:
+        mask_finite = np.isfinite(skymap)
+        combined_map[mask_finite] = skymap[mask_finite]
+
+    return combined_map
