@@ -1,4 +1,5 @@
 import numpy as np
+import healpy as hp
 import tensorflow as tf
 
 from egenerator.manager.reconstruction.modules.utils import trafo
