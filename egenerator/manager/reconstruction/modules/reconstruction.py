@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from egenerator.manager.reconstruction.modules.utils import trafo
+from egenerator.utils import skyscan
 
 
 class Reconstruction:
@@ -289,6 +290,248 @@ class Reconstruction:
             'loss_reco': loss_reco,
             'seed_tensor_name': self.seed_tensor_name,
             'seed_from_previous_module': self.seed_from_previous_module,
+        }
+        return result_dict
+
+
+class SkyScanner:
+
+    def __init__(self, manager, loss_module, function_cache,
+                 fit_parameter_list,
+                 zenith_key, azimuth_key,
+                 seed_tensor_name,
+                 skyscan_nside=2,
+                 skyscan_focus_bounds=[5, 15, 30],
+                 skyscan_focus_nsides=[32, 16, 8],
+                 skyscan_focus_seeds=[],
+                 verbose=True,
+                 **kwargs
+                 ):
+        """Initialize reconstruction module and setup tensorflow functions.
+
+        Parameters
+        ----------
+        manager : Manager object
+            The SourceManager object.
+        loss_module : LossModule object
+            The LossModule object to use for the reconstruction steps.
+        function_cache : FunctionCache object
+            A cache to store and share created concrete tensorflow functions.
+        fit_parameter_list : bool or list of bool, optional
+            Indicates whether a parameter is to be minimized.
+            The ith element in the list specifies if the ith parameter
+            is minimized. Note that the entries corresponding to the defined
+            zenith and azimuth keys will be set to False. In other words,
+            the reconstruction at each Healpix will not fit for the direction
+            as this one is fixed to the corresponding direction of the
+            given Healpix.
+        zenith_key : str
+            The name of the key that defines the zenith direction.
+            This is utilized to adjust the `fit_parameter_list` to
+            ensure that the direction isn't fit for.
+        azimuth_key : str
+            The name of the key that defines the azimuth direction.
+            This is utilized to adjust the `fit_parameter_list` to
+            ensure that the direction isn't fit for.
+        seed_tensor_name : str
+            This defines the seed for the reconstruction.
+            Must be given as the name of the seed tensor as
+            loaded in the input data batch or as 'reco' to pull from
+            the result dictionary of previous reconstruction modules.
+            Each skyscan pixel will be seeded with this parameters, except
+            for zenith and azimuth which are fixed to the corresponding
+            values for the given Healpix.
+        skyscan_nside : int, optional
+            The default nside that will be used for the skyscan.
+            This nside will be applied everywhere that is outside of the
+            focus regions as defined in the `skyscan_focus_*` parameters.
+        skyscan_focus_bounds : list, optional
+            The skyscan will increase resolution in rings around the seeds
+            provided in `skyscan_focus_seeds`. This parameter defines the
+            boundaries [in degrees] at which the next nside is chosen.
+            The provided list of floats must be given in ascending order
+            and the corresponding nside is given in `skyscan_focus_nsides`.
+        skyscan_focus_nsides : list, optional
+            The skyscan will increase resolution in rings around the seeds
+            provided in `skyscan_focus_seeds`. This parameter defines the
+            nsides for each of these rings. See also `skyscan_focus_bounds`,
+            which defines the distance of these rings.
+        skyscan_focus_seeds : list of str, optional
+            A list of tensor names that will be used to define which parts
+            of the sky to scan in increased resolution. These tensors must
+            be included in the input data batch.
+            The parameter `skyscan_focus_bounds` and `skyscan_focus_nsides`
+            define how this increased resolution scan around these seed
+            directions will be performed.
+
+        verbose : bool, optional
+            If True, additional information will be printed to the console.
+        **kwargs
+            Description
+
+        Deleted Parameters
+        ------------------
+        skyscan_nside_ranges : dict
+            This defines the resolution in which the skyscan will be performed.
+            If provided, rings of increased resolution will be created around
+            each of the provided seeds in `skyscan_focus_seeds`.
+            The resolution rings are defined in a dictionary with keys:
+                'max_dist[deg]': nside
+            {
+
+            }
+
+        """
+
+        # store settings
+        self.manager = manager
+        self.fit_parameter_list = fit_parameter_list
+        self.seed_tensor_name = seed_tensor_name
+        self.zenith_key = zenith_key
+        self.azimuth_key = azimuth_key
+        self.skyscan_nside = skyscan_nside
+        self.skyscan_focus_bounds = skyscan_focus_bounds
+        self.skyscan_focus_nsides = skyscan_focus_nsides
+        self.skyscan_focus_seeds = skyscan_focus_seeds
+        self.verbose = verbose
+
+        self.zenith_index = manager.data_handler.tensors.get_index(zenith_key)
+        self.aziumuth_index = manager.data_handler.tensors.get_index(
+            azimuth_key)
+
+        # sanity checks (same length and sorted bounds)
+        assert len(self.skyscan_focus_bounds) == len(self.skyscan_focus_nsides)
+        assert np.allclose(
+            self.skyscan_focus_bounds, np.sort(self.skyscan_focus_bounds))
+
+        # adjust reconstruction settings for skyscan
+        fit_parameter_list_mod = [f for f in fit_parameter_list]
+        fit_parameter_list_mod[self.zenith_index] = False
+        fit_parameter_list_mod[self.azimuth_index] = False
+
+        ignored_keys = [
+            'seed_from_previous_module',
+            'randomize_seed',
+        ]
+        for k in ignored_keys:
+            if k in kwargs:
+                print('SkyScanner ignoring reco setting: {}'.format(k))
+                kwargs.pop(k)
+
+        # create reconstruction module
+        self.reco_module = Reconstruction(
+            manager=manager,
+            loss_module=loss_module,
+            function_cache=function_cache,
+            fit_parameter_list=fit_parameter_list_mod,
+            seed_tensor_name='SkyScanSeed',
+            seed_from_previous_module=True,
+            verbose=verbose,
+            **kwargs
+        )
+
+    def execute(self, data_batch, results, **kwargs):
+        """Execute skyscan for a given batch of data.
+
+        Parameters
+        ----------
+        data_batch : tuple of array_like
+            A batch of data consisting of a tuple of data arrays.
+        results : dict
+            A dictrionary with the results of previous modules.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
+
+        # -------------------------------------------------------------
+        # Generate list of nside and ipix that need to be reconstructed
+        # -------------------------------------------------------------
+        focus_zeniths = []
+        focus_azimuths = []
+        for seed_name in self.skyscan_focus_seeds:
+            seed = data_batch[seed_name]
+            focus_zeniths.append(seed[self.zenith_index])
+            focus_azimuths.append(seed[self.azimuth_index])
+
+        scan_pixels = skyscan.get_scan_pixels(
+            default_nside=self.skyscan_nside,
+            focus_bounds=self.skyscan_focus_bounds,
+            focus_nsides=self.skyscan_focus_nsides,
+            focus_zeniths=focus_zeniths,
+            focus_azimuths=focus_azimuths,
+        )
+
+        # ----------------------------------------------
+        # Perform reconstruction for each nside and ipix
+        # ----------------------------------------------
+
+        # Format: {nside: {ipix: llh/res}}
+        skyscan_llh = {}
+        skyscan_res = {}
+
+        # now walk through each nside/ipix pair and:
+        #   1. set zenith/azimuth to match ipix
+        #   2. create results_i in which this seed is saved to 'SkyScanSeed'
+        #   3. pass on to reconstruction module and run reco
+        #   4. extract reco result and save away fit params and llh
+        scan_min_val = float('inf')
+        scan_min_fit = None
+        scan_min_ipix = None
+        scan_min_nside = None
+        for nside, ipix_list in scan_pixels.items():
+
+            skyscan_llh_i = {}
+            skyscan_res_i = {}
+
+            for ipix in ipix_list:
+                theta, phi = hp.pix2ang(nside, ipix)
+
+                # get seed either from previous reconstruction result
+                # or from one loaded in the input data batch
+                if self.seed_tensor_name == 'reco':
+                    skyscanseed = results['reco']['result']
+                else:
+                    seed_index = manager.data_handler.tensors.get_index(
+                        self.seed_tensor_name)
+                    skyscanseed = np.array(data_batch[seed_index])
+
+                skyscanseed[self.zenith_index] = theta
+                skyscanseed[self.azimuth_index] = phi
+
+                # create pseudo results dict to pass on to reconstruction
+                # module which will pull the seed of the "previous"
+                # reconstruction to use as seed (seed_from_previous_module)
+                results_i = {'SkyScanSeed': {'result': skyscanseed}}
+
+                # run reconstruction for this seed
+                results_i = self.reco_module(data_batch, results_i, **kwargs)
+
+                # extract best-fit params and llh
+                skyscan_llh_i[ipix] = results_i['loss_reco']
+                skyscan_res_i[ipix] = results_i['result']
+
+                # keep track of scan minimum
+                if results_i['loss_reco'] < scan_min_val:
+                    scan_min_val = results_i['loss_reco']
+                    scan_min_fit = results_i['result']
+                    scan_min_nside = nside
+                    scan_min_ipix = ipix
+
+            skyscan_llh[nside] = skyscan_llh_i
+            skyscan_res[nside] = skyscan_res_i
+
+        result_dict = {
+            'skyscan_llh': skyscan_llh,
+            'skyscan_res': skyscan_res,
+            'scan_min_fit': scan_min_fit,
+            'scan_min_val': scan_min_val,
+            'scan_min_nside': scan_min_nside,
+            'scan_min_ipix': scan_min_ipix,
         }
         return result_dict
 

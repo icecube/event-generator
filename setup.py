@@ -16,7 +16,7 @@ setup(
     version=about['__version__'],
     packages=find_packages(),
     install_requires=[
-        'numpy', 'scipy', 'pandas', 'tensorflow_probability',
+        'numpy', 'scipy', 'healpy', 'pandas', 'tensorflow_probability',
     ],
     include_package_data=True,
     author=about['__author__'],

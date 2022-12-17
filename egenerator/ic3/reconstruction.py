@@ -87,6 +87,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'Settings for MCMC are defined in key '
                           '`mcmc_settings`.',
                           False)
+        self.AddParameter('add_skyscan',
+                          'Perform a skyscan with azimuth/zenith fixed. '
+                          'Settings for skyscan are defined in key '
+                          '`skyscan_settings`.',
+                          False)
         self.AddParameter('label_key',
                           'Only relevant if labels are being loaded. '
                           'The key from which to load labels.',
@@ -184,6 +189,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                               'add_per_dom_calculation': True,
                               'normalize_by_total_charge': False,
                           })
+
+        # MCMC specific optional settings
         self.AddParameter('mcmc_settings',
                           'Only relevant if `add_mcmc_samples` is set '
                           ' to "True". Defines settings for MCMC sampling.',
@@ -201,6 +208,25 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                           'add to result frame key of reconstruction.',
                           [0.5, 0.68, 0.9])
 
+        # SkyScan specific optional settings
+        self.AddParameter('skyscan_seed',
+                          'Only relevant if `add_skyscan` is set to True. '
+                          'If provided this I3Frame key will be used to '
+                          'specify the seed that will be used for the skyscan '
+                          'reconstructions. If set to "reco", the result of '
+                          'the reconstruction module will be used.'
+                          'reco')
+        self.AddParameter('skyscan_settings',
+                          'Only relevant if `add_skyscan` is set '
+                          ' to "True". These settings are passed on to the '
+                          ' skyscan module `SkyScanner`.',
+                          {
+                            'skyscan_nside': 2,
+                            'skyscan_focus_bounds': [5, 15, 30],
+                            'skyscan_focus_nsides': [32, 16, 8],
+                            'skyscan_focus_seeds': [],
+                          })
+
     def Configure(self):
         """Configures Module and loads model from file.
         """
@@ -215,6 +241,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.add_covariances = self.GetParameter('add_covariances')
         self.add_goodness_of_fit = self.GetParameter('add_goodness_of_fit')
         self.add_mcmc_samples = self.GetParameter('add_mcmc_samples')
+        self.add_skyscan = self.GetParameter('add_skyscan')
         self.label_key = self.GetParameter('label_key')
         self.snowstorm_key = self.GetParameter('snowstorm_key')
         self.num_threads = self.GetParameter('num_threads')
@@ -236,6 +263,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             self.GetParameter('goodness_of_fit_settings')
         self.mcmc_settings = self.GetParameter('mcmc_settings')
         self.mcmc_quantiles = self.GetParameter('mcmc_quantiles')
+        self.skyscan_seed = self.GetParameter('skyscan_seed')
 
         self.missing_seed_value_dict = \
             self.GetParameter('missing_seed_value_dict')
@@ -273,6 +301,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             additional_loss_modules = None
 
         # Build and configure SourceManager
+        misc_seed_names = list(self.seed_keys)
+        if self.skyscan_seed != 'reco':
+            if self.skyscan_seed not in self.seed_keys:
+                misc_seed_names.append(self.skyscan_seed)
+
         self.manager_configurator = ManagerConfigurator(
             manager_dirs=manager_dirs,
             reco_config_dir=None,
@@ -280,7 +313,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             replace_existing_loss_modules=False,
             additional_loss_modules=additional_loss_modules,
             misc_setting_updates={
-                'seed_names': self.seed_keys,
+                'seed_names': misc_seed_names,
                 'missing_value_dict': self.missing_seed_value_dict,
                 'missing_value': self.missing_seed_value,
             },
@@ -337,6 +370,25 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         # parameter input signature
         parameter_tensor_name = 'x_parameters'
 
+        # -----------------------
+        # Gather skyscan settings
+        # -----------------------
+        default_settings = {
+            'fit_parameter_list': fit_parameter_list,
+            'seed_tensor_name': self.skyscan_seed,
+            'minimize_in_trafo_space': self.minimize_in_trafo_space,
+            'parameter_tensor_name': parameter_tensor_name,
+            'reco_optimizer_interface': self.reco_optimizer_interface,
+            'scipy_optimizer_settings': self.scipy_optimizer_settings,
+            'tf_optimizer_settings': self.tf_optimizer_settings,
+        }
+        if self.i3_mapping is not None:
+            default_settings['zenith_key'] = self.i3_mapping['zenith']
+            default_settings['azimuth_key'] = self.i3_mapping['azimuth']
+
+        default_settings.update(skyscan_settings)
+        self.skyscan_settings = default_settings
+
         # -------------------------
         # Build reconstruction tray
         # -------------------------
@@ -363,7 +415,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 tf_optimizer_settings=self.tf_optimizer_settings,
             )
 
-        # chosse best reconstruction
+        # choose best reconstruction
         self.reco_tray.add_module(
             'SelectBestReconstruction', name='reco', reco_names=reco_names,
         )
@@ -426,6 +478,11 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 **self.mcmc_settings
             )
 
+        if self.add_skyscan:
+            self.reco_tray.add_module(
+                'SkyScanner', name='SkyScanner', **self.skyscan_settings
+            )
+
     def Physics(self, frame):
         """Apply Event-Generator model to physics frames.
 
@@ -481,7 +538,8 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 particle.dir.x, particle.dir.y, particle.dir.z)
 
             # set particle shape to infinite track even though this is not
-            # necessarily true. This will allow for visualization in steamshovel
+            # necessarily true. This will allow for visualization
+            # in steamshovel
             particle.shape = dataclasses.I3Particle.InfiniteTrack
 
         # write covariance Matrices to frame
@@ -584,6 +642,34 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
                 for n, vector in vectors.items():
                     frame[self.output_key + '_MCMC_' + n] = vector
+
+        # write SkyScan results to frame
+        if self.add_skyscan:
+            scan_res = results['SkyScanner']
+
+            for nside, llh_dict in scan_res['skyscan_llh']:
+
+                llh_values = []
+                indices = []
+                for ipix, llh_val in llh_dict.items():
+                    indices.append(ipix)
+                    llh_values.append(llh_val)
+
+                llh_values = dataclasses.I3VectorFloat(llh_values)
+                indices = dataclasses.I3VectorInt(indices)
+
+                out_base = self.output_key + '_SkyScan_{:03d}'.format(nside)
+                frame[out_base + '_loss'] = llh_values
+                frame[out_base + '_ipix'] = indices
+
+            # write out info on scan minimum
+            scan_dict = dataclasses.I3MapStringDouble()
+            scan_dict['loss'] = scan_res['scan_min_val']
+            scan_dict['nside'] = scan_res['scan_min_nside']
+            scan_dict['ipix'] = scan_res['scan_min_ipix']
+            for i, name in enumerate(self.manager.models[0].parameter_names):
+                scan_dict[name] = float(scan_res['scan_min_fit'][i])
+            frame[self.output_key + '_SkyScan'] = scan_dict
 
         # save to frame
         frame[self.output_key] = result_dict
