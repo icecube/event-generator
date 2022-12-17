@@ -653,7 +653,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 llh_values = []
                 indices = []
                 for ipix, llh_val in llh_dict.items():
-                    indices.append(ipix)
+                    indices.append(int(ipix))
                     llh_values.append(llh_val)
 
                 llh_values = dataclasses.I3VectorFloat(llh_values)
