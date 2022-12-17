@@ -399,6 +399,10 @@ class SkyScanner:
         self.zenith_index = manager.models[0].get_index(zenith_key)
         self.azimuth_index = manager.models[0].get_index(azimuth_key)
 
+        if seed_tensor_name != 'reco':
+            self.seed_index = manager.data_handler.tensors.get_index(
+                self.seed_tensor_name)
+
         # sanity checks (same length and sorted bounds)
         assert len(self.skyscan_focus_bounds) == len(self.skyscan_focus_nsides)
         assert np.allclose(
@@ -457,7 +461,7 @@ class SkyScanner:
             if seed_name == 'reco':
                 seed = results['reco']['result']
             else:
-                seed = data_batch[seed_name]
+                seed = data_batch[self.seed_index]
 
             # currently only support single batch
             assert len(seed) == 1, seed
@@ -504,9 +508,7 @@ class SkyScanner:
                 if self.seed_tensor_name == 'reco':
                     skyscanseed = results['reco']['result']
                 else:
-                    seed_index = manager.data_handler.tensors.get_index(
-                        self.seed_tensor_name)
-                    skyscanseed = np.array(data_batch[seed_index])
+                    skyscanseed = np.array(data_batch[self.seed_index])
 
                 skyscanseed[self.zenith_index] = theta
                 skyscanseed[self.azimuth_index] = phi
