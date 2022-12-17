@@ -264,6 +264,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.mcmc_settings = self.GetParameter('mcmc_settings')
         self.mcmc_quantiles = self.GetParameter('mcmc_quantiles')
         self.skyscan_seed = self.GetParameter('skyscan_seed')
+        self.skyscan_settings = self.GetParameter('skyscan_settings')
 
         self.missing_seed_value_dict = \
             self.GetParameter('missing_seed_value_dict')
@@ -386,7 +387,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             default_settings['zenith_key'] = self.i3_mapping['zenith']
             default_settings['azimuth_key'] = self.i3_mapping['azimuth']
 
-        default_settings.update(skyscan_settings)
+        default_settings.update(self.skyscan_settings)
         self.skyscan_settings = default_settings
 
         # -------------------------
