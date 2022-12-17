@@ -512,8 +512,8 @@ class SkyScanner:
                     skyscanseed = np.array(data_batch[seed_index])
 
                 assert len(skyscanseed) == 1, skyscanseed
-                skyscanseed[self.zenith_index][0] = theta
-                skyscanseed[self.azimuth_index][0] = phi
+                skyscanseed[0][self.zenith_index] = theta
+                skyscanseed[0][self.azimuth_index] = phi
 
                 # create pseudo results dict to pass on to reconstruction
                 # module which will pull the seed of the "previous"
