@@ -456,11 +456,11 @@ class SkyScanner:
         focus_azimuths = []
         for seed_name in self.skyscan_focus_seeds:
             if seed_name == 'reco':
-                seed = results['reco']['result']
+                seed = np.array(results['reco']['result'])
             else:
                 seed_index = self.manager.data_handler.tensors.get_index(
                     seed_name)
-                seed = data_batch[seed_index]
+                seed = np.array(data_batch[seed_index])
 
             # currently only support single batch
             assert len(seed) == 1, seed
@@ -505,7 +505,7 @@ class SkyScanner:
                 # get seed either from previous reconstruction result
                 # or from one loaded in the input data batch
                 if self.seed_tensor_name == 'reco':
-                    skyscanseed = results['reco']['result']
+                    skyscanseed = np.array(results['reco']['result'])
                 else:
                     seed_index = self.manager.data_handler.tensors.get_index(
                         self.seed_tensor_name)
