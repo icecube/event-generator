@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from egenerator.manager.reconstruction.modules.utils import trafo
 from egenerator.utils import skyscan
+from egenerator.utils import angles
 
 
 class Reconstruction:
@@ -465,8 +466,14 @@ class SkyScanner:
             # currently only support single batch
             assert len(seed) == 1, seed
 
-            focus_zeniths.append(seed[0][self.zenith_index])
-            focus_azimuths.append(seed[0][self.azimuth_index])
+            # make sure zenith and azimuth are in range [0, pi), [0, 2pi)
+            zenith, azimuth = angles.convert_to_range(
+                zenith=seed[0][self.zenith_index],
+                azimuth=seed[0][self.azimuth_index],
+            )
+
+            focus_zeniths.append(zenith)
+            focus_azimuths.append(azimuth)
 
         scan_pixels = skyscan.get_scan_pixels(
             default_nside=self.skyscan_nside,
