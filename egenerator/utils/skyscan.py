@@ -83,7 +83,7 @@ def get_scan_pixels(
     return scan_pixels
 
 
-def fill_skymap(nside, indices, values):
+def sparse_to_dense_skymap(nside, indices, values):
     """Fill a skymap from reduced representation of indices and values
 
     Parameters
