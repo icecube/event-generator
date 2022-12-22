@@ -161,15 +161,17 @@ class MarkovChainMonteCarlo:
 
                 if mcmc_num_burnin_steps in [None, -1]:
                     tau = sampler.get_autocorr_time(quiet=True)
-                    mcmc_num_burnin_steps = 2*int(max(tau))
+                    discard = 2*int(max(tau))
+                else:
+                    discard = mcmc_num_burnin_steps
 
                 flat_samples = sampler.get_chain(
-                    discard=mcmc_num_burnin_steps,
+                    discard=discard,
                     thin=mcmc_num_steps_between_results,
                     flat=True,
                 )
                 flat_llh = sampler.get_log_prob(
-                    discard=mcmc_num_burnin_steps,
+                    discard=discard,
                     thin=mcmc_num_steps_between_results,
                     flat=True,
                 )
