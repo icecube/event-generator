@@ -139,11 +139,13 @@ class MarkovChainMonteCarlo:
             import emcee
 
             def log_prob(parameters_trafo, data_batch, seed):
-                return -self.parameter_loss_function(
+                llh = -self.parameter_loss_function(
                     parameters_trafo=[parameters_trafo],
                     data_batch=data_batch,
                     seed=seed,
                 )
+                print('llh', llh)
+                return llh
 
             def run_mcmc_on_events(initial_position, data_batch, seed):
                 sampler = emcee.EnsembleSampler(
