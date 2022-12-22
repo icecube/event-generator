@@ -237,7 +237,7 @@ class MarkovChainMonteCarlo:
             # randomization value given in transformed coordinates
             seed_rand_trafo = np.array([
                 self.mcmc_seed_randomization for p in range(n_params)])
-            seed_rand = seed_rand_trafo * self.data_trafo.data[
+            seed_rand = seed_rand_trafo * self.manager.data_trafo.data[
                 self.parameter_tensor_name+'_std']
 
         elif isinstance(self.mcmc_seed_randomization, str):
@@ -246,7 +246,7 @@ class MarkovChainMonteCarlo:
         else:
             assert len(self.mcmc_seed_randomization) == n_params
             seed_rand = self.mcmc_seed_randomization
-            seed_rand_trafo = seed_rand / self.data_trafo.data[
+            seed_rand_trafo = seed_rand / self.manager.data_trafo.data[
                 self.parameter_tensor_name+'_std']
 
         if self.minimize_in_trafo_space:
