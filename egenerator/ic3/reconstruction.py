@@ -7,6 +7,7 @@ from icecube.icetray.i3logging import log_info, log_warn
 
 from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.manager.reconstruction.tray import ReconstructionTray
+from egenerator.utils import angles
 
 
 class EventGeneratorReconstruction(icetray.I3ConditionalModule):
@@ -368,6 +369,10 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             if self.fit_parameter_list[i]:
                 self.fitted_parameters.append(n)
 
+        self.fitted_param_to_index = {}
+        for i, n in enumerate(self.fitted_parameters):
+            self.fitted_param_to_index[n] = i
+
         # parameter input signature
         parameter_tensor_name = 'x_parameters'
 
@@ -614,6 +619,20 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             mcmc_res = results['MarkovChainMonteCarlo']
             num_accepted = len(mcmc_res['log_prob_values'])
             result_dict['MCMC_acceptance_ratio'] = mcmc_res['acceptance_ratio']
+
+            # modify azimuth and zenith to be in range
+            if self.i3_mapping is not None and num_accepted > 0:
+                index_azimuth = self.fitted_param_to_index(
+                    self.i3_mapping['azimuth'])
+                index_zenith = self.fitted_param_to_index(
+                    self.i3_mapping['zenith'])
+
+                zenith, azimuth = angles.convert_to_range(
+                    zenith=mcmc_res['samples'][:, index_zenith],
+                    azimuth=mcmc_res['samples'][:, index_azimuth],
+                )
+                mcmc_res['samples'][:, index_zenith] = zenith
+                mcmc_res['samples'][:, index_azimuth] = azimuth
 
             # fill in median and quantiles
             for i, n in enumerate(self.fitted_parameters):
