@@ -1,4 +1,5 @@
-from .reconstruction import Reconstruction, SelectBestReconstruction
+from .reconstruction import (
+    Reconstruction, SelectBestReconstruction, SkyScanner)
 from .covariance import CovarianceMatrix
 from .fit_quality import GoodnessOfFit
 from .opening_angle import CircularizedAngularUncertainty
@@ -8,6 +9,7 @@ from .visualize_pulses import VisualizePulseLikelihood
 
 __all__ = [
     'Reconstruction',
+    'SkyScanner',
     'SelectBestReconstruction',
     'CovarianceMatrix',
     'GoodnessOfFit',
