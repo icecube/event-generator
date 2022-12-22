@@ -622,10 +622,10 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
             # modify azimuth and zenith to be in range
             if self.i3_mapping is not None and num_accepted > 0:
-                index_azimuth = self.fitted_param_to_index(
-                    self.i3_mapping['azimuth'])
-                index_zenith = self.fitted_param_to_index(
-                    self.i3_mapping['zenith'])
+                index_azimuth = self.fitted_param_to_index[
+                    self.i3_mapping['azimuth']]
+                index_zenith = self.fitted_param_to_index[
+                    self.i3_mapping['zenith']]
 
                 zenith, azimuth = angles.convert_to_range(
                     zenith=mcmc_res['samples'][:, index_zenith],

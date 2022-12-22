@@ -147,6 +147,11 @@ class MarkovChainMonteCarlo:
                 return llh.numpy()
 
             def run_mcmc_on_events(initial_position, data_batch, seed):
+
+                # unforatunately emcee does not have a proper way
+                # to pass in a seed. Instead we seed per numpy global seed
+                np.random.seed(random_seed)
+
                 sampler = emcee.EnsembleSampler(
                     mcmc_num_chains,
                     ndim=np.sum(fit_parameter_list, dtype=int),
