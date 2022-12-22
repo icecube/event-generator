@@ -207,3 +207,43 @@ def get_delta_psi_vector_dir(vec, delta_psi,
     new_vec = vec + np.tan(delta_psi) * vec_orthogonal
     new_vec /= np.linalg.norm(new_vec, axis=-1, keepdims=True)
     return new_vec
+
+
+def convert_to_range(zenith, azimuth):
+    """Ensures that zenith and azimuth are in proper range
+
+    Converts zenith and azimuth such that they are in
+    [0, pi) and [0, 2pi).
+    Conversion is done by calculating the unit vector and then
+    re-computing the zenith and azimuth angles. Note that this
+    is susceptible to numerical issues and therefore this
+    function should not be used if precise sub-degree results
+    are required.
+
+    Parameters
+    ----------
+    zenith : array_like
+        The zenith angles to convert.
+    azimuth : array_like
+        The azimuth angles to convert.
+
+    Returns
+    -------
+    array_like
+        The converted zenith angles.
+    array_like
+        The converted azimuth angles.
+    """
+
+    # create copies to not edit in place
+    zenith = np.array(zenith)
+    azimuth = np.array(azimuth)
+
+    x = np.sin(zenith) * np.cos(azimuth)
+    y = np.sin(zenith) * np.sin(azimuth)
+    z = np.cos(zenith)
+
+    zenith = np.arccos(z)
+    azimuth = np.arctan2(y, x)
+
+    return zenith, azimuth
