@@ -20,6 +20,7 @@ class MarkovChainMonteCarlo:
                  mcmc_num_parallel_iterations=1,
                  mcmc_method='HamiltonianMonteCarlo',
                  mcmc_step_size=0.01,
+                 mcmc_seed_randomization=0.01,
                  random_seed=42,
                  verbose=True,
                  ):
@@ -69,6 +70,15 @@ class MarkovChainMonteCarlo:
             a single float for all parameters (in transformed parameter space),
             or as a string for one of the implemented methods consisting
             of: [].
+        mcmc_seed_randomization : float or array_like or str, optional
+            The randomization to apply to the initial MCMC seed position.
+            The randomization values may be provided as a list of
+            float for each parameter (in original physics parameter space,
+            but in log10 for variables fit in log10 if
+            `minimize_in_trafo_space` is set to true),
+            a single float for all parameters (in transformed parameter space),
+            or as a string for one of the implemented methods consisting
+            of: [].
         random_seed : int, optional
             Description
         verbose : bool, optional
@@ -82,6 +92,7 @@ class MarkovChainMonteCarlo:
         self.parameter_tensor_name = parameter_tensor_name
         self.mcmc_num_chains = mcmc_num_chains
         self.mcmc_method = mcmc_method
+        self.mcmc_seed_randomization = mcmc_seed_randomization
         self.reco_key = reco_key
         self.seed_tensor_name = seed_tensor_name
         self.verbose = verbose
@@ -209,10 +220,10 @@ class MarkovChainMonteCarlo:
         # get seed: either from seed tensor or from previous results
         if 'result' in results[self.reco_key]:
             # this is a previous reconstruction result
-            result_inv = results[self.reco_key]['result']
+            result_inv = np.array(results[self.reco_key]['result'])
         else:
             # this could be a seed tensor
-            result_inv = results[self.reco_key]
+            result_inv = np.array(results[self.reco_key])
 
         assert len(result_inv) == 1
 
@@ -220,10 +231,36 @@ class MarkovChainMonteCarlo:
             np.tile(result_inv[0], [self.mcmc_num_chains, 1]),
             [self.mcmc_num_chains, len(self.fit_parameter_list)])
 
+        # get randomization values for seed
+        n_params = len(self.fit_parameter_list)
+        if isinstance(self.mcmc_seed_randomization, float):
+            # randomization value given in transformed coordinates
+            seed_rand_trafo = np.array([
+                self.mcmc_seed_randomization for p in range(n_params)])
+            seed_rand = seed_rand_trafo * self.data_trafo.data[
+                self.parameter_tensor_name+'_std']
+
+        elif isinstance(self.mcmc_seed_randomization, str):
+            raise NotImplementedError(self.mcmc_seed_randomization)
+
+        else:
+            assert len(self.mcmc_seed_randomization) == n_params
+            seed_rand = self.mcmc_seed_randomization
+            seed_rand_trafo = seed_rand / self.data_trafo.data[
+                self.parameter_tensor_name+'_std']
+
         if self.minimize_in_trafo_space:
             initial_position = self.manager.data_trafo.transform(
                                     data=initial_position,
                                     tensor_name=self.parameter_tensor_name)
+
+            # randomize seed
+            initial_position += self.rng.normal(
+                loc=0.0, scale=seed_rand_trafo, size=initial_position.shape)
+        else:
+            # randomize seed
+            initial_position += self.rng.normal(
+                loc=0.0, scale=seed_rand, size=initial_position.shape)
 
         # get seed parameters
         if np.all(self.fit_parameter_list):
