@@ -135,7 +135,7 @@ class MarkovChainMonteCarlo:
         # ------------------------------
         # MCMC with python package emcee
         # ------------------------------
-        if mcmc_method.lower() == 'emcee':
+        if self.mcmc_method.lower() == 'emcee':
             import emcee
 
             def log_prob(parameters_trafo, data_batch, seed):
@@ -280,7 +280,7 @@ class MarkovChainMonteCarlo:
             initial_position, data_batch, result_inv)
         mcmc_end_t = timeit.default_timer()
 
-        if mcmc_method.lower() == 'emcee':
+        if self.mcmc_method.lower() == 'emcee':
             (sampler, log_prob_values) = info
             acceptance_ratio = np.mean(sampler.acceptance_fraction)
 
