@@ -319,10 +319,10 @@ class MarkovChainMonteCarlo:
             print('MCMC Results took {:3.3f}s:'.format(
                 mcmc_end_t - mcmc_start_t))
             print('\tAcceptance Ratio: {:2.1f}%'.format(100.*acceptance_ratio))
-            msg = ''
-            for s in step_size:
-                msg += '{:1.4f} '
             if len(info) > 2 and mcmc_method.lower() != 'emcee':
+                msg = ''
+                for s in step_size:
+                    msg += '{:1.4f} '
                 print('\tStepsize [sampled space]: ' + msg.format(
                     *step_size_trafo))
                 print('\tStepsize [true space]: ' + msg.format(*step_size))
