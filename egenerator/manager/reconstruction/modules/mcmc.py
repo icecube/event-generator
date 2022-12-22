@@ -140,7 +140,7 @@ class MarkovChainMonteCarlo:
 
             def log_prob(parameters_trafo, data_batch, seed):
                 return -self.parameter_loss_function(
-                    parameters_trafo=parameters_trafo,
+                    parameters_trafo=[parameters_trafo],
                     data_batch=data_batch,
                     seed=seed,
                 )
