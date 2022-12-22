@@ -144,8 +144,7 @@ class MarkovChainMonteCarlo:
                     data_batch=data_batch,
                     seed=seed,
                 )
-                print('llh', llh)
-                return llh
+                return llh.numpy()
 
             def run_mcmc_on_events(initial_position, data_batch, seed):
                 sampler = emcee.EnsembleSampler(
