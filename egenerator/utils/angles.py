@@ -246,4 +246,6 @@ def convert_to_range(zenith, azimuth):
     zenith = np.arccos(z)
     azimuth = np.arctan2(y, x)
 
+    azimuth = np.mod(azimuth, 2*np.pi)
+
     return zenith, azimuth
