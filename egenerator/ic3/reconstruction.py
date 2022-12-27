@@ -202,6 +202,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                             'mcmc_num_burnin_steps': 100,
                             'mcmc_num_steps_between_results': 0,
                             'mcmc_num_parallel_iterations': 1,
+                            'distribution_settings': {},
                           })
         self.AddParameter('mcmc_quantiles',
                           'Only relevant if `add_mcmc_samples` is set '
@@ -226,6 +227,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                             'skyscan_focus_bounds': [5, 15, 30],
                             'skyscan_focus_nsides': [32, 16, 8],
                             'skyscan_focus_seeds': [],
+                            'distribution_settings': {},
                           })
 
     def Configure(self):
@@ -473,6 +475,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         # add MCMC
         if self.add_mcmc_samples:
+            dist_settings = self.mcmc_settings.pop('distribution_settings')
             self.reco_tray.add_module(
                 'MarkovChainMonteCarlo',
                 name='MarkovChainMonteCarlo',
@@ -484,10 +487,33 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 **self.mcmc_settings
             )
 
+            if self.i3_mapping is not None:
+                self.reco_tray.add_module(
+                    'FitDistributionsOnSphere',
+                    name='MCMCDistributions',
+                    input_module='MarkovChainMonteCarlo',
+                    zenith_key=self.i3_mapping['zenith'],
+                    azimuth_key=self.i3_mapping['azimuth'],
+                    reco_key='reco',
+                    **dist_settings
+                )
+
         if self.add_skyscan:
+            dist_settings = self.skyscan_settings.pop('distribution_settings')
             self.reco_tray.add_module(
                 'SkyScanner', name='SkyScanner', **self.skyscan_settings
             )
+
+            if self.i3_mapping is not None:
+                self.reco_tray.add_module(
+                    'FitDistributionsOnSphere',
+                    name='SkyScanDistributions',
+                    input_module='SkyScanner',
+                    zenith_key=self.i3_mapping['zenith'],
+                    azimuth_key=self.i3_mapping['azimuth'],
+                    reco_key='reco',
+                    **dist_settings
+                )
 
     def Physics(self, frame):
         """Apply Event-Generator model to physics frames.
@@ -652,6 +678,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                         np.quantile(values, 0.5 + 0.5*q))
 
             if num_accepted > 0:
+
                 # create vectors for output quantities
                 vectors = {}
                 for i, n in enumerate(self.fitted_parameters):
@@ -662,6 +689,12 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
                 for n, vector in vectors.items():
                     frame[self.output_key + '_MCMC_' + n] = vector
+
+                # get fitted distribution parameters
+                for name, params in results['MCMCDistributions'].items():
+                    for param, value in params.items():
+                        result_dict['MCMC_{}__{}'.format(name, param)] = float(
+                            value)
 
         # write SkyScan results to frame
         if self.add_skyscan:
@@ -692,6 +725,12 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
             for i, name in enumerate(self.manager.models[0].parameter_names):
                 result_dict['SkyScan_min_' + name] = float(scan_min_fit[i])
+
+            # get fitted distribution parameters
+            for name, params in results['SkyScanDistributions'].items():
+                for param, value in params.items():
+                    result_dict['SkyScan_{}__{}'.format(name, param)] = float(
+                        value)
 
         # save to frame
         frame[self.output_key] = result_dict

@@ -438,7 +438,15 @@ def compute_coverage(
 
 class DistributionOnSphere:
 
-    def fit(self, samples, *args, **kwargs):
+    @property
+    def params(self):
+        return self._params
+
+    @params.setter
+    def params(self, params):
+        self._params = dict(params)
+
+    def fit(self, samples, x0, *args, **kwargs):
         """Fits the distribution parameters to the provided samples
 
         Parameters
@@ -448,10 +456,17 @@ class DistributionOnSphere:
             Can either be zenith, azimuth or x, y, z of unit direction
             vector. The size of the last dimension of `samples` defines
             which one will be used.
+        x0 : array_like
+            The initial seed for the parameters.
         *args
             Additional arguments.
         **kwargs
             Additional keyword arguments
+
+        Raises
+        ------
+        NotImplementedError
+            Description
         """
         raise NotImplementedError
 
@@ -660,6 +675,18 @@ class FB8Distribution(DistributionOnSphere):
                 self.neg_log_p_levels[i] = self.fb8.level(
                     percentile=level*100)
 
+        # set parameters
+        self._params = {
+            'theta': self.fb8.theta,
+            'phi': self.fb8.phi,
+            'psi': self.fb8.psi,
+            'kappa': self.fb8.kappa,
+            'beta': self.fb8.beta,
+            'eta': self.fb8.eta,
+            'alpha': self.fb8.alpha,
+            'rho': self.fb8.rho,
+        }
+
     def log_pdf(self, zenith, azimuth, *args, **kwargs):
         """Computes the logarithm of the PDF.
 
@@ -763,7 +790,7 @@ class VonMisesFisherDistribution(DistributionOnSphere):
                 )))
 
             res = minimize(loss, x0=x0)
-            self.params = {
+            self._params = {
                 'zenith': res.x[0],
                 'azimuth': res.x[1],
                 'sigma': res.x[2],
@@ -788,7 +815,7 @@ class VonMisesFisherDistribution(DistributionOnSphere):
 
             res = minimize(loss, x0=x0[2])
 
-            self.params = {
+            self._params = {
                 'zenith': x0[0],
                 'azimuth': x0[1],
                 'sigma': res.x[0],
@@ -1028,7 +1055,7 @@ class Gauss2D(DistributionOnSphere):
                 return -np.sum(dist.logpdf(values))
 
             res = minimize(loss, x0=x0)
-            self.params = {
+            self._params = {
                 'zenith': res.x[0],
                 'azimuth': res.x[1],
                 'cov_00': res.x[2],
@@ -1067,7 +1094,7 @@ class Gauss2D(DistributionOnSphere):
 
             res = minimize(loss, x0=x0[2:])
 
-            self.params = {
+            self._params = {
                 'zenith': x0[0],
                 'azimuth': x0[1],
                 'cov_00': res.x[0],

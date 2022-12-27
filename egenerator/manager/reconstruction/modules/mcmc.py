@@ -3,6 +3,8 @@ import numpy as np
 import tensorflow as tf
 
 from egenerator.manager.reconstruction.modules.utils import trafo
+from egenerator.utils import skyscan
+from egenerator.utils import angles
 
 
 class MarkovChainMonteCarlo:
@@ -340,3 +342,186 @@ class MarkovChainMonteCarlo:
         }
 
         return results
+
+
+class FitDistributionsOnSphere:
+
+    def __init__(
+            self, manager, loss_module, function_cache, input_module,
+            zenith_key. azimuth_key, reco_key,
+            dist_settings=[
+                {
+                    'distribution': 'FB8Distribution',
+                    'output_key': 'FB5',
+                    'kwargs': {'fb5_only': True},
+                },
+                {
+                    'distribution': 'FB8Distribution',
+                    'output_key': 'FB8',
+                    'kwargs': {'fb5_only': False},
+                },
+                {
+                    'distribution': 'VonMisesFisherDistribution',
+                    'output_key': 'vMF',
+                    'kwargs': {'fit_position': True},
+                },
+                {
+                    'distribution': 'VonMisesFisherDistribution',
+                    'output_key': 'vMF_fixed',
+                    'kwargs': {'fit_position': False},
+                },
+                {
+                    'distribution': 'Gauss2D',
+                    'output_key': 'Gauss2d',
+                    'kwargs': {'fit_position': True},
+                },
+                {
+                    'distribution': 'Gauss2D',
+                    'output_key': 'Gauss2d_fixed',
+                    'kwargs': {'fit_position': False},
+                },
+            ],
+            num_sample_points=10000, verbose=True):
+        """Initialize reconstruction module and setup tensorflow functions.
+
+        Parameters
+        ----------
+        manager : Manager object
+            The SourceManager object.
+        loss_module : LossModule object
+            The LossModule object to use for the reconstruction steps.
+        function_cache : FunctionCache object
+            A cache to store and share created concrete tensorflow functions.
+        input_module : str
+            The name of the previous module for which to fit distribution
+            parameters on the sphere. This can, for example, be the result
+            of a `SkyScanner` or the `MarkovChainMonteCarlo` module.
+        zenith_key : str
+            The name of the key that defines the zenith direction.
+            This is utilized to select the correct column indices from the
+            MCMC samples.
+        azimuth_key : str
+            The name of the key that defines the azimuth direction.
+            This is utilized to select the correct column indices from the
+            MCMC samples.
+        reco_key : str
+            The name of the reconstruction module to use. The initial seed
+            for the distribution fits will be set to the best fit point of
+            the specified reconstruction module.
+        dist_settings : list of dict
+            A list of dictionaries where each dictionary defines which
+            distribution to fit to the sample points on the sphere.
+            Each dictionary must contain the entries `distribution`,
+            `output_key`  and additional `kwargs` passed on the distribution.
+        verbose : bool, optional
+            If True, additional information will be printed to the console.
+        """
+
+        # store settings
+        self.input_module = input_module
+        self.reco_key = reco_key
+        self.dist_settings = dist_settings
+        self.num_sample_points = num_sample_points
+        self.verbose = verbose
+
+        self.zenith_key = zenith_key
+        self.azimuth_key = azimuth_key
+        self.zenith_index = manager.models[0].get_index(zenith_key)
+        self.azimuth_index = manager.models[0].get_index(azimuth_key)
+
+    def execute(self, data_batch, results, **kwargs):
+        """Execute selection.
+
+        Choose best reconstruction from a list of results
+
+        Parameters
+        ----------
+        data_batch : tuple of tf.Tensors
+            A data batch which consists of a tuple of tf.Tensors.
+        results : dict
+            A dictrionary with the results of previous modules.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        TYPE
+            Description
+        """
+
+        # get sampled points from previous module
+        res = results[self.input_module]
+
+        # MCMC
+        if 'samples' in res:
+            samples = res['samples']
+
+            # choose zenith and azimuth columns
+            samples = samples[:, [self.zenith_index, self.azimuth_index]]
+
+        # This is a SkyScanner module
+        elif 'skyscan_llh' in res:
+            skyscan_llh = res['skyscan_llh']
+
+            # combine skymap
+            skymaps = []
+            for nside, skymap_llh_i in skyscan_llh.items():
+                indices = []
+                values = []
+                for ipix, value in skymap_llh_i.items():
+                    indices.append(ipix)
+                    values.append(-value)  # - for log pdf
+                skymaps.append(skyscan.sparse_to_dense_skymap(
+                    nside=nside, indices=indices, values=values))
+            skymap = skyscan.combine_skymaps(*skymaps)
+
+            # sample points from skymap
+            sampler = skyscan.SkymapSampler(skymap)
+            samples = sampler.sample_angles(self.num_sample_points)
+
+        else:
+            raise ValueError('Could not find samples from module {}!'.format(
+                self.input_module))
+
+        # we now have a set of zenith and azimuth values on the sphere
+        # and can fit the distributions
+        dist_results = {}
+
+        fit_res = results[self.reco_key]['result']
+
+        for settings in self.dist_settings:
+
+            dist_name = settings['distribution'].lower()
+
+            if dist_name == 'fb8distribution':
+                dist = angles.FB8Distribution()
+                dist.fit(samples=samples, **settings['kwargs'])
+
+            elif dist_name == 'vonmisesfisherdistribution':
+                x0 = [
+                    fit_res[self.zenith_index],
+                    fit_res[self.azimuth_index],
+                    np.deg2rad(10),
+                ]
+
+                dist = angles.VonMisesFisherDistribution()
+                dist.fit(samples=samples, x0=x0, **settings['kwargs'])
+
+            elif dist_name == 'gauss2d':
+                x0 = [
+                    fit_res[self.zenith_index],
+                    fit_res[self.azimuth_index],
+                    np.deg2rad(10),  # cov_00
+                    0.,  # cov_01
+                    np.deg2rad(15),  # cov_11
+                ]
+
+                dist = angles.Gauss2D()
+                dist.fit(samples=samples, x0=x0, **settings['kwargs'])
+            else:
+                raise KeyError('Unknown distribution: {}!'.format(dist_name))
+
+            # write out parameters from fitted distribution
+            dist_results[settings['output_key']] = dist.params
+
+        return dist_results
