@@ -691,7 +691,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     frame[self.output_key + '_MCMC_' + n] = vector
 
                 # get fitted distribution parameters
+                print('MCMCDistributions', results['MCMCDistributions'])
                 for name, params in results['MCMCDistributions'].items():
+                    print('params', params)
                     for param, value in params.items():
                         result_dict['MCMC_{}__{}'.format(name, param)] = float(
                             value)
@@ -727,7 +729,9 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                 result_dict['SkyScan_min_' + name] = float(scan_min_fit[i])
 
             # get fitted distribution parameters
+            print('SkyScanDistributions', results['SkyScanDistributions'])
             for name, params in results['SkyScanDistributions'].items():
+                print('params', params)
                 for param, value in params.items():
                     result_dict['SkyScan_{}__{}'.format(name, param)] = float(
                         value)
