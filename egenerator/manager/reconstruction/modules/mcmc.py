@@ -488,6 +488,8 @@ class FitDistributionsOnSphere:
         dist_results = {}
 
         fit_res = results[self.reco_key]['result']
+        assert len(fit_res) == 0, fit_res
+        fit_res = fit_res[0]
 
         for settings in self.dist_settings:
 
