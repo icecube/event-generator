@@ -477,7 +477,8 @@ class FitDistributionsOnSphere:
 
             # sample points from skymap
             sampler = skyscan.SkymapSampler(skymap)
-            samples = sampler.sample_angles(self.num_sample_points)
+            zenith, azimuth = sampler.sample_angles(self.num_sample_points)
+            samples = np.stack((zenith, azimuth), axis=1)
 
         else:
             raise ValueError('Could not find samples from module {}!'.format(
