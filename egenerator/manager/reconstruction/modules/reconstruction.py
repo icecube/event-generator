@@ -506,7 +506,7 @@ class SkyScanner:
             start_t = timeit.default_timer()
             if self.verbose:
                 print('Scanning {} pixels of nside {} ...'.format(
-                    nside, len(ipix_list)))
+                    len(ipix_list), nside))
 
             skyscan_llh_i = {}
             skyscan_res_i = {}
