@@ -348,7 +348,7 @@ class FitDistributionsOnSphere:
 
     def __init__(
             self, manager, loss_module, function_cache, input_module,
-            zenith_key. azimuth_key, reco_key,
+            zenith_key, azimuth_key, reco_key,
             dist_settings=[
                 {
                     'distribution': 'FB8Distribution',
