@@ -1,5 +1,6 @@
 import numpy as np
 import healpy as hp
+import timeit
 import tensorflow as tf
 
 from egenerator.manager.reconstruction.modules.utils import trafo
@@ -502,11 +503,15 @@ class SkyScanner:
         scan_min_nside = None
         for nside, ipix_list in scan_pixels.items():
 
+            start_t = timeit.default_timer()
+            if self.verbose:
+                print('Scanning {} pixels of nside {} ...'.format(
+                    nside, len(ipix_list)))
+
             skyscan_llh_i = {}
             skyscan_res_i = {}
 
             for ipix in ipix_list:
-                print(nside, ipix)
                 theta, phi = hp.pix2ang(nside, ipix)
 
                 # get seed either from previous reconstruction result
@@ -544,6 +549,10 @@ class SkyScanner:
 
             skyscan_llh[nside] = skyscan_llh_i
             skyscan_res[nside] = skyscan_res_i
+
+            end_t = timeit.default_timer()
+            if self.verbose:
+                print('   ... that took {:3.3}s'.format(end_t - start_t))
 
         result_dict = {
             'skyscan_llh': skyscan_llh,
