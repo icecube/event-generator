@@ -446,6 +446,21 @@ class DistributionOnSphere:
     def params(self, params):
         self._params = dict(params)
 
+    def set(self, params, *args, **kwargs):
+        """Set parameters of the distribution and initialize it
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+        """
+        self._params = dict(params)
+
     def fit(self, samples, x0, *args, **kwargs):
         """Fits the distribution parameters to the provided samples
 
@@ -630,6 +645,32 @@ class DistributionOnSphere:
 
 class FB8Distribution(DistributionOnSphere):
 
+    def set(self, params, cdf_levels=np.linspace(0., .999, 1000),
+            seed=42, *args, **kwargs):
+        """Set parameters of the distribution and initialize it
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        cdf_levels : array_like, optional
+            The quantile values at which to cache the -llh values for
+            contour and cdf calculations.
+        seed : int, optional
+            A random seed.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+        """
+
+        # python package fb8
+        from sphere import distribution
+
+        fb8 = distribution.fb8(**params)
+        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed)
+
     def fit(self, samples, cdf_levels=np.linspace(0., .999, 1000),
             fb5_only=True, warning=None, seed=42, *args, **kwargs):
         """Fits the distribution parameters to the provided samples
@@ -642,11 +683,14 @@ class FB8Distribution(DistributionOnSphere):
             vector. The size of the last dimension of `samples` defines
             which one will be used.
         cdf_levels : array_like, optional
-            The quantile
+            The quantile values at which to cache the -llh values for
+            contour and cdf calculations.
         fb5_only : bool, optional
             If True, only fit for the FB5 (Kent) distribution.
         warning : None, optional
             Define logging level for warnings.
+        seed : int, optional
+            A random seed.
         *args
             Additional arguments.
         **kwargs
@@ -660,7 +704,25 @@ class FB8Distribution(DistributionOnSphere):
 
         # xs has format [z, x, y] and NOT [x, y, z]!!
         xs = np.array([dir_z, dir_x, dir_y]).T
-        self.fb8 = distribution.fb8_mle(xs, fb5_only=fb5_only, warning=None)
+        fb8 = distribution.fb8_mle(xs, fb5_only=fb5_only, warning=None)
+
+        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed)
+
+    def _setup(self, fb8, cdf_levels, seed=42):
+        """Summary
+
+        Parameters
+        ----------
+        fb8 : sphere.distribution.fb8
+            The fb8 distrribution on the sphere.
+        cdf_levels : array_like, optional
+            The quantile values at which to cache the -llh values for
+            contour and cdf calculations.
+        seed : int, optional
+            A random seed.
+        """
+
+        self.fb8 = fb8
 
         # compute levels needed for cdf calculation
         self.seed = seed
@@ -766,8 +828,6 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         """
 
         zenith, azimuth = self._convert_samples(samples)[0]
-        self.fit_position = fit_position
-
         eps = 1e-4
 
         if fit_position:
@@ -1012,7 +1072,6 @@ class Gauss2D(DistributionOnSphere):
         """
 
         zenith, azimuth = self._convert_samples(samples)[0]
-        self.fit_position = fit_position
         self.seed = seed
 
         eps = 1e-4
