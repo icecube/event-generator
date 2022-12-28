@@ -900,6 +900,8 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         array_like
             The log PDF evaluated at the provided positions on the sphere.
         """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
 
         # get opening angle to center of distribution
         delta_psi = get_angle_deviation_np(
@@ -932,6 +934,8 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         array_like
             The CDF evaluated at the provided positions on the sphere.
         """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
 
         # get opening angle to center of distribution
         delta_psi = get_angle_deviation_np(
@@ -1044,6 +1048,25 @@ class Gauss2D(DistributionOnSphere):
         except np.linalg.LinAlgError:
             return False
 
+    def set(self, params, allow_singular=True, seed=42, *args, **kwargs):
+        """Set parameters of the distribution and initialize it
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        allow_singular : bool, optional
+            Allow singular covariance matrices.
+        seed : int, optional
+            Random number seed.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+        """
+        self._setup(params, allow_singular=allow_singular, seed=seed)
+
     def fit(self, samples, x0=None, fit_position=True, allow_singular=True,
             seed=42, *args, **kwargs):
         """Fits the distribution parameters to the provided samples
@@ -1064,7 +1087,7 @@ class Gauss2D(DistributionOnSphere):
         allow_singular : bool, optional
             Allow singular covariance matrices.
         seed : int, optional
-            Description
+            Random number seed.
         *args
             Additional arguments.
         **kwargs
@@ -1114,7 +1137,7 @@ class Gauss2D(DistributionOnSphere):
                 return -np.sum(dist.logpdf(values))
 
             res = minimize(loss, x0=x0)
-            self._params = {
+            params = {
                 'zenith': res.x[0],
                 'azimuth': res.x[1],
                 'cov_00': res.x[2],
@@ -1153,13 +1176,32 @@ class Gauss2D(DistributionOnSphere):
 
             res = minimize(loss, x0=x0[2:])
 
-            self._params = {
+            params = {
                 'zenith': x0[0],
                 'azimuth': x0[1],
                 'cov_00': res.x[0],
                 'cov_01': res.x[1],
                 'cov_11': res.x[2],
             }
+
+        self._setup(params)
+
+    def _setup(self, params, allow_singular=True, seed=42):
+        """Set up distribution with a given set of parameters.
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        allow_singular : bool, optional
+            Allow singular covariance matrices.
+        seed : int, optional
+            Random number seed.
+        """
+        self.seed = seed
+        self.allow_singular = allow_singular
+        self._params = dict(params)
 
         self.cov = np.array([
             [self.params['cov_00'], self.params['cov_01']],
@@ -1198,6 +1240,8 @@ class Gauss2D(DistributionOnSphere):
         array_like
             The log PDF evaluated at the provided positions on the sphere.
         """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
 
         # get delta values
         d_zen = self.params['zenith'] - zenith
@@ -1225,6 +1269,8 @@ class Gauss2D(DistributionOnSphere):
         array_like
             The CDF evaluated at the provided positions on the sphere.
         """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
 
         # get delta values
         d_zen = self.params['zenith'] - zenith
