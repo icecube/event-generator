@@ -162,7 +162,7 @@ def combine_skymaps(*skymaps):
 
 class SkymapSampler():
 
-    def __init__(self, log_pdf_map, seed=42):
+    def __init__(self, log_pdf_map, seed=42, replace_nan=None):
         """Class for sampling from skymap PDF
 
         Parameters
@@ -171,14 +171,20 @@ class SkymapSampler():
             The skymap given as the logarithm of the PDF at each healpix.
         seed : int, optional
             Random number generator seed.
+        replace_nan : None, optional
+            If provided, non-finite vlaues in the `log_pdf_map` will
+            be replaced with this value.
         """
-        assert np.isfinite(log_pdf_map).all()
-
         self.offset = np.max(log_pdf_map)
         self.log_pdf_map = np.array(log_pdf_map) - self.offset + 100
         self._seed = seed
         self._random_state = np.random.RandomState(seed)
         self.nside = hp.get_nside(self.log_pdf_map)
+
+        if replace_nan is not None:
+            mask = ~np.isfinite(self.log_pdf_map)
+            self.log_pdf_map[mask] = replace_nan
+        assert np.isfinite(self.log_pdf_map).all(), self.log_pdf_map
 
         # compute pdf for each pixel
         self._n_order = self._nside2norder()
@@ -199,7 +205,7 @@ class SkymapSampler():
 
         # get normalized probabilities and cdf
         prob = np.exp(-self.neg_llh_values)
-        assert np.isfinite(prob).all(), prob
+        assert np.isfinite(prob).all(), (prob, self.neg_llh_values)
 
         self.prob_values = prob / math.fsum(prob)
         self.cdf_values = np.cumsum(self.prob_values)
