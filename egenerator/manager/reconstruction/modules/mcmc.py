@@ -356,11 +356,6 @@ class FitDistributionsOnSphere:
                     'kwargs': {'fb5_only': True},
                 },
                 {
-                    'distribution': 'FB8Distribution',
-                    'output_key': 'FB8',
-                    'kwargs': {'fb5_only': False},
-                },
-                {
                     'distribution': 'VonMisesFisherDistribution',
                     'output_key': 'vMF',
                     'kwargs': {'fit_position': True},
