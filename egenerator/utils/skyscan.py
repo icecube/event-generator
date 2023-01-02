@@ -175,7 +175,7 @@ class SkymapSampler():
             If provided, non-finite vlaues in the `log_pdf_map` will
             be replaced with this value.
         """
-        self.offset = np.max(log_pdf_map)
+        self.offset = np.nanmax(log_pdf_map)
         self.log_pdf_map = np.array(log_pdf_map) - self.offset + 100
         self._seed = seed
         self._random_state = np.random.RandomState(seed)
