@@ -61,6 +61,7 @@ class TestCreateTrafoModel(unittest.TestCase):
                 'time_exclusions_key': None,
                 'float_precision': 'float32',
                 'add_charge_quantiles': False,
+                'discard_pulses_from_excluded_doms': False,
             },
 
             # settings for the label module
@@ -91,7 +92,7 @@ class TestCreateTrafoModel(unittest.TestCase):
             'num_batches': 20,
             'model_dir': os.path.join(
                 os.path.dirname(__file__),
-                '../data/temp_test_files/test_create_trafo_model'),
+                '../test/data/temp_test_files/test_create_trafo_model'),
         }
 
         data_iterator_settings = {
@@ -119,8 +120,8 @@ class TestCreateTrafoModel(unittest.TestCase):
         # create temp yaml config
         self.yaml_file_path = os.path.join(
             os.path.dirname(__file__),
-            '../data/temp_test_files/unittest_created_trafo_model_config.yaml')
-
+            '../test/data/temp_test_files/unittest_created_trafo_model_config.yaml')
+        print(self.yaml_file_path)
         with open(self.yaml_file_path, 'w') as yaml_file:
             yaml.dump(self.config, yaml_file)
 

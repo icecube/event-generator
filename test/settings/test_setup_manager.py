@@ -35,13 +35,13 @@ class TestSetupManagerInitializer(unittest.TestCase):
     def test_create_setup_manager(self):
         config_files = []
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        config_files = [os.path.join(script_dir, '../../configs/test.yaml')]
+        config_files = [os.path.join(script_dir, '../example_config.yaml')]
         setup_manager = SetupManager(config_files)
         self.assertTrue(hasattr(setup_manager, 'config'))
 
     def test_create_duplicate_check(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        config_files = [os.path.join(script_dir, '../../configs/test.yaml')]
+        config_files = [os.path.join(script_dir, '../example_config.yaml')]
         with self.assertRaises(ValueError) as context:
             setup_manager = SetupManager(config_files*2)
 
@@ -53,7 +53,7 @@ class TestSetupManager(unittest.TestCase):
 
     def setUp(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        config_files = [os.path.join(script_dir, '../../configs/test.yaml')]
+        config_files = [os.path.join(script_dir, '../example_config.yaml')]
         self.setup_manager = SetupManager(config_files)
 
     def test_get_config(self):
