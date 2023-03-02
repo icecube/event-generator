@@ -262,6 +262,7 @@ class Source(Model):
         tensor : tf.Tensor
             The input parameter tensor for the Source.
         """
+        print(self.untracked_data['parameter_names'])
         setattr(tensor, 'params', InputTensorIndexer(
                     tensor, self._untracked_data['parameter_names']))
         return tensor

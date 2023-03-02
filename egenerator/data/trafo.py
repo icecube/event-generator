@@ -302,6 +302,8 @@ class DataTransformer(BaseComponent):
 
         # check if shape of data matches expected shape
         if check_shape:
+            print("tensor", tensor)
+            print("trafo batch axis", tensor.trafo_batch_axis)
             trafo_shape = list(tensor.shape)
             trafo_shape.pop(tensor.trafo_batch_axis)
             data_shape = list(data.shape)

@@ -33,7 +33,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
 
     def _configure(self, config_data, trafo_log,
                    float_precision,
-                   num_cascades=5,
+                   num_cascades=4444,
                    label_key='MCLabelsMuonEnergyLossesInCylinder',
                    snowstorm_key='SnowstormParameters',
                    num_snowstorm_params=30):
@@ -125,7 +125,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             'track_anchor_time',
         ]
         for i in range(num_cascades):
-            parameter_names.append('EnergyLoss_{:05d}'.format(i))
+            parameter_names.append('cascade_{:04d}_energy'.format(i))
 
         parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):

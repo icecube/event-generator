@@ -673,6 +673,7 @@ class BaseDataHandler(BaseComponent):
                 file_list.extend(glob.glob(input_pattern))
         else:
             file_list = glob.glob(input_data)
+        #print(file_list)
 
         # define shared memory variables
         num_files_processed = multiprocessing.Value('i')

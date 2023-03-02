@@ -295,6 +295,7 @@ class Model(tf.Module, BaseComponent):
             raise ValueError(msg.format(self.variables,
                                         self._untracked_data['variables']))
 
+        print(dir_path)
         checkpoint_pattern = os.path.join(dir_path, 'model_checkpoint_{:08d}')
 
         # Load the model_checkpoints.yaml file if it exists.
