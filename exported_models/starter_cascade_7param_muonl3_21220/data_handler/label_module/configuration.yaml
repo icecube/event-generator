@@ -1,0 +1,19 @@
+check_values: {}
+class_string: egenerator.data.modules.labels.snowstorm_cascades.SnowstormCascadeGeneratorLabelModule
+dependent_sub_components: []
+event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 1.0.1-dev
+mutable_settings: {}
+mutable_sub_components: []
+settings:
+  additional_labels: []
+  config_data: null
+  float_precision: float32
+  label_key: LabelsDeepLearning
+  num_snowstorm_params: 0
+  shift_cascade_vertex: true
+  snowstorm_key: SnowstormParameters
+  trafo_log: [false, false, false, false, false, true, false]
+sub_component_configurations: {}

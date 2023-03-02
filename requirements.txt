@@ -1,0 +1,10 @@
+numpy
+scipy
+pandas
+ruamel.yaml
+pandas
+click
+gitpython
+tqdm
+tables
+tensorflow_probability

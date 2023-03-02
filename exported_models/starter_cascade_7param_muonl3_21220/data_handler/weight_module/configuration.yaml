@@ -1,0 +1,11 @@
+check_values: {}
+class_string: egenerator.data.modules.weights.dummy.DummyWeightModule
+dependent_sub_components: []
+event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 1.0.1-dev
+mutable_settings: {}
+mutable_sub_components: []
+settings: {config_data: null}
+sub_component_configurations: {}
