@@ -1,0 +1,8 @@
+in_file_pattern: '/data/i3store/users/muon_level3/IC86.2016/21220/Level3_IC86.2016_NuMu.021220.{run_number:06d}.i3.zst'
+out_dir_pattern: '/data/i3home/sgray/egen/repositories/event-generator/create_labels/cascades/datasets/21220'
+out_file_pattern: '21220_DOMPulseData_{run_number:06d}'
+data_folder: './'
+gcd: '/cvmfs/icecube.opensciencegrid.org/data/GCD/GeoCalibDetectorStatus_IC86_Merged.i3.gz'
+HDF_keys: ['LabelsDeepLearning', 'masked_pulses', 'BrightDOMs', 'time_exclusion']
+HDF_SubEventStreams: ['Final']
+add_labels: true

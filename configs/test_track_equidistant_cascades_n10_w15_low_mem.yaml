@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'track_equidistant_cascades_n100_w15_7param_noise_tw_BFRv1Spice321_low_mem'
+unique_name: 'test_track_equidistant_cascades_n10_w15_low_mem.yaml'
 
 
 #------------------
@@ -69,11 +69,11 @@ training_settings: {
     },
 }
 
-#----------------.-------
+#------------------------
 # Reconstruction settings
 #------------------------
 reconstruction_settings: {
-    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
+    'reco_output_file': '/data/i3home/sgray/egen/repositories/event-generator/data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
 
     # Define which modules to run
     'calculate_covariance_matrix': False,
@@ -93,7 +93,7 @@ reconstruction_settings: {
     'seed_missing_value': ,
     'seed_missing_value_dict': {
     },
-    'seed_float_precision': 'float32',
+    'seed_float_precision': 'float32', #float64
 
     # choose the otpimizer iterface:
     #   'scipy' or 'tfp' (tensorflow_probability)
@@ -146,7 +146,7 @@ model_manager_settings: {
     config: {
 
         # Path to where the manager will be saved to and loaded from
-        'manager_dir': '../data/training/{unique_name}/manager',
+        'manager_dir': '/data/i3home/sgray/egen/repositories/event-generator/data/training/{unique_name}/manager',
 
         # Define which model parameters to use for the I3Particle
         # [x, y, z, zenith, azimuth, energy, time]
@@ -180,12 +180,9 @@ data_iterator_settings: {
         'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
-            # NuMu datasets
-            # 1e2 - 1e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/00000-00999/20878_DOMPulseData_000000*.hdf5',
-
+            # NuMu datasets      
             # 1e5 - 5e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/00000-00999/21220_DOMPulseData_0000*.hdf5',
+            '/data/i3home/sgray/egen/repositories/event-generator/create_labels/datasets/21220/21220_DOMPulseData_000*.hdf5',
 
         ],
     },
@@ -201,8 +198,7 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/00000-00999/20878_DOMPulseData_000000*.hdf5',
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/00000-00999/21220_DOMPulseData_0000*.hdf5',
+            '/data/i3home/sgray/egen/repositories/event-generator/create_labels/datasets/21220/21220_DOMPulseData_000*.hdf5',
         ],
     },
 
@@ -220,12 +216,8 @@ data_iterator_settings: {
         'input_data': [
 
             # NuMu datasets
-            # 1e2 - 1e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001000.hdf5',
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001001.hdf5',
-
             # 1e4 - 5e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/01000-01999/21220_DOMPulseData_0000100*.hdf5',
+            '/data/i3home/sgray/egen/repositories/event-generator/create_labels/datasets/21220/21220_DOMPulseData_001*.hdf5',
 
         ],
     },
@@ -244,12 +236,8 @@ data_iterator_settings: {
         'input_data': [
 
             # NuMu datasets
-            # 1e2 - 1e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001000.hdf5',
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001001.hdf5',
-
             # 1e4 - 5e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/01000-01999/21220_DOMPulseData_0000100*.hdf5',
+            '/data/i3home/sgray/egen/repositories/event-generator/create_labels/datasets/21220/21220_DOMPulseData_001*.hdf5',
             
         ],
     },
@@ -309,6 +297,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
+    'model_dir': '/data/i3home/sgray/egen/repositories/event-generator/data/trafo_models/trafo_model_{unique_name}'
     #'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_track_equidistant_cascades_n10_w15',
 }
 
@@ -330,9 +319,9 @@ data_handler_settings: {
 
     # settings for the data module
     'data_settings':{
-        'pulse_key': 'InIceDSTPulses_masked',
-        'dom_exclusions_key': 'combined_exclusions_DOMs',
-        'time_exclusions_key': 'combined_exclusions_TimeWindowsHDF5',
+        'pulse_key': 'masked_pulses',
+        'dom_exclusions_key': 'BrightDOMs',
+        'time_exclusions_key': 'time_exclusion',
         'float_precision': 'float32',
         'add_charge_quantiles': False,
         'discard_pulses_from_excluded_doms': False,
@@ -349,9 +338,9 @@ data_handler_settings: {
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, time, E_losses)
         'trafo_log': [False, False, False, False, False, False, True],
-        'label_key': 'MCLabelsMuonEnergyLossesInCylinder_n115_w15',
-        'num_cascades': 10,
-        'snowstorm_key': 'SnowstormParameters',
+        'label_key': 'LabelsDeepLearning',
+        'num_cascades': 4,
+        'snowstorm_key': None,
         'num_snowstorm_params': 0,
         'float_precision': 'float32',
     },
@@ -417,11 +406,12 @@ model_settings: {
             # 'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_01/models_0000/noise',
 
             # define data trafo settings for the noise base source
-            #data_trafo_settings: {
-            #    'float_precision': 'float64',
-            #    'norm_constant': !!float 1e-6,
-            #    'num_batches': 5000,
-            #    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
+            data_trafo_settings: {
+                'float_precision': 'float64',
+                'norm_constant': !!float 1e-6,
+                'num_batches': 5000,
+                'model_dir': '/data/i3home/sgray/egen/repositories/event-generator/data/trafo_models/trafo_model_{unique_name}'
+                #'/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
             },
 
             config: {},
@@ -435,7 +425,7 @@ model_settings: {
 
             # configuration settings for TrackEquidistantCascadeModel object
             config: {
-                'max_num_cascades': 10,
+                'max_num_cascades': 4, #10 
                 'cascade_spacing': 15,
                 'cylinder_radius': 600,
                 'cylinder_extension': 500,
@@ -447,15 +437,15 @@ model_settings: {
                     # The cascade source model class to use
                     'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
-                    # The directory from which this base source will be loaded, SG 9/7 commenting this out since I do not have this
-                     'load_dir': , #'/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/cascade',
+                    # The directory from which this base source will be loaded, 
+                    # 'load_dir': , #'/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/cascade',
 
                     # define data trafo settings for the noise base source
                     data_trafo_settings: {
-                    #    'float_precision': 'float64',
-                    #    'norm_constant': !!float 1e-6,
-                    #    'num_batches': 5000,
-                    #    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
+                        'float_precision': 'float64',
+                        'norm_constant': !!float 1e-6,
+                        'num_batches': 5000,
+                        'model_dir': '/data/i3home/sgray/egen/repositories/event-generator/data/trafo_models/trafo_model_{unique_name}' #'/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
                     },
 
                     config: {

@@ -7,8 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'track_equidistant_cascades_n100_w15_7param_noise_tw_BFRv1Spice321_low_mem'
-
+unique_name: 'example_config'
 
 #------------------
 # Training settings
@@ -85,15 +84,26 @@ reconstruction_settings: {
     # define which tensor to use as parameter_tensor (default: x_parameters)
     'parameter_tensor_name': 'x_parameters',
     # define seed (to seed from MC truth choose: 'x_parameters')
-    'seed': 'x_parameters', #'MonopodFit4_PartialExclusion',
+    'seed': 'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
-    'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth', 'time',
-                             ['energy', 10]],
-    'seed_missing_value': ,
+    'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
+                             'energy', 'time',
+                             'Absorption', 'AnisotropyScale', 'DOMEfficiency',
+                             'HoleIceForward_Unified_00',
+                             'HoleIceForward_Unified_01',
+                             'Scattering',
+                         ],
+    'seed_missing_value': 1.,
     'seed_missing_value_dict': {
+        'Absorption': 1.,
+        'AnisotropyScale': 1.,
+        'DOMEfficiency': 1.,
+        'HoleIceForward_Unified_00': 0.,
+        'HoleIceForward_Unified_01': 0.,
+        'Scattering': 1.,
     },
-    'seed_float_precision': 'float32',
+    'seed_float_precision': 'float64',
 
     # choose the otpimizer iterface:
     #   'scipy' or 'tfp' (tensorflow_probability)
@@ -130,39 +140,6 @@ reconstruction_settings: {
 }
 
 #-----------------------
-# Model Manager settings
-#-----------------------
-
-# Settings for model manager class
-model_manager_settings: {
-
-    # The loss module class to use
-    'model_manager_class': 'egenerator.manager.source.SourceManager',
-
-    # restore model if True, otherwise start from scratch
-    'restore_model' : False,
-
-    # These settings are used to configure the model manager and may not change
-    config: {
-
-        # Path to where the manager will be saved to and loaded from
-        'manager_dir': '../data/training/{unique_name}/manager',
-
-        # Define which model parameters to use for the I3Particle
-        # [x, y, z, zenith, azimuth, energy, time]
-        'I3ParticleMapping': {
-            'x': 'track_anchor_x',
-            'y': 'track_anchor_y',
-            'z': 'track_anchor_z',
-            'zenith': 'track_zenith',
-            'azimuth': 'track_azimuth',
-            # 'energy': 'cascade_energy',
-            'time': 'track_anchor_time',
-        },
-    },
-}
-
-#-----------------------
 # Data Iterator settings
 #-----------------------
 
@@ -180,13 +157,9 @@ data_iterator_settings: {
         'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
-            # NuMu datasets
-            # 1e2 - 1e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/00000-00999/20878_DOMPulseData_000000*.hdf5',
-
-            # 1e5 - 5e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/00000-00999/21220_DOMPulseData_0000*.hdf5',
-
+                # insert hdf5 file paths here ...
+                #
+          
         ],
     },
 
@@ -199,10 +172,9 @@ data_iterator_settings: {
         'num_jobs': 20,
         'num_add_files': 1,
         'num_repetitions': 1,
-        'pick_random_files_forever': True,
+        'pick_random_files_forever': False,
         'input_data': [
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/00000-00999/20878_DOMPulseData_000000*.hdf5',
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/00000-00999/21220_DOMPulseData_0000*.hdf5',
+                # insert hdf5 file path strings here ...
         ],
     },
 
@@ -218,15 +190,8 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-
-            # NuMu datasets
-            # 1e2 - 1e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001000.hdf5',
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001001.hdf5',
-
-            # 1e4 - 5e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/01000-01999/21220_DOMPulseData_0000100*.hdf5',
-
+            # insert hdf5 file path strings here ...
+            
         ],
     },
 
@@ -242,15 +207,8 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
+                # insert hdf5 file path strings here ...
 
-            # NuMu datasets
-            # 1e2 - 1e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001000.hdf5',
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/20878/output/01000-01999/20878_DOMPulseData_00001001.hdf5',
-
-            # 1e4 - 5e8 GeV
-            '/data/i3store/users/sgray/DNN_tutorial/direction_model/training_data/datasets/21220/output/01000-01999/21220_DOMPulseData_0000100*.hdf5',
-            
         ],
     },
 }
@@ -267,7 +225,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -280,11 +238,30 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'negative_binomial_charge_pdf',
+        },
+    },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
+        config: {
+
+            # define uniform priors
+            'uniform_parameters': {
+                'cascade_Absorption': [0.9, 1.1],
+                'cascade_AnisotropyScale': [0., 2.0],
+                'cascade_DOMEfficiency': [0.9, 1.1],
+                'cascade_Scattering': [0.9, 1.1],
+                'cascade_HoleIceForward_Unified_00': [-1.0, 1.0], #[-0.65, 0.60],
+                'cascade_HoleIceForward_Unified_01': [-0.2, 0.2], #[-0.08, 0.08],
+            },
+
+            # define fourier component sigmas
+            'sigmas': [],
         },
     },
 ]
@@ -309,7 +286,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    #'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_track_equidistant_cascades_n10_w15',
+    'model_dir': '', # insert directory of model ...
 }
 
 #----------------------
@@ -333,7 +310,7 @@ data_handler_settings: {
         'pulse_key': 'InIceDSTPulses_masked',
         'dom_exclusions_key': 'combined_exclusions_DOMs',
         'time_exclusions_key': 'combined_exclusions_TimeWindowsHDF5',
-        'float_precision': 'float32',
+        'float_precision': 'float64',
         'add_charge_quantiles': False,
         'discard_pulses_from_excluded_doms': False,
     },
@@ -342,18 +319,19 @@ data_handler_settings: {
     # LabelModule Settings
     # --------------------
     # which label module to use
-    'label_module': 'snowstorm_track_equidistant_cascades.SnowstormTrackEquidistantCascadesLabelModule',
+    'label_module': 'snowstorm_cascades.SnowstormCascadeGeneratorLabelModule',
 
     # settings for the label module
     'label_settings':{
+        'shift_cascade_vertex': True,
         # logarithm on labels:
-        # (x, y, z, zenith, azimuth, time, E_losses)
-        'trafo_log': [False, False, False, False, False, False, True],
-        'label_key': 'MCLabelsMuonEnergyLossesInCylinder_n115_w15',
-        'num_cascades': 10,
+        # (x, y, z, zenith, azimuth, energy, time)?
+        'trafo_log': [False, False, False, False, False, True, False],
+        'label_key': 'LabelsDeepLearning',
+        'additional_labels': [],
         'snowstorm_key': 'SnowstormParameters',
-        'num_snowstorm_params': 0,
-        'float_precision': 'float32',
+        'num_snowstorm_params': 6,
+        'float_precision': 'float64',
     },
 
     # ---------------------
@@ -383,7 +361,11 @@ data_handler_settings: {
     # settings for the filter module
     'filter_settings':{
         'constraints': [
-            # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            # # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            # ['SnowstormParameters', 3, '>=', -0.65],
+            # ['SnowstormParameters', 3, '<=', 0.60],
+            # ['SnowstormParameters', 4, '>=', -0.08],
+            # ['SnowstormParameters', 4, '<=', 0.08],
         ],
     },
 }
@@ -402,7 +384,7 @@ model_settings: {
     config: {
         'sources': {
             'noise': 'noise',
-            'track': 'track',
+            'cascade': 'cascade',
         },
     },
 
@@ -412,86 +394,56 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-
-            # The directory from which this base source will be loaded, SG 9/7 commenting this out since I do not have this?
-            # 'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_01/models_0000/noise',
-
-            # define data trafo settings for the noise base source
-            #data_trafo_settings: {
-            #    'float_precision': 'float64',
-            #    'norm_constant': !!float 1e-6,
-            #    'num_batches': 5000,
-            #    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
-            },
-
-            config: {},
+            config: {'float_precision': float64},
         },
 
-        # MultiSourceCascade
-        track: {
+        cascade: {
+            # The cascade source model class to use
+            'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
-            # The model class to use
-            'model_class': 'egenerator.model.multi_source.track.TrackEquidistantCascadeModel',
-
-            # configuration settings for TrackEquidistantCascadeModel object
             config: {
-                'max_num_cascades': 10,
-                'cascade_spacing': 15,
-                'cylinder_radius': 600,
-                'cylinder_extension': 500,
-            },
+                'keep_prob':,
+                'add_opening_angle': True,
+                'add_dom_coordinates': False,
+                'num_local_vars': 0,
+                'scale_charge': True,
+                'scale_charge_by_relative_dom_efficiency': True,
+                'scale_charge_by_global_dom_efficiency': True,
+                'prevent_mixture_component_swapping': False,
+                'estimate_charge_distribution': 'negative_binomial',
+                'num_latent_models': 10,
+                'float_precision': float64,
 
-            # Base sources used by the multi-source class
-            multi_source_bases: {
-                cascade: {
-                    # The cascade source model class to use
-                    'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
+                # This is a list of labels in addition to
+                # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
+                'additional_label_names' : [
+                ],
 
-                    # The directory from which this base source will be loaded, SG 9/7 commenting this out since I do not have this
-                     'load_dir': , #'/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/cascade',
+                # This is a list of the orderd snowstorm parameters: (name, number)
+                'snowstorm_parameter_names': [
+                    ['Absorption', 1],
+                    ['AnisotropyScale', 1],
+                    ['DOMEfficiency', 1],
+                    ['HoleIceForward_Unified_{:02d}', 2],
+                    # ['IceWavePlusModes_{:02d}', 24],
+                    ['Scattering', 1],
+                ],
 
-                    # define data trafo settings for the noise base source
-                    data_trafo_settings: {
-                    #    'float_precision': 'float64',
-                    #    'norm_constant': !!float 1e-6,
-                    #    'num_batches': 5000,
-                    #    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
-                    },
-
-                    config: {
-                        'keep_prob':,
-                        'add_opening_angle': True,
-                        'add_dom_coordinates': False,
-                        'num_local_vars': 0,
-                        'scale_charge': True,
-                        'scale_charge_by_relative_dom_efficiency': True,
-                        'scale_charge_by_global_dom_efficiency': False,
-                        'prevent_mixture_component_swapping': False,
-                        'estimate_charge_distribution': 'negative_binomial',
-                        'num_latent_models': 10,
-
-                        # This is a list of labels in addition to
-                        # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
-                        'additional_label_names' : [
-                        ],
-
-                        # First convolutions
-                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                        'num_filters_list' : [25, 100, 100, 100, 100, 42],
-                        'method_list' : ['locally_connected',
-                                         'convolution', 'convolution', 'convolution',
-                                         'convolution', 'convolution',
-                                         ],
-                        'use_dropout_list' : False,
-                        'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
-                        'use_batch_norm_list' : False,
-                        'use_residual_list' : [True, True, True, True, True, False]
-                    },
-                },
+                # First convolutions
+                'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                'num_filters_list' : [25, 100, 100, 100, 42],
+                'method_list' : ['locally_connected',
+                                 'convolution', 'convolution', 'convolution',
+                                 'convolution',
+                                 ],
+                'use_dropout_list' : False,
+                'activation_list' : ['elu', 'elu', 'elu', 'elu', ''],
+                'use_batch_norm_list' : False,
+                'use_residual_list' : True,
             },
         },
     },
 }
 
 #----------------------
-...
+...    

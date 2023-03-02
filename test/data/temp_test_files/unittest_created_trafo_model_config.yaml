@@ -1,0 +1,32 @@
+data_handler_settings:
+  data_handler: modular.ModuleDataHandler
+  data_module: pulse_data.PulseDataModule
+  data_settings: {add_charge_quantiles: false, discard_pulses_from_excluded_doms: false,
+    dom_exclusions_key: BrightDOMs, float_precision: float32, pulse_key: InIceDSTPulses,
+    time_exclusions_key: null}
+  filter_module: dummy.DummyFilterModule
+  filter_settings: {}
+  label_module: cascades.CascadeGeneratorLabelModule
+  label_settings:
+    float_precision: float32
+    label_key: LabelsDeepLearning
+    shift_cascade_vertex: false
+    trafo_log: [false, false, false, false, false, false, false]
+  misc_module: dummy.DummyMiscModule
+  misc_settings: {}
+  weight_module: dummy.DummyWeightModule
+  weight_settings: {}
+data_iterator_settings:
+  trafo:
+    batch_capacity: 1
+    batch_size: 3
+    file_capacity: 1
+    input_data: [test/test_data/cascade_mesc_l5_nue_low.hdf5]
+    num_add_files: 1
+    num_jobs: 1
+    num_repetitions: 1
+    num_splits: null
+    pick_random_files_forever: true
+data_trafo_settings: {float_precision: float64, model_dir: test/../test/data/temp_test_files/test_create_trafo_model,
+  norm_constant: 1e-06, num_batches: 20}
+unique_name: unittest_create_trafo_model_config

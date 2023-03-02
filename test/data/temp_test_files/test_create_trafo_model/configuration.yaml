@@ -1,0 +1,122 @@
+check_values: {x_dom_charge_mean: 0.052363021251697825, x_dom_charge_std: 0.21584789056826467,
+  x_parameters_mean: 1548.9935557331355, x_parameters_std: 135.2037662948881}
+class_string: egenerator.data.trafo.DataTransformer
+dependent_sub_components: []
+event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 1.0.1-dev
+mutable_settings: {}
+mutable_sub_components: []
+settings:
+  data_iterator_settings:
+    batch_capacity: 1
+    batch_size: 3
+    file_capacity: 1
+    input_data: [test/test_data/cascade_mesc_l5_nue_low.hdf5]
+    num_add_files: 1
+    num_jobs: 1
+    num_repetitions: 1
+    num_splits: null
+    pick_random_files_forever: true
+  float_precision: float64
+  norm_constant: 1e-06
+  num_batches: 20
+sub_component_configurations:
+  data_handler:
+    check_values: {}
+    class_string: egenerator.data.handler.modular.ModuleDataHandler
+    dependent_sub_components: [data_module, label_module, weight_module, misc_module,
+      filter_module]
+    event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+    event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+    event_generator_uncommitted_changes: true
+    event_generator_version: 1.0.1-dev
+    mutable_settings:
+      config:
+        data_handler: modular.ModuleDataHandler
+        data_module: pulse_data.PulseDataModule
+        data_settings: {add_charge_quantiles: false, discard_pulses_from_excluded_doms: false,
+          dom_exclusions_key: BrightDOMs, float_precision: float32, pulse_key: InIceDSTPulses,
+          time_exclusions_key: null}
+        filter_module: dummy.DummyFilterModule
+        filter_settings: {}
+        label_module: cascades.CascadeGeneratorLabelModule
+        label_settings:
+          float_precision: float32
+          label_key: LabelsDeepLearning
+          shift_cascade_vertex: false
+          trafo_log: [false, false, false, false, false, false, false]
+        misc_module: dummy.DummyMiscModule
+        misc_settings: {}
+        weight_module: dummy.DummyWeightModule
+        weight_settings: {}
+    mutable_sub_components: [weight_module, misc_module, filter_module, label_module]
+    settings: {}
+    sub_component_configurations:
+      data_module:
+        check_values: {}
+        class_string: egenerator.data.modules.data.pulse_data.PulseDataModule
+        dependent_sub_components: []
+        event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+        event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 1.0.1-dev
+        mutable_settings: {discard_pulses_from_excluded_doms: false, dom_exclusions_key: BrightDOMs,
+          pulse_key: InIceDSTPulses, time_exclusions_key: null}
+        mutable_sub_components: []
+        settings: {add_charge_quantiles: false, config_data: null, float_precision: float32}
+        sub_component_configurations: {}
+      filter_module:
+        check_values: {}
+        class_string: egenerator.data.modules.filters.dummy.DummyFilterModule
+        dependent_sub_components: []
+        event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+        event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 1.0.1-dev
+        mutable_settings: {}
+        mutable_sub_components: []
+        settings: {config_data: null}
+        sub_component_configurations: {}
+      label_module:
+        check_values: {}
+        class_string: egenerator.data.modules.labels.cascades.CascadeGeneratorLabelModule
+        dependent_sub_components: []
+        event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+        event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 1.0.1-dev
+        mutable_settings: {}
+        mutable_sub_components: []
+        settings:
+          config_data: null
+          float_precision: float32
+          label_key: LabelsDeepLearning
+          shift_cascade_vertex: false
+          trafo_log: [false, false, false, false, false, false, false]
+        sub_component_configurations: {}
+      misc_module:
+        check_values: {}
+        class_string: egenerator.data.modules.misc.dummy.DummyMiscModule
+        dependent_sub_components: []
+        event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+        event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 1.0.1-dev
+        mutable_settings: {}
+        mutable_sub_components: []
+        settings: {config_data: null}
+        sub_component_configurations: {}
+      weight_module:
+        check_values: {}
+        class_string: egenerator.data.modules.weights.dummy.DummyWeightModule
+        dependent_sub_components: []
+        event_generator_git_sha: be1d3a403807ddfe845650f5f9abe0280804473a
+        event_generator_origin: ssh://git@github.com/icecube/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 1.0.1-dev
+        mutable_settings: {}
+        mutable_sub_components: []
+        settings: {config_data: null}
+        sub_component_configurations: {}
