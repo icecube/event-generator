@@ -366,7 +366,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                         rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r)
 
                     # fix scale
-                    pulse_times *= 1000.
+                    pulse_times *= self.model.time_unit_in_ns
 
                     # fix offset
                     pulse_times += cascade_times[i]
