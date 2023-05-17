@@ -669,7 +669,7 @@ class FB8Distribution(DistributionOnSphere):
         from sphere import distribution
 
         fb8 = distribution.fb8(**params)
-        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed)
+        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed, *args, **kwargs)
 
     def fit(self, samples, cdf_levels=np.linspace(0., .999, 1000),
             fb5_only=True, warning=None, seed=42, *args, **kwargs):
@@ -706,9 +706,9 @@ class FB8Distribution(DistributionOnSphere):
         xs = np.array([dir_z, dir_x, dir_y]).T
         fb8 = distribution.fb8_mle(xs, fb5_only=fb5_only, warning=None)
 
-        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed)
+        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed, *args, **kwargs)
 
-    def _setup(self, fb8, cdf_levels, seed=42):
+    def _setup(self, fb8, cdf_levels, seed=42, n_samples=10000):
         """Summary
 
         Parameters
@@ -720,22 +720,29 @@ class FB8Distribution(DistributionOnSphere):
             contour and cdf calculations.
         seed : int, optional
             A random seed.
+        n_samples : int, optional
+            The number of samples to generate from the fb8 distribution.
+            These samples will be used to compute CDF values.
         """
 
         self.fb8 = fb8
 
         # compute levels needed for cdf calculation
         self.seed = seed
+        self.n_samples = n_samples
         self.cdf_levels = np.asarray(cdf_levels)
         self.neg_log_p_levels = np.empty_like(self.cdf_levels)
         for i, level in enumerate(self.cdf_levels):
             # older fb8 package version did not have seed parameter
             try:
                 self.neg_log_p_levels[i] = self.fb8.level(
-                    percentile=level*100, seed=self.seed)
+                    percentile=level*100,
+                    seed=self.seed,
+                    n_samples=self.n_samples,
+                )
             except TypeError as e:
                 self.neg_log_p_levels[i] = self.fb8.level(
-                    percentile=level*100)
+                    percentile=level*100, n_samples=self.n_samples)
 
         # set parameters
         self._params = {
