@@ -359,7 +359,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                     pulse_charges = self.random_service.uniform(
                         0.25, 1.75, size=num_pe)
 
-                    is self.correct_sampled_charge:
+                    if self.correct_sampled_charge:
                         pulse_charges *= num_pe / np.sum(pulse_charges)
 
                     # for each pulse, draw 2 random numbers which we will need
