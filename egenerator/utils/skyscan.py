@@ -33,10 +33,10 @@ def get_scan_pixels(
         defines the nsides for each of these rings. See also `focus_bounds`,
         which defines the distance of these rings.
     focus_zeniths : list, optiona
-        A list of zenith values for each of the focus regions.
+        A list of zenith values in radians for each of the focus regions.
         Must have same order as `focus_azimuths`.
     focus_azimuths : list, optional
-        A list of azimuth values for each of the focus regions.
+        A list of azimuth values in radians for each of the focus regions.
         Must have same order as `focus_zeniths`.
 
     Returns
@@ -176,7 +176,7 @@ class SkymapSampler():
             be replaced with this value.
         """
         self.offset = np.nanmax(log_pdf_map)
-        self.log_pdf_map = np.array(log_pdf_map) - self.offset + 100
+        self.log_pdf_map = np.array(log_pdf_map) - self.offset
         self._seed = seed
         self._random_state = np.random.RandomState(seed)
         self.nside = hp.get_nside(self.log_pdf_map)
@@ -202,6 +202,7 @@ class SkymapSampler():
         self.dir_z_s = self.dir_z_s[sorted_indices]
         self.neg_llh_values = self.neg_llh_values[sorted_indices]
         self.ipix_list = sorted_indices
+        self.ipix_list_list = sorted_indices.tolist()
 
         # get normalized probabilities and cdf
         prob = np.exp(-self.neg_llh_values)
@@ -231,6 +232,36 @@ class SkymapSampler():
         """
         return np.array(self.log_pdf_map[hp.vec2pix(
             nside=self.nside, x=dir_x, y=dir_y, z=dir_z)])
+
+    def cdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the CDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF evaluated at the provided positions on the sphere.
+        """
+
+        # get ipix corresponding to specified directions
+        ipix = np.atleast_1d(hp.ang2pix(
+            nside=self.nside, theta=zenith, phi=azimuth))
+
+        # figure out where these ipix were sorted to
+        sorted_indices = [self.ipix_list_list.index(v) for v in ipix]
+
+        # get cdf values
+        return self.cdf_values[sorted_indices]
 
     def _nside2norder(self):
         """
@@ -286,7 +317,8 @@ class SkymapSampler():
         np.array, np.array (, np.array)
             The sampled direction vector components if pix_converter is
             set to hp.pix2vec.
-            Zenith and azimuth angle if pix_converter is set to hp.pix2ang.
+            Zenith and azimuth angle in radians if pix_converter is set
+            to hp.pix2ang.
         """
         if rng is None:
             rng = self._random_state
@@ -313,7 +345,7 @@ class SkymapSampler():
         Returns
         -------
         np.array, np.array
-            The sampled zenith and azimuth angles.
+            The sampled zenith and azimuth angles in radians.
         """
         return self._sample_points(n=n, pix_converter=hp.pix2ang, rng=rng)
 

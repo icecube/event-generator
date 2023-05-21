@@ -110,11 +110,11 @@ def get_delta_psi_vector(zenith, azimuth, delta_psi,
     Parameters
     ----------
     zenith : array_like
-        The zenith angle of the input vector for which to compute a random
-        new vector with an opening angle of delta_psi.
+        The zenith angle [rad] of the input vector for which to compute a
+        random new vector with an opening angle of delta_psi.
     azimuth : TYPE
-        The azimuth angle of the input vector for which to compute a random
-        new vector with an opening angle of delta_psi.
+        The azimuth angle [rad] of the input vector for which to compute a
+        random new vector with an opening angle of delta_psi.
     delta_psi : float or array_like
         The opening angle. If 'is_degree' is True, then the unit is in degree,
         otherwise it is in radians.
@@ -253,16 +253,16 @@ def convert_to_range(zenith, azimuth):
     Parameters
     ----------
     zenith : array_like
-        The zenith angles to convert.
+        The zenith angles in radians to convert.
     azimuth : array_like
-        The azimuth angles to convert.
+        The azimuth angles in radians to convert.
 
     Returns
     -------
     array_like
-        The converted zenith angles.
+        The converted zenith angles in radians.
     array_like
-        The converted azimuth angles.
+        The converted azimuth angles in radians.
     """
 
     # create copies to not edit in place
@@ -315,9 +315,9 @@ def angle2vec(zenith, azimuth, with_flip=False):
     Parameters
     ----------
     zenith : array_like
-        The zenith angle.
+        The zenith angle in radians.
     azimuth : array_like
-        The azimuth angle
+        The azimuth angle in radians.
     with_flip : bool, optional
         If True, the direction vector is flipped 180° degrees.
         This may be useful when utilizing these functions in the context
@@ -370,9 +370,9 @@ def dir2angle(dir_x, dir_y, dir_z, with_flip=False):
     Returns
     -------
     array_like
-        The zenith angle.
+        The zenith angle in radians.
     array_like
-        The azimuth angle.
+        The azimuth angle in radians.
     """
     # normalize
     dir_x_normed, dir_y_normed, dir_z_normed = normalize(dir_x, dir_y, dir_z)
@@ -468,9 +468,9 @@ class DistributionOnSphere:
         ----------
         samples : array_like
             The sample points on the sphere.
-            Can either be zenith, azimuth or x, y, z of unit direction
-            vector. The size of the last dimension of `samples` defines
-            which one will be used.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
         x0 : array_like
             The initial seed for the parameters.
         *args
@@ -491,9 +491,9 @@ class DistributionOnSphere:
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
@@ -512,9 +512,9 @@ class DistributionOnSphere:
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
@@ -525,6 +525,28 @@ class DistributionOnSphere:
         array_like
             The CDF evaluated at the provided positions on the sphere.
         """
+        raise NotImplementedError
+
+    def contour(self, level, *args, **kwargs):
+        """Return zenith/azimuth pairs belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like
+            The zenith/azimuth pairs in radians that correspond
+            to the specified contour.
+        """
+
         raise NotImplementedError
 
     def log_pdf_dir(self, dir_x, dir_y, dir_z, *args, **kwargs):
@@ -575,6 +597,27 @@ class DistributionOnSphere:
         zenith, azimuth = dir2angle(dir_x, dir_y, dir_z)
         return self.cdf(zenith, azimuth, *args, **kwargs)
 
+    def contour_dir(self, level, *args, **kwargs):
+        """Return (x, y, z) coordinates belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like, array_like
+            The x/y/z coordinates of the points corresponding to the
+            specified contour.
+        """
+        return angle2vec(self.contour(level=level, *args, **kwargs))
+
     def _convert_samples(self, samples):
         """Converts provided sample points to angles and unit vectors.
 
@@ -582,14 +625,14 @@ class DistributionOnSphere:
         ----------
         samples : array_like
             The sample points on the sphere.
-            Can either be zenith, azimuth or x, y, z of unit direction
-            vector. The size of the last dimension of `samples` defines
-            which one will be used.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
 
         Returns
         -------
         array_like
-            A tuple of the zenith and azimuth angle.
+            A tuple of the zenith and azimuth angle in radians.
         array_like
             A tuple of the x, y, and z-components of the unit direction vector.
         """
@@ -615,11 +658,10 @@ class DistributionOnSphere:
         Parameters
         ----------
         samples : array_like
-            The sample points on the sphere. These must be drawn from the
-            underlying distribution.
-            Can either be zenith, azimuth or x, y, z of unit direction
-            vector. The size of the last dimension of `samples` defines
-            which one will be used.
+            The sample points on the sphere.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
         *args
             Additional arguments passed on to the CDF function.
         **kwargs
@@ -679,9 +721,9 @@ class FB8Distribution(DistributionOnSphere):
         ----------
         samples : array_like
             The sample points on the sphere.
-            Can either be zenith, azimuth or x, y, z of unit direction
-            vector. The size of the last dimension of `samples` defines
-            which one will be used.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
         cdf_levels : array_like, optional
             The quantile values at which to cache the -llh values for
             contour and cdf calculations.
@@ -762,9 +804,9 @@ class FB8Distribution(DistributionOnSphere):
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
@@ -788,9 +830,9 @@ class FB8Distribution(DistributionOnSphere):
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
@@ -809,6 +851,30 @@ class FB8Distribution(DistributionOnSphere):
 
         return self.cdf_levels[indices]
 
+    def contour(self, level, *args, **kwargs):
+        """Return zenith/azimuth pairs belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like
+            The zenith/azimuth pairs in radians that correspond to the
+            specified contour.
+        """
+
+        theta, phi = self.fb8.contour(percentile=level*100.)
+        theta, phi = convert_to_range(theta, phi)
+        return theta, phi
+
 
 class VonMisesFisherDistribution(DistributionOnSphere):
 
@@ -819,12 +885,12 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         ----------
         samples : array_like
             The sample points on the sphere.
-            Can either be zenith, azimuth or x, y, z of unit direction
-            vector. The size of the last dimension of `samples` defines
-            which one will be used.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
         x0 : array_like
             The initial best-fit/central position of the vMF distribution.
-            Must be given as a tuple of (zenith, azimuth, sigma).
+            Must be given as a tuple of (zenith, azimuth, sigma) in radians.
         fit_position : bool, optional
             If True, the position will be fit.
             If False, the position will be kept constant at the provided x0.
@@ -840,6 +906,7 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         if fit_position:
             def loss(params):
                 zen, azi, sigma = params
+                zen, azi = convert_to_range(zen, azi)
 
                 if sigma < eps:
                     return np.inf
@@ -857,9 +924,10 @@ class VonMisesFisherDistribution(DistributionOnSphere):
                 )))
 
             res = minimize(loss, x0=x0)
+            zen, azi = convert_to_range(res.x[0], res.x[1])
             self._params = {
-                'zenith': res.x[0],
-                'azimuth': res.x[1],
+                'zenith': zen,
+                'azimuth': azi,
                 'sigma': res.x[2],
             }
         else:
@@ -894,9 +962,9 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
@@ -928,9 +996,9 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
@@ -957,6 +1025,64 @@ class VonMisesFisherDistribution(DistributionOnSphere):
             x=delta_psi, sigma=sigma, *args, **kwargs
         )
 
+    def contour(
+            self, level, n_samples=1000, x0=None, seed=42, *args, **kwargs):
+        """Return zenith/azimuth pairs belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        n_samples : int, optional
+            The number of samples on the contour to compute.
+        x0 : None, optional
+            The initial seed for the minimization to find the correct
+            opening angle that corresponds to the specified level.
+        seed : int, optional
+            The random number seed for the sampling of samples on the contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like
+            The zenith/azimuth pairs in radians that correspond to the
+            specified contour.
+        """
+
+        # compute opening angle delta_psi that corresponds to given contour
+        sigma = np.atleast_1d(self.params['sigma'])
+
+        def loss(delta_psi):
+            cdf_value = basis_functions.von_mises_in_dPsi_cdf(
+                x=delta_psi, sigma=sigma,
+            )
+            return (cdf_value - level)**2
+
+        if x0 is None:
+            x0 = self.params['sigma']
+
+        res = minimize(loss, x0=x0)
+
+        # expand to generate n_samples
+        delta_psi = np.zeros(n_samples) + res.x[0]
+
+        # sample new opening vectors for this opening angle delta_psi
+        zenith, azimuth = get_delta_psi_vector(
+            zenith=self.params['zenith'],
+            azimuth=self.params['azimuth'],
+            delta_psi=delta_psi,
+            random_service=np.random.RandomState(seed),
+            randomize_for_each_delta_psi=True,
+            is_degree=False,
+            return_angles=True,
+        )
+
+        return zenith, azimuth
+
 
 class Gauss2D(DistributionOnSphere):
 
@@ -971,9 +1097,9 @@ class Gauss2D(DistributionOnSphere):
         Parameters
         ----------
         azimuth1 : array_like
-            The first azimuth values.
+            The first azimuth values in radians.
         azimuth2 : array_like
-            The second azimuth values.
+            The second azimuth values in radians.
 
         Returns
         -------
@@ -1082,9 +1208,9 @@ class Gauss2D(DistributionOnSphere):
         ----------
         samples : array_like
             The sample points on the sphere.
-            Can either be zenith, azimuth or x, y, z of unit direction
-            vector. The size of the last dimension of `samples` defines
-            which one will be used.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
         x0 : array_like
             The initial best-fit/central position of the vMF distribution.
             Must be given as a tuple of (zenith, azimuth, sigma).
@@ -1117,6 +1243,7 @@ class Gauss2D(DistributionOnSphere):
 
             def loss(params):
                 zen, azi, cov_00, cov_01, cov_11 = params
+                zen, azi = convert_to_range(zen, azi)
 
                 if cov_00 < eps or cov_11 < eps:
                     return np.inf
@@ -1144,9 +1271,10 @@ class Gauss2D(DistributionOnSphere):
                 return -np.sum(dist.logpdf(values))
 
             res = minimize(loss, x0=x0)
+            zen, azi = convert_to_range(res.x[0], res.x[1])
             params = {
-                'zenith': res.x[0],
-                'azimuth': res.x[1],
+                'zenith': zen,
+                'azimuth': azi,
                 'cov_00': res.x[2],
                 'cov_01': res.x[3],
                 'cov_11': res.x[4],
@@ -1234,9 +1362,9 @@ class Gauss2D(DistributionOnSphere):
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
@@ -1263,9 +1391,9 @@ class Gauss2D(DistributionOnSphere):
         Parameters
         ----------
         zenith : array_like
-            The zenith angle.
+            The zenith angle in radians.
         azimuth : array_like
-            The azimuth angle.
+            The azimuth angle in radians.
         *args
             Additional arguments.
         **kwargs
