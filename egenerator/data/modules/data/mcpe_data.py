@@ -333,20 +333,20 @@ class PulseDataModule(BaseComponent):
                 continue
             index = event_dict[(row[1:5])]
 
-            # pulse charge: row[12], time: row[10]
+            # mcpe photo electrons: row[11], time: row[10]
             # accumulate charge in DOMs
-            x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += row[12]
+            x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += row[11]
 
             # gather pulses
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
                 cum_charge = float(x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0])
-                x_pulses[pulse_index] = [row[12], row[10], cum_charge]
+                x_pulses[pulse_index] = [row[11], row[10], cum_charge]
 
             else:
                 # (charge, time)
-                x_pulses[pulse_index] = [row[12], row[10]]
+                x_pulses[pulse_index] = [row[11], row[10]]
 
             # gather pulse ids (batch index, string, dom, pmt)
             x_pulses_ids[pulse_index] = [index, string-1, (dom-1)*num_pmts + pmt]
@@ -557,7 +557,7 @@ class PulseDataModule(BaseComponent):
             for pulse in pulse_list:
                 index = 0
 
-                # pulse charge: row[12], time: row[10]
+                # mcpe photo-electron: row[11], time: row[10]
                 # accumulate charge in DOMs
                 x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += pulse.charge
 

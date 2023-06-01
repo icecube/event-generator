@@ -6,9 +6,11 @@ import numpy as np
 
 from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
+from egenerator import misc
 
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles
+from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
 # from egenerator.manager.component import Configuration, BaseComponent
 
 
@@ -47,13 +49,20 @@ class DefaultCascadeModel(Source):
             to be in the same order as this returned list.
         """
         self.assert_configured(False)
+          
 
         # backwards compatibility for models that didn't define precision
         if 'float_precision' in config:
             float_precision = config['float_precision']
         else:
             float_precision = 'float32'
-
+    
+        # Define optical module to use
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string   
+        num_pmts = optical_module.num_pmts 
+    
         # ---------------------------------------------
         # Define input parameters of cascade hypothesis
         # ---------------------------------------------
@@ -82,7 +91,7 @@ class DefaultCascadeModel(Source):
 
         if config['num_local_vars'] > 0:
             self._untracked_data['local_vars'] = new_weights(
-                    shape=[1, 86, 60, config['num_local_vars']],
+                    shape=[1, num_strings, doms_per_string*num_pmts, config['num_local_vars']],
                     float_precision=float_precision,
                     name='local_dom_input_variables')
             num_inputs += config['num_local_vars']
@@ -91,7 +100,7 @@ class DefaultCascadeModel(Source):
         # convolutional hex3d layers over X_IC86 data
         # -------------------------------------------
         self._untracked_data['conv_hex3d_layer'] = tfs.ConvNdLayers(
-            input_shape=[-1, 86, 60, num_inputs],
+            input_shape=[-1, num_strings, doms_per_string*num_pmts, num_inputs],
             filter_size_list=config['filter_size_list'],
             num_filters_list=config['num_filters_list'],
             pooling_type_list=None,
@@ -173,6 +182,19 @@ class DefaultCascadeModel(Source):
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
+  
+        # Define optical module to use
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string  
+        num_pmts = optical_module.num_pmts    
+        coordinates_std=optical_module.coordinates_std
+        coordinates_mean=optical_module.coordinates_mean    
+        dom_coordinates=optical_module.dom_coordinates   
+        rel_dom_eff=optical_module.dom_rel_eff
+        dom_azimuths = optical_module.dom_azimuths
+        dom_zeniths = optical_module.dom_zeniths
+
 
         tensors = self.data_trafo.data['tensors']
         if ('x_time_exclusions' in tensors.names and
@@ -199,7 +221,7 @@ class DefaultCascadeModel(Source):
                                 parameters, tensor_name=parameter_tensor_name)
 
         num_features = parameters.get_shape().as_list()[-1]
-
+        
         # -----------------------------------
         # Calculate input values for DOMs
         # -----------------------------------
@@ -215,9 +237,9 @@ class DefaultCascadeModel(Source):
         parameter_list = tf.unstack(params_reshaped, axis=-1)
 
         # calculate displacement vector
-        dx = detector.x_coords[..., 0] - parameter_list[0]
-        dy = detector.x_coords[..., 1] - parameter_list[1]
-        dz = detector.x_coords[..., 2] - parameter_list[2]
+        dx = dom_coordinates[..., 0] - parameter_list[0]
+        dy = dom_coordinates[..., 1] - parameter_list[1]
+        dz = dom_coordinates[..., 2] - parameter_list[2]
         dx = tf.expand_dims(dx, axis=-1)
         dy = tf.expand_dims(dy, axis=-1)
         dz = tf.expand_dims(dz, axis=-1)
@@ -235,11 +257,23 @@ class DefaultCascadeModel(Source):
         cascade_dir_x = -tf.sin(cascade_zenith) * tf.cos(cascade_azimuth)
         cascade_dir_y = -tf.sin(cascade_zenith) * tf.sin(cascade_azimuth)
         cascade_dir_z = -tf.cos(cascade_zenith)
+       
+        # calculate direction of pmt orientations
+        dom_azimuths_tf = tf.convert_to_tensor(dom_azimuths, dtype=tf.float32)
+        dom_zeniths_tf = tf.convert_to_tensor(dom_zeniths, dtype=tf.float32)
+        pmt_orientations = angles.sph_to_cart_tf(azimuth=dom_azimuths_tf,zenith=dom_zeniths_tf)
+
+        # calculate the relative neutrino direction for each PMT
+        cascade_dir = tf.stack([cascade_dir_x, cascade_dir_y, cascade_dir_z], axis=-1)
+        relative_cascade_dir = cascade_dir - pmt_orientations
+
+        # Normalize the relative neutrino direction vector
+        relative_cascade_dir_norm = tf.linalg.norm(relative_cascade_dir, axis=-1, keepdims=True)
+        relative_cascade_dir_normalized = relative_cascade_dir / relative_cascade_dir_norm
+
 
         # calculate opening angle of displacement vector and cascade direction
-        opening_angle = angles.get_angle(tf.stack([cascade_dir_x,
-                                                   cascade_dir_y,
-                                                   cascade_dir_z], axis=-1),
+        opening_angle = angles.get_angle(relative_cascade_dir_normalized,
                                          tf.concat([dx_normed,
                                                     dy_normed,
                                                     dz_normed], axis=-1)
@@ -269,11 +303,11 @@ class DefaultCascadeModel(Source):
                                        axis=-1)
 
         # put everything together
-        params_expanded = tf.tile(modified_parameters, [1, 86, 60, 1])
-
+        params_expanded = tf.tile(modified_parameters, [1, num_strings, doms_per_string*num_pmts, 1])
+       
         input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
                       distance]
-
+       
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
 
@@ -281,9 +315,10 @@ class DefaultCascadeModel(Source):
 
             # transform coordinates to correct scale with mean 0 std dev 1
             dom_coords = np.expand_dims(
-                detector.x_coords.astype(param_dtype_np), axis=0)
+                dom_coordinates.astype(param_dtype_np), axis=0)
             # scale of coordinates is ~-500m to ~500m with std dev of ~ 284m
-            dom_coords /= 284.
+            dom_coords -= coordinates_mean
+            dom_coords /= coordinates_std
 
             # extend to correct batch shape:
             dom_coords = (tf.ones_like(dx_normed) * dom_coords)
@@ -299,9 +334,10 @@ class DefaultCascadeModel(Source):
             print('\t local_vars', local_vars)
 
             input_list.append(local_vars)
-
         x_doms_input = tf.concat(input_list, axis=-1)
+
         print('\t x_doms_input', x_doms_input)
+
 
         # -------------------------------------------
         # convolutional hex3d layers over X_IC86 data
@@ -313,7 +349,7 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF
         # -------------------------------------------
-
+        
         # offset PDF evaluation times with cascade vertex time
         tensor_dict['time_offsets'] = parameters[:, 6]
         t_pdf = pulse_times - tf.gather(parameters[:, 6],
@@ -405,7 +441,7 @@ class DefaultCascadeModel(Source):
             # components accordingly. An equivalent alternative is to keep
             # the other components in place and to simply sort the latent_mu.
             latent_mu = tf.ensure_shape(
-                tf.sort(latent_mu, axis=-1), shape=[None, 86, 60, n_models])
+                tf.sort(latent_mu, axis=-1), shape=[None, num_strings, doms_per_string*num_pmts, n_models])
 
         tensor_dict['latent_var_mu'] = latent_mu
         tensor_dict['latent_var_sigma'] = latent_sigma
@@ -548,7 +584,7 @@ class DefaultCascadeModel(Source):
         # scale charges by realtive DOM efficiency
         if config['scale_charge_by_relative_dom_efficiency']:
             dom_charges *= tf.expand_dims(
-                detector.rel_dom_eff.astype(param_dtype_np), axis=-1)
+                rel_dom_eff.astype(param_dtype_np), axis=-1)
 
         # scale charges by global DOM efficiency
         if config['scale_charge_by_global_dom_efficiency']:
@@ -715,5 +751,5 @@ class DefaultCascadeModel(Source):
         tensor_dict['pulse_pdf'] = pulse_pdf_values
 
         # ---------------------
-
+        
         return tensor_dict

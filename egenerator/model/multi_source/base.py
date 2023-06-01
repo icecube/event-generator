@@ -7,6 +7,7 @@ from egenerator import misc
 from egenerator.model.base import Model
 from egenerator.model.source.base import Source
 from egenerator.manager.component import Configuration
+from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
 
 
 class MultiSource(Source):
@@ -310,6 +311,15 @@ class MultiSource(Source):
             time_exclusions_exist = True
         else:
             time_exclusions_exist = False
+      
+
+        config = self.configuration.config['config']
+        # Define optical module to use
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string
+        num_pmts = optical_module.num_pmts
+
 
         # -----------------------------------------------
         # get concrete functions of base sources.
@@ -351,12 +361,12 @@ class MultiSource(Source):
             dom_charges_variance_i = result_tensors_i['dom_charges_variance']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 
-            if dom_charges_i.shape[1:] != [86, 60, 1]:
+            if dom_charges_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
                 msg = 'DOM charges of source {!r} ({!r}) have an unexpected '
                 msg += 'shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
-            if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
+            if dom_charges_variance_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
                 msg = 'DOM charge variances of source {!r} ({!r}) have an '
                 msg += 'unexpected shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
@@ -365,7 +375,7 @@ class MultiSource(Source):
                 dom_cdf_exclusion_sum_i = (
                     result_tensors_i['dom_cdf_exclusion_sum']
                 )
-                if dom_cdf_exclusion_sum_i.shape[1:] != [86, 60, 1]:
+                if dom_cdf_exclusion_sum_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
                     msg = 'DOM exclusions of source {!r} ({!r}) have an  '
                     msg += 'unexpected shape {!r}.'
                     raise ValueError(msg.format(
@@ -479,6 +489,14 @@ class MultiSource(Source):
 
         """
         self.assert_configured(True)
+
+
+        config = self.configuration.config['config']
+        # Define optical module to use
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string
+        num_pmts = optical_module.num_pmts
 
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
@@ -607,12 +625,12 @@ class MultiSource(Source):
             dom_charges_variance_i = result_tensors_i['dom_charges_variance']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 
-            if dom_charges_i.shape[1:] != [86, 60, 1]:
+            if dom_charges_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
                 msg = 'DOM charges of source {!r} ({!r}) have an unexpected '
                 msg += 'shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
-            if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
+            if dom_charges_variance_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
                 msg = 'DOM charge variances of source {!r} ({!r}) have an '
                 msg += 'unexpected shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
@@ -621,7 +639,7 @@ class MultiSource(Source):
                 dom_cdf_exclusion_sum_i = (
                     result_tensors_i['dom_cdf_exclusion_sum']
                 )
-                if dom_cdf_exclusion_sum_i.shape[1:] != [86, 60, 1]:
+                if dom_cdf_exclusion_sum_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
                     msg = 'DOM exclusions of source {!r} ({!r}) have an  '
                     msg += 'unexpected shape {!r}.'
                     raise ValueError(msg.format(
@@ -629,9 +647,9 @@ class MultiSource(Source):
 
             # reshape to: [n_sources, n_batch, 86, 60, 1]
             dom_charges_i = tf.reshape(
-                dom_charges_i, [n_sources, -1, 86, 60, 1])
+                dom_charges_i, [n_sources, -1, num_strings, doms_per_string*num_pmts, 1])
             dom_charges_variance_i = tf.reshape(
-                dom_charges_variance_i, [n_sources, -1, 86, 60, 1])
+                dom_charges_variance_i, [n_sources, -1, num_strings, doms_per_string*num_pmts, 1])
 
             # reshape to: [n_sources, n_pulses]
             pulse_pdf_i = tf.reshape(
@@ -639,7 +657,7 @@ class MultiSource(Source):
 
             if time_exclusions_exist:
                 dom_cdf_exclusion_sum_i = tf.reshape(
-                    dom_cdf_exclusion_sum_i, [n_sources, -1, 86, 60, 1])
+                    dom_cdf_exclusion_sum_i, [n_sources, -1, num_strings, doms_per_string*num_pmts, 1])
 
             # accumulate charge
             # (assumes that sources are linear and independent)

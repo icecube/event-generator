@@ -13,6 +13,7 @@ from egenerator.utils.spherical_opt import spherical_opt
 from egenerator.manager.component import Configuration
 from egenerator.manager.base import BaseModelManager
 from egenerator.manager.reconstruction.tray import ReconstructionTray
+from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
 
 
 class SourceManager(BaseModelManager):
@@ -25,6 +26,7 @@ class SourceManager(BaseModelManager):
         logger : logging.logger, optional
             A logging instance.
         """
+        
         self._logger = logger or logging.getLogger(__name__)
         super(SourceManager, self).__init__(logger=self._logger)
 
@@ -603,14 +605,20 @@ class SourceManager(BaseModelManager):
             tensor = self.data_trafo.data['tensors'][tensor_name]
             input_signature.append(tf.TensorSpec(
                 shape=tensor.shape, dtype=getattr(tf, tensor.dtype)))
+        
+        # optical module/ detector parameters
+        optical_module = DetectorInfoModule(self.configuration.config['config']['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string
+        num_pmts = optical_module.num_pmts
 
         @tf.function(input_signature=tuple(input_signature))
         def model_tensors_function(
                 parameters,
                 x_pulses=tf.ones([1, x_pulses_shape[1]], dtype=pulse_dtype),
                 x_pulses_ids=tf.convert_to_tensor([[0, 0, 0]]),
-                x_dom_exclusions=tf.ones([0, 86, 60, 1], dtype=tf.bool),
-                x_dom_charge=tf.ones([0, 86, 60, 1], dtype=param_dtype),
+                x_dom_exclusions=tf.ones([0, num_strings, doms_per_string*num_pmts, 1], dtype=tf.bool),
+                x_dom_charge=tf.ones([0, num_strings, doms_per_string*num_pmts, 1], dtype=param_dtype),
                 x_time_window=tf.convert_to_tensor(
                     [[9000, 9001]], dtype=tw_dtype),
                 x_time_exclusions=tf.convert_to_tensor(
@@ -659,10 +667,10 @@ class SourceManager(BaseModelManager):
             # in which case we set dummy values to have the proper length
             if tf.shape(x_dom_exclusions)[0] == 0:
                 x_dom_exclusions = tf.ones(
-                    [len(parameters), 86, 60, 1], dtype=tf.bool)
+                    [len(parameters), num_strings, doms_per_string*num_pmts, 1], dtype=tf.bool)
             if tf.shape(x_dom_charge)[0] == 0:
                 x_dom_charge = tf.ones(
-                    [len(parameters), 86, 60, 1], dtype=param_dtype)
+                    [len(parameters), num_strings, doms_per_string*num_pmts, 1], dtype=param_dtype)
 
             # create a dummy data batch dict
             data_batch_dict = {
@@ -740,9 +748,7 @@ class SourceManager(BaseModelManager):
         Returns
         -------
         scipy.optimize.minimize results
-            The results of the minimization. Note that these will be
-            in transformed space if `minimize_in_trafo_space` is set to True
-            and only for parameters specified in `fit_parameter_list`.
+            The results of the minimization
 
         Raises
         ------
@@ -892,9 +898,7 @@ class SourceManager(BaseModelManager):
         Returns
         -------
         scipy.optimize.minimize results
-            The results of the minimization. Note that these will be
-            in transformed space if `minimize_in_trafo_space` is set to True
-            and only for parameters specified in `fit_parameter_list`.
+            The results of the minimization
 
         Raises
         ------
@@ -1041,9 +1045,7 @@ class SourceManager(BaseModelManager):
         Returns
         -------
         scipy.optimize.minimize results
-            The results of the minimization. Note that these will be
-            in transformed space if `minimize_in_trafo_space` is set to True
-            and only for parameters specified in `fit_parameter_list`.
+            The results of the minimization
 
         Raises
         ------
@@ -1169,9 +1171,7 @@ class SourceManager(BaseModelManager):
         Returns
         -------
         tfp optimizer_results
-            The results of the minimization. Note that these will be
-            in transformed space if `minimize_in_trafo_space` is set to True
-            and only for parameters specified in `fit_parameter_list`.
+            The results of the minimization
 
         Raises
         ------
@@ -1234,26 +1234,21 @@ class SourceManager(BaseModelManager):
                            fit_parameter_list,
                            minimize_in_trafo_space=True,
                            num_chains=1,
+                           seed=None,
                            num_results=100,
                            num_burnin_steps=100,
                            num_parallel_iterations=1,
                            num_steps_between_results=0,
-                           step_size=0.01,
                            method='HamiltonianMonteCarlo',
                            mcmc_seed=42,
-                           parameter_tensor_name='x_parameters',
-                           seed='x_parameters'):
+                           parameter_tensor_name='x_parameters'):
         """Reconstruct events with tensorflow probability interface.
 
         Parameters
         ----------
         initial_position : tf.Tensor
             The tensor describing the parameters.
-            If `minimize_in_trafo_space` is True, it is also expected that
-            `initial_position` are given in transformed data space and only
-            for the variables that are being fit as specified in the
-            `fit_parameter_list` parameter.
-            Shape: [-1, np.sum(fit_parameter_list)]
+            Shape: [-1, num_params]
         data_batch : tuple of tf.Tensor
             A tuple of tensors. This is the batch received from the tf.Dataset.
         loss_module : LossComponent
@@ -1263,18 +1258,20 @@ class SourceManager(BaseModelManager):
             method.
         parameter_loss_function : tf.function
             The tensorflow function:
-                f(parameters, data_batch, seed_tensor) -> loss
+                f(parameters, data_batch) -> loss
         fit_parameter_list : bool or list of bool, optional
-            Indicates whether a parameter is to be sampled.
+            Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
         minimize_in_trafo_space : bool, optional
-            If True, MCMC is performed in transformed and normalized
+            If True, minimization is performed in transformed and normalized
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
-            MCMC sampling.
+            minimization.
         num_chains : int, optional
             Number of chains to run
+        seed : str, optional
+            Name of seed tensor
         num_results : int, optional
             The number of chain steps to perform after burnin phase.
         num_burnin_steps : int, optional
@@ -1285,14 +1282,6 @@ class SourceManager(BaseModelManager):
         num_steps_between_results : int, optional
             The number of steps between accepted results. This applies
             thinning to the sampled point and can reduce correlation.
-        step_size : float or array_like or str, optional
-            The step size for the parameters may be provided as a list of
-            float for each parameter (in original physics parameter space,
-            but in log10 for variables fit in log10 if
-            `minimize_in_trafo_space` is set to true),
-            a single float for all parameters (in transformed parameter space),
-            or as a string for one of the implemented methods consisting
-            of: [].
         method : str, optional
             The MCMC method to use:
             'HamiltonianMonteCarlo', 'RandomWalkMetropolis', ...
@@ -1300,39 +1289,23 @@ class SourceManager(BaseModelManager):
             The seed value for the MCMC chain.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
-        seed : str or array_like
-            This specifies the tensor that is being used as a seed for the
-            reconstruction. This can either be the name of the data tensor
-            within the `data_batch`, or by a separate tensor.
-            The tensor should *NOT* be transformed.
 
         Returns
         -------
         tfp optimizer_results
-            The samples of the MCMC chain. Note that these will be
-            in transformed space if `minimize_in_trafo_space` is set to True
-            and only for parameters specified in `fit_parameter_list`.
-            Shape: [num_results, num_chains, num_params]
-        trace
-            Additional information from the MCMC chain.
+            The results of the minimization
 
         Raises
         ------
+        NotImplementedError
+            Description
         ValueError
             Description
-
         """
 
-        num_params = np.sum(fit_parameter_list, dtype=int)
-        assert initial_position.shape[1] == num_params
+        num_params = initial_position.shape[1]
         initial_position = tf.ensure_shape(initial_position,
                                            [num_chains, num_params])
-
-        if isinstance(seed, str):
-            seed_index = self.data_handler.tensors.get_index(seed)
-            seed_array = data_batch[seed_index]
-        else:
-            seed_array = seed
 
         def unnormalized_log_prob(x):
             """This needs to be the *positive* log(prob).
@@ -1343,51 +1316,35 @@ class SourceManager(BaseModelManager):
             log_prob_list = []
             for i in range(num_chains):
                 log_prob_list.append(-parameter_loss_function(
-                    x[i], data_batch, seed_array))
+                    x[i], data_batch))
             return tf.stack(log_prob_list, axis=0)
 
-        # -----------------
-        # Define step sizes
-        # -----------------
-        if isinstance(step_size, float):
-            step_size_trafo = [[
-                step_size for p in range(len(fit_parameter_list))]]
-            step_size = step_size_trafo * self.data_trafo.data[
-                parameter_tensor_name+'_std']
+        # Initialize the HMC transition kernel.
+        # step sizes for x, y, z, zenith, azimuth, energy, time
+        step_size = [[.5, .5, .5, 0.02, 0.02, 10., 1.]]
+        if method == 'HamiltonianMonteCarlo':
+            step_size = [[.1, .1, .1, 0.01, 0.02, 10., 1.]]
 
-        elif isinstance(step_size, str):
-            if step_size == 'covariance':
-                raise NotImplementedError
-            else:
-                raise ValueError('Stepsize method not understood: {}'.format(
-                    step_size))
-        else:
-            assert len(step_size) == len(fit_parameter_list)
-            step_size = [step_size]
-            step_size_trafo = step_size / self.data_trafo.data[
-                parameter_tensor_name+'_std']
-
-        # use transformed step size if needed
-        if minimize_in_trafo_space:
-            step_size = step_size_trafo
-
-        # only select those which we are fitting
         if num_params != len(step_size):
-            step_size = [[
-                s for (s, f) in zip(step_size[0], fit_parameter_list) if f
-            ]]
+            step_size = [[0.1 for p in range(num_params)]]
 
         step_size = np.array(step_size)
 
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         parameter_dtype = getattr(tf, param_tensor.dtype)
 
-        step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
-        step_size = tf.reshape(step_size, [1, num_params])
+        if minimize_in_trafo_space:
+            for i, trafo in enumerate(param_tensor.trafo_log):
+                if trafo:
+                    if i != 5:
+                        raise NotImplementedError()
+                    step_size[0][i] = 0.01
+            step_size /= self.data_trafo.data[parameter_tensor_name+'_std']
 
-        # ------------------------
+        step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
+        step_size = tf.reshape(step_size, [1, len(fit_parameter_list)])
+
         # Define transition kernel
-        # ------------------------
         if method == 'HamiltonianMonteCarlo':
             adaptive_hmc = tfp.mcmc.SimpleStepSizeAdaptation(
                 tfp.mcmc.HamiltonianMonteCarlo(
@@ -1397,8 +1354,6 @@ class SourceManager(BaseModelManager):
                     #     shape=(), minval=1, maxval=30,
                     #     dtype=tf.int32, seed=mcmc_seed),
                     step_size=step_size),
-                adaptation_rate=0.03,
-                reduce_fn=tfp.math.reduce_log_harmonic_mean_exp,
                 num_adaptation_steps=int(num_burnin_steps * 0.8))
 
         elif method == 'NoUTurnSampler':
@@ -1441,6 +1396,14 @@ class SourceManager(BaseModelManager):
                 kernel=adaptive_hmc,
                 trace_fn=trace_fn,
                 parallel_iterations=num_parallel_iterations)
+            samples = tf.reshape(samples,
+                                 [num_chains*num_results, num_params])
+            if minimize_in_trafo_space:
+                samples = self.data_trafo.inverse_transform(
+                    data=samples, tensor_name=parameter_tensor_name)
+
+            samples = tf.reshape(samples,
+                                 [num_results, num_chains, num_params])
 
             return samples, trace
         return run_chain()

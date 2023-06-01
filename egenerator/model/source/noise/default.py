@@ -9,6 +9,8 @@ from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles
+from egenerator import misc
+from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
 # from egenerator.manager.component import Configuration, BaseComponent
 
 
@@ -24,7 +26,7 @@ class DefaultNoiseModel(Source):
         """
         self._logger = logger or logging.getLogger(__name__)
         super(DefaultNoiseModel, self).__init__(logger=self._logger)
-
+    
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
 
@@ -47,7 +49,7 @@ class DefaultNoiseModel(Source):
             to be in the same order as this returned list.
         """
         self.assert_configured(False)
-
+      
         # backwards compatibility for models that didn't define precision
         if 'float_precision' in config:
             float_precision = config['float_precision']
@@ -129,6 +131,15 @@ class DefaultNoiseModel(Source):
         config = self.configuration.config['config']
         parameters = data_batch_dict[parameter_tensor_name]
 
+        # Define optical module to use
+        
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string
+        dom_noise_rates=optical_module.dom_noise_rates
+        num_pmts = optical_module.num_pmts
+
+
         # get time exclusions
         tensors = self.data_trafo.data['tensors']
         if ('x_time_exclusions' in tensors.names and
@@ -166,9 +177,8 @@ class DefaultNoiseModel(Source):
 
         # compute the expected charge at each DOM based off of noise rate
         # shape: [1, 86, 60, 1]
-        dom_noise_rates = tf.reshape(
-            detector.dom_noise_rates.astype(param_dtype_np),
-            shape=[1, 86, 60, 1],
+        dom_noise_rates = tf.reshape(dom_noise_rates.astype(param_dtype_np),
+            shape=[1, num_strings, doms_per_string*num_pmts, 1],
         )
 
         # shape: [n_batch, 86, 60, 1]
@@ -192,7 +202,6 @@ class DefaultNoiseModel(Source):
                 tf.expand_dims(t_min, axis=-1),
                 tf.expand_dims(t_max, axis=-1),
             )
-
             # now calculate exclusions cdf
             # shape: [n_tw, 1]
             tw_cdf_exclusion = tf.expand_dims(
@@ -367,6 +376,15 @@ class DefaultNoiseModel(Source):
             `result_tensors` dictionary.
         """
 
+        config = self.configuration.config['config']
+        
+        # Define optical module to use
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string
+        dom_noise_rates=optical_module.dom_noise_rates
+        num_pmts = optical_module.num_pmts
+
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -388,7 +406,7 @@ class DefaultNoiseModel(Source):
         if 'dom_cdf_exclusion' in result_tensors:
             dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
         else:
-            dom_cdf_exclusion = np.zeros((len(time_window), 86, 60, 1))
+            dom_cdf_exclusion = np.zeros((len(time_window),num_strings, doms_per_string*num_pmts, 1))
 
         # shape: [n_events, 1, 1, n_points]
         t_end = np.where(
@@ -510,6 +528,15 @@ class DefaultNoiseModel(Source):
             If assymetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
+         
+        config = self.configuration.config['config']
+
+        # Define optical module to use
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        num_strings=optical_module.num_strings
+        doms_per_string=optical_module.doms_per_string
+        dom_noise_rates=optical_module.dom_noise_rates
+        num_pmts = optical_module.num_pmts
 
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
@@ -535,7 +562,7 @@ class DefaultNoiseModel(Source):
         if 'dom_cdf_exclusion' in result_tensors:
             dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
         else:
-            dom_cdf_exclusion = np.zeros((len(time_window), 86, 60, 1))
+            dom_cdf_exclusion = np.zeros((len(time_window), num_strings, doms_per_string*num_pmts, 1))
 
         # Shape: [n_events, 86, 60, 1]
         pdf_values = pdf_constant / (1. - dom_cdf_exclusion + 1e-3)
