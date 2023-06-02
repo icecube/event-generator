@@ -12,9 +12,13 @@ from egenerator.data.tensor import DataTensorList, DataTensor
 
 class PulseDataModule(BaseComponent):
 
-    """MCPE data module
+    """Pulse data module
 
-    This data module loads unbinned mcpe data and total PMT photo-electrons(PE).
+    This data module loads unbinned pulse data and total dom charge. 
+    It adds the charge of all PMTs of the same module.
+    This is done to have a likelihood with independent terms so that
+    it can be factorized. Otherwise it is not accurated since the noise 
+    within a module is correlated.
     Documentation has to be rewritten.
     In addition, dom and time exclusions will be loaded if the keys are
     provided.
@@ -128,6 +132,7 @@ class PulseDataModule(BaseComponent):
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts = optical_module.num_pmts #Number of pmts per module
+        assert num_pmts==1, "This module requires num_pmts=1 on the detector info .pickle file"
 
         x_dom_charge = DataTensor(name='x_dom_charge',
                                   shape=[None, num_strings, doms_per_string * num_pmts, 1],
@@ -278,6 +283,7 @@ class PulseDataModule(BaseComponent):
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts=optical_module.num_pmts
+        assert num_pmts==1, "This module requires num_pmts=1 on the detector info .pickle file"
         bad_doms_mask=optical_module.bad_doms_mask
         x_dom_charge = np.zeros([size, num_strings, doms_per_string * num_pmts, 1],
                                 dtype=self.data['np_float_precision'])
@@ -290,12 +296,10 @@ class PulseDataModule(BaseComponent):
             x_dom_exclusions = None
 
         if self.data['time_exclusions_exist']:
-            #modify by Javi due to error on trafo for len=0.
             if time_exclusions is not None:
                 num_tws = len(time_exclusions['Event'])
             else:
                 num_tws=0
-                #print("time exclusions is noneee")
             x_time_exclusions = np.empty(
                 (num_tws, 2), dtype=self.data['np_float_precision'])
             x_time_exclusions_ids = np.empty((num_tws, 3), dtype=np.int32)
@@ -327,30 +331,29 @@ class PulseDataModule(BaseComponent):
         for pulse_index, row in enumerate(pulses.itertuples()):
             string = row[6] - optical_module.string_offset
             dom = row[7]
-            pmt = row[8]
-            if dom > doms_per_string or pmt>=num_pmts:
+            if dom > doms_per_string:
                 self._logger.warning(
-                    'skipping pulse: {} {}'.format(string, dom, pmt))
+                    'skipping pulse: {} {}'.format(string, dom))
                 continue
             index = event_dict[(row[1:5])]
 
-            # mcpe photo electrons: row[11], time: row[10]
+            # pulse charge: row[12], time: row[10]
             # accumulate charge in DOMs
-            x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += row[11]
+            x_dom_charge[index, string-1, dom-1, 0] += row[12]
 
             # gather pulses
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
-                cum_charge = float(x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0])
-                x_pulses[pulse_index] = [row[11], row[10], cum_charge]
+                cum_charge = float(x_dom_charge[index, string-1, dom-1, 0])
+                x_pulses[pulse_index] = [row[12], row[10], cum_charge]
 
             else:
                 # (charge, time)
-                x_pulses[pulse_index] = [row[11], row[10]]
+                x_pulses[pulse_index] = [row[12], row[10]]
 
             # gather pulse ids (batch index, string, dom, pmt)
-            x_pulses_ids[pulse_index] = [index, string-1, (dom-1)*num_pmts + pmt]
+            x_pulses_ids[pulse_index] = [index, string-1, dom-1]
 
             # update time window
             if row[10] > x_time_window[index, 1]:
@@ -366,7 +369,7 @@ class PulseDataModule(BaseComponent):
             dim2 = x_dom_charge.shape[2]
             flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
                             x_pulses_ids[:, 1]*dim2 +  # string
-                            x_pulses_ids[:, 2])  # All PMTs on a string
+                            x_pulses_ids[:, 2])  # All modules on a string
 
             # flatten dom charges
             flat_charges = x_dom_charge.flatten()
@@ -381,10 +384,9 @@ class PulseDataModule(BaseComponent):
             for tw_index, row in enumerate(time_exclusions.itertuples()):
                 string = row[6] - optical_module.string_offset
                 dom = row[7]
-                pmt = row[8]
-                if dom > doms_per_string or pmt>=num_pmts:
+                if dom > doms_per_string:
                     self._logger.warning(
-                        'skipping tw: {} {}'.format(string, dom, pmt))
+                        'skipping tw: {} {}'.format(string, dom))
                     continue
                 index = event_dict[(row[1:5])]
 
@@ -394,7 +396,7 @@ class PulseDataModule(BaseComponent):
                 x_time_exclusions[tw_index] = [row[10], row[11]]
 
                 # gather pulse ids (batch index, string, dom)
-                x_time_exclusions_ids[tw_index] = [index, string-1, (dom-1)*num_pmts + pmt]
+                x_time_exclusions_ids[tw_index] = [index, string-1, dom-1]
 
         # ------------------
         # get dom exclusions
@@ -403,13 +405,12 @@ class PulseDataModule(BaseComponent):
             for row in dom_exclusions.itertuples():
                 string = row[7] - optical_module.string_offset
                 dom = row[8]
-                pmt = row[9] # modify
-                if dom > doms_per_string or pmt >= num_pmts:
+                if dom > doms_per_string:
                     msg = 'skipping exclusion DOM: {!r} {!r}'
-                    self._logger.info(msg.format(string, dom, pmt))
+                    self._logger.info(msg.format(string, dom))
                     continue
                 index = event_dict[(row[1:5])]
-                x_dom_exclusions[index, string-1, (dom-1)*num_pmts + pmt, 0] = False
+                x_dom_exclusions[index, string-1, dom-1, 0] = False
 
             if self.configuration.config['discard_pulses_from_excluded_doms']:
 
@@ -477,6 +478,7 @@ class PulseDataModule(BaseComponent):
         string_offset=optical_module.string_offset
         bad_doms_mask=optical_module.bad_doms_mask
         num_pmts=optical_module.num_pmts
+        assert num_pmts==1, "This module requires num_pmts=1 on the detector info .pickle file"
 
         if isinstance(pulses, dataclasses.I3RecoPulseSeriesMapMask) or \
            isinstance(pulses, dataclasses.I3RecoPulseSeriesMapUnion):
@@ -550,7 +552,7 @@ class PulseDataModule(BaseComponent):
             dom = omkey.om
             pmt = omkey.pmt
 
-            if dom > doms_per_string or pmt>= num_pmts:
+            if dom > doms_per_string:
                 self._logger.warning(
                     'skipping pulse: {} {}'.format(string, dom, pmt))
                 continue
@@ -558,15 +560,15 @@ class PulseDataModule(BaseComponent):
             for pulse in pulse_list:
                 index = 0
 
-                # mcpe photo-electron: row[11], time: row[10]
+                # pulse charge: row[12], time: row[10]
                 # accumulate charge in DOMs
-                x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += pulse.charge
+                x_dom_charge[index, string-1, dom-1, 0] += pulse.charge
 
                 # gather pulses
                 if add_charge_quantiles:
 
                     # (charge, time, quantile)
-                    cum_charge = float(x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0])
+                    cum_charge = float(x_dom_charge[index, string-1, dom-1, 0])
                     x_pulses.append([pulse.charge, pulse.time, cum_charge])
 
                 else:
@@ -574,7 +576,7 @@ class PulseDataModule(BaseComponent):
                     x_pulses.append([pulse.charge, pulse.time])
 
                 # gather pulse ids (batch index, string, dom)
-                x_pulses_ids.append([index, string-1, (dom-1)*num_pmts + pmt])
+                x_pulses_ids.append([index, string-1, dom-1])
 
                 # update time window
                 if pulse.time > x_time_window[index, 1]:
@@ -593,7 +595,7 @@ class PulseDataModule(BaseComponent):
             dim2 = x_dom_charge.shape[2]
             flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
                             x_pulses_ids[:, 1]*dim2 +  # string
-                            x_pulses_ids[:, 2]) # All PMTs of a string
+                            x_pulses_ids[:, 2]) # All modules of a string
             # flatten dom charges
             flat_charges = x_dom_charge.flatten()
 
@@ -610,7 +612,7 @@ class PulseDataModule(BaseComponent):
                 dom = omkey.om
                 pmt = omkey.pmt
 
-                if dom > doms_per_string or pmt >= num_pmts:
+                if dom > doms_per_string:
                     self._logger.warning(
                         'skipping time window: {} {}'.format(string, dom, pmt))
                     continue
@@ -622,7 +624,7 @@ class PulseDataModule(BaseComponent):
                     x_time_exclusions.append([tw.start, tw.stop])
 
                     # gather pulse ids (batch index, string, dom)
-                    x_time_exclusions_ids.append([index, string-1, (dom-1)*num_pmts + pmt])
+                    x_time_exclusions_ids.append([index, string-1, dom-1])
 
             if x_time_exclusions:
                 x_time_exclusions = np.array(
@@ -643,13 +645,13 @@ class PulseDataModule(BaseComponent):
                 dom = omkey.om
                 pmt = omkey.pmt
 
-                if dom > doms_per_string or pmt >= num_pmts:
+                if dom > doms_per_string:
                     msg = 'skipping exclusion DOM: {!r} {!r}'
                     self._logger.info(msg.format(string, dom, pmt))
                     continue
 
                 index = 0
-                x_dom_exclusions[index, string-1, (dom-1)*num_pmts + pmt, 0] = False
+                x_dom_exclusions[index, string-1, dom-1, 0] = False
 
             if self.configuration.config['discard_pulses_from_excluded_doms']:
 
@@ -658,7 +660,7 @@ class PulseDataModule(BaseComponent):
                 dim2 = x_dom_exclusions.shape[2]
                 flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
                                 x_pulses_ids[:, 1]*dim2 +  # string
-                                x_pulses_ids[:, 2]) # All PMTs on a
+                                x_pulses_ids[:, 2]) # All modules on a string
 
                 # flatten dom charges
                 flat_exclusions = x_dom_exclusions.flatten()

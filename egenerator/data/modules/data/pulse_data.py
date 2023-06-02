@@ -14,7 +14,8 @@ class PulseDataModule(BaseComponent):
 
     """Pulse data module
 
-    This data module loads unbinned pulse data and total dom charge.
+    This data module loads unbinned pulse data and total pmt charge.
+    Documentation has to be rewritten.
     In addition, dom and time exclusions will be loaded if the keys are
     provided.
 
