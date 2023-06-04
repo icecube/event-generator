@@ -75,6 +75,15 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                           'Particles below this energy threshold are not '
                           'simulated.',
                           100)
+        self.AddParameter('correct_sampled_charge',
+                          'Correct individual charges of sampled pulses to '
+                          'exactly match estimated total charge. If False '
+                          'additional randomization is added since the charge '
+                          'of a sampled pulse will only equal to 1PE on '
+                          'average. If True, charges at DOMs tend to be '
+                          'discretized to integer values for lower-charge '
+                          'DOMs. False is usually preferred.',
+                          False)
         self.AddParameter('num_threads',
                           'Number of threads to use for tensorflow. This will '
                           'be passed on to tensorflow where it is used to set '
@@ -102,6 +111,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         self.max_simulation_distance = \
             self.GetParameter('max_simulation_distance')
         self.min_simulation_energy = self.GetParameter('min_simulation_energy')
+        self.correct_sampled_charge = self.GetParameter(
+            'correct_sampled_charge')
         self.num_threads = self.GetParameter('num_threads')
         self.random_service = self.GetParameter('random_service')
 
@@ -342,12 +353,14 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                     if num_pe <= 0:
                         continue
 
-                    # we will uniformly choose the charge and then correct
-                    # again to obtain correct total charge
+                    # we will uniformly choose the charge and then (optionally)
+                    # correct again to obtain correct total charge
                     # ToDo: figure out actual chage distribution of pulses!
                     pulse_charges = self.random_service.uniform(
                         0.25, 1.75, size=num_pe)
-                    pulse_charges *= num_pe / np.sum(pulse_charges)
+
+                    if self.correct_sampled_charge:
+                        pulse_charges *= num_pe / np.sum(pulse_charges)
 
                     # for each pulse, draw 2 random numbers which we will need
                     # to figure out which mixtue model component to choose
@@ -366,7 +379,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                         rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r)
 
                     # fix scale
-                    pulse_times *= 1000.
+                    pulse_times *= self.model.time_unit_in_ns
 
                     # fix offset
                     pulse_times += cascade_times[i]

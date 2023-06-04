@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from scipy import special
 from scipy import stats
+from scipy.integrate import quad
 
 
 def tf_gauss(x, mu, sigma):
@@ -645,3 +646,111 @@ def rayleigh_cdf(x, sigma):
         The CDF of the Rayleigh distribution evaluated at x.
     """
     return 1 - np.exp(-0.5*(x/sigma)**2)
+
+
+def von_mises_pdf(x, sigma, kent_min=np.deg2rad(7)):
+    """Computes the von Mises-Fisher PDF on the sphere
+
+    The PDF is defined and normalized in cartesian
+    coordinates (dx1, dx2), i.e x = sqrt(dx1^2 + dx2^2).
+
+    Parameters
+    ----------
+    x : array_like
+        The opening angle (approximation in cartesian coordiantes
+        around the best-fit position).
+    sigma : array_like
+        The estimated uncertainty.
+    kent_min : float, optional
+        The value over which to use the von Mises-Fisher distribution.
+        Underneath, a 2D Gaussian approximation is used for more numerical
+        stability.
+
+    Returns
+    -------
+    array_like
+        The PDF evaluated at the provided opening angles x.
+    """
+    x = np.atleast_1d(x)
+    sigma = np.atleast_1d(sigma)
+
+    cos_dpsi = np.cos(x)
+    kappa = 1. / sigma**2
+    result = np.where(
+        kent_min < sigma,
+        (
+            # kappa / (4 * np.pi * np.sinh(kappa)) *
+            # np.exp(kappa * cos_dpsi)
+
+            # stabilized version:
+            kappa / (4 * np.pi)
+            * 2 * np.exp(kappa * (cos_dpsi - 1.)) / (1. - np.exp(-2.*kappa))
+        ),
+        # 1./(2*np.pi*sigma**2) * np.exp(-x**2 / (2*sigma**2)),
+        1./(2*np.pi*sigma**2) * np.exp(-0.5 * (x / sigma)**2),
+    )
+    return result
+
+
+def von_mises_in_dPsi_pdf(x, sigma, kent_min=np.deg2rad(7)):
+    """Computes the von Mises-Fisher PDF on the sphere
+
+    The PDF is defined and normalized in the opening angle dPsi.
+
+    Parameters
+    ----------
+    x : array_like
+        The opening angle.
+    sigma : array_like
+        The estimated uncertainty.
+    kent_min : float, optional
+        The value over which to use the von Mises-Fisher distribution.
+        Underneath, a 2D Gaussian approximation is used for more numerical
+        stability.
+
+    Returns
+    -------
+    array_like
+        The PDF evaluated at the provided opening angles x.
+    """
+    # switching coordinates from (dx1, dx2) to spherical
+    # coordinates (dPsi, phi) means that we have to include
+    # the jakobi determinant sin dPsi
+    jakobi_det = np.sin(x)  # sin(dPsi)
+    phi_integration = 2 * np.pi
+    return phi_integration*jakobi_det * von_mises_pdf(
+        x, sigma, kent_min=kent_min)
+
+
+def von_mises_in_dPsi_cdf(x, sigma, kent_min=np.deg2rad(7)):
+    """Computes the von Mises-Fisher CDF on the sphere
+
+    The underlying PDF is defined and normalized in the opening angle dPsi.
+    This function numerically integrates the underlying PDF and may therefore
+    be rather slow. ToDo: analytic solution?
+
+    Parameters
+    ----------
+    x : array_like
+        The opening angle.
+    sigma : array_like
+        The estimated uncertainty.
+    kent_min : float, optional
+        The value over which to use the von Mises-Fisher distribution.
+        Underneath, a 2D Gaussian approximation is used for more numerical
+        stability.
+
+    Returns
+    -------
+    array_like
+        The CDF evaluated at the provided opening angles x.
+    """
+    assert len(x) == len(sigma), ('Unequal lengths:', len(x), len(sigma))
+    x = np.atleast_1d(x)
+    sigma = np.atleast_1d(sigma)
+    result = []
+    for x_i, sigma_i in zip(x, sigma):
+        integration = quad(
+            von_mises_in_dPsi_pdf, a=0, b=x_i, args=(sigma_i, kent_min))
+        result.append(integration[0])
+    return np.array(result)

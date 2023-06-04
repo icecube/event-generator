@@ -1,5 +1,6 @@
 import healpy as hp
 import numpy as np
+import math
 
 
 def get_scan_pixels(
@@ -32,10 +33,10 @@ def get_scan_pixels(
         defines the nsides for each of these rings. See also `focus_bounds`,
         which defines the distance of these rings.
     focus_zeniths : list, optiona
-        A list of zenith values for each of the focus regions.
+        A list of zenith values in radians for each of the focus regions.
         Must have same order as `focus_azimuths`.
     focus_azimuths : list, optional
-        A list of azimuth values for each of the focus regions.
+        A list of azimuth values in radians for each of the focus regions.
         Must have same order as `focus_zeniths`.
 
     Returns
@@ -157,3 +158,244 @@ def combine_skymaps(*skymaps):
         combined_map[mask_finite] = skymap[mask_finite]
 
     return combined_map
+
+
+class SkymapSampler():
+
+    def __init__(self, log_pdf_map, seed=42, replace_nan=None):
+        """Class for sampling from skymap PDF
+
+        Parameters
+        ----------
+        log_pdf_map : array_like
+            The skymap given as the logarithm of the PDF at each healpix.
+        seed : int, optional
+            Random number generator seed.
+        replace_nan : None, optional
+            If provided, non-finite vlaues in the `log_pdf_map` will
+            be replaced with this value.
+        """
+        self.offset = np.nanmax(log_pdf_map)
+        self.log_pdf_map = np.array(log_pdf_map) - self.offset
+        self._seed = seed
+        self._random_state = np.random.RandomState(seed)
+        self.nside = hp.get_nside(self.log_pdf_map)
+
+        if replace_nan is not None:
+            mask = ~np.isfinite(self.log_pdf_map)
+            self.log_pdf_map[mask] = replace_nan
+        assert np.isfinite(self.log_pdf_map).all(), self.log_pdf_map
+
+        # compute pdf for each pixel
+        self._n_order = self._nside2norder()
+        self.npix = hp.nside2npix(self.nside)
+        self.dir_x_s, self.dir_y_s, self.dir_z_s = \
+            hp.pix2vec(self.nside, range(self.npix))
+
+        self.neg_llh_values = -self.log_pdf_dir(
+            self.dir_x_s, self.dir_y_s, self.dir_z_s)
+
+        # sort directions according to neg llh
+        sorted_indices = np.argsort(self.neg_llh_values)
+        self.dir_x_s = self.dir_x_s[sorted_indices]
+        self.dir_y_s = self.dir_y_s[sorted_indices]
+        self.dir_z_s = self.dir_z_s[sorted_indices]
+        self.neg_llh_values = self.neg_llh_values[sorted_indices]
+        self.ipix_list = sorted_indices
+        self.ipix_list_list = sorted_indices.tolist()
+
+        # get normalized probabilities and cdf
+        prob = np.exp(-self.neg_llh_values)
+        assert np.isfinite(prob).all(), (prob, self.neg_llh_values)
+
+        self.prob_values = prob / math.fsum(prob)
+        self.cdf_values = np.cumsum(self.prob_values)
+
+        assert np.isfinite(self.cdf_values).all(), self.cdf_values
+
+    def log_pdf_dir(self, dir_x, dir_y, dir_z):
+        """Return the log prob for the given direction
+
+        Parameters
+        ----------
+        dir_x : array_like
+            The x-coordinate of the unit direction vector.
+        dir_y : array_like
+            The y-coordinate of the unit direction vector.
+        dir_z : array_like
+            The z-coordinate of the unit direction vector.
+
+        Returns
+        -------
+        array_like
+            The log pdf values for each provied direction vector.
+        """
+        return np.array(self.log_pdf_map[hp.vec2pix(
+            nside=self.nside, x=dir_x, y=dir_y, z=dir_z)])
+
+    def cdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the CDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF evaluated at the provided positions on the sphere.
+        """
+
+        # get ipix corresponding to specified directions
+        ipix = np.atleast_1d(hp.ang2pix(
+            nside=self.nside, theta=zenith, phi=azimuth))
+
+        # figure out where these ipix were sorted to
+        sorted_indices = [self.ipix_list_list.index(v) for v in ipix]
+
+        # get cdf values
+        return self.cdf_values[sorted_indices]
+
+    def _nside2norder(self):
+        """
+        Give the HEALpix order for the given HEALpix nside parameter.
+
+        Credit goes to:
+            https://git.rwth-aachen.de/astro/astrotools/blob/master/
+            astrotools/healpytools.py
+
+        Returns
+        -------
+        int
+            norder of the healpy pixelization
+
+        Raises
+        ------
+        ValueError
+            If nside is not 2**norder.
+        """
+        norder = np.log2(self.nside)
+        if not (norder.is_integer()):
+            raise ValueError('Wrong nside number (it is not 2**norder)')
+        return int(norder)
+
+    def _sample_from_ipix(
+                self, ipix, nest=False, rng=None,  pix_converter=hp.pix2vec):
+        """
+        Sample vectors from a uniform distribution within a HEALpixel.
+
+        Credit goes to
+        https://git.rwth-aachen.de/astro/astrotools/blob/master/
+        astrotools/healpytools.py
+
+        :param ipix: pixel number(s)
+        :param nest: set True in case you work with healpy's nested scheme
+        :return: vectors containing events from the pixel(s) specified in ipix
+
+        Parameters
+        ----------
+        ipix : int, list of int
+            Healpy pixels.
+        nest : bool, optional
+            Set to True in case healpy's nested scheme is used.
+        rng : None, optional
+            A random number generator. If None is provided the internal
+            generator will be used.
+        pix_converter : callable, optional
+            The ipix to direction or angle converter to use.
+            Examples: hp.pix2vec or hp.pix2ang
+
+        Returns
+        -------
+        np.array, np.array (, np.array)
+            The sampled direction vector components if pix_converter is
+            set to hp.pix2vec.
+            Zenith and azimuth angle in radians if pix_converter is set
+            to hp.pix2ang.
+        """
+        if rng is None:
+            rng = self._random_state
+
+        if not nest:
+            ipix = hp.ring2nest(self.nside, ipix=ipix)
+
+        n_up = 29 - self._n_order
+        i_up = ipix * 4 ** n_up
+        i_up += rng.randint(0, 4 ** n_up, size=np.size(ipix))
+        return pix_converter(nside=2 ** 29, ipix=i_up, nest=True)
+
+    def sample_angles(self, n, rng=None):
+        """Sample angles from the distribution
+
+        Parameters
+        ----------
+        n : int
+            Number of samples to generate.
+        rng : None, optional
+            A random number generator. If None is provided the internal
+            generator will be used.
+
+        Returns
+        -------
+        np.array, np.array
+            The sampled zenith and azimuth angles in radians.
+        """
+        return self._sample_points(n=n, pix_converter=hp.pix2ang, rng=rng)
+
+    def sample_dir(self, n, rng=None):
+        """Sample direction vectors from the distribution
+
+        Parameters
+        ----------
+        n : int
+            Number of samples to generate.
+        rng : None, optional
+            A random number generator. If None is provided the internal
+            generator will be used.
+
+        Returns
+        -------
+        np.array, np.array, np.array
+            The sampled direction vector components.
+        """
+        return self._sample_points(n=n, pix_converter=hp.pix2vec, rng=rng)
+
+    def _sample_points(self, n, pix_converter, rng=None):
+        """Sample direction vectors from the distribution
+
+        Parameters
+        ----------
+        n : int
+            Number of samples to generate.
+        pix_converter : callable, optional
+            The ipix to direction or angle converter to use.
+            Examples: hp.pix2vec or hp.pix2ang
+        rng : None, optional
+            A random number generator. If None is provided the internal
+            generator will be used.
+
+        Returns
+        -------
+        np.array, np.array, np.array
+            The sampled direction vector components.
+        """
+        if rng is None:
+            rng = self._random_state
+
+        # sample random healpy pixels given their probability
+        indices = np.searchsorted(self.cdf_values, rng.rand(n))
+        indices[indices > self.npix - 1] = self.npix - 1
+
+        # get the healpy pixels
+        ipix = self.ipix_list[indices]
+
+        # sample points within these pixels
+        return self._sample_from_ipix(
+            ipix, pix_converter=pix_converter, rng=rng)
