@@ -1,5 +1,6 @@
 import numpy as np
 import healpy as hp
+import timeit
 import tensorflow as tf
 
 from egenerator.manager.reconstruction.modules.utils import trafo
@@ -502,11 +503,15 @@ class SkyScanner:
         scan_min_nside = None
         for nside, ipix_list in scan_pixels.items():
 
+            start_t = timeit.default_timer()
+            if self.verbose:
+                print('Scanning {} pixels of nside {} ...'.format(
+                    len(ipix_list), nside))
+
             skyscan_llh_i = {}
             skyscan_res_i = {}
 
             for ipix in ipix_list:
-                print(nside, ipix)
                 theta, phi = hp.pix2ang(nside, ipix)
 
                 # get seed either from previous reconstruction result
@@ -531,6 +536,26 @@ class SkyScanner:
                 results_i = self.reco_module.execute(
                     data_batch, results_i, **kwargs)
 
+                # re-run reconstruction with different seed
+                if not np.isfinite(results_i['loss_reco']):
+
+                    skyscanseed_tr = self.manager.data_trafo.transform(
+                        skyscanseed, 'x_parameters')
+                    rng = np.random.RandomState(ipix)
+                    skyscanseed_tr += rng.normal(
+                        loc=0, scale=0.1, size=skyscanseed.shape)
+                    skyscanseed = self.manager.data_trafo.inverse_transform(
+                        skyscanseed_tr, 'x_parameters')
+
+                    # set theta and phi
+                    skyscanseed[0][self.zenith_index] = theta
+                    skyscanseed[0][self.azimuth_index] = phi
+
+                    results_i = {'SkyScanSeed': {'result': skyscanseed}}
+
+                    results_i = self.reco_module.execute(
+                        data_batch, results_i, **kwargs)
+
                 # extract best-fit params and llh
                 skyscan_llh_i[ipix] = results_i['loss_reco']
                 skyscan_res_i[ipix] = results_i['result']
@@ -544,6 +569,10 @@ class SkyScanner:
 
             skyscan_llh[nside] = skyscan_llh_i
             skyscan_res[nside] = skyscan_res_i
+
+            end_t = timeit.default_timer()
+            if self.verbose:
+                print('   ... that took {:3.3}s'.format(end_t - start_t))
 
         result_dict = {
             'skyscan_llh': skyscan_llh,
