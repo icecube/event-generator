@@ -534,7 +534,7 @@ class BaseComponent(object):
                               '_data', '_untracked_data', 'is_configured',
                               'logger', 'configuration', 'data',
                               'untracked_data', '_sub_components',
-                              'sub_components']
+                              'sub_components','optical_module'] # there is possibly a better place for optical module in the future, (untracked_data)
         untracked_attributes = [a for a in filtered_attributes if a not in
                                 tracked_attributes]
 

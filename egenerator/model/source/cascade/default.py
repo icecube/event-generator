@@ -59,6 +59,7 @@ class DefaultCascadeModel(Source):
     
         # Define optical module to use
         optical_module = DetectorInfoModule(config['optical_module_key'])
+        self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string   
         num_pmts = optical_module.num_pmts 
@@ -184,7 +185,7 @@ class DefaultCascadeModel(Source):
         pulses_ids = data_batch_dict['x_pulses_ids']
   
         # Define optical module to use
-        optical_module = DetectorInfoModule(config['optical_module_key'])
+        optical_module = self.optical_module(config['optical_module_key'])
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string  
         num_pmts = optical_module.num_pmts    

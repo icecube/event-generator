@@ -69,6 +69,9 @@ class DefaultNoiseModel(Source):
             name='noise_scaling',
         )
 
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        self.optical_module = optical_module
+
         return parameter_names
 
     @tf.function
@@ -133,7 +136,7 @@ class DefaultNoiseModel(Source):
 
         # Define optical module to use
         
-        optical_module = DetectorInfoModule(config['optical_module_key'])
+        optical_module = self.optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         dom_noise_rates=optical_module.dom_noise_rates

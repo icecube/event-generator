@@ -125,6 +125,7 @@ class PulseDataModule(BaseComponent):
        
         #Detector information
         optical_module = DetectorInfoModule(optical_module_key)
+        self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts = optical_module.num_pmts #Number of pmts per module
@@ -235,7 +236,7 @@ class PulseDataModule(BaseComponent):
         try:
             pulses = f[self.configuration.config['pulse_key']]
             _labels = f['LabelsDeepLearning']
-            optical_module = DetectorInfoModule(self.configuration.config['optical_module_key'])
+            optical_module = self.optical_module
             if self.data['dom_exclusions_exist']:
                 try:
                     dom_exclusions = \
@@ -471,7 +472,7 @@ class PulseDataModule(BaseComponent):
         pulses = frame[self.configuration.config['pulse_key']]
         
         # get optical module
-        optical_module = DetectorInfoModule(self.configuration.config['optical_module_key'])
+        optical_module = self.optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         string_offset=optical_module.string_offset
