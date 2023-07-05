@@ -182,48 +182,6 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         self.get_model_tensors = self.manager.get_model_tensors_function()
 
         # ---------------------------------------------------
-        # Define which particles are simulated by which Model
-        # ---------------------------------------------------
-
-        # define allowed parent particles
-        # These are particles which we can safely simulate by only looking at
-        # their daughters
-        self.allowed_parent_particles = [
-            dataclasses.I3Particle.NuE,
-            dataclasses.I3Particle.NuMu,
-            dataclasses.I3Particle.NuTau,
-            dataclasses.I3Particle.NuEBar,
-            dataclasses.I3Particle.NuMuBar,
-            dataclasses.I3Particle.NuTauBar,
-            dataclasses.I3Particle.Hadrons,
-        ]
-
-        # Define type of particles that can be simulated as EM cascades
-        self.em_cascades = [
-            dataclasses.I3Particle.Pi0,
-            dataclasses.I3Particle.Gamma,
-            dataclasses.I3Particle.PairProd,
-            dataclasses.I3Particle.Brems,
-            dataclasses.I3Particle.DeltaE,
-            dataclasses.I3Particle.EMinus,
-            dataclasses.I3Particle.EPlus,
-        ]
-
-        # Define type of particles that can be simulated as tracks
-        self.tracks = [
-        ]
-
-        # define particles that do not deposit light, in other words
-        # if we end up with a final state particle of this type it is ok
-        # not to simulate the light yield for these particles.
-        self.dark_particles = [
-            dataclasses.I3Particle.NuE,
-            dataclasses.I3Particle.NuMu,
-            dataclasses.I3Particle.NuTau,
-            dataclasses.I3Particle.NuEBar,
-            dataclasses.I3Particle.NuMuBar,
-            dataclasses.I3Particle.NuTauBar,
-        ]
 
     def DAQ(self, frame):
         """Apply Event-Generator model to physics frames.
@@ -241,15 +199,11 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # start timer
         t_0 = timeit.default_timer()
 
-        # get sources
-        cascades, tracks = self.get_light_sources(frame[self.mc_tree_name])
-
-        if len(tracks) > 0:
-            raise NotImplementedError('Tracks not yet supported')
-
         # convert cascade to source hypotheses
+        cascades = [frame['LabelsDeepLearning']]
+
         cascade_sources = self.convert_cascades_to_tensor(cascades)
-        print(cascade_sources)
+
         # timer after source collection
         t_1 = timeit.default_timer()
 
@@ -264,6 +218,12 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # timer after Sampling
         t_3 = timeit.default_timer()
+
+        print('Simulation took: {:3.3f}ms'.format((t_3 - t_0) * 1000))
+        print('\t Gathering Sources: {:3.3f}ms'.format((t_1 - t_0) * 1000))
+        print('\t Evaluating NN model: {:3.3f}ms'.format((t_2 - t_1) * 1000))
+        print('\t Sampling Pulses: {:3.3f}ms'.format((t_3 - t_2) * 1000))
+
 
         log_info('Simulation took: {:3.3f}ms'.format((t_3 - t_0) * 1000))
         log_info('\t Gathering Sources: {:3.3f}ms'.format((t_1 - t_0) * 1000))
@@ -300,6 +260,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         #    alpha_or_var=result_tensors['dom_charges_variance'].numpy(),
         #    param_is_alpha=False,
         #)
+        t_a = timeit.default_timer()
 
         dom_charges = self.random_service.poisson(
              result_tensors['dom_charges'].numpy())
@@ -339,6 +300,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         num_om_string = 80
         num_pmt_om = 16
 
+        t_b = timeit.default_timer()
+
         for string in range(num_strings):
             for om in range(num_om_string):
                 for pmt in range(num_pmt_om):
@@ -354,7 +317,6 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                         num_pe = dom_charges[i, string, om*num_pmt_om + pmt, 0]
                         if num_pe <= 0:
                             continue
-
                         # we will uniformly choose the charge and then correct
                         # again to obtain correct total charge
                         # ToDo: figure out actual chage distribution of pulses!
@@ -404,9 +366,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                      # add to pulse series map
                     om_key = icetray.OMKey(string+1001, om+1, pmt)
                     mcpe_series_map[om_key] = mcpe_series
-
+        t_c = timeit.default_timer()
+        print('Before for loop {:3.3f}ms'.format((t_bb- t_a) * 1000))
+        print('During for loop {:3.3f}ms'.format((t_c - t_b) * 1000))
         return mcpe_series_map
-
 
 
 
@@ -456,94 +419,3 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 parameters[i, index] = value
 
         return tf.convert_to_tensor(parameters, dtype=self.param_dtype)
-
-    def _get_light_sources(self, mc_tree, parent):
-        """Get a list of cascade and track light sources from an I3MCTree
-
-        Recursive helper function for the method `get_light_sources`.
-
-        Parameters
-        ----------
-        mc_tree : I3MCTree
-            The I3MCTree from which to get the light sources
-
-        Returns
-        -------
-        array_like
-            The list of cascades.
-        array_like
-            The list of tracks.
-        """
-
-        # Stopping condition for recursion: either found a track or cascade
-        if (parent.energy < self.min_simulation_energy or
-                parent.pos.magnitude - parent.length
-                > self.max_simulation_distance):
-            return [], []
-
-        if parent.type in self.em_cascades:
-            return [parent], []
-
-        elif parent.type in self.tracks:
-            return [], [parent]
-
-        cascades = []
-        tracks = []
-
-        # need further recursion
-        daughters = mc_tree.get_daughters(parent)
-
-        # check if we have a branch that we can't simulate
-        if len(daughters) == 0 and parent.type not in self.dark_particles:
-            log_warn(parent)
-            log_warn(mc_tree)
-            raise NotImplementedError(
-                'Particle can not be simulated: ', parent.type)
-
-        if len(daughters) > 0:
-            if parent.type not in self.allowed_parent_particles:
-                raise ValueError('Unknown parent type:', parent.type)
-
-        for daughter in daughters:
-
-            # get list of cascades and tracks
-            cascades_i, tracks_i = self._get_light_sources(mc_tree, daughter)
-
-            # extend lists
-            cascades.extend(cascades_i)
-            tracks.extend(tracks_i)
-
-        return cascades, tracks
-
-    def get_light_sources(self, mc_tree):
-        """Get a list of cascade and track light sources from an I3MCTree
-
-        This method recursively walks through the I3MCTree by looking at
-        daughter particles. All daughter particles are collected, that need
-        to be simulated.
-
-        Parameters
-        ----------
-        mc_tree : I3MCTree
-            The I3MCTree from which to get the light sources
-
-        Returns
-        -------
-        array_like
-            The list of cascades.
-        array_like
-            The list of tracks.
-        """
-
-        cascades = []
-        tracks = []
-        for primary in mc_tree.get_primaries():
-
-            # get list of cascades and tracks
-            cascades_i, tracks_i = self._get_light_sources(mc_tree, primary)
-
-            # extend lists
-            cascades.extend(cascades_i)
-            tracks.extend(tracks_i)
-
-        return cascades, tracks

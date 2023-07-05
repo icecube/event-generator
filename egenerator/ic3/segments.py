@@ -8,9 +8,8 @@ from egenerator.utils.ic3 import exclusions, bright_doms
 @icetray.traysegment
 def ApplyEventGeneratorReconstruction(
         tray, name,
-        pulse_key='SplitInIceDSTPulses',
-        dom_and_tw_exclusions=[
-            'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
+        pulse_key='I3RecoPulseSeriesMapGen2',
+        dom_and_tw_exclusions=[],
         partial_exclusion=True,
         exclude_bright_doms=True,
         bright_doms_threshold_fraction=0.4,
@@ -83,9 +82,9 @@ def ApplyEventGeneratorReconstruction(
     # apply event-generator reconstruction
     tray.AddModule(
         EventGeneratorReconstruction, name + 'Reco',
-        pulse_key=masked_pulses,
-        dom_exclusions_key=excluded_dom_k,
-        time_exclusions_key=excluded_tw_k,
+        pulse_key='I3RecoPulseSeriesMapGen2',
+        dom_exclusions_key=None,
+        time_exclusions_key=None,
         **egenerator_kwargs
     )
 

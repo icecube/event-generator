@@ -141,7 +141,7 @@ class PulseDataModule(BaseComponent):
         x_dom_exclusions = DataTensor(name='x_dom_exclusions',
                                       shape=[None, num_strings, doms_per_string * num_pmts, 1],
                                       tensor_type='data',
-                                      dtype='bool',
+                                      dtype='bool_',
                                       exists=dom_exclusions_exist)
         x_pulses = DataTensor(name='x_pulses',
                               shape=[None, pulse_dim],

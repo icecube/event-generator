@@ -45,6 +45,38 @@ def get_angle(vec1, vec2):
 
     return theta
 
+def sph_to_cart_tf(azimuth, zenith, r=1):
+    '''
+    Convert direction in spherical coordinates to cartesian coordinates.
+
+    Parameters
+    ----------
+    azimuth : tf.Tensor
+        Azimuth direction in radians.
+        A tensor of shape (...,)
+
+    zenith : tf.Tensor
+        Zenith direction in radians.
+        A tensor of shape (...,)
+
+    r : tf.Tensor, optional
+        The radial distance, default is 1.
+        A tensor of shape (...,)
+
+    Returns
+    -------
+    tf.Tensor
+        A tensor of shape (..., 3) containing the x, y, and z coordinates
+        respectively.
+
+
+    '''
+    x = r * tf.sin(zenith) * tf.cos(azimuth)
+    y = r * tf.sin(zenith) * tf.sin(azimuth)
+    z = r * tf.cos(zenith)
+    cartesian = tf.stack([x, y, z], axis=-1)
+
+    return cartesian
 
 def get_angle_deviation(azimuth1, zenith1, azimuth2, zenith2):
     """Get opening angle of two vectors defined by (azimuth, zenith)

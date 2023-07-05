@@ -27,9 +27,15 @@ class DetectorInfoModule:
         Args:
             file_path: The path to the pickle file.
         """
-        assert os.path.exists(file_path), f"File {file_path} does not exist"
-        with open(file_path, 'rb') as f:
-            data = pickle.load(f)
+        try:
+            assert os.path.exists(file_path), f"File {file_path} does not exist"
+            with open(file_path, 'rb') as f:
+                data = pickle.load(f)
+        except:
+            file_path = "/data/user/jvara/egenerator_tutorial/repositories/event-generator/gcd_preprocessing/geometry_pickles/LOM16.pickle"
+            with open(file_path, 'rb') as f:
+                data = pickle.load(f)
+                
         self.dom_name = data["DOM_name"]
         self.string_offset = data["string_offset"]
         self.num_strings = data["num_strings"]

@@ -142,6 +142,38 @@ def log_asymmetric_gauss(x, mu, sigma, r):
     )
     return norm + exp
 
+def tf_log_negative_poisson(x, mu, add_normalization_term=False):
+    """Computes the logarithm of the Poisson PDF
+    The parameterization chosen here is defined by the mean mu.
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mean of the distribution.
+        Must be greater equal zero.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+        Note: this term is not required for minimization and the negative
+        binomial distribution only has a proper normalization for integer x.
+        For real-valued x the negative binomial is not properly normalized and
+        hence adding the normalization term does not help.
+    Returns
+    -------
+    tf.Tensor
+        Logarithm of the Poisson PDF evaluated at x.
+    """
+    if add_normalization_term:
+        normalization_term = -tf.math.lgamma(x + 1.)
+    else:
+        normalization_term = 0.
+
+    term1 = -mu
+    term2 = x * tf.math.log(mu)
+
+    return normalization_term + term1 + term2
+
+
 
 def tf_asymmetric_gauss(x, mu, sigma, r):
     """Asymmetric Gaussian PDF

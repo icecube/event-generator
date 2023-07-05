@@ -1143,8 +1143,12 @@ class BaseDataHandler(BaseComponent):
                 shape = tf.TensorShape(tensor.shape)
             else:
                 shape = tf.TensorShape(None)
+            if tensor.dtype =="bool_":# numpy only supports 
+                type="bool"
+            else:
+                type = tensor.dtype
             spec.append(
-                tf.TensorSpec(shape=shape, dtype=getattr(tf, tensor.dtype)))
+                tf.TensorSpec(shape=shape, dtype=getattr(tf, type)))
         return tuple(spec)
 
     def kill(self):
