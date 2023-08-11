@@ -96,34 +96,30 @@ class StartingTrackWithCascadeModel(MultiSource):
         zenith = parameters.params['zenith']
         azimuth = parameters.params['azimuth']
         length = parameters.params['length']
+        stoch = tf.zeros_like(length)
 
         num_snowstorm_params = self._untracked_data['num_snowstorm_params']
         snowstorm_params = parameters[:, -num_snowstorm_params:]
-
-        # calculate direction vector
-        dir_x = -tf.sin(zenith) * tf.cos(azimuth)
-        dir_y = -tf.sin(zenith) * tf.sin(azimuth)
-        dir_z = -tf.cos(zenith)
 
         # create a dictionary for the mapping of source_name: input_parameters
         source_parameter_dict = {}
 
         # -----------------------------------
         # create parameters for track segment
-        # -----------------------------------
-
+        # -----------------------------------        
         # parameters: x, y, z, zenith, azimuth, energy, time, length, stoch
-        source_parameter_dict['track'] = tf.concat(
-            (tf.stack([x, y, z, zenith, azimuth, energy, time, length, 0], axis=1),
-             snowstorm_params), axis=-1)
-
+        track_base = tf.stack([x, y, z, zenith, azimuth, energy, time, length, stoch], axis=1)
+        if num_snowstorm_params > 0:
+            track_base = tf.concate((track_base, snowstorm_params), axis=-1)
+        source_parameter_dict['track'] = track_base
+        
         # -------------------------------
         # Compute parameters for Cascades
         # -------------------------------
-        # highest energy cascade that is being used as vertex
         # parameters: x, y, z, zenith, azimuth, energy, time
-        source_parameter_dict['cascade'] = tf.concat(
-            (tf.stack([x, y, z, zenith, azimuth, energy, time,], axis=1,),
-             snowstorm_params), axis=-1)
+        cascade_base = tf.stack([x, y, z, zenith, azimuth, energy, time,], axis=1,)
+        if num_snowstorm_params > 0:
+            cascade_base = tf.concate((cascade_base, snowstorm_params), axis=-1)
+        source_parameter_dict['cascade'] = cascade_base
 
         return source_parameter_dict
