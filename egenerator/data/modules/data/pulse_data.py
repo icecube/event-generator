@@ -335,6 +335,14 @@ class PulseDataModule(BaseComponent):
             if row[10] < x_time_window[index, 0]:
                 x_time_window[index, 0] = row[10]
 
+        # Add a check for infs here. This is only triggered
+        # if you somehow end up with 0 pulses in an event.
+        # In that situation, this breaks and you end up with
+        # nan values for your losses. Fixing this here leads
+        # to more sensible behavior down the line.
+        mask = (x_time_window[:,0] == float('inf'))
+        if np.any(mask): x_time_window[mask] = [10000, 10000]
+        
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
 
