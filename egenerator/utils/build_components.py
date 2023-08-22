@@ -14,7 +14,8 @@ import logging
 from egenerator import misc
 from egenerator.data.trafo import DataTransformer
 from egenerator.loss.multi_loss import MultiLossModule
-
+import os
+import pickle
 
 def build_data_handler(data_handler_settings):
     """Build a data handler object
@@ -161,7 +162,6 @@ def build_model(model_settings, data_transformer,
     model.configure(**arguments)
     return model
 
-
 def build_manager(config, restore,
                   data_handler=None,
                   data_transformer=None,
@@ -206,6 +206,7 @@ def build_manager(config, restore,
     manager_config = config['model_manager_settings']
     manager_dir = manager_config['config']['manager_dir']
 
+
     # ---------------------------------------
     # Create and configure/load Model Manager
     # ---------------------------------------
@@ -240,12 +241,11 @@ def build_manager(config, restore,
                 allow_rebuild_base_sources=allow_rebuild_base_sources,
             )
             models = [model]
-
         # -----------------------
         # configure model manager
         # -----------------------
         manager.configure(config=manager_config['config'],
                           data_handler=data_handler,
                           models=models)
-
+        
     return manager, manager.models, manager.data_handler, manager.data_trafo

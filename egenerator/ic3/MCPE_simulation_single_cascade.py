@@ -367,7 +367,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                     om_key = icetray.OMKey(string+1001, om+1, pmt)
                     mcpe_series_map[om_key] = mcpe_series
         t_c = timeit.default_timer()
-        print('Before for loop {:3.3f}ms'.format((t_bb- t_a) * 1000))
+        print('Before for loop {:3.3f}ms'.format((t_b- t_a) * 1000))
         print('During for loop {:3.3f}ms'.format((t_c - t_b) * 1000))
         return mcpe_series_map
 

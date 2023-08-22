@@ -35,6 +35,7 @@ class BaseModelManager(Model):
         else:
             return None
 
+
     @property
     def models(self):
 
@@ -77,7 +78,6 @@ class BaseModelManager(Model):
             The list of model objects to use. An ensemble of models will be
             created. All of the models must define the same hypothesis and use
             the same data transformation object.
-
         Returns
         -------
         Configuration object
@@ -114,6 +114,7 @@ class BaseModelManager(Model):
 
         sub_components = {
             'data_handler': data_handler,
+            
         }
 
         for i, m in enumerate(models):
@@ -130,7 +131,7 @@ class BaseModelManager(Model):
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config=config))
-
+        
         return configuration, {}, sub_components
 
     def _check_model_ensemble_compatibility(self, models):

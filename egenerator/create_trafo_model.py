@@ -43,7 +43,7 @@ def main(config_files):
                             config['data_handler_settings']['data_handler']))
     data_handler = DataHandlerClass()
     data_handler.configure(config=config['data_handler_settings'])
-
+   
     # create TrafoModel
     data_transformer = DataTransformer()
 
@@ -53,7 +53,7 @@ def main(config_files):
         num_batches=config['data_trafo_settings']['num_batches'],
         float_precision=config['data_trafo_settings']['float_precision'],
         norm_constant=config['data_trafo_settings']['norm_constant'])
-
+    
     # save trafo model to file
     data_transformer.save(model_dir, overwrite=True)
 

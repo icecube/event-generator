@@ -335,8 +335,11 @@ class BaseDataHandler(BaseComponent):
         for i, tensor in enumerate(self.tensors.list):
             if tensor.exists:
                 data_tensors.append(data[i])
-            else:
-                data_tensors.append(getattr(np, tensor.dtype)())
+            else: #this is something provisional
+                try: 
+                    data_tensors.append(getattr(np, tensor.dtype)())
+                except:
+                    data_tensors.append(getattr(np, "bool_")()) #np.bool is deprecated
 
         return num_events, tuple(data_tensors)
 
@@ -664,7 +667,7 @@ class BaseDataHandler(BaseComponent):
         ValueError
             Description
         """
-
+        
         self.check_if_configured()
 
         if isinstance(input_data, list):
@@ -713,7 +716,7 @@ class BaseDataHandler(BaseComponent):
         self._untracked_data['mp_managers'].append(file_list_queue)
         self._untracked_data['mp_managers'].append(data_batch_queue)
         self._untracked_data['mp_managers'].append(final_batch_queue)
-
+        
         def file_loader(seed):
             """Helper Method to load files.
 
@@ -929,6 +932,8 @@ class BaseDataHandler(BaseComponent):
                                     indices[:, 0] = size
                                     batch[i].append(indices)
                             else:
+                                if tensor.dtype =="bool":
+                                    tensor.dtype="bool_"
                                 batch[i].append(getattr(np, tensor.dtype)())
                                 # batch[i].append(None)
                         size += 1
@@ -1016,7 +1021,7 @@ class BaseDataHandler(BaseComponent):
         process.daemon = True
         process.start()
         self._untracked_data['mp_processes'].append(process)
-
+        
         return batch_iterator()
 
     def get_tf_dataset(self, input_data, batch_size,
@@ -1114,6 +1119,8 @@ class BaseDataHandler(BaseComponent):
         output_types = []
         output_shapes = []
         for tensor in self.tensors.list:
+            if tensor.dtype == "bool_":
+                tensor.dtype="bool"
             output_types.append(getattr(tf, tensor.dtype))
             if tensor.exists:
                 output_shapes.append(tf.TensorShape(tensor.shape))
@@ -1128,6 +1135,50 @@ class BaseDataHandler(BaseComponent):
                         output_types=output_types,
                         output_shapes=output_shapes
                         ).prefetch(dataset_capacity)
+
+
+        def get_tf_dataset_frame(self, frame, *args, **kwargs):
+            """Wrapper around get_data_from_hdf to obtain a tf.Dataset
+
+            Parameters
+            ----------
+            input_data : str
+                File name pattern which defines the path to the input data file.
+            *args
+                Variable length argument list that are passed on to class method
+                get_data_from_hdf.
+            **kwargs
+                Arbitrary keyword arguments that are passed on to class method
+                get_data_from_hdf.
+
+            Returns
+            -------
+            tf.Dataset
+                A tensorflow dataset.
+            """
+            def get_generator():
+                n,data = self.get_data_from_frame(frame, *args, **kwargs)
+                yield data
+
+            # collect output types and shapes
+            output_types = []
+            output_shapes = []
+            for tensor in self.tensors.list:
+                output_types.append(getattr(tf, tensor.dtype))
+                if tensor.exists:
+                    output_shapes.append(tf.TensorShape(tensor.shape))
+                else:
+                    output_shapes.append(tf.TensorShape(None))
+
+            output_types = tuple(output_types)
+            output_shapes = tuple(output_shapes)
+
+            return tf.data.Dataset.from_generator(
+                            generator=get_generator,
+                            output_types=output_types,
+                            output_shapes=output_shapes
+                            )
+
 
     def get_data_set_signature(self):
         """Get tensorflow specification of dataset batch

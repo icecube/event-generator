@@ -98,7 +98,7 @@ class DataTransformer(BaseComponent):
         # create data iterator
         data_iterator = data_handler.get_batch_generator(
                                                 **data_iterator_settings)
-
+    
         check_values = {}
         data = {}
         data['tensors'] = data_handler.tensors
@@ -126,12 +126,13 @@ class DataTransformer(BaseComponent):
                 }
 
         for i in tqdm(range(num_batches)):
-
+            
             data_batch = next(data_iterator)
-
+           
             # loop through tensors and update online variance calculation
             for tensor in data_handler.tensors.list:
                 if tensor.exists and tensor.trafo:
+                    
                     index = data_handler.tensors.get_index(tensor.name)
                     n, mean, m2 = self._perform_update_step(
                                     trafo_log=tensor.trafo_log,
@@ -143,7 +144,7 @@ class DataTransformer(BaseComponent):
                     var_dict[tensor.name]['n'] = n
                     var_dict[tensor.name]['mean'] = mean
                     var_dict[tensor.name]['M2'] = m2
-
+       
         # Calculate standard deviation
         for tensor in data_handler.tensors.list:
             if tensor.exists and tensor.trafo:
@@ -299,14 +300,13 @@ class DataTransformer(BaseComponent):
 
         # get tensor
         tensor = self.data['tensors'][tensor_name]
-
         # check if shape of data matches expected shape
         if check_shape:
             trafo_shape = list(tensor.shape)
             trafo_shape.pop(tensor.trafo_batch_axis)
             data_shape = list(data.shape)
             data_shape.pop(tensor.trafo_batch_axis)
-
+            
             if list(data_shape) != trafo_shape:
                 msg = (
                     'Shape of data {} for tensor {} does not match '
@@ -357,6 +357,7 @@ class DataTransformer(BaseComponent):
         type(data)
             The transformed data.
         """
+        
         data, log_func, exp_func, is_tf, dtype, tensor = self._check_settings(
                                                             data, tensor_name)
 

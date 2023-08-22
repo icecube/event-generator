@@ -10,10 +10,9 @@ from egenerator import misc
 
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles
-from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
 # from egenerator.manager.component import Configuration, BaseComponent
-
-
+from egenerator.data.trafo import DataTransformer
+from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
 class DefaultCascadeModel(Source):
 
     def __init__(self, logger=None):
@@ -26,6 +25,7 @@ class DefaultCascadeModel(Source):
         """
         self._logger = logger or logging.getLogger(__name__)
         super(DefaultCascadeModel, self).__init__(logger=self._logger)
+        
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -58,8 +58,11 @@ class DefaultCascadeModel(Source):
             float_precision = 'float32'
     
         # Define optical module to use
-        optical_module = DetectorInfoModule(config['optical_module_key'])
-        self.optical_module = optical_module
+        try:
+            optical_module = self.optical_module
+        except:
+            optical_module = DetectorInfoModule(config['optical_module_key']) #It is not configured, 
+            self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string   
         num_pmts = optical_module.num_pmts 
@@ -178,14 +181,17 @@ class DefaultCascadeModel(Source):
 
         print('Applying Default Cascade Model...')
         tensor_dict = {}
-
         config = self.configuration.config['config']
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
-  
+    
         # Define optical module to use
-        optical_module = self.optical_module
+        try: 
+            optical_module = self.optical_module
+        except:
+            optical_module = optical_module = DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
 
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string  
@@ -196,7 +202,6 @@ class DefaultCascadeModel(Source):
         rel_dom_eff=optical_module.dom_rel_eff
         dom_azimuths = optical_module.dom_azimuths
         dom_zeniths = optical_module.dom_zeniths
-
 
         tensors = self.data_trafo.data['tensors']
         if ('x_time_exclusions' in tensors.names and
@@ -219,6 +224,11 @@ class DefaultCascadeModel(Source):
         pulse_batch_id = pulses_ids[:, 0]
 
         # get transformed parameters
+        
+        
+        #data_transformer = DataTransformer()
+        #data_transformer.load("/data/user/jvara/egenerator_tutorial/repositories/event-generator/trafo_models/starter_cascade_trafo")
+        
         parameters_trafo = self.data_trafo.transform(
                                 parameters, tensor_name=parameter_tensor_name)
 

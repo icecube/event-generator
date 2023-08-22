@@ -68,9 +68,11 @@ class DefaultNoiseModel(Source):
             float_precision=float_precision,
             name='noise_scaling',
         )
-
-        optical_module = DetectorInfoModule(config['optical_module_key'])
-        self.optical_module = optical_module
+        try:
+            optical_module = self.optical_module
+        except:
+            optical_module = DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
 
         return parameter_names
 
@@ -135,8 +137,11 @@ class DefaultNoiseModel(Source):
         parameters = data_batch_dict[parameter_tensor_name]
 
         # Define optical module to use
-        
-        optical_module = self.optical_module
+        try:
+            optical_module = self.optical_module
+        except:
+            optical_module = DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         dom_noise_rates=optical_module.dom_noise_rates
@@ -382,7 +387,11 @@ class DefaultNoiseModel(Source):
         config = self.configuration.config['config']
         
         # Define optical module to use
-        optical_module = DetectorInfoModule(config['optical_module_key'])
+        try:
+            optical_module = self.optical_module
+        except:
+            optical_module = DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         dom_noise_rates=optical_module.dom_noise_rates
@@ -535,7 +544,11 @@ class DefaultNoiseModel(Source):
         config = self.configuration.config['config']
 
         # Define optical module to use
-        optical_module = DetectorInfoModule(config['optical_module_key'])
+        try:
+            optical_module = self.optical_module
+        except:
+            optical_module = DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         dom_noise_rates=optical_module.dom_noise_rates

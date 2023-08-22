@@ -12,7 +12,7 @@ import egenerator
 from egenerator import misc
 from egenerator.utils.getclass import getclass
 from egenerator.settings import version_control
-
+import pickle
 
 class Configuration(object):
 
@@ -235,7 +235,7 @@ class Configuration(object):
             configuration of sub components.
         """
         for name in dependent_sub_components:
-            if name not in self.sub_component_configurations:
+            if name not in self.sub_component_configurations:# Not very nice, but detector info does not have a config
                 msg = 'Sub component {!r} does not exist in {!r}'
                 raise KeyError(msg.format(
                     name, self.sub_component_configurations.keys()))
@@ -695,7 +695,6 @@ class BaseComponent(object):
         # more settings than these, but they must be arguments to the
         # _configure method.
         for key, value in missing_settings.items():
-
             # setting is missing
             if key not in self._configuration.config:
                 msg = 'Key {!r} is missing in configuration {!r}'
@@ -849,6 +848,7 @@ class BaseComponent(object):
 
         # walk through dependent sub components and save these as well
         for name, sub_component in self.sub_components.items():
+                #Not nice, but detector info does not have/require config
             sub_component_dir_path = os.path.join(dir_path, name)
             sub_component.save(
                 sub_component_dir_path, overwrite=overwrite,
@@ -900,9 +900,10 @@ class BaseComponent(object):
 
         # split of possible extension
         dir_path = os.path.splitext(dir_path)[0]
+       
         config_file_path = os.path.join(dir_path, 'configuration.yaml')
         data_file_path = os.path.join(dir_path, 'data.pickle')
-
+   
         # load files
         with open(config_file_path, 'r') as stream:
             config_dict = yaml.load(stream, Loader=yaml.Loader)
@@ -942,7 +943,6 @@ class BaseComponent(object):
         # walk through dependent sub components and load these as well
         updated_sub_components = []
         for name in self.configuration.dependent_sub_components:
-
             # check if there is a nested modified_sub_components dictionary
             if (name in modified_sub_components and
                     isinstance(modified_sub_components[name], dict)):

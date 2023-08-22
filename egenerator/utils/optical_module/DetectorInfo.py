@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import numpy as np
 import pickle
 import os
-
+from egenerator.utils.optical_module.change_yaml import modify_yaml_key
 
 @dataclass
 class DetectorInfoModule:
@@ -32,8 +32,11 @@ class DetectorInfoModule:
             with open(file_path, 'rb') as f:
                 data = pickle.load(f)
         except:
-            file_path = "/data/user/jvara/egenerator_tutorial/repositories/event-generator/gcd_preprocessing/geometry_pickles/LOM16.pickle"
-            with open(file_path, 'rb') as f:
+            print(f"The pickle file {file_path} does not exist.")
+            new_pickle = input("Insert the path of the new pickle: ")
+            target_dir = input("Insert the path of the model you are using: ")
+            modify_yaml_key(target_dir,new_pickle) # updates the .yaml files with the new key 
+            with open(new_pickle, 'rb') as f:
                 data = pickle.load(f)
                 
         self.dom_name = data["DOM_name"]

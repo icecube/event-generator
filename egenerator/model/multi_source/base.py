@@ -7,9 +7,8 @@ from egenerator import misc
 from egenerator.model.base import Model
 from egenerator.model.source.base import Source
 from egenerator.manager.component import Configuration
+
 from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
-
-
 class MultiSource(Source):
 
     """Defines base class for an unbinned MultiSource.
@@ -216,7 +215,6 @@ class MultiSource(Source):
         sub_components = base_sources
         if data_trafo is not None:
             sub_components['data_trafo'] = data_trafo
-
         # # collect all tensorflow variables after creation and match
         # variables_after = set([
         #     v.ref() for v in tf.compat.v1.global_variables()])
@@ -296,14 +294,12 @@ class MultiSource(Source):
 
         """
         self.assert_configured(True)
-
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
 
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
-
         # check if time exclusions exist
         tensors = self.data_trafo.data['tensors']
         if ('x_time_exclusions' in tensors.names and
@@ -315,7 +311,11 @@ class MultiSource(Source):
 
         config = self.configuration.config['config']
         # Define optical module to use
-        optical_module = DetectorInfoModule(config['optical_module_key'])
+        try:
+            optical_module=self.optical_module
+        except:
+            optical_module=DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts = optical_module.num_pmts
@@ -493,9 +493,13 @@ class MultiSource(Source):
 
         config = self.configuration.config['config']
         # Define optical module to use
-        optical_module = DetectorInfoModule(config['optical_module_key'])
-        num_strings=optical_module.num_strings
-        doms_per_string=optical_module.doms_per_string
+        try:
+            optical_module = self.optical_module
+        except:    
+            optical_module = DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
+        num_strings = optical_module.num_strings
+        doms_per_string = optical_module.doms_per_string
         num_pmts = optical_module.num_pmts
 
         parameters = data_batch_dict[parameter_tensor_name]
@@ -1285,7 +1289,6 @@ class ConcreteFunctionCache():
         """
         if base_name not in self.concrete_tensor_funcs:
             base_source = self.sub_components[base_name]
-
             @tf.function
             def concrete_function(data_batch_dict_i):
                 print('Tracing multi-source base: {} ({})'.format(
@@ -1304,7 +1307,6 @@ class ConcreteFunctionCache():
             for key, values in self.data_batch_dict.items():
                 if key != 'x_parameters':
                     data_batch_dict_i[key] = values
-
             self.concrete_tensor_funcs[base_name] = (
                 concrete_function.get_concrete_function(data_batch_dict_i)
             )

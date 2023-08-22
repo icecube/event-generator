@@ -607,7 +607,11 @@ class SourceManager(BaseModelManager):
                 shape=tensor.shape, dtype=getattr(tf, tensor.dtype)))
         
         # optical module/ detector parameters
-        optical_module = DetectorInfoModule(self.configuration.config['config']['optical_module_key'])
+        try:
+            optical_module = self.optical_module
+        except:
+            optical_module = optical_module = DetectorInfoModule(config['optical_module_key'])
+            self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts = optical_module.num_pmts

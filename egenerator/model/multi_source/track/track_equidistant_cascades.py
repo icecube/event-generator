@@ -274,5 +274,5 @@ class TrackEquidistantCascadeModel(MultiSource):
                 cascade_x, cascade_y, cascade_z,
                 zenith, azimuth, cascade_energy, cascade_time],
                 axis=1)
-
+        
         return source_parameter_dict

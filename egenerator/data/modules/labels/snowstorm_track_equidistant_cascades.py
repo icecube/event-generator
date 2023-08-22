@@ -118,6 +118,9 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
         # compute number of parameters
         num_params = 6 + num_cascades
 
+        # define optical_module for the future
+        self.optical_module = None 
+
         # create list of parameter names which is needed for data loading
         parameter_names = [
             'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
@@ -125,7 +128,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             'track_anchor_time',
         ]
         for i in range(num_cascades):
-            parameter_names.append('EnergyLoss_{:05d}'.format(i))
+            parameter_names.append('cascade_{:04d}_energy'.format(i))
 
         parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):
@@ -194,12 +197,13 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
         ValueError
             Description
         """
+
         if not self.is_configured:
             raise ValueError('Module not configured yet!')
 
         # open file
         f = pd.HDFStore(file, 'r')
-
+        
         track_parameters = []
         try:
             _labels = f[self.configuration.config['label_key']]
@@ -209,7 +213,6 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             snowstorm_key = self.configuration.config['snowstorm_key']
             num_params = self.configuration.config['num_snowstorm_params']
             num_events = len(track_parameters[0])
-
             if num_params > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = f[snowstorm_key]
@@ -228,19 +231,19 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
                     # No Snowstorm key is provided: add dummy values
                     for i in range(num_params):
                         track_parameters.append(np.ones(num_events))
-
+            
         except Exception as e:
             self._logger.warning(e)
             self._logger.warning('Skipping file: {}'.format(file))
             return None, None
         finally:
             f.close()
-
+        
         # format track parameters
         dtype = getattr(np, self.configuration.config['float_precision'])
         track_parameters = np.array(track_parameters, dtype=dtype).T
         num_events = len(track_parameters)
-
+        
         return num_events, (track_parameters,)
 
     def get_data_from_frame(self, frame, *args, **kwargs):
