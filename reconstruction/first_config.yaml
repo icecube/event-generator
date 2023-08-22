@@ -1,0 +1,4 @@
+infile_directory: /data/user/jvara/simulations/lom_sim/iceprod/local_sim_test/
+infile_pattern: NuE_(\d+)_*
+out_dir_pattern: /data/user/jvara/egenerator_tutorial/repositories/event-generator/reconstruction
+out_file_pattern: july_reco_{}
