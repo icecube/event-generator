@@ -7,9 +7,10 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'starting_multi_cascade_7param_noise_tw_BFRv1Spice321_low_mem_n010'
+unique_name: 'lom_track'
 
-
+#Pickle file
+detector_pickle: &detector_pickle '/data/user/jvara/egenerator_tutorial/repositories/event-generator/gcd_preprocessing/geometry_pickles/LOM16.pickle'
 #------------------
 # Training settings
 #------------------
@@ -20,7 +21,7 @@ training_settings: {
         'learning_rate': {
             'full_class_string': 'egenerator.utils.learning_rate.MultiLearningRateScheduler',
             'settings':{
-                'boundaries': [10000, 500000],
+                'boundaries': [10000, 300000],
                 'scheduler_settings': [
                     {
                     'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
@@ -35,7 +36,7 @@ training_settings: {
                     'settings': {
                         'initial_learning_rate': 0.001,
                         'end_learning_rate': 0.001,
-                        'decay_steps': 490000,
+                        'decay_steps': 300000,
                         },
                     },
                     {
@@ -43,7 +44,7 @@ training_settings: {
                     'settings': {
                         'initial_learning_rate': 0.001,
                         'end_learning_rate': 0.000001,
-                        'decay_steps': 500000,
+                        'decay_steps': 300000,
                         'power': 2,
                         },
                     },
@@ -61,7 +62,7 @@ training_settings: {
     'save_frequency': 500,
 
     # Number of training iterations to train the model for
-    'num_training_iterations': 1000000,
+    'num_training_iterations': 610000,
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
@@ -73,7 +74,7 @@ training_settings: {
 # Reconstruction settings
 #------------------------
 reconstruction_settings: {
-    'reco_output_file': '../data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
+    'reco_output_file': '/data/user/jvara/egenerator_tutorial/repositories/event-generator/data/reconstruction/{unique_name}/reconstruction_{unique_name}.hdf5',
 
     # Define which modules to run
     'calculate_covariance_matrix': False,
@@ -88,39 +89,23 @@ reconstruction_settings: {
     'seed': 'x_parameters', #'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
-    'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
-                             'energy', 'time',
-
+    'seed_parameter_names': ['track_anchor_x', 'track_anchor_y', 'track_anchor_z', 'zenith', 'azimuth', 'track_anchor_time',
+                             'track_energy', 
+                             
                              # additional cascades
-                             'cascade_00001_energy', 'cascade_00001_distance',
-                             'cascade_00002_energy', 'cascade_00002_distance',
-                             'cascade_00003_energy', 'cascade_00003_distance',
-                             'cascade_00004_energy', 'cascade_00004_distance',
-                             'cascade_00005_energy', 'cascade_00005_distance',
-                             'cascade_00006_energy', 'cascade_00006_distance',
-                             'cascade_00007_energy', 'cascade_00007_distance',
-                             'cascade_00008_energy', 'cascade_00008_distance',
-                             'cascade_00009_energy', 'cascade_00009_distance',
+                             # 'cascade_0000_energy', #'cascade_0000_distance',
+                             'cascade_0001_energy', #'cascade_0001_distance',
+                             'cascade_0002_energy', #'cascade_0002_distance',
+                             'cascade_0003_energy', #'cascade_0003_distance',
+                             'cascade_0004_energy', #'cascade_0004_distance',
+                             'cascade_0005_energy', #'cascade_0005_distance',
+                             'cascade_0006_energy', #'cascade_0006_distance',
+                             'cascade_0007_energy', #'cascade_0007_distance',
+                             'cascade_0008_energy', #'cascade_0008_distance',
+                             'cascade_0009_energy', #'cascade_0009_distance',
                          ],
-    'seed_missing_value': 1.,
+    'seed_missing_value': ,
     'seed_missing_value_dict': {
-        'cascade_00001_energy': !!float 1e4,
-        'cascade_00002_energy': !!float 1e4,
-        'cascade_00003_energy': !!float 1e4,
-        'cascade_00004_energy': !!float 1e4,
-        'cascade_00005_energy': !!float 1e4,
-        'cascade_00006_energy': !!float 1e4,
-        'cascade_00007_energy': !!float 1e4,
-        'cascade_00008_energy': !!float 1e4,
-        'cascade_00009_energy': !!float 1e4,
-        'cascade_00001_distance': 50,
-        'cascade_00002_distance': 100,
-        'cascade_00004_distance': 200,
-        'cascade_00005_distance': 300,
-        'cascade_00006_distance': 400,
-        'cascade_00007_distance': 500,
-        'cascade_00008_distance': 600,
-        'cascade_00009_distance': 700,
     },
     'seed_float_precision': 'float32',
 
@@ -169,24 +154,27 @@ model_manager_settings: {
     'model_manager_class': 'egenerator.manager.source.SourceManager',
 
     # restore model if True, otherwise start from scratch
-    'restore_model' : False,
+    'restore_model' : True,
 
     # These settings are used to configure the model manager and may not change
     config: {
 
         # Path to where the manager will be saved to and loaded from
-        'manager_dir': '../data/training/{unique_name}/manager',
+        'manager_dir': '/data/user/jvara/egenerator_tutorial/trained_models/tracks/trained_models/{unique_name}/manager',
+
+        # optical module/detector geometry to use
+        'optical_module_key': *detector_pickle,
 
         # Define which model parameters to use for the I3Particle
         # [x, y, z, zenith, azimuth, energy, time]
         'I3ParticleMapping': {
-            'x': 'cascade_x',
-            'y': 'cascade_y',
-            'z': 'cascade_z',
-            'zenith': 'cascade_zenith',
-            'azimuth': 'cascade_azimuth',
-            'energy': 'cascade_energy',
-            'time': 'cascade_time',
+            'x': 'track_anchor_x',
+            'y': 'track_anchor_y',
+            'z': 'track_anchor_z',
+            'zenith': 'track_zenith',
+            'azimuth': 'track_azimuth',
+            # 'energy': 'cascade_energy',
+            'time': 'track_anchor_time',
         },
     },
 }
@@ -200,50 +188,53 @@ data_iterator_settings: {
 
     # The training data iterator
     'training': {
-        'batch_size': 32,
+        'batch_size': 3,
         'num_splits': ,
-        'file_capacity': 10,
-        'batch_capacity': 500,
-        'dataset_capacity': 500,
-        'num_jobs': 10,
-        'num_add_files': 20,
-        'num_repetitions': 3,
+        'file_capacity': 1,
+        'batch_capacity': 2,
+        'dataset_capacity': 1,
+        'num_jobs': 1,
+        'num_add_files': 1,
+        'num_repetitions': 1,
+        'pick_random_files_forever': True,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            # No Snowstorm EM datasets 
+            '/data/user/jvara/prov_hdf5/muons/*.hdf5',
+            
+          
+
         ],
     },
 
     # The trafo data iterator
     'trafo': {
-        'batch_size': 32,
+        'batch_size': 3,
         'num_splits': ,
         'file_capacity': 1,
         'batch_capacity': 2,
-        'num_jobs': 20,
+        'num_jobs': 1,
         'num_add_files': 1,
         'num_repetitions': 1,
-        'pick_random_files_forever': True,
+        'pick_random_files_forever': False,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/data/user/jvara/prov_hdf5/muons/*.hdf5',
+
         ],
     },
 
     # The validation data iterator
     'validation': {
-        'batch_size': 32,
+        'batch_size': 1,
         'num_splits': ,
-        'file_capacity': 5,
-        'batch_capacity': 10,
+        'file_capacity': 1,
+        'batch_capacity': 3,
         'dataset_capacity': 10,
-        'num_jobs': 2,
-        'num_add_files': 5,
+        'num_jobs': 1,
+        'num_add_files': 1,
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/data/user/jvara/prov_hdf5/muons/*.hdf5',
         ],
     },
 
@@ -259,14 +250,13 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-            # Multi-Cascade Simulation
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99501/egenerator_99501_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+           '/data/user/jvara/prov_hdf5/muons/*.hdf5',
         ],
     },
 }
 
-#---------------------
-# Loss module settings
+#--------------------
+#Loss module settings
 #---------------------
 
 # Settings for the loss module class
@@ -279,9 +269,11 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': True,
+            'add_normalization_term': False,
             # choose the loss function to use
             'loss_function_name': 'unbinned_pulse_time_llh',
+            # optical module to use
+            'optical_module_key': *detector_pickle ,
         },
     },
     {
@@ -295,9 +287,12 @@ loss_module_settings: [
             'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'negative_binomial_charge_pdf',
+            # optical module to use
+            'optical_module_key': *detector_pickle ,
         },
     },
 ]
+
 
 #---------------------------
 # Evaluation module settings
@@ -318,8 +313,8 @@ evaluation_module_settings: {
 data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
-    'num_batches': 5000,
-    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_starting_multi_cascade_n0010',
+    'num_batches': 5,
+    'model_dir': '/data/user/jvara/egenerator_tutorial/repositories/event-generator/trafo_models/lom_tracks_trafo',
 }
 
 #----------------------
@@ -339,50 +334,31 @@ data_handler_settings: {
     'data_module': 'pulse_data.PulseDataModule',
 
     # settings for the data module
+    # available pulses: 'Gen2Pulses', 'I3RecoPulseSeriesMapGen2', 'masked_pulses', 'Gen2MCPEs'
     'data_settings':{
-        'pulse_key': 'InIceDSTPulses_masked',
-        'dom_exclusions_key': 'combined_exclusions_DOMs',
-        'time_exclusions_key': 'combined_exclusions_TimeWindowsHDF5',
+        'pulse_key': 'Gen2-pulses',
+        'dom_exclusions_key':,
+        'time_exclusions_key':,
         'float_precision': 'float32',
         'add_charge_quantiles': False,
         'discard_pulses_from_excluded_doms': False,
+        'optical_module_key': *detector_pickle
     },
 
     # --------------------
     # LabelModule Settings
     # --------------------
     # which label module to use
-    'label_module': 'snowstorm_cascades.SnowstormCascadeGeneratorLabelModule',
+    'label_module': 'snowstorm_track_equidistant_cascades.SnowstormTrackEquidistantCascadesLabelModule',
 
     # settings for the label module
     'label_settings':{
-        'shift_cascade_vertex': True,
+        #'shift_cascade_vertex': True,
         # logarithm on labels:
-        # (x, y, z, zenith, azimuth, energy, time,
-        #  E1, D1)?
-        'trafo_log': [False, False, False, False, False, True, False,
-                      True, False,
-                      True, False,
-                      True, False,
-                      True, False,
-                      True, False,
-                      True, False,
-                      True, False,
-                      True, False,
-                      True, False,
-                  ],
-        'label_key': 'EventGeneratorMultiCascadeLabels',
-        'additional_labels': [
-            'cascade_00001_energy', 'cascade_00001_distance',
-            'cascade_00002_energy', 'cascade_00002_distance',
-            'cascade_00003_energy', 'cascade_00003_distance',
-            'cascade_00004_energy', 'cascade_00004_distance',
-            'cascade_00005_energy', 'cascade_00005_distance',
-            'cascade_00006_energy', 'cascade_00006_distance',
-            'cascade_00007_energy', 'cascade_00007_distance',
-            'cascade_00008_energy', 'cascade_00008_distance',
-            'cascade_00009_energy', 'cascade_00009_distance',
-        ],
+        # (x, y, z, zenith, azimuth, energy, time)?
+        'trafo_log': [False, False, False, False, False, False, True],
+        'label_key': 'LabelsDeepLearning',
+        'num_cascades': 10,
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 0,
         'float_precision': 'float32',
@@ -420,6 +396,7 @@ data_handler_settings: {
     },
 }
 
+
 #---------------
 # Model settings
 #---------------
@@ -432,9 +409,10 @@ model_settings: {
 
     # configuration settings for DefaultMultiCascadeModel object
     config: {
+        #'optical_module_key': *detector_pickle,
         'sources': {
             'noise': 'noise',
-            'cascade': 'cascade',
+            'track': 'track',
         },
     },
 
@@ -444,49 +422,43 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
+            'load_dir' : '/data/user/jvara/exported_models/event-generator/lom/starter_cascade/models_0000/noise',
+            config: {
+            'optical_module_key': *detector_pickle},
 
-            # The directory from which this base source will be loaded
-            'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_01/models_0000/noise',
-
-            # define data trafo settings for the noise base source
             data_trafo_settings: {
                 'float_precision': 'float64',
                 'norm_constant': !!float 1e-6,
-                'num_batches': 5000,
-                'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
+                'num_batches': 5,
+                'model_dir': '/data/user/jvara/egenerator_tutorial/repositories/event-generator/trafo_models/starter_cascade_trafo',
             },
-
-            config: {},
         },
 
-        # MultiSourceCascade
-        cascade: {
+        track: {
 
-            # The loss module class to use
-            'model_class': 'egenerator.model.multi_source.muon.StartingVariableMultiCascadeModel',
+            # The model class to use
+            'model_class': 'egenerator.model.multi_source.track.TrackEquidistantCascadeModel',
 
-            # configuration settings for StartingVariableMultiCascadeModel object
+            # configuration settings for TrackEquidistantCascadeModel object
             config: {
-                'num_cascades': 10,
+                'max_num_cascades': 10,
+                'cascade_spacing': 100,
+                'cylinder_radius': 600,
+                'cylinder_extension': 500,
+                'optical_module_key': *detector_pickle,
             },
-
-            # Base sources used by the multi-source class
             multi_source_bases: {
                 cascade: {
                     # The cascade source model class to use
                     'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
-
-                    # The directory from which this base source will be loaded
-                    'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/cascade',
-
-                    # define data trafo settings for the noise base source
+                    'load_dir': '/data/user/jvara/exported_models/event-generator/lom/starter_cascade/models_0000/cascade',
+                    #data trafo for the noise 
                     data_trafo_settings: {
                         'float_precision': 'float64',
                         'norm_constant': !!float 1e-6,
-                        'num_batches': 5000,
-                        'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
+                        'num_batches': 5,
+                        'model_dir': '/data/user/jvara/egenerator_tutorial/repositories/event-generator/trafo_models/starter_cascade_trafo',
                     },
-
                     config: {
                         'keep_prob':,
                         'add_opening_angle': True,
@@ -497,7 +469,8 @@ model_settings: {
                         'scale_charge_by_global_dom_efficiency': False,
                         'prevent_mixture_component_swapping': False,
                         'estimate_charge_distribution': 'negative_binomial',
-                        'num_latent_models': 10,
+                        'optical_module_key': *detector_pickle,
+                        'num_latent_models': 3,
 
                         # This is a list of labels in addition to
                         # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
@@ -505,14 +478,14 @@ model_settings: {
                         ],
 
                         # First convolutions
-                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                        'num_filters_list' : [25, 100, 100, 100, 100, 42],
+                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                        'num_filters_list' : [25, 100, 100, 100, 14],
                         'method_list' : ['locally_connected',
-                                         'convolution', 'convolution', 'convolution',
-                                         'convolution', 'convolution',
-                                         ],
+                                        'convolution', 'convolution', 'convolution',
+                                        'convolution',
+                                        ],
                         'use_dropout_list' : False,
-                        'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
+                        'activation_list' : ['elu', 'elu', 'elu', 'elu',''],
                         'use_batch_norm_list' : False,
                         'use_residual_list' : [True, True, True, True, True, False]
                     },
@@ -523,4 +496,4 @@ model_settings: {
 }
 
 #----------------------
-...
+

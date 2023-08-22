@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'mcpe_lom_2'
+unique_name: 'tracks'
 
 #Pickle file
 detector_pickle: &detector_pickle '/home/f/fvaracar/event-generator-home/event-generator/gcd_preprocessing/geometry_pickles/LOM16.pickle'
