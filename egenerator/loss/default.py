@@ -351,10 +351,8 @@ class DefaultLossModule(BaseComponent):
         """Negative Poisson Charge PDF
 
         This is a likelihood over the charge measured at each DOM. A negative
-        binomial distribution is used to calculate the charge likelihood. This
-        allows for the inclusion of over-dispersion in contrast to the simple
-        Poisson Likelihood. The model must provide the dom charges and
-        variances thereof: `dom_charges`, `dom_charges_variance`.
+        poisson distribution is used to calculate the charge likelihood.
+        The model must provide the dom charges thereof: `dom_charges`.
         This loss pairs well with a loss for the time PDF such
         as `unbinned_pulse_time_llh`.
 
@@ -379,11 +377,6 @@ class DefaultLossModule(BaseComponent):
 
                 'dom_charges': the predicted charge at each DOM
                                Shape: [-1, 86, 60, 1]
-                'dom_charges_variance':
-                    the predicted variance on the charge at each DOM.
-                    This assumes the underlying distribution is a negative
-                    binomial distribution.
-                    Shape: [-1, 86, 60]
         tensors : DataTensorList
             The data tensor list describing the input data
         sort_loss_terms : bool, optional
@@ -403,21 +396,26 @@ class DefaultLossModule(BaseComponent):
             List of tensors defining the terms of the log likelihood
         """
 
-        # underneath 5e-5 the log_negative_binomial function becomes unstable
-        eps = 5e-5
         dtype = getattr(
             tf, self.configuration.config['config']['float_precision'])
 
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
         hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
-        dom_charges_variance = tf.squeeze(
-            result_tensors['dom_charges_variance'], axis=-1)
+        # prevent negative charges
+        hits_pred = tf.clip_by_value(hits_pred, 1e-7, 3269018.)
+        
+        if ('int_charges' in self.configuration.config['config'] and 
+                self.configuration.config['config']['int_charges']):
+            hits_true = tf.where((hits_true > 0.25) & (hits_true < 1.75),
+                                 1.,
+                                 tf.round(hits_true)
+                                )
 
 
-        # compute negative poisson charge likelihood over DOMs
+        # compute poisson charge likelihood over DOMs
         # shape: [n_batch, 86, 60]
-        llh_charge = basis_functions.tf_log_negative_poisson(
+        llh_charge = basis_functions.tf_log_poisson(
             x=hits_true,
             mu=hits_pred,
             add_normalization_term=self.configuration.config[
@@ -521,6 +519,13 @@ class DefaultLossModule(BaseComponent):
         pulse_charges = data_batch_dict['x_pulses'][:, 0]
         pulse_pdf_values = result_tensors['pulse_pdf']
 
+        if ('int_charges' in self.configuration.config['config'] and 
+                self.configuration.config['config']['int_charges']):
+            pulse_charges = tf.where((pulse_charges > 0.25) & (pulse_charges < 1.75),
+                                 1.,
+                                 tf.round(pulse_charges)
+                                )
+
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
@@ -533,6 +538,11 @@ class DefaultLossModule(BaseComponent):
         # prevent log(zeros) issues
         eps = 1e-7
         pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
+        # prevent log(inf) issues
+        pulse_log_pdf_values = tf.where(tf.math.is_finite(pulse_log_pdf_values),
+                                        pulse_log_pdf_values,
+                                        0.
+                                       )
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )

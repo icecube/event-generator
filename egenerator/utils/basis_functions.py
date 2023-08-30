@@ -142,7 +142,7 @@ def log_asymmetric_gauss(x, mu, sigma, r):
     )
     return norm + exp
 
-def tf_log_negative_poisson(x, mu, add_normalization_term=False):
+def tf_log_poisson(x, mu, add_normalization_term=False):
     """Computes the logarithm of the Poisson PDF
     The parameterization chosen here is defined by the mean mu.
     Parameters
@@ -786,3 +786,123 @@ def von_mises_in_dPsi_cdf(x, sigma, kent_min=np.deg2rad(7)):
             von_mises_in_dPsi_pdf, a=0, b=x_i, args=(sigma_i, kent_min))
         result.append(integration[0])
     return np.array(result)
+
+
+def pandel_pdf(x, shift, xi, rho):
+    """Pandel pdf
+    
+    Parameters:
+    -----------
+    x : array_like
+        time parameter
+    shift : array_like
+        distance parameter (length)
+    xi : array_like
+        models scattering
+    rho : array_like
+        models absorption
+    
+    """  
+    xs = x - shift
+    return np.where(x > shift,
+                    rho**xi/special.gamma(xi) * np.power(xs, xi-1) * np.exp(-xs*rho),
+                    0.
+                   )
+
+def pandel_cdf(x, shift, xi, rho):
+    xs = x - shift
+    return np.where(x > shift,
+                    special.gammainc(xi, xs*rho),
+                    0.
+                   )
+
+
+def tf_pandel_pdf(x, shift, xi, rho):
+    """Pandel pdf
+    
+    Parameters:
+    -----------
+    x : tf.Tensor
+        time parameter
+    shift : tf.Tensor
+        distance parameter (length)
+    xi : tf.Tensor
+        models scattering
+    rho : tf.Tensor
+        models absorption
+    
+    """  
+    xs = x - shift
+    return tf.where(x > shift,
+                    rho**xi/tf.exp(tf.math.lgamma(xi)) * tf.pow(xs, xi-1.) * tf.exp(-xs*rho),
+                    0.
+                   )
+
+def tf_pandel_cdf(x, shift, xi, rho):
+    xs = x - shift
+    return tf.where(x > shift,
+                    tf.math.igamma(xi, xs*rho),
+                    0.
+                   )
+
+def asymmetric_pandel_gauss_pdf(x, shift, xi, rho, s):
+    """Pandel + Gauss pdf
+    
+    Parameters:
+    -----------
+    x : array_like
+        time parameter
+    shift : array_like
+        distance parameter (length)
+    xi : array_like
+        models scattering
+    rho : array_like
+        models absorption
+    s : array_like
+        models time smearing
+    
+    """  
+    M = np.maximum(0, (xi-1)/rho) + shift
+    H = rho**xi/special.gamma(xi) * np.power((xi-1)/rho, xi-1) * np.exp(-xi+1)
+    
+    gauss = np.exp(-0.5*((x - M) / s)**2) * H
+    gauss_norm = 0.5 * np.sqrt(2*np.pi*s**2) * H
+    pandel_norm = 1 - pandel_cdf(M, shift, xi, rho)
+    norm = 1 / (gauss_norm + pandel_norm)
+    
+    exp = np.where(x < M,
+                   gauss,
+                   pandel_pdf(x, shift, xi, rho),
+                   )
+    return norm * exp
+
+def tf_asymmetric_pandel_gauss_pdf(x, shift, xi, rho, s):
+    """Pandel + Gauss pdf
+    
+    Parameters:
+    -----------
+    x : tf.Tensor
+        time parameter
+    shift : tf.Tensor
+        distance parameter (length)
+    xi : tf.Tensor
+        models scattering
+    rho : tf.Tensor
+        models absorption
+    s : tf.Tensor
+        models time smearing
+    
+    """  
+    M = tf.maximum(0., (xi-1.)/rho) + shift
+    H = rho**xi/tf.exp(tf.math.lgamma(xi)) * tf.pow((xi-1.)/rho, xi-1.) * tf.exp(-xi+1.)
+    
+    gauss = tf.exp(-0.5*((x - M) / s)**2) * H
+    gauss_norm = 0.5 * tf.sqrt(2.*np.pi*s**2) * H
+    pandel_norm = 1. - tf_pandel_cdf(M, shift, xi, rho)
+    norm = 1. / (gauss_norm + pandel_norm)
+    
+    exp = tf.where(x < M,
+                   gauss,
+                   tf_pandel_pdf(x, shift, xi, rho),
+                   )
+    return norm * exp

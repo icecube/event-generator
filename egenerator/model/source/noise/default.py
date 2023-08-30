@@ -141,7 +141,12 @@ class DefaultNoiseModel(Source):
         doms_per_string=optical_module.doms_per_string
         dom_noise_rates=optical_module.dom_noise_rates
         num_pmts = optical_module.num_pmts
-
+        if optical_module.dom_name == 'ICU':
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [1, len(pmt_flat_idx.keys()), 1]
+        else:
+            out_shape = [1, num_strings, doms_per_string*num_pmts, 1]
+        ndim = len(out_shape) - 2
 
         # get time exclusions
         tensors = self.data_trafo.data['tensors']
@@ -170,18 +175,20 @@ class DefaultNoiseModel(Source):
 
         # shape: [n_batch, 2]
         time_window = data_batch_dict['x_time_window']
+        time_window = tf.where(time_window == -float('inf'), 0., time_window)
+        time_window = tf.where(time_window == float('inf'), 100., time_window)
 
         # shape: [n_batch]
         livetime = time_window[:, 1] - time_window[:, 0]
-
+            
         # shape: [n_batch, 1, 1, 1]
         livetime_exp = tf.reshape(
-            time_window[:, 1] - time_window[:, 0], [-1, 1, 1, 1])
+            time_window[:, 1] - time_window[:, 0], [-1]+[1]*ndim+[1])
 
         # compute the expected charge at each DOM based off of noise rate
         # shape: [1, 86, 60, 1]
         dom_noise_rates = tf.reshape(dom_noise_rates.astype(param_dtype_np),
-            shape=[1, num_strings, doms_per_string*num_pmts, 1],
+            shape=out_shape,
         )
 
         # shape: [n_batch, 86, 60, 1]
@@ -269,13 +276,13 @@ class DefaultNoiseModel(Source):
         # scaling of expected noise hits: ensure positive values.
         # shape: [1, 1, 1, 1]
         mean_scaling = tf.reshape(
-            tf.nn.elu(local_vars[0]) + 1.01, [1, 1, 1, 1])
+            tf.nn.elu(local_vars[0]) + 1.01, [1]+[1]*ndim+[1])
 
         # scaling of uncertainty. shape: [1, 1, 1, 1]
         # The over-dispersion parameterized by alpha must be greater zero
         # Var(x) = mu + alpha*mu**2
         dom_charges_alpha = tf.reshape(
-            tf.nn.elu(local_vars[1] - 5) + 1.000001, [1, 1, 1, 1])
+            tf.nn.elu(local_vars[1] - 5) + 1.000001, [1]+[1]*ndim+[1])
 
         # scale dom charge and uncertainty by learned scaling
         dom_charges = dom_charges * mean_scaling
@@ -388,28 +395,36 @@ class DefaultNoiseModel(Source):
         dom_noise_rates=optical_module.dom_noise_rates
         num_pmts = optical_module.num_pmts
 
+        # extract values
+        # Shape: [n_events, 2]
+        time_window = result_tensors['pdf_time_window'].numpy()
+        
+        if optical_module.dom_name == 'ICU':
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [len(time_window), len(pmt_flat_idx.keys()), 1]
+        else:
+            out_shape = [len(time_window), num_strings, doms_per_string*num_pmts, 1]
+        ndim = len(out_shape) - 2
+        
+        # shape: [n_events, 1, 1, 1, 2]
+        time_window = np.reshape(time_window, [-1]+[1]*ndim+[1, 2])
+
+        # shape: [n_events, 1, 1, 1]
+        livetime = time_window[..., 1] - time_window[..., 0]
+        
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
 
         n_points = len(x_orig)
         # shape: [1, 1, 1, n_points]
-        x = np.reshape(x_orig, [1, 1, 1, -1])
-
-        # extract values
-        # Shape: [n_events, 2]
-        time_window = result_tensors['pdf_time_window'].numpy()
-        # shape: [n_events, 1, 1, 1, 2]
-        time_window = np.reshape(time_window, [-1, 1, 1, 1, 2])
-
-        # shape: [n_events, 1, 1, 1]
-        livetime = time_window[..., 1] - time_window[..., 0]
+        x = np.reshape(x_orig, [1]+[1]*ndim+[-1])
 
         # Shape: [n_events, 86, 60, 1]
         if 'dom_cdf_exclusion' in result_tensors:
             dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
         else:
-            dom_cdf_exclusion = np.zeros((len(time_window),num_strings, doms_per_string*num_pmts, 1))
+            dom_cdf_exclusion = np.zeros(out_shape)
 
         # shape: [n_events, 1, 1, n_points]
         t_end = np.where(
@@ -540,6 +555,19 @@ class DefaultNoiseModel(Source):
         doms_per_string=optical_module.doms_per_string
         dom_noise_rates=optical_module.dom_noise_rates
         num_pmts = optical_module.num_pmts
+        
+        # Shape: [n_events, 2]
+        time_window = result_tensors['pdf_time_window'].numpy()
+        
+        if optical_module.dom_name == 'ICU':
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [len(time_window), len(pmt_flat_idx.keys()), 1]
+        else:
+            out_shape = [len(time_window), num_strings, doms_per_string*num_pmts, 1]
+        ndim = len(out_shape) - 2
+        
+        # shape: [n_events, 1, 1, 1, 2]
+        time_window = np.reshape(time_window, [-1]+[1]*ndim+[1, 2])
 
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
@@ -547,31 +575,26 @@ class DefaultNoiseModel(Source):
 
         n_points = len(x_orig)
         # shape: [1, 1, 1, n_points]
-        x = np.reshape(x_orig, [1, 1, 1, -1])
+        x = np.reshape(x_orig, [1]+[1]*ndim+[-1])
 
         # extract values
 
         # Shape: (n_events)
         pdf_constant = result_tensors['pdf_constant'].numpy()
         # shape: [n_events, 1, 1, 1]
-        pdf_constant = np.reshape(pdf_constant, [-1, 1, 1, 1])
-
-        # Shape: [n_events, 2]
-        time_window = result_tensors['pdf_time_window'].numpy()
-        # shape: [n_events, 1, 1, 1, 2]
-        time_window = np.reshape(time_window, [-1, 1, 1, 1, 2])
+        pdf_constant = np.reshape(pdf_constant, [-1]+[1]*ndim+[1])
 
         # Shape: [n_events, 86, 60, 1]
         if 'dom_cdf_exclusion' in result_tensors:
             dom_cdf_exclusion = result_tensors['dom_cdf_exclusion'].numpy()
         else:
-            dom_cdf_exclusion = np.zeros((len(time_window), num_strings, doms_per_string*num_pmts, 1))
+            dom_cdf_exclusion = np.zeros(out_shape)
 
         # Shape: [n_events, 86, 60, 1]
         pdf_values = pdf_constant / (1. - dom_cdf_exclusion + 1e-3)
 
         # Shape: [n_events, 86, 60, n_points]
-        pdf_values = np.tile(pdf_values, reps=(1, 1, 1, n_points))
+        pdf_values = np.tile(pdf_values, reps=tuple([1]+[1]*ndim+[n_points]))
 
         pdf_values = np.where(
             # mask shape: [n_events, 1, 1, n_points]

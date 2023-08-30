@@ -604,21 +604,26 @@ class SourceManager(BaseModelManager):
         for tensor_name in tensor_names:
             tensor = self.data_trafo.data['tensors'][tensor_name]
             input_signature.append(tf.TensorSpec(
-                shape=tensor.shape, dtype=getattr(tf, tensor.dtype)))
+                shape=tensor.shape, dtype=getattr(tf, tensor.dtype if not tensor.dtype == 'bool_' else 'bool')))
         
         # optical module/ detector parameters
         optical_module = DetectorInfoModule(self.configuration.config['config']['optical_module_key'])
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts = optical_module.num_pmts
+        if optical_module.dom_name == 'ICU':
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [len(pmt_flat_idx.keys()), 1]
+        else:
+            out_shape = [num_strings, doms_per_string*num_pmts, 1]
 
         @tf.function(input_signature=tuple(input_signature))
         def model_tensors_function(
                 parameters,
                 x_pulses=tf.ones([1, x_pulses_shape[1]], dtype=pulse_dtype),
-                x_pulses_ids=tf.convert_to_tensor([[0, 0, 0]]),
-                x_dom_exclusions=tf.ones([0, num_strings, doms_per_string*num_pmts, 1], dtype=tf.bool),
-                x_dom_charge=tf.ones([0, num_strings, doms_per_string*num_pmts, 1], dtype=param_dtype),
+                x_pulses_ids=tf.convert_to_tensor([[0]*len(out_shape)]),
+                x_dom_exclusions=tf.ones([0]+out_shape, dtype=tf.bool),
+                x_dom_charge=tf.ones([0]+out_shape, dtype=param_dtype),
                 x_time_window=tf.convert_to_tensor(
                     [[9000, 9001]], dtype=tw_dtype),
                 x_time_exclusions=tf.convert_to_tensor(
@@ -667,10 +672,10 @@ class SourceManager(BaseModelManager):
             # in which case we set dummy values to have the proper length
             if tf.shape(x_dom_exclusions)[0] == 0:
                 x_dom_exclusions = tf.ones(
-                    [len(parameters), num_strings, doms_per_string*num_pmts, 1], dtype=tf.bool)
+                    [len(parameters)]+out_shape, dtype=tf.bool)
             if tf.shape(x_dom_charge)[0] == 0:
                 x_dom_charge = tf.ones(
-                    [len(parameters), num_strings, doms_per_string*num_pmts, 1], dtype=param_dtype)
+                    [len(parameters)]+out_shape, dtype=param_dtype)
 
             # create a dummy data batch dict
             data_batch_dict = {

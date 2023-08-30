@@ -82,7 +82,7 @@ def ApplyEventGeneratorReconstruction(
     # apply event-generator reconstruction
     tray.AddModule(
         EventGeneratorReconstruction, name + 'Reco',
-        pulse_key='I3RecoPulseSeriesMapGen2',
+        pulse_key=pulse_key,
         dom_exclusions_key=None,
         time_exclusions_key=None,
         **egenerator_kwargs

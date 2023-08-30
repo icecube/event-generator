@@ -407,14 +407,16 @@ class Source(Model):
         assert len(x_orig.shape) == 1, x_orig.shape
         n_points = len(x_orig)
 
+        nDim = len(result_tensors['dom_charges'].shape)
+
         # shape: [1, 1, 1, 1, n_points]
-        x = np.reshape(x_orig, (1, 1, 1, 1, -1))
+        x = np.reshape(x_orig, [1]*nDim+[-1])
 
         if result_tensors['time_offsets'] is not None:
             # shape: [n_events]
             t_offsets = result_tensors['time_offsets'].numpy()
             # shape: [n_events, 1, 1, 1, 1]
-            t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
+            t_offsets = np.reshape(t_offsets, [-1]+[1]*nDim)
             # shape: [n_events, 1, 1, 1, n_points]
             x = x - t_offsets
         else:
@@ -453,7 +455,7 @@ class Source(Model):
             scale /= (1. - dom_cdf_exclusion + 1e-3)
 
         # shape: [n_events, 86, 60, n_points]
-        cdf_values = np.sum(mixture_cdf * scale, axis=3)
+        cdf_values = np.sum(mixture_cdf * scale, axis=nDim-1)
 
         # apply time window exclusions:
         if tw_exclusions is not None:
@@ -512,7 +514,7 @@ class Source(Model):
         return cdf_values
 
     def pdf(self, x, result_tensors,
-            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+            tw_exclusions=None, tw_exclusions_ids=None, func='gauss', **kwargs):
         """Compute PDF values at x for given result_tensors
 
         This is a numpy, i.e. not tensorflow, method to compute the PDF based
@@ -555,6 +557,8 @@ class Source(Model):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        func: str
+            What is the base function of the pdf.
         **kwargs
             Keyword arguments.
 
@@ -574,39 +578,63 @@ class Source(Model):
 
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
+        
+        nDim = len(result_tensors['dom_charges'].shape)
 
         # shape: [1, 1, 1, 1, n_points]
-        x = np.reshape(x_orig, (1, 1, 1, 1, -1))
+        x = np.reshape(x_orig, [1]*nDim+[-1])
 
         if result_tensors['time_offsets'] is not None:
             # shape: [n_events]
             t_offsets = result_tensors['time_offsets'].numpy()
             # shape: [n_events, 1, 1, 1, 1]
-            t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
+            t_offsets = np.reshape(t_offsets, [-1]+[1]*nDim)
             # shape: [n_events, 1, 1, 1, n_points]
             x = x - t_offsets
 
         # internally we are working with different time units
         x = x / self.time_unit_in_ns
 
-        # Check if the asymmetric Gaussian latent variables exist
-        for latent_name in ['mu', 'scale', 'sigma', 'r']:
-            if 'latent_var_' + latent_name not in result_tensors:
-                msg = 'PDF evaluation is not supported for this model: {}'
-                raise NotImplementedError(msg.format(
-                    self._untracked_data['name']))
-
-        # extract values
-        # shape: [n_events, 86, 60, n_components, 1]
-        mu = result_tensors['latent_var_mu'].numpy()[..., np.newaxis]
-        scale = result_tensors['latent_var_scale'].numpy()[..., np.newaxis]
-        sigma = result_tensors['latent_var_sigma'].numpy()[..., np.newaxis]
-        r = result_tensors['latent_var_r'].numpy()[..., np.newaxis]
-
         # shape: [n_events, 86, 60, n_components, n_points]
-        mixture_pdf = basis_functions.asymmetric_gauss(
-            x=x, mu=mu, sigma=sigma, r=r
-        )
+        if func == 'gauss':
+            # Check if the asymmetric Gaussian latent variables exist
+            for latent_name in ['mu', 'scale', 'sigma', 'r']:
+                if 'latent_var_' + latent_name not in result_tensors:
+                    msg = 'PDF evaluation is not supported for this model: {}'
+                    raise NotImplementedError(msg.format(
+                        self._untracked_data['name']))
+
+            # extract values
+            # shape: [n_events, 86, 60, n_components, 1]
+            mu = result_tensors['latent_var_mu'].numpy()[..., np.newaxis]
+            scale = result_tensors['latent_var_scale'].numpy()[..., np.newaxis]
+            sigma = result_tensors['latent_var_sigma'].numpy()[..., np.newaxis]
+            r = result_tensors['latent_var_r'].numpy()[..., np.newaxis]
+        
+            mixture_pdf = basis_functions.asymmetric_gauss(
+                x=x, mu=mu, sigma=sigma, r=r
+            )
+        elif func == 'pandel':
+            # Check if the asymmetric Pandel Gaussian latent variables exist
+            for latent_name in ['shift', 'xi', 'rho', 's']:
+                if 'latent_var_' + latent_name not in result_tensors:
+                    msg = 'PDF evaluation is not supported for this model: {}'
+                    raise NotImplementedError(msg.format(
+                        self._untracked_data['name']))
+
+            # extract values
+            # shape: [n_events, 86, 60, n_components, 1]
+            shift = result_tensors['latent_var_shift'].numpy()[..., np.newaxis]
+            xi = result_tensors['latent_var_xi'].numpy()[..., np.newaxis]
+            rho = result_tensors['latent_var_rho'].numpy()[..., np.newaxis]
+            s = result_tensors['latent_var_s'].numpy()[..., np.newaxis]
+            scale = result_tensors['latent_var_scale'].numpy()[..., np.newaxis]
+            
+            mixture_pdf = basis_functions.asymmetric_pandel_gauss_pdf(
+                x=x, shift=shift, xi=xi, rho=rho, s=s
+            )
+        else:
+            raise NameError('PDF base function must be gauss or pandel, you choose '+func)
 
         # uniformly scale up pdf values due to excluded regions
         if 'dom_cdf_exclusion' in result_tensors:
@@ -619,7 +647,7 @@ class Source(Model):
             scale /= (1. - dom_cdf_exclusion + 1e-3)
 
         # shape: [n_events, 86, 60, n_points]
-        pdf_values = np.sum(mixture_pdf * scale, axis=3)
+        pdf_values = np.sum(mixture_pdf * scale, axis=nDim-1)
 
         # apply time window exclusions:
         pdf_values = self._apply_pdf_time_window_exclusions(

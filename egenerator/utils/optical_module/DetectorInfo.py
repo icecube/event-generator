@@ -19,6 +19,8 @@ class DetectorInfoModule:
     dom_rel_eff: np.ndarray
     dom_noise_rates: np.ndarray
     bad_doms_mask: np.ndarray
+    dom_areas: np.ndarray
+    pmt_flat_idx: dict
 
     def __init__(self, file_path):
         """
@@ -49,3 +51,11 @@ class DetectorInfoModule:
         self.dom_rel_eff = data["dom_rel_eff"]
         self.dom_noise_rates = data["dom_noise_rates"]
         self.bad_doms_mask = data["bad_doms_mask"]
+        if 'dom_areas' in data.keys():
+            self.dom_areas = data["dom_areas"]
+        else:
+            self.dom_areas = None
+        try:
+            self.pmt_flat_idx = data["pmt_flat_idx"]
+        except:
+            self.pmt_flat_idx = {}

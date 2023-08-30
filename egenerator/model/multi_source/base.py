@@ -319,6 +319,11 @@ class MultiSource(Source):
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts = optical_module.num_pmts
+        if optical_module.dom_name == 'ICU':
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [len(pmt_flat_idx.keys()), 1]
+        else:
+            out_shape = [num_strings, doms_per_string*num_pmts, 1]
 
 
         # -----------------------------------------------
@@ -361,12 +366,12 @@ class MultiSource(Source):
             dom_charges_variance_i = result_tensors_i['dom_charges_variance']
             pulse_pdf_i = result_tensors_i['pulse_pdf']
 
-            if dom_charges_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
+            if dom_charges_i.shape[1:] != out_shape:
                 msg = 'DOM charges of source {!r} ({!r}) have an unexpected '
                 msg += 'shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
-            if dom_charges_variance_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
+            if dom_charges_variance_i.shape[1:] != out_shape:
                 msg = 'DOM charge variances of source {!r} ({!r}) have an '
                 msg += 'unexpected shape {!r}.'
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
@@ -375,7 +380,7 @@ class MultiSource(Source):
                 dom_cdf_exclusion_sum_i = (
                     result_tensors_i['dom_cdf_exclusion_sum']
                 )
-                if dom_cdf_exclusion_sum_i.shape[1:] != [num_strings, doms_per_string*num_pmts, 1]:
+                if dom_cdf_exclusion_sum_i.shape[1:] != out_shape:
                     msg = 'DOM exclusions of source {!r} ({!r}) have an  '
                     msg += 'unexpected shape {!r}.'
                     raise ValueError(msg.format(
@@ -400,7 +405,7 @@ class MultiSource(Source):
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
-            pulse_weight_i = tf.gather_nd(tf.squeeze(dom_charges_i, axis=3),
+            pulse_weight_i = tf.gather_nd(tf.squeeze(dom_charges_i, axis=len(out_shape)),
                                           pulses_ids)
             if pulse_pdf is None:
                 pulse_pdf = pulse_pdf_i * pulse_weight_i
@@ -408,7 +413,7 @@ class MultiSource(Source):
                 pulse_pdf += pulse_pdf_i * pulse_weight_i
 
         # normalize pulse_pdf values: divide by total charge at DOM
-        pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
+        pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=len(out_shape)),
                                           pulses_ids)
 
         pulse_pdf /= (pulse_weight_total + 1e-6)
@@ -1011,6 +1016,7 @@ class MultiSource(Source):
                 x, result_tensors_i,
                 tw_exclusions=tw_exclusions,
                 tw_exclusions_ids=tw_exclusions_ids,
+                **kwargs
             )
 
             # shape: [n_events, 86, 60, 1]

@@ -1,0 +1,456 @@
+---
+##############
+# Config for ICU events
+#
+# Detailed information on the parameters are given in the SetupManager
+# class located in egenerator.settings.setup_manager.py.
+##############
+
+# Provide a unique name for the model
+unique_name: 'ICU_pulses_IceCube'
+
+#Pickle file
+detector_pickle: &detector_pickle '/home/jcw5951/event-generator/gcd_preprocessing/geometry_pickles/IceCube.pickle'
+#------------------
+# Training settings
+#------------------
+training_settings: {
+    'optimizer_name': 'Adam',
+    'optimizer_settings': {
+        # 'amsgrad': True,
+        'learning_rate': {
+            'full_class_string': 'egenerator.utils.learning_rate.MultiLearningRateScheduler',
+            'settings':{
+                'boundaries': [10000, 500000],
+                'scheduler_settings': [
+                    {
+                    'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
+                    'settings': {
+                        'initial_learning_rate': 0.01,
+                        'end_learning_rate': 0.001,
+                        'decay_steps': 10000,
+                        },
+                    },
+                    {
+                    'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
+                    'settings': {
+                        'initial_learning_rate': 0.001,
+                        'end_learning_rate': 0.001,
+                        'decay_steps': 490000,
+                        },
+                    },
+                    {
+                    'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
+                    'settings': {
+                        'initial_learning_rate': 0.001,
+                        'end_learning_rate': 0.000001,
+                        'decay_steps': 500000,
+                        'power': 2,
+                        },
+                    },
+                ]
+            },
+        },
+    },
+    'l1_regularization': 0.,
+    'l2_regularization': 0.,
+    'clip_gradients_value': ,
+    'remove_nan_gradients': True, #False
+
+    'validation_frequency': 500,
+    'evaluation_frequency': 500,
+    'save_frequency': 1000,
+
+    # Number of training iterations to train the model for
+    'num_training_iterations': 100000,
+
+    # Additional keywords to the loss module used for #training
+    'additional_loss_module_kwargs': {
+        'normalize_by_total_charge': False,
+    },
+}
+
+#----------------.-------
+# Reconstruction settings
+#------------------------
+reconstruction_settings: {
+    'reco_output_file': '/home/jcw5951/event-generator/data/reco/reco_{unique_name}.hdf5',
+
+    # Define which modules to run
+    'calculate_covariance_matrix': False,
+    'calculate_goodness_of_fit': False,
+    'estimate_angular_uncertainty': False,
+    'run_mcmc': False,
+    'make_1d_llh_scans': False,
+
+    # define which tensor to use as parameter_tensor (default: x_parameters)
+    'parameter_tensor_name': 'x_parameters',
+    # define seed (to seed from MC truth choose: 'x_parameters')
+    'seed': 'x_parameters', #'MonopodFit4_PartialExclusion',
+    # these are only relevant for the SeedLoaderMiscModule. This specifies
+    # from which column names in the data table the parameters will be loaded
+    'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth', 'cscd_energy', 'time', 'trck_energy'],
+    #, 'trck_length'
+    'seed_missing_value': None,
+    'seed_missing_value_dict': {
+    },
+    'seed_float_precision': 'float32',
+
+    # choose the otpimizer iterface:
+    #   'scipy' or 'tfp' (tensorflow_probability)
+    'reco_optimizer_interface': 'scipy',
+
+    'scipy_optimizer_settings': {
+        'method': 'L-BFGS-B',
+        #'method': 'BFGS',
+        'bounds': [[-212, 280], [-250, 190], [-585, -120], [0, 3.14], [0, 6.28], [0.1, 450], [8000, 12000], [0, 450]],
+        #, [0, 1160]
+        'options': {
+            # 'ftol': !!float 1e-7,
+        }
+    },
+
+    'tf_optimizer_settings': {
+        'method': 'bfgs_minimize',
+        'x_tolerance': 0.001,
+    },
+
+    # Perform minimization in transformed and normalized parameter space
+    # if True. This is usually desired as it may facilitate minimization.
+    'minimize_in_trafo_space': True,
+
+    # Specify which parameters to fit.
+    # If True, the parameter is minimized doing reconstruction, otherwise it
+    # is held constant.
+    # Set default value which will apply to all parameters, except if stated
+    # otherwise in the 'minimize_parameter_dict'
+    'minimize_parameter_default_value': True,
+    # Settings defined here overwrite the default value
+    # Entries must have the form: {parameter_name: value}
+    'minimize_parameter_dict': {
+
+    },
+}
+
+#-----------------------
+# Model Manager settings
+#-----------------------
+
+# Settings for model manager class
+model_manager_settings: {
+
+    # The loss module class to use
+    'model_manager_class': 'egenerator.manager.source.SourceManager',
+
+    # restore model if True, otherwise start from scratch
+    'restore_model' : True,
+
+    # These settings are used to configure the model manager and may not change
+    config: {
+
+        # Path to where the manager will be saved to and loaded from
+        'manager_dir': '/home/jcw5951/event-generator/models/{unique_name}/manager',
+
+        # optical module/detector geometry to use
+        'optical_module_key': *detector_pickle,
+
+        # Define which model parameters to use for the I3Particle
+        # [x, y, z, zenith, azimuth, energy, time]
+        'I3ParticleMapping': {
+            'x': 'PrimaryPositionX',
+            'y': 'PrimaryPositionY',
+            'z': 'PrimaryPositionZ',
+            'zenith': 'PrimaryZenith',
+            'azimuth': 'PrimaryAzimuth',
+            'cscd_energy': 'CascadeEnergy',
+            'time': 'Time',
+            'trck_energy': 'TrackEnergy',
+        },
+        #'trck_length': 'TrackLength',
+    },
+}
+
+#-----------------------
+# Data Iterator settings
+#-----------------------
+
+# These settings describe the data iterators
+data_iterator_settings: {
+
+    # The training data iterator
+    'training': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 10,
+        'batch_capacity': 500,
+        'dataset_capacity': 500,
+        'num_jobs': 10,
+        'num_add_files': 20,
+        'num_repetitions': 3,
+        'pick_random_files_forever': True,
+        'input_data': [
+            # No Snowstorm EM datasets 
+            '/home/jcw5951/event-generator/data/train/*.hdf5',
+        ],
+    },
+
+    # The trafo data iterator
+    'trafo': {
+        'batch_size': 32,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 2,
+        'num_jobs': 10,
+        'num_add_files': 1,
+        'num_repetitions': 1,
+        'pick_random_files_forever': False,
+        'input_data': [
+            '/home/jcw5951/event-generator/data/train/*.hdf5',
+        ],
+    },
+
+    # The validation data iterator
+    'validation': {
+        'batch_size': 16,
+        'num_splits': ,
+        'file_capacity': 5,
+        'batch_capacity': 10,
+        'dataset_capacity': 10,
+        'num_jobs': 2,
+        'num_add_files': 5,
+        'num_repetitions': 1,
+        'pick_random_files_forever': True,
+        'input_data': [
+            '/home/jcw5951/event-generator/data/valid/*.hdf5',
+        ],
+    },
+
+    # The test data iterator
+    'test': {
+        'batch_size': 1,
+        'num_splits': ,
+        'file_capacity': 1,
+        'batch_capacity': 3,
+        'num_jobs': 1,
+        'num_add_files': 0,
+        'num_repetitions': 1,
+        'sample_randomly': False,
+        'pick_random_files_forever': False,
+        'input_data': [
+            '/home/jcw5951/event-generator/data/valid/upgrade_genie_level3_queso_140028_000000.i3.zst.hdf5',
+        ],
+    },
+}
+
+#--------------------
+#Loss module settings
+#---------------------
+
+# Settings for the loss module class
+loss_module_settings: [
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'unbinned_pulse_time_llh',
+            # optical module to use
+            'optical_module_key': *detector_pickle,
+            # convert charges to integers
+            'int_charges': True,
+        },
+    },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'negative_poisson_charge_pdf', #negative_binomial_charge_pdf
+            # optical module to use
+            'optical_module_key': *detector_pickle,
+            # convert charges to integers
+            'int_charges': True,
+        },
+    },
+]
+
+#---------------------------
+# Evaluation module settings
+#---------------------------
+
+# Settings for the evaluation module class
+evaluation_module_settings: {
+
+    # The loss module class to use
+    'evaluation_module':,
+    config: {
+    },
+}
+
+#-----------------------------
+# Data Transformation settings
+#-----------------------------
+data_trafo_settings: {
+    'float_precision': 'float64',
+    'norm_constant': !!float 1e-6,
+    'num_batches': 5000,
+    'model_dir': '/home/jcw5951/event-generator/trafo_models/pulses_IceCube_poisson',
+}
+
+#----------------------
+# Data Handler settings
+#----------------------
+
+# Settings for the data handler class
+data_handler_settings: {
+
+    # The data handler class to use
+    'data_handler': 'modular.ModuleDataHandler',
+
+    # -------------------
+    # DataModule Settings
+    # -------------------
+    # which data module to use
+    'data_module': 'pulse_data.PulseDataModule',
+
+    # settings for the data module
+    'data_settings':{
+        'pulse_key': 'SplitInIcePulses_dynedge_v2_Pulses_pDOMs_Only',
+        'dom_exclusions_key':,
+        'time_exclusions_key':,
+        'float_precision': 'float32',
+        'add_charge_quantiles': False,
+        'discard_pulses_from_excluded_doms': False,
+        'optical_module_key': *detector_pickle
+    },
+
+    # --------------------
+    # LabelModule Settings
+    # --------------------
+    # which label module to use
+    'label_module': 'lowE_tracks.LowETrackGeneratorLabelModule',
+
+    # settings for the label module
+    'label_settings':{
+        'shift_cascade_vertex': True,
+        # logarithm on labels:
+        # (x, y, z, zenith, azimuth, cscdE, time, trckE) , trckL
+        'trafo_log': [False, False, False, False, False, True, False, False],
+        'label_key': 'LabelsDeepLearning',
+        'float_precision': 'float32',
+        'num_cascades': 1,
+    },
+
+    # ---------------------
+    # WeightModule Settings
+    # ---------------------
+    # which weight module to use
+    'weight_module': 'dummy.DummyWeightModule',
+
+    # settings for the weight module
+    'weight_settings':{},
+
+    # -------------------
+    # MiscModule Settings
+    # -------------------
+    # which misc module to use
+    'misc_module': 'dummy.DummyMiscModule',
+
+    # settings for the misc module
+    'misc_settings':{},
+
+    # -------------------
+    # FilterModule Settings
+    # -------------------
+    # which filter module to use
+    'filter_module': 'dummy.DummyFilterModule',
+
+    # settings for the filter module
+    'filter_settings':{
+        'constraints': [
+            # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+        ],
+    },
+}
+
+
+#---------------
+# Model settings
+#---------------
+
+# Settings for the neural network model class
+model_settings: {
+
+    # The source class to use
+    'model_class': 'egenerator.model.multi_source.independent.IndependentMultiSource',
+
+    # configuration settings for DefaultMultiCascadeModel object
+    config: {
+        'optical_module_key': *detector_pickle,
+        'sources': {
+            'noise': 'noise',
+            'LE': 'LE',
+        },
+    },
+
+    # Base sources used by the multi-source class
+    multi_source_bases: {
+
+        noise: {
+            # The noise source model class to use
+            'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
+            config: {
+            'optical_module_key': *detector_pickle,
+            },
+        },
+
+        LE: {
+            # The cascade source model class to use
+            'model_class': 'egenerator.model.source.LE.default.DefaultLEModel',
+
+            config: {
+                'keep_prob':,
+                'add_opening_angle': True,
+                'add_dom_coordinates': False,
+                'num_local_vars': 0,
+                'scale_charge': False, #True
+                'scale_charge_by_relative_dom_efficiency': False,
+                'scale_charge_by_global_dom_efficiency': False,
+                'prevent_mixture_component_swapping': False,
+                'estimate_charge_distribution': 'negative_poisson', #'negative_binomial'
+                'optical_module_key': *detector_pickle,
+                'num_latent_models': 3,
+
+                # This is a list of labels in addition to
+                # (x, y, z, zenith, azimuth, cscdE, time, trckE) , trckL
+                'additional_label_names' : [
+                ],
+
+                # First convolutions
+                'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                'num_filters_list' : [25, 350, 350, 350, 13],
+                'method_list' : ['locally_connected',
+                                 'convolution', 'convolution', 'convolution',
+                                 'convolution',
+                                 ],
+                'use_dropout_list' : False,
+                'activation_list' : ['elu', 'elu', 'elu', 'elu',''],
+                'use_batch_norm_list' : False,
+                'use_residual_list' : True,
+            },
+        },  
+    },
+}
+
+#----------------------
+

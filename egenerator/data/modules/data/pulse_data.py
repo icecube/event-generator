@@ -41,7 +41,7 @@ class PulseDataModule(BaseComponent):
 
     def _configure(self, config_data, pulse_key, dom_exclusions_key,
                    time_exclusions_key, float_precision, add_charge_quantiles,
-                   discard_pulses_from_excluded_doms,optical_module_key):
+                   discard_pulses_from_excluded_doms, optical_module_key):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -129,17 +129,24 @@ class PulseDataModule(BaseComponent):
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         num_pmts = optical_module.num_pmts #Number of pmts per module
+        if optical_module.dom_name == 'ICU':
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [None, len(pmt_flat_idx.keys()), 1]
+            trafo_reduce_axes=(1)
+        else:
+            out_shape = [None, num_strings, doms_per_string * num_pmts, 1]
+            trafo_reduce_axes=(1, 2)
 
         x_dom_charge = DataTensor(name='x_dom_charge',
-                                  shape=[None, num_strings, doms_per_string * num_pmts, 1],
+                                  shape=out_shape,
                                   tensor_type='data',
                                   dtype=float_precision,
                                   trafo=True,
-                                  trafo_reduce_axes=(1, 2),
+                                  trafo_reduce_axes=trafo_reduce_axes,
                                   trafo_log=True,
                                   trafo_batch_axis=0)
         x_dom_exclusions = DataTensor(name='x_dom_exclusions',
-                                      shape=[None, num_strings, doms_per_string * num_pmts, 1],
+                                      shape=out_shape,
                                       tensor_type='data',
                                       dtype='bool_',
                                       exists=dom_exclusions_exist)
@@ -150,7 +157,7 @@ class PulseDataModule(BaseComponent):
                                            'reference': 'x_pulses_ids'},
                               dtype=float_precision)
         x_pulses_ids = DataTensor(name='x_pulses_ids',
-                                  shape=[None, 3],
+                                  shape=[None, len(out_shape)-1],
                                   tensor_type='data',
                                   vector_info={'type': 'index',
                                                'reference': 'x_pulses'},
@@ -236,7 +243,7 @@ class PulseDataModule(BaseComponent):
         try:
             pulses = f[self.configuration.config['pulse_key']]
             _labels = f['LabelsDeepLearning']
-            optical_module = self.optical_module
+            optical_module = DetectorInfoModule(self.configuration.config['optical_module_key']) #self.optical_module
             if self.data['dom_exclusions_exist']:
                 try:
                     dom_exclusions = \
@@ -276,15 +283,26 @@ class PulseDataModule(BaseComponent):
             event_dict[(row[1][0], row[1][1], row[1][2], row[1][3])] = row[0]
         
         # create empty array for DOM charges
-        num_strings=optical_module.num_strings
-        doms_per_string=optical_module.doms_per_string
-        num_pmts=optical_module.num_pmts
-        bad_doms_mask=optical_module.bad_doms_mask
-        x_dom_charge = np.zeros([size, num_strings, doms_per_string * num_pmts, 1],
+        num_strings = optical_module.num_strings
+        doms_per_string = optical_module.doms_per_string
+        num_pmts = optical_module.num_pmts
+        bad_doms_mask = optical_module.bad_doms_mask
+        if optical_module.dom_name == 'ICU':
+            ICU = True
+        else:
+            ICU = False
+
+        if ICU:
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [size, len(pmt_flat_idx.keys()), 1]
+        else:
+            out_shape = [size, num_strings, doms_per_string * num_pmts, 1]
+        
+        x_dom_charge = np.zeros(out_shape,
                                 dtype=self.data['np_float_precision'])
 
         if self.data['dom_exclusions_exist']:
-            bad_doms = np.reshape(bad_doms_mask, [1, num_strings, doms_per_string * num_pmts, 1])
+            bad_doms = np.reshape(bad_doms_mask, [1]+out_shape[1:])
             x_dom_exclusions = (
                 np.ones_like(x_dom_charge) * bad_doms).astype(bool)
         else:
@@ -314,7 +332,7 @@ class PulseDataModule(BaseComponent):
         num_pulses = len(pulses['Event'])
         x_pulses = np.empty((num_pulses, pulse_dim),
                             dtype=self.data['np_float_precision'])
-        x_pulses_ids = np.empty((num_pulses, 3), dtype=np.int32) #modifiy
+        x_pulses_ids = np.empty((num_pulses, len(out_shape)-1), dtype=np.int32) #modifiy
 
         # create array for time data
         x_time_window = np.empty(
@@ -337,10 +355,24 @@ class PulseDataModule(BaseComponent):
 
             # pulse charge: row[12], time: row[10]
             # accumulate charge in DOMs
-            x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += row[12]
+            if ICU:
+                flat_idx = pmt_flat_idx["OMKey(%i,%i,%i)"%(string, dom, pmt)]
+                x_dom_charge[index, flat_idx, 0] += row[12]
+                
+                # gather pulse ids (batch index, flat_idx)
+                x_pulses_ids[pulse_index] = [index, flat_idx]
+
+            else:
+                x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += row[12]
+                
+                # gather pulse ids (batch index, string, dom + pmt)
+                x_pulses_ids[pulse_index] = [index, string-1, (dom-1)*num_pmts + pmt]
+
 
             # gather pulses
             if add_charge_quantiles:
+                if ICU:
+                    raise NotImplementedError('Charge quantiles not yet implemented for ICU')
 
                 # (charge, time, quantile)
                 cum_charge = float(x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0])
@@ -350,9 +382,6 @@ class PulseDataModule(BaseComponent):
                 # (charge, time)
                 x_pulses[pulse_index] = [row[12], row[10]]
 
-            # gather pulse ids (batch index, string, dom, pmt)
-            x_pulses_ids[pulse_index] = [index, string-1, (dom-1)*num_pmts + pmt]
-
             # update time window
             if row[10] > x_time_window[index, 1]:
                 x_time_window[index, 1] = row[10]
@@ -361,6 +390,8 @@ class PulseDataModule(BaseComponent):
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
+            if ICU:
+                raise NotImplementedError('Charge quantiles not yet implemented for ICU')
 
             # compute flat indices
             dim1 = x_dom_charge.shape[1]
@@ -379,6 +410,9 @@ class PulseDataModule(BaseComponent):
         # get time exclusions
         # -------------------
         if time_exclusions is not None:
+            if ICU:
+                raise NotImplementedError('Time exclusions not yet implemented for ICU')
+            
             for tw_index, row in enumerate(time_exclusions.itertuples()):
                 string = row[6] - optical_module.string_offset
                 dom = row[7]
@@ -401,6 +435,9 @@ class PulseDataModule(BaseComponent):
         # get dom exclusions
         # ------------------
         if dom_exclusions is not None:
+            if ICU:
+                raise NotImplementedError('DOM exclusions not yet implemented for ICU')
+            
             for row in dom_exclusions.itertuples():
                 string = row[7] - optical_module.string_offset
                 dom = row[8]
@@ -472,12 +509,16 @@ class PulseDataModule(BaseComponent):
         pulses = frame[self.configuration.config['pulse_key']]
         
         # get optical module
-        optical_module = self.optical_module
+        optical_module = DetectorInfoModule(self.configuration.config['optical_module_key']) #self.optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string
         string_offset=optical_module.string_offset
         bad_doms_mask=optical_module.bad_doms_mask
         num_pmts=optical_module.num_pmts
+        if optical_module.dom_name == 'ICU':
+            ICU = True
+        else:
+            ICU = False
 
         if isinstance(pulses, dataclasses.I3RecoPulseSeriesMapMask) or \
            isinstance(pulses, dataclasses.I3RecoPulseSeriesMapUnion):
@@ -511,13 +552,18 @@ class PulseDataModule(BaseComponent):
 
         # number of events in batch (one frame at a time)
         size = 1
+        if ICU:
+            pmt_flat_idx = optical_module.pmt_flat_idx
+            out_shape = [size, len(pmt_flat_idx.keys()), 1]
+        else:
+            out_shape = [size, num_strings, doms_per_string * num_pmts, 1]
 
         # create empty array for DOM charges
-        x_dom_charge = np.zeros([size, num_strings, doms_per_string * num_pmts, 1],
+        x_dom_charge = np.zeros(out_shape,
                                 dtype=self.data['np_float_precision'])
 
         if self.data['dom_exclusions_exist']:
-            bad_doms = np.reshape(bad_doms_mask, [1, num_strings, doms_per_string * num_pmts, 1])
+            bad_doms = np.reshape(bad_doms_mask, [1]+out_shape[1:])
             x_dom_exclusions = (
                 np.ones_like(x_dom_charge) * bad_doms).astype(bool)
         else:
@@ -561,10 +607,23 @@ class PulseDataModule(BaseComponent):
 
                 # pulse charge: row[12], time: row[10]
                 # accumulate charge in DOMs
-                x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += pulse.charge
+                if ICU:
+                    flat_idx = pmt_flat_idx["OMKey(%i,%i,%i)"%(string, dom, pmt)]
+                    x_dom_charge[index, flat_idx, 0] += pulse.charge
+                    
+                    # gather pulse ids (batch index, flat_idx)
+                    x_pulses_ids.append([index, flat_idx])
+                    
+                else:
+                    x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0] += pulse.charge
+                    
+                    # gather pulse ids (batch index, string + dom)
+                    x_pulses_ids.append([index, string-1, (dom-1)*num_pmts + pmt])
 
                 # gather pulses
                 if add_charge_quantiles:
+                    if ICU:
+                        raise NotImplementedError('Charge quantiles not yet implemented for ICU')
 
                     # (charge, time, quantile)
                     cum_charge = float(x_dom_charge[index, string-1, (dom-1)*num_pmts + pmt, 0])
@@ -573,9 +632,6 @@ class PulseDataModule(BaseComponent):
                 else:
                     # (charge, time)
                     x_pulses.append([pulse.charge, pulse.time])
-
-                # gather pulse ids (batch index, string, dom)
-                x_pulses_ids.append([index, string-1, (dom-1)*num_pmts + pmt])
 
                 # update time window
                 if pulse.time > x_time_window[index, 1]:
@@ -588,6 +644,8 @@ class PulseDataModule(BaseComponent):
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
+            if ICU:
+                raise NotImplementedError('Charge quantiles not yet implemented for ICU')
 
             # compute flat indices
             dim1 = x_dom_charge.shape[1]
@@ -605,6 +663,9 @@ class PulseDataModule(BaseComponent):
         # get time exclusions
         # -------------------
         if time_exclusions is not None:
+            if ICU:
+                raise NotImplementedError('Time exclusions not yet implemented for ICU')
+            
             for omkey, tw_list in time_exclusions.items():
 
                 string = omkey.string - string_offset
@@ -639,6 +700,9 @@ class PulseDataModule(BaseComponent):
         # get dom exclusions
         # ------------------
         if dom_exclusions is not None:
+            if ICU:
+                raise NotImplementedError('DOM exclusions not yet implemented for ICU')
+            
             for omkey in dom_exclusions:
                 string = omkey.string - string_offset
                 dom = omkey.om
