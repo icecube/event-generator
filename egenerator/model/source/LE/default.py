@@ -75,7 +75,7 @@ class DefaultLEModel(Source):
         else:
             num_add_labels = 0
 
-        num_inputs = 5 + num_add_labels
+        num_inputs = 7 + num_add_labels
 
         if config['add_opening_angle']:
             num_inputs += 1
@@ -315,12 +315,14 @@ class DefaultLEModel(Source):
         T_distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
         #distance = tf.math.log1p(distance)
         #T_distance = tf.math.log1p(T_distance)
-        '''
-        orientation_angle_traf = ((orientation_angle - params_mean[3]) /
-                                  (norm_const + params_std[3]))
-        opening_angle_traf = ((opening_angle - params_mean[3]) /
-                              (norm_const + params_std[3]))
-        '''
+        
+        p_dens = tf.clip_by_value(1/distance**2, 0, 10)
+        p_dens_T = tf.clip_by_value(1/T_distance**2, 0, 10)
+        
+        #orientation_angle_traf = ((orientation_angle - params_mean[3]) /
+        #                          (norm_const + params_std[3]))
+        #opening_angle_traf = ((opening_angle - params_mean[3]) /
+        #                      (norm_const + params_std[3]))
         orientation_angle_traf = ((orientation_angle + 1) / 2)
         opening_angle_traf = ((opening_angle + 1) / 2)
 
@@ -345,7 +347,7 @@ class DefaultLEModel(Source):
         params_expanded = tf.tile(modified_parameters, input_shape)
        
         input_list = [params_expanded, #dx_normed, dy_normed, dz_normed,
-                      distance, T_distance, orientation_angle_traf]
+                      distance, T_distance, orientation_angle_traf, p_dens, p_dens_T] #
        
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
@@ -425,7 +427,7 @@ class DefaultLEModel(Source):
         elif config['estimate_charge_distribution'] == 'negative_binomial':
             n_charge = 2
         else:
-            n_charge = 1
+            n_charge = 2
 
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
@@ -602,31 +604,36 @@ class DefaultLEModel(Source):
         # -------------------------------------------
 
         # the result of the convolution layers are the latent variables
-        dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
-                                           axis=-1)
+        dom_charges_trafo_cscd = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
+                                                axis=-1)
+        dom_charges_trafo_trck = tf.expand_dims(conv_hex3d_layers[-1][..., 1],
+                                                axis=-1)
 
         # clip value range for more stability during training
-        dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20., 15)
+        dom_charges_trafo_cscd = tf.clip_by_value(dom_charges_trafo_cscd, -20., 15)
+        dom_charges_trafo_trck = tf.clip_by_value(dom_charges_trafo_trck, -20., 15)
 
         # apply exponential which also forces positive values
-        dom_charges = tf.exp(dom_charges_trafo)
+        dom_charges_cscd = tf.exp(dom_charges_trafo_cscd)
+        dom_charges_trck = tf.exp(dom_charges_trafo_trck)
         
         # reduce charges below threshold
         #dom_charges = tf.where(dom_charges > 0.25,
         #                       dom_charges,
         #                       dom_charges/1000
         #                      )
+
+        # scale charges by cscd energy
+        if config['scale_charge']:
+            # make sure energy does not turn negative
+            cscd_energy = tf.clip_by_value(parameter_list[5], 0., float('inf'))
+            scale_factor = tf.expand_dims(cscd_energy, axis=-1) / 10.0
+            dom_charges_cscd *= scale_factor
+        
+        dom_charges = dom_charges_cscd + dom_charges_trck
         
         # scale charges by DOM area
         dom_charges *= tf.expand_dims(dom_areas.astype(param_dtype_np)/0.0444, axis=-1)
-
-        # scale charges by energy (maybe not a good idea in this model)
-        if config['scale_charge']:
-            # make sure energy does not turn negative
-            energy = tf.clip_by_value(
-                parameter_list[5]+parameter_list[7], 0., float('inf'))
-            scale_factor = tf.expand_dims(energy, axis=-1) / 10.0
-            dom_charges *= scale_factor
 
         # scale charges by realtive DOM efficiency
         if config['scale_charge_by_relative_dom_efficiency']:
@@ -646,10 +653,6 @@ class DefaultLEModel(Source):
         dom_charges += 1e-7
 
         tensor_dict['dom_charges'] = dom_charges
-        #tensor_dict['dom_charges'] = tf.where(dom_charges_true > 0.25,
-        #                                      dom_charges,
-        #                                      1e-7
-        #                                     )
 
         # -------------------------------------
         # get charge distribution uncertainties
