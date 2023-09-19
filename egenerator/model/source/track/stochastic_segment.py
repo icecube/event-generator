@@ -57,8 +57,13 @@ class StochasticTrackSegmentModel(Source):
         # -------------------------------------------
         # Define input parameters of track hypothesis
         # -------------------------------------------
+        #parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
+        #                   'energy', 'time', 'track_', 'stochasticity']
+
         parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
-                           'energy', 'time', 'length', 'stochasticity']
+                           'energy', 'time', 
+                          #'track_start',
+                           'end', 'stochasticity']
 
         num_snowstorm_params = 0
         if 'snowstorm_parameter_names' in config:
@@ -256,11 +261,34 @@ class StochasticTrackSegmentModel(Source):
                                 parameters, tensor_name=parameter_tensor_name)
 
         num_features = parameters.get_shape().as_list()[-1]
-
         # get parameters tensor dtype
         tensors = self.data_trafo.data['tensors']
+        if ('x_time_exclusions' in tensors.names and
+                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+            time_exclusions_exist = True
+            x_time_exclusions = data_batch_dict['x_time_exclusions']
+            x_time_exclusions_ids = data_batch_dict['x_time_exclusions_ids']
+        else:
+            time_exclusions_exist = False
+        print('\t Applying time exclusions:', time_exclusions_exist)
+        
+        # get parameters tensor dtype
         param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
 
+        # shape: [n_batch, 86, 60, 1]
+        dom_charges_true = data_batch_dict['x_dom_charge']
+
+        pulse_times = pulses[:, 1]
+        pulse_charges = pulses[:, 0]
+        pulse_batch_id = pulses_ids[:, 0]
+
+        # get transformed parameters
+        parameters_trafo = self.data_trafo.transform(
+                                parameters, tensor_name=parameter_tensor_name)
+
+        num_features = parameters.get_shape().as_list()[-1]
+
+        
         # -----------------------------------
         # Calculate input values for DOMs
         # -----------------------------------
@@ -440,7 +468,7 @@ class StochasticTrackSegmentModel(Source):
         energy_after_trafo /= (params_std[5] + norm_const)
         energy_cherenkov_trafo /= (params_std[5] + norm_const)
 
-        # parameters: x, y, z, zenith, azimuth, energy, time, length, stoch
+        # parameters: x, y, z, zenith, azimuth, energy, time, length_start, length_end, stoch
         modified_parameters = tf.stack([dir_x, dir_y, dir_z]
                                        + [x_parameters_expanded[5]]
                                        + x_parameters_expanded[7:],
@@ -522,6 +550,40 @@ class StochasticTrackSegmentModel(Source):
         conv_hex3d_layers = self._untracked_data['conv_hex3d_layer'](
                                         x_doms_input, is_training=is_training,
                                         keep_prob=config['keep_prob'])
+
+        # -------------------------------------------
+        # Get times at which to evaluate DOM PDF
+        # -------------------------------------------
+
+        # offset PDF evaluation times with cascade vertex time
+        tensor_dict['time_offsets'] = parameters[:, 6]
+        t_pdf = pulse_times - tf.gather(parameters[:, 6],
+                                        indices=pulse_batch_id)
+        if time_exclusions_exist:
+            # offset time exclusions
+
+            # shape: [n_events]
+            tw_cascade_t = tf.gather(
+                parameters[:, 6], indices=x_time_exclusions_ids[:, 0])
+
+            # shape: [n_events, 2, 1]
+            t_exclusions = tf.expand_dims(
+                x_time_exclusions - tf.expand_dims(tw_cascade_t, axis=-1),
+                axis=-1,
+            )
+            t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
+
+        # new shape: [None, 1]
+        t_pdf = tf.expand_dims(t_pdf, axis=-1)
+        t_pdf = tf.ensure_shape(t_pdf, [None, 1])
+
+        # scale time range down to avoid big numbers:
+        t_scale = 1. / self.time_unit_in_ns  # [1./ns]
+        average_t_dist = 1000. * t_scale
+        t_pdf = t_pdf * t_scale
+        if time_exclusions_exist:
+            t_exclusions = t_exclusions * t_scale
+
 
         # -------------------------------------------
         # Get expected charge at DOM
@@ -770,6 +832,294 @@ class StochasticTrackSegmentModel(Source):
         print('pulse_latent_mu', pulse_latent_mu)
         print('latent_scale', latent_scale)
         print('pulse_latent_scale', pulse_latent_scale)
+
+        # -------------------------
+        # Calculate Time Exclusions
+        # -------------------------
+        if time_exclusions_exist:
+
+            # get latent vars for each time window
+            tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
+            tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
+            tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
+
+            # ensure shapes
+            tw_latent_mu = tf.ensure_shape(tw_latent_mu, [None, n_models])
+            tw_latent_sigma = tf.ensure_shape(
+                tw_latent_sigma, [None, n_models])
+            tw_latent_r = tf.ensure_shape(tw_latent_r, [None, n_models])
+
+            # [n_tw, 1] * [n_tw, n_models] = [n_tw, n_models]
+            tw_cdf_start = basis_functions.tf_asymmetric_gauss_cdf(
+                x=t_exclusions[:, 0], mu=tw_latent_mu, sigma=tw_latent_sigma,
+                r=tw_latent_r)
+            tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
+                x=t_exclusions[:, 1], mu=tw_latent_mu, sigma=tw_latent_sigma,
+                r=tw_latent_r)
+
+            tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
+
+            # some safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_all(tf.math.logical_or(
+                    tw_cdf_exclusion > -1e-4,
+                    ~tf.math.is_finite(tw_cdf_exclusion)
+                )),
+                ['Cascade TW CDF < 0!', tf.reduce_min(tw_cdf_exclusion)],
+            ))
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_all(tf.math.logical_or(
+                    tw_cdf_exclusion < 1.0001,
+                    ~tf.math.is_finite(tw_cdf_exclusion)
+                )),
+                ['Cascade TW CDF > 1!', tf.reduce_max(tw_cdf_exclusion)],
+            ))
+            with tf.control_dependencies(asserts):
+                tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                    tw_cdf_exclusion, 0., 1.)
+
+            # accumulate time window exclusions for each DOM and MM component
+            # shape: [None, 86, 60, n_models]
+            dom_cdf_exclusion = tf.zeros_like(latent_mu)
+
+            dom_cdf_exclusion = tf.tensor_scatter_nd_add(
+                dom_cdf_exclusion,
+                indices=x_time_exclusions_ids,
+                updates=tw_cdf_exclusion,
+            )
+            # limit to range [0., 1.]
+            # Note: we loose gradients if clipping is applied. Maybe
+            # tfp.math.clip_value_value_preserve_gradient is a better idea?
+            # these values should be close to 0 and 1, keeping gradients
+            # for values slightly outside should therefore be more correct
+            # add safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion > -1e-4,
+                    ~tf.math.is_finite(dom_cdf_exclusion)
+                )),
+                ['Cascade DOM CDF < 0!', tf.reduce_min(dom_cdf_exclusion)],
+            ))
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion < 1.0001,
+                    ~tf.math.is_finite(dom_cdf_exclusion)
+                )),
+                ['Cascade DOM CDF > 1!', tf.reduce_max(dom_cdf_exclusion)],
+            ))
+            with tf.control_dependencies(asserts):
+                dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                    dom_cdf_exclusion, 0., 1.)
+
+            # Shape: [None, 86, 60, 1]
+            dom_cdf_exclusion_sum = tf.reduce_sum(
+                dom_cdf_exclusion * latent_scale, axis=-1, keepdims=True)
+
+            # add safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion_sum > -1e-4,
+                    ~tf.math.is_finite(dom_cdf_exclusion_sum)
+                )),
+                ['Cascade DOM CDF sum < 0!',
+                 tf.reduce_min(dom_cdf_exclusion_sum)],
+            ))
+            asserts.append(tf.debugging.Assert(
+                tf.reduce_all(tf.math.logical_or(
+                    dom_cdf_exclusion_sum < 1.0001,
+                    ~tf.math.is_finite(dom_cdf_exclusion_sum)
+                )),
+                ['Cascade DOM CDF sum > 1!',
+                 tf.reduce_max(dom_cdf_exclusion_sum)],
+            ))
+            with tf.control_dependencies(asserts):
+                dom_cdf_exclusion_sum = (
+                    tfp.math.clip_by_value_preserve_gradient(
+                        dom_cdf_exclusion_sum, 0., 1.)
+                )
+
+            tensor_dict['dom_cdf_exclusion'] = dom_cdf_exclusion
+            tensor_dict['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
+
+        # -------------------------------------------
+        # Get expected charge at DOM
+        # -------------------------------------------
+
+        # the result of the convolution layers are the latent variables
+        dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
+                                           axis=-1)
+
+        # clip value range for more stability during training
+        dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20., 15)
+
+        # apply exponential which also forces positive values
+        dom_charges = tf.exp(dom_charges_trafo)
+
+        # scale charges by cascade energy
+        if config['scale_charge']:
+            # make sure cascade energy does not turn negative
+            cascade_energy = tf.clip_by_value(
+                parameter_list[5], 0., float('inf'))
+            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
+            dom_charges *= scale_factor
+
+        # scale charges by realtive DOM efficiency
+        if config['scale_charge_by_relative_dom_efficiency']:
+            dom_charges *= tf.expand_dims(
+                detector.rel_dom_eff.astype(param_dtype_np), axis=-1)
+
+        # scale charges by global DOM efficiency
+        if config['scale_charge_by_global_dom_efficiency']:
+            dom_charges *= tf.expand_dims(
+                parameter_list[self.get_index('DOMEfficiency')], axis=-1)
+
+        # apply time window exclusions if needed
+        if time_exclusions_exist:
+            dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
+
+        # add small constant to make sure dom charges are > 0:
+        dom_charges += 1e-7
+
+        tensor_dict['dom_charges'] = dom_charges
+        
+        # -------------------------------------
+        # get charge distribution uncertainties
+        # -------------------------------------
+        if config['estimate_charge_distribution'] is True:
+            sigma_scale_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 1],
+                                               axis=-1)
+            dom_charges_r_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 2],
+                                                 axis=-1)
+
+            # create correct offset and scaling
+            sigma_scale_trafo = 0.1 * sigma_scale_trafo - 2
+            dom_charges_r_trafo = 0.01 * dom_charges_r_trafo - 2
+
+            # force positive and min values
+            # The uncertainty can't be smaller than Poissonian error.
+            # However, we are approximating the distribution with an
+            # asymmetric Gaussian which might result in slightly different
+            # sigmas at low values.
+            # We will limit Gaussian sigma to a minimum value of 90% ofthe
+            # Poisson expectation.
+            # The Gaussian approximation will not hold for low charge DOMs.
+            # We will use a standard poisson likelihood for DOMs with a true
+            # detected charge of less than 5.
+            # Since the normalization is not correct for these likelihoods
+            # we need to keep the choice of llh fixed for an event, e.g.
+            # base the decision on the true measured charge.
+            # Note: this is not a correct and proper PDF description!
+            sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.9
+            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.9
+
+            # set default value to poisson uncertainty
+            dom_charges_sigma = tf.sqrt(
+                tfp.math.clip_by_value_preserve_gradient(
+                    dom_charges,
+                    0.0001,
+                    float('inf'))) * sigma_scale
+
+            # set threshold under which a Poisson Likelihood is used
+            charge_threshold = 5
+
+            # Apply Asymmetric Gaussian and/or Poisson Likelihood
+            # shape: [n_batch, 86, 60, 1]
+            eps = 1e-7
+            dom_charges_llh = tf.where(
+                dom_charges_true > charge_threshold,
+                tf.math.log(basis_functions.tf_asymmetric_gauss(
+                    x=dom_charges_true,
+                    mu=dom_charges,
+                    sigma=dom_charges_sigma,
+                    r=dom_charges_r,
+                ) + eps),
+                dom_charges_true * tf.math.log(dom_charges + eps) - dom_charges
+            )
+
+            # compute (Gaussian) uncertainty on predicted dom charge
+            dom_charges_unc = tf.where(
+                dom_charges_true > charge_threshold,
+                # take mean of left and right side uncertainty
+                # Note: this might not be correct
+                dom_charges_sigma*((1 + dom_charges_r)/2.),
+                tf.math.sqrt(dom_charges + eps)
+            )
+
+            # add tensors to tensor dictionary
+            tensor_dict['dom_charges_sigma'] = dom_charges_sigma
+            tensor_dict['dom_charges_r'] = dom_charges_r
+            tensor_dict['dom_charges_unc'] = dom_charges_unc
+            tensor_dict['dom_charges_variance'] = dom_charges_unc**2
+            tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
+
+        elif config['estimate_charge_distribution'] == 'negative_binomial':
+            """
+            Use negative binomial PDF instead of Poisson to account for
+            over-dispersion induces by systematic variations.
+
+            The parameterization chosen here is defined by the mean mu and
+            the over-dispersion factor alpha.
+
+                Var(x) = mu + alpha*mu**2
+
+            Alpha must be greater than zero.
+            """
+            alpha_trafo = tf.expand_dims(
+                conv_hex3d_layers[-1][..., 1], axis=-1)
+
+            # create correct offset and force positive and min values
+            # The over-dispersion parameterized by alpha must be greater zero
+            dom_charges_alpha = tf.nn.elu(alpha_trafo - 5) + 1.000001
+
+            # compute log pdf
+            dom_charges_llh = basis_functions.tf_log_negative_binomial(
+                x=dom_charges_true,
+                mu=dom_charges,
+                alpha=dom_charges_alpha,
+                )
+
+            # compute standard deviation
+            # std = sqrt(var) = sqrt(mu + alpha*mu**2)
+            dom_charges_variance = (
+                dom_charges + dom_charges_alpha*dom_charges**2)
+            dom_charges_unc = tf.sqrt(dom_charges_variance)
+
+            # add tensors to tensor dictionary
+            tensor_dict['dom_charges_alpha'] = dom_charges_alpha
+            tensor_dict['dom_charges_unc'] = dom_charges_unc
+            tensor_dict['dom_charges_variance'] = dom_charges_variance
+            tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
+
+        else:
+            # Poisson Distribution: variance is equal to expected charge
+            tensor_dict['dom_charges_unc'] = tf.sqrt(dom_charges)
+            tensor_dict['dom_charges_variance'] = dom_charges
+
+        # --------------------------
+        # Calculate Pulse PDF Values
+        # --------------------------
+
+        # get latent vars for each pulse
+        pulse_latent_mu = tf.gather_nd(latent_mu, pulses_ids)
+        pulse_latent_sigma = tf.gather_nd(latent_sigma, pulses_ids)
+        pulse_latent_r = tf.gather_nd(latent_r, pulses_ids)
+        pulse_latent_scale = tf.gather_nd(latent_scale, pulses_ids)
+
+        # scale up pulse pdf by time exclusions if needed
+        if time_exclusions_exist:
+            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
+            pulse_latent_scale /= (1. - pulse_cdf_exclusion + 1e-3)
+
+        # ensure shapes
+        pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])
+        pulse_latent_sigma = tf.ensure_shape(pulse_latent_sigma,
+                                             [None, n_models])
+        pulse_latent_r = tf.ensure_shape(pulse_latent_r, [None, n_models])
+        pulse_latent_scale = tf.ensure_shape(pulse_latent_scale,
+                                             [None, n_models])
 
         # -------------------------------------------
         # Apply Asymmetric Gaussian Mixture Model
