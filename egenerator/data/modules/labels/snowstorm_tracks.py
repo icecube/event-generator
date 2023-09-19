@@ -124,9 +124,10 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
 
         # create list of parameter names which is needed for data loading
         parameter_names = [
-            'zenith', 'azimuth',
             'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-            'track_anchor_time', 'track_energy',
+            'zenith', 'azimuth',
+            'track_energy',
+            'track_anchor_time', 
             #'track_distance_start', 
             'track_distance_end',
             'track_stochasticity',
