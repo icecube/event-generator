@@ -121,20 +121,14 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             raise ValueError('Num cascades {} must be positive!'.format(
                 num_cascades))
 
-        # compute number of parameters
-        if num_cascades == 0:
-            num_params = 10
-        elif num_cascades == 1:
-            num_params = 11
-        else:
-            num_params = 11 + (num_cascades - 1) * 2
 
         # create list of parameter names which is needed for data loading
         parameter_names = [
             'zenith', 'azimuth',
             'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
             'track_anchor_time', 'track_energy',
-            'track_distance_start', 'track_distance_end',
+            #'track_distance_start', 
+            'track_distance_end',
             'track_stochasticity',
         ]
         if num_cascades >= 1:
@@ -144,6 +138,8 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                 for i in range(1, num_cascades):
                     parameter_names.append('cascade_{:04d}_energy'.format(i))
                     parameter_names.append('cascade_{:04d}_distance'.format(i))
+
+        num_params = len(parameter_names)
 
         parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):
@@ -221,7 +217,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         try:
             _labels = f[self.configuration.config['label_key']]
             for l in self.data['parameter_names']:
-                    track_parameters.append(_labels[l])
+                track_parameters.append(_labels[l])
 
             snowstorm_key = self.configuration.config['snowstorm_key']
             num_params = self.configuration.config['num_snowstorm_params']
