@@ -281,7 +281,7 @@ class DefaultLEModel(Source):
                                              )
         orientation_angle = tf.expand_dims(tf.cos(orientation_angle), axis=-1) #
 
-        # calculate opening angle of displacement vector and cascade direction
+        # calculate opening angle of displacement vector and event direction
         opening_angle = angles.get_angle(tf.stack([dir_x, 
                                                    dir_y, 
                                                    dir_z], axis=-1),

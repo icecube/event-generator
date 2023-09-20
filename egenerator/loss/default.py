@@ -407,10 +407,11 @@ class DefaultLossModule(BaseComponent):
         
         if ('int_charges' in self.configuration.config['config'] and 
                 self.configuration.config['config']['int_charges']):
-            hits_true = tf.where((hits_true > 0.25) & (hits_true < 1.75),
-                                 1.,
-                                 tf.round(hits_true)
-                                )
+            #hits_true = tf.where((hits_true > 0.25) & (hits_true < 1.75),
+            #                     1.,
+            #                     tf.round(hits_true)
+            #                    )
+            hits_true = tf.round(hits_true)
 
 
         # compute poisson charge likelihood over DOMs
@@ -521,10 +522,11 @@ class DefaultLossModule(BaseComponent):
 
         if ('int_charges' in self.configuration.config['config'] and 
                 self.configuration.config['config']['int_charges']):
-            pulse_charges = tf.where((pulse_charges > 0.25) & (pulse_charges < 1.75),
-                                 1.,
-                                 tf.round(pulse_charges)
-                                )
+            #pulse_charges = tf.where((pulse_charges > 0.25) & (pulse_charges < 1.75),
+            #                     1.,
+            #                     tf.round(pulse_charges)
+            #                    )
+            pulse_charges = tf.round(pulse_charges)
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
