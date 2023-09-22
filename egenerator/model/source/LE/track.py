@@ -242,7 +242,7 @@ class TrackLEModel(Source):
 
         params_reshaped = tf.reshape(parameters, [-1]+[1]*ndim+[num_features])
 
-        # parameters: x, y, z, zenith, azimuth, cscd_energy, time, trck_energy, trck_length
+        # parameters: x, y, z, zenith, azimuth, cscd_energy, time, trck_energy
         parameter_list = tf.unstack(params_reshaped, axis=-1)
 
         # calculate displacement vector
@@ -260,7 +260,7 @@ class TrackLEModel(Source):
         dy_normed = dy / distance
         dz_normed = dz / distance
 
-        # calculate direction vector of cascade
+        # calculate direction vector of track
         zenith = parameter_list[3]
         azimuth = parameter_list[4]
         dir_x = -tf.sin(zenith) * tf.cos(azimuth)
@@ -271,16 +271,8 @@ class TrackLEModel(Source):
         dom_azimuths_tf = tf.convert_to_tensor(dom_azimuths, dtype=tf.float32)
         dom_zeniths_tf = tf.convert_to_tensor(dom_zeniths, dtype=tf.float32)
         pmt_orientations = angles.sph_to_cart_tf(azimuth=dom_azimuths_tf,zenith=dom_zeniths_tf)
-        
-        # calculate opening angle of displacement vector and pmt orientation
-        orientation_angle = angles.get_angle(pmt_orientations,
-                                             tf.concat([dx_normed,
-                                                        dy_normed,
-                                                        dz_normed], axis=-1)
-                                             )
-        orientation_angle = tf.expand_dims(tf.cos(orientation_angle), axis=-1)
 
-        # calculate opening angle of displacement vector and cascade direction
+        # calculate opening angle of displacement vector and track direction
         opening_angle = angles.get_angle(tf.stack([dir_x, 
                                                    dir_y, 
                                                    dir_z], axis=-1),
@@ -290,26 +282,31 @@ class TrackLEModel(Source):
                                          )
         opening_angle = tf.expand_dims(tf.cos(opening_angle), axis=-1)
         
-        # get closest point on (finite) track to DOM
-        T = distance * tf.cos(opening_angle)
+        # get diff to closest point on (finite) track to DOM
         T_lengths = tf.expand_dims(parameter_list[7]*4.8, axis=-1)
-        for i, n in enumerate(T.shape.as_list()[1:]):
-            T_lengths = tf.repeat(T_lengths, repeats=n, axis=i+1)
-        T_distance = tf.where(T > 0,
-                              tf.where(T <= T_lengths,
-                                       distance * tf.sin(opening_angle),
-                                       tf.sqrt(tf.square(distance)+tf.square(T_lengths)-
-                                               2*distance*T_lengths*tf.cos(opening_angle)
-                                              )
-                                      ),
-                              distance
-                             )
+        T = tf.clip_by_value(distance * opening_angle, 0, T_lengths)
+
+        d_p_x = dom_coordinates[..., 0] - (parameter_list[0] + T[..., 0] * dir_x)
+        d_p_y = dom_coordinates[..., 1] - (parameter_list[1] + T[..., 0] * dir_y)
+        d_p_z = dom_coordinates[..., 2] - (parameter_list[2] + T[..., 0] * dir_z)
+        
+        # get distance to closest point on (finite) track to DOM
+        T_distance = tf.sqrt(d_p_x**2 + d_p_y**2 + d_p_z**2)
+        
+        # calculate opening angle of displacement vector (with closest point) and pmt orientation
+        orientation_angle = angles.get_angle(pmt_orientations,
+                                             tf.stack([d_p_x / T_distance,
+                                                       d_p_y / T_distance,
+                                                       d_p_z / T_distance], axis=-1)
+                                             )
+        orientation_angle = tf.expand_dims(tf.cos(orientation_angle), axis=-1)
 
         # transform dx, dy, dz, distance, zenith, azimuth to correct scale
         params_mean = self.data_trafo.data[parameter_tensor_name+'_mean']
         params_std = self.data_trafo.data[parameter_tensor_name+'_std']
         norm_const = self.data_trafo.data['norm_constant']
 
+        T_distance = tf.expand_dims(T_distance, axis=-1)
         T_distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
         p_dens_T = tf.clip_by_value(1/T_distance**2, 0, 10)
         orientation_angle_traf = ((orientation_angle + 1) / 2)
@@ -377,7 +374,7 @@ class TrackLEModel(Source):
         # Get times at which to evaluate DOM PDF
         # -------------------------------------------
         
-        # offset PDF evaluation times with cascade vertex time
+        # offset PDF evaluation times with track vertex time
         tensor_dict['time_offsets'] = parameters[:, 6]
         t_pdf = pulse_times - tf.gather(parameters[:, 6],
                                         indices=pulse_batch_id)

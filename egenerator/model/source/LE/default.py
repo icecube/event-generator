@@ -291,20 +291,16 @@ class DefaultLEModel(Source):
                                          )
         opening_angle = tf.expand_dims(tf.cos(opening_angle), axis=-1) #
         
-        # get closest point on (finite) track to DOM
-        T = distance * tf.cos(opening_angle)
+        # get diff to closest point on (finite) track to DOM
         T_lengths = tf.expand_dims(parameter_list[7]*4.8, axis=-1)
-        for i, n in enumerate(T.shape.as_list()[1:]):
-            T_lengths = tf.repeat(T_lengths, repeats=n, axis=i+1)
-        T_distance = tf.where(T > 0,
-                              tf.where(T <= T_lengths,
-                                       distance * tf.sin(opening_angle),
-                                       tf.sqrt(tf.square(distance)+tf.square(T_lengths)-
-                                               2*distance*T_lengths*tf.cos(opening_angle)
-                                              )
-                                      ),
-                              distance
-                             )
+        T = tf.clip_by_value(distance * opening_angle, 0, T_lengths)
+
+        d_p_x = dom_coordinates[..., 0] - (parameter_list[0] + T[..., 0] * dir_x)
+        d_p_y = dom_coordinates[..., 1] - (parameter_list[1] + T[..., 0] * dir_y)
+        d_p_z = dom_coordinates[..., 2] - (parameter_list[2] + T[..., 0] * dir_z)
+        
+        # get distance to closest point on (finite) track to DOM
+        T_distance = tf.sqrt(d_p_x**2 + d_p_y**2 + d_p_z**2)
         
         # transform dx, dy, dz, distance, zenith, azimuth to correct scale
         params_mean = self.data_trafo.data[parameter_tensor_name+'_mean']
