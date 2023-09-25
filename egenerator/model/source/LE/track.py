@@ -620,6 +620,11 @@ class TrackLEModel(Source):
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
+        
+        if is_training:
+            energy = parameter_list[7].numpy().astype(bool).astype(param_dtype_np)
+            scale_factor = tf.expand_dims(energy, axis=-1)
+            dom_charges *= scale_factor
 
         tensor_dict['dom_charges'] = dom_charges
 
