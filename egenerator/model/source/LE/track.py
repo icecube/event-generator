@@ -622,7 +622,7 @@ class TrackLEModel(Source):
         dom_charges += 1e-7
         
         if is_training:
-            energy = parameter_list[7].numpy().astype(bool).astype(param_dtype_np)
+            energy = tf.cast(tf.cast(parameter_list[7], bool), parameter_list[7].dtype)
             scale_factor = tf.expand_dims(energy, axis=-1)
             dom_charges *= scale_factor
 
