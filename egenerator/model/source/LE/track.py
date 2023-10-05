@@ -617,14 +617,15 @@ class TrackLEModel(Source):
         # apply time window exclusions if needed
         if time_exclusions_exist:
             dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
-
-        # add small constant to make sure dom charges are > 0:
-        dom_charges += 1e-7
         
+        # set charges to 0 if there is no track
         if is_training:
             energy = tf.cast(tf.cast(parameter_list[7], bool), parameter_list[7].dtype)
             scale_factor = tf.expand_dims(energy, axis=-1)
             dom_charges *= scale_factor
+            
+        # add small constant to make sure dom charges are > 0:
+        dom_charges += 1e-7
 
         tensor_dict['dom_charges'] = dom_charges
 
@@ -779,6 +780,9 @@ class TrackLEModel(Source):
                                         tf.reduce_sum(pulse_pdf_values, axis=-1),
                                         1e-3
                                        )
+            # set time PDFs to 0 if there is no track
+            scale = tf.cast(tf.gather(parameters[:, 7], indices=pulse_batch_id), bool)
+            pulse_pdf_values *= tf.cast(scale, parameter_list[7].dtype)
         else:
             pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
 
