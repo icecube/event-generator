@@ -860,10 +860,12 @@ class SourceManager(BaseModelManager):
     def reconstruct_events_spherical_opt(self, data_batch, loss_module,
                                          loss_function,
                                          fit_parameter_list,
+                                         limits,
                                          minimize_in_trafo_space=True,
                                          seed='x_parameters',
                                          parameter_tensor_name='x_parameters',
                                          batch_size=1,
+                                         spherical_indices=[[4,3]],
                                          **kwargs):
         """Reconstruct events with scipy.optimize.minimize interface.
 
@@ -883,6 +885,8 @@ class SourceManager(BaseModelManager):
             Indicates whether a parameter is to be minimized.
             The ith element in the list specifies if the ith parameter
             is minimized.
+        limits : array_like
+            Reconstruction boundaries
         minimize_in_trafo_space : bool, optional
             If True, minimization is performed in transformed and normalized
             parameter space. This is usually desired, because the scales of
@@ -897,6 +901,11 @@ class SourceManager(BaseModelManager):
             The name of the parameter tensor to use. Default: 'x_parameters'
         batch_size : int, optional
             The batch size to use for spherical optimizer.
+        spherical_indices : iterable of tuples
+            Indices of spherical coordinates in pairs of (azimuth, zenith) e.g.
+            `[[0,1], [7,8]]` would identify indices 0 as azimuth and 1 as zenith as
+            spherical coordinates and 7 and 8 another pair of independent spherical
+            coordinates
         **kwargs
             Keyword arguments that will be passed on to scipy.optimize.minimize
 
@@ -923,6 +932,9 @@ class SourceManager(BaseModelManager):
 
         # define helper function
         def func(x, data_batch, seed):
+            if ~np.all(np.logical_and(limits[:,0] <= x, x <= limits[:,1]), axis=-1):
+                return 1e7
+            
             # reshape and convert to tensor
             x = np.reshape(x, param_shape).astype(param_dtype)
             seed = np.reshape(seed, param_shape_full).astype(param_dtype)
@@ -959,25 +971,31 @@ class SourceManager(BaseModelManager):
         # get spherical indices
         if minimize_in_trafo_space or not np.all(fit_parameter_list):
             spherical_indices = tuple()
-        else:
-            print('Using spherical indices for CRS2 Optimization!')
-            mapping = self.configuration.config['config']['I3ParticleMapping']
-            spherical_indices = [
-                [self.models[0].get_index(mapping['azimuth']),
-                 self.models[0].get_index(mapping['zenith'])],
-            ]
+        #else:
+        #    print('Using spherical indices for CRS2 Optimization!')
+        #    mapping = self.configuration.config['config']['I3ParticleMapping']
+        #    spherical_indices = [
+        #        [self.models[0].get_index(mapping['azimuth']),
+        #         self.models[0].get_index(mapping['zenith'])],
+        #    ]
 
         # ----------------------
         # HACK TO ADD MORE SEEDS
         # ----------------------
-        x0 = np.tile(x0, (batch_size*20, 1))
-        x0[1:] = np.random.normal(x0[1:], scale=[[10, 10, 10, 1, 1, 100, 10]])
+        T = seed_array[0]
+        bounds = np.array([[T[0]-100, T[0]+100], [T[1]-100, T[1]+100], [T[2]-70, T[2]+70], [-1, 1], 
+                           [0, 6.28], [-1, 2.6], [T[6]-300, T[6]+300], [-1, 2.6]])
+        x0 = np.random.uniform(size=(97,len(bounds))) * (bounds[:, 1] - bounds[:, 0]) + bounds[:, 0]
+        x0[:, 3] = np.arccos(x0[:, 3])
+        x0[:, 5] = 10 ** x0[:, 5]
+        x0[:, 7] = 10 ** x0[:, 7]
         # ----------------------
 
         result = spherical_opt(
             func=lambda x: func(x, data_batch, seed_array),
             spherical_indices=spherical_indices,
-            initial_points=x0, method='CRS2',
+            initial_points=x0,
+            method='CRS2',
             batch_size=batch_size,
             **kwargs
         )
@@ -1614,6 +1632,7 @@ class SourceManager(BaseModelManager):
                 scipy_optimizer_settings=reco_config[
                     'scipy_optimizer_settings'],
                 tf_optimizer_settings=reco_config['tf_optimizer_settings'],
+                spherical_optimizer_settings=reco_config['spherical_optimizer_settings'],
             )
 
         # chosse best reconstruction

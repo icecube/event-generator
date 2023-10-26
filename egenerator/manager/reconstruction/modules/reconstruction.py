@@ -21,6 +21,7 @@ class Reconstruction:
                  scipy_optimizer_settings={'method': 'BFGS'},
                  tf_optimizer_settings={'method': 'bfgs_minimize',
                                         'x_tolerance': 0.001},
+                 spherical_optimizer_settings={'limits': None},
                  verbose=True,
                  ):
         """Initialize reconstruction module and setup tensorflow functions.
@@ -200,12 +201,15 @@ class Reconstruction:
                 loss_function = manager.get_parameter_loss_function(
                     **func_loss_settings)
                 function_cache.add(loss_function, func_loss_settings)
+                
+            limits = np.array(spherical_optimizer_settings['limits'])
 
             def reconstruction_method(data_batch, seed_tensor):
                 return manager.reconstruct_events_spherical_opt(
                     data_batch, loss_module,
                     loss_function=loss_function,
                     fit_parameter_list=fit_parameter_list,
+                    limits=limits,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name)
