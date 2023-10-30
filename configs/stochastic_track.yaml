@@ -96,7 +96,7 @@ reconstruction_settings: {
     ], 
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {},
-
+    'seed_float_precision': 'float32',
     # choose the otpimizer iterface:
     #   'scipy' or 'tfp' (tensorflow_probability)
     'reco_optimizer_interface': 'scipy',
