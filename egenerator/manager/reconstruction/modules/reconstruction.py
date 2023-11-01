@@ -21,7 +21,8 @@ class Reconstruction:
                  scipy_optimizer_settings={'method': 'BFGS'},
                  tf_optimizer_settings={'method': 'bfgs_minimize',
                                         'x_tolerance': 0.001},
-                 spherical_optimizer_settings={'limits': None},
+                 spherical_optimizer_settings={'limits': None,
+                                               'batch_size': 12},
                  verbose=True,
                  ):
         """Initialize reconstruction module and setup tensorflow functions.
@@ -188,7 +189,7 @@ class Reconstruction:
 
             func_loss_settings = dict(function_settings)
 
-            batch_size = 1
+            batch_size = spherical_optimizer_settings['batch_size']
             if batch_size > 1:
                 func_loss_settings['reduce_to_scalar'] = False
                 func_loss_settings['sort_loss_terms'] = True
@@ -212,7 +213,8 @@ class Reconstruction:
                     limits=limits,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,
-                    parameter_tensor_name=parameter_tensor_name)
+                    parameter_tensor_name=parameter_tensor_name,
+                    batch_size=batch_size)
 
         else:
             raise ValueError('Unknown interface {!r}. Options are {!r}'.format(

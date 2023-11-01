@@ -932,22 +932,45 @@ class SourceManager(BaseModelManager):
 
         # define helper function
         def func(x, data_batch, seed):
-            if ~np.all(np.logical_and(limits[:,0] <= x, x <= limits[:,1]), axis=-1):
-                return 1e7
+            if len(x.shape) == 1:
+                if ~np.all(np.logical_and(limits[:,0] <= x, x <= limits[:,1]), axis=-1):
+                    return 1e7
             
-            # reshape and convert to tensor
-            x = np.reshape(x, param_shape).astype(param_dtype)
-            seed = np.reshape(seed, param_shape_full).astype(param_dtype)
-            if batch_size == 1:
+                # reshape and convert to tensor
+                x = np.reshape(x, param_shape).astype(param_dtype)
+                seed = np.reshape(seed, param_shape_full).astype(param_dtype)
                 loss = loss_function(x, data_batch, seed=seed)
+                return loss
+            
+            elif len(x.shape) == 2:
+                nPoints = len(x)
+                bounds = np.zeros(nPoints)
+                for i in range(nPoints):
+                    if ~np.all(np.logical_and(limits[:,0] <= x[i], x[i] <= limits[:,1]), axis=-1):
+                        bounds[i] = 1e7
+                
+                # dublicate events
+                db = list(data_batch)
+                x_dom_charges = data_batch[0]
+                x_pulses = data_batch[3]
+                x_pulses_ids = data_batch[4]
+                x_dom_charges = np.repeat(x_dom_charges, nPoints, axis=0)
+                x_pulses = np.repeat(x_pulses, nPoints, axis=0)
+                x_pulses_ids = np.repeat(x_pulses_ids, nPoints, axis=0)
+                for i in range(nPoints):
+                    x_pulses_ids[i::nPoints, 0] = i
+                db[0] = x_dom_charges
+                db[3] = x_pulses
+                db[4] = x_pulses_ids
+                
+                # reshape and convert to tensor
+                #seed = np.reshape(seed, param_shape_full).astype(param_dtype)
+                scalar, event, dom = loss_function(x, tuple(db), seed=seed)
+                loss = np.sum(dom.numpy().astype('float64'), axis=(1, 2))
+                return loss + bounds
+                
             else:
-                scalar, event, dom = loss_function(x, data_batch, seed=seed)
-                loss = (
-                    scalar.numpy().astype('float64') / len(event.numpy()) +
-                    event.numpy().astype('float64') +
-                    np.sum(dom.numpy().astype('float64'), axis=(1, 2))
-                )
-            return loss
+                raise ValueError("Only 1 and 2 dimensional inputs allowed, you provided %i"%(len(x.shape)))
 
         # transform seed if minimization is performed in trafo space
         if isinstance(seed, str):
@@ -985,7 +1008,7 @@ class SourceManager(BaseModelManager):
         T = seed_array[0]
         bounds = np.array([[T[0]-100, T[0]+100], [T[1]-100, T[1]+100], [T[2]-70, T[2]+70], [-1, 1], 
                            [0, 6.28], [-1, 2.6], [T[6]-300, T[6]+300], [-1, 2.6]])
-        x0 = np.random.uniform(size=(97,len(bounds))) * (bounds[:, 1] - bounds[:, 0]) + bounds[:, 0]
+        x0 = np.random.uniform(size=(97, len(bounds))) * (bounds[:, 1] - bounds[:, 0]) + bounds[:, 0]
         x0[:, 3] = np.arccos(x0[:, 3])
         x0[:, 5] = 10 ** x0[:, 5]
         x0[:, 7] = 10 ** x0[:, 7]
