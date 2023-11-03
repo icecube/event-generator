@@ -75,7 +75,7 @@ class TrackLEModel(Source):
         else:
             num_add_labels = 0
 
-        num_inputs = 4 + num_add_labels
+        num_inputs = 5 + num_add_labels
 
         if config['add_opening_angle']:
             num_inputs += 1
