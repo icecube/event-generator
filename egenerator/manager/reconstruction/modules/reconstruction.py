@@ -187,7 +187,7 @@ class Reconstruction:
 
         elif reco_optimizer_interface.lower() == 'spherical_opt':
 
-            func_loss_settings = dict(function_settings)
+            func_loss_settings = dict(loss_settings)
 
             batch_size = spherical_optimizer_settings['batch_size']
             if batch_size > 1:
@@ -204,6 +204,8 @@ class Reconstruction:
                 function_cache.add(loss_function, func_loss_settings)
                 
             limits = np.array(spherical_optimizer_settings['limits'])
+            seed_box = np.array(spherical_optimizer_settings['seed_box'])
+            geo = np.load(spherical_optimizer_settings['detector_pickle'], allow_pickle=True)['dom_coordinates']
 
             def reconstruction_method(data_batch, seed_tensor):
                 return manager.reconstruct_events_spherical_opt(
@@ -211,8 +213,9 @@ class Reconstruction:
                     loss_function=loss_function,
                     fit_parameter_list=fit_parameter_list,
                     limits=limits,
+                    seed_box=seed_box,
+                    geo=geo,
                     minimize_in_trafo_space=minimize_in_trafo_space,
-                    seed=seed_tensor,
                     parameter_tensor_name=parameter_tensor_name,
                     batch_size=batch_size)
 

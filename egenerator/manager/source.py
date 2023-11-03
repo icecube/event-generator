@@ -861,10 +861,11 @@ class SourceManager(BaseModelManager):
                                          loss_function,
                                          fit_parameter_list,
                                          limits,
-                                         minimize_in_trafo_space=True,
-                                         seed='x_parameters',
+                                         seed_box,
+                                         geo,
+                                         minimize_in_trafo_space=False,
                                          parameter_tensor_name='x_parameters',
-                                         batch_size=1,
+                                         batch_size=12,
                                          spherical_indices=[[4,3]],
                                          **kwargs):
         """Reconstruct events with scipy.optimize.minimize interface.
@@ -887,16 +888,15 @@ class SourceManager(BaseModelManager):
             is minimized.
         limits : array_like
             Reconstruction boundaries
+        seed_box : array_like
+            The initial ndimensional box that the CRS points should populate
+        geo : array_like
+            Positions (x,y,z) of all optical modules
         minimize_in_trafo_space : bool, optional
             If True, minimization is performed in transformed and normalized
             parameter space. This is usually desired, because the scales of
             the parameters will all be normalized which should facilitate
             minimization.
-        seed : str or array_like
-            This specifies the tensor that is being used as a seed for the
-            reconstruction. This can either be the name of the data tensor
-            within the `data_batch`, or by a separate tensor.
-            The tensor should *NOT* be transformed.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
         batch_size : int, optional
@@ -931,15 +931,14 @@ class SourceManager(BaseModelManager):
                                         len(fit_parameter_list)))
 
         # define helper function
-        def func(x, data_batch, seed):
+        def func(x, data_batch):
             if len(x.shape) == 1:
                 if ~np.all(np.logical_and(limits[:,0] <= x, x <= limits[:,1]), axis=-1):
                     return 1e7
             
                 # reshape and convert to tensor
                 x = np.reshape(x, param_shape).astype(param_dtype)
-                seed = np.reshape(seed, param_shape_full).astype(param_dtype)
-                loss = loss_function(x, data_batch, seed=seed)
+                loss = loss_function(x, data_batch)
                 return loss
             
             elif len(x.shape) == 2:
@@ -964,58 +963,31 @@ class SourceManager(BaseModelManager):
                 db[4] = x_pulses_ids
                 
                 # reshape and convert to tensor
-                #seed = np.reshape(seed, param_shape_full).astype(param_dtype)
-                scalar, event, dom = loss_function(x, tuple(db), seed=seed)
+                scalar, event, dom = loss_function(x, db)
                 loss = np.sum(dom.numpy().astype('float64'), axis=(1, 2))
-                return loss + bounds
+                return np.where(bounds == 1e7, bounds, loss)
                 
             else:
                 raise ValueError("Only 1 and 2 dimensional inputs allowed, you provided %i"%(len(x.shape)))
 
-        # transform seed if minimization is performed in trafo space
-        if isinstance(seed, str):
-            seed_index = self.data_handler.tensors.get_index(seed)
-            seed_array = data_batch[seed_index]
-        else:
-            seed_array = seed
-        if minimize_in_trafo_space:
-            seed_array_trafo = self.data_trafo.transform(
-                data=seed_array, tensor_name=parameter_tensor_name)
-        else:
-            seed_array_trafo = seed_array
-
-        # get seed parameters
-        if np.all(fit_parameter_list):
-            x0 = seed_array_trafo
-        else:
-            # get seed parameters
-            x0 = seed_array_trafo[:, fit_parameter_list]
-
-        # get spherical indices
-        if minimize_in_trafo_space or not np.all(fit_parameter_list):
-            spherical_indices = tuple()
-        #else:
-        #    print('Using spherical indices for CRS2 Optimization!')
-        #    mapping = self.configuration.config['config']['I3ParticleMapping']
-        #    spherical_indices = [
-        #        [self.models[0].get_index(mapping['azimuth']),
-        #         self.models[0].get_index(mapping['zenith'])],
-        #    ]
-
-        # ----------------------
-        # HACK TO ADD MORE SEEDS
-        # ----------------------
-        T = seed_array[0]
-        bounds = np.array([[T[0]-100, T[0]+100], [T[1]-100, T[1]+100], [T[2]-70, T[2]+70], [-1, 1], 
-                           [0, 6.28], [-1, 2.6], [T[6]-300, T[6]+300], [-1, 2.6]])
-        x0 = np.random.uniform(size=(97, len(bounds))) * (bounds[:, 1] - bounds[:, 0]) + bounds[:, 0]
+        # sample initial CRS points
+        idx = data_batch[4][:, 1:]
+        if idx.shape[-1] == 1:
+            x_s, y_s, z_s = np.average(geo[idx[:,0]], axis=0, weights=data_batch[3][:,0])
+        elif idx.shape[-1] == 2:
+            x_s, y_s, z_s = np.average(geo[idx[:,0], idx[:,1]], axis=0, weights=data_batch[3][:,0])
+        t_s = np.average(data_batch[3][:,1], weights=data_batch[3][:,0])
+        box = np.array([[x_s, x_s], [y_s, y_s], [z_s, z_s], [0, 0], [0, 0], [0, 0], [t_s, t_s], [0, 0]]) + seed_box
+        
+        nPoints = batch_size * num_fit_params + 1 # make this an input?
+        x0 = np.random.uniform(size=(nPoints, len(box))) * (box[:, 1] - box[:, 0]) + box[:, 0]
         x0[:, 3] = np.arccos(x0[:, 3])
         x0[:, 5] = 10 ** x0[:, 5]
         x0[:, 7] = 10 ** x0[:, 7]
-        # ----------------------
 
+        # fit
         result = spherical_opt(
-            func=lambda x: func(x, data_batch, seed_array),
+            func=lambda x: func(x, data_batch),
             spherical_indices=spherical_indices,
             initial_points=x0,
             method='CRS2',
