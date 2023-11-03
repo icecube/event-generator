@@ -929,6 +929,11 @@ class SourceManager(BaseModelManager):
             msg = 'Wrong length of fit_parameter_list: {!r} != {!r}'
             raise ValueError(msg.format(param_tensor.shape[1],
                                         len(fit_parameter_list)))
+            
+        if len(data_batch[3]) == 0: # no hits
+            print('Event has no hits -> skipping it')
+            best_fit = np.reshape(np.zeros(num_fit_params), param_shape)
+            return best_fit, {}
 
         # define helper function
         def func(x, data_batch):
@@ -948,7 +953,7 @@ class SourceManager(BaseModelManager):
                     if ~np.all(np.logical_and(limits[:,0] <= x[i], x[i] <= limits[:,1]), axis=-1):
                         bounds[i] = 1e7
                 
-                # dublicate events
+                # dublicate event
                 db = list(data_batch)
                 x_dom_charges = data_batch[0]
                 x_pulses = data_batch[3]
