@@ -309,6 +309,7 @@ class TrackLEModel(Source):
         T_distance = tf.expand_dims(T_distance, axis=-1)
         T_distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
         p_dens_T = tf.clip_by_value(1/T_distance**2, 0, 10)
+        T /= 500.
         orientation_angle_traf = ((orientation_angle + 1) / 2)
         opening_angle_traf = ((opening_angle + 1) / 2)
 
@@ -330,7 +331,7 @@ class TrackLEModel(Source):
         params_expanded = tf.tile(modified_parameters, input_shape)
        
         input_list = [params_expanded, #dx_normed, dy_normed, dz_normed,
-                      T_distance, orientation_angle_traf, p_dens_T]
+                      T_distance, orientation_angle_traf, p_dens_T, T]
        
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
@@ -619,10 +620,10 @@ class TrackLEModel(Source):
             dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
         
         # set charges to 0 if there is no track
-        if is_training:
-            energy = tf.cast(tf.cast(parameter_list[7], bool), parameter_list[7].dtype)
-            scale_factor = tf.expand_dims(energy, axis=-1)
-            dom_charges *= scale_factor
+        #if is_training:
+        #    energy = tf.cast(tf.cast(parameter_list[7], bool), parameter_list[7].dtype)
+        #    scale_factor = tf.expand_dims(energy, axis=-1)
+        #    dom_charges *= scale_factor
             
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
@@ -781,8 +782,8 @@ class TrackLEModel(Source):
                                         1e-3
                                        )
             # set time PDFs to 0 if there is no track
-            scale = tf.cast(tf.gather(parameters[:, 7], indices=pulse_batch_id), bool)
-            pulse_pdf_values *= tf.cast(scale, parameter_list[7].dtype)
+            #scale = tf.cast(tf.gather(parameters[:, 7], indices=pulse_batch_id), bool)
+            #pulse_pdf_values *= tf.cast(scale, parameter_list[7].dtype)
         else:
             pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
 
