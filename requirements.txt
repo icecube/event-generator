@@ -1,10 +1,12 @@
 numpy
 scipy
 pandas
-ruamel.yaml
+ruamel.yaml<0.18.0  # version 0.18.0 retires some interface functions https://pypi.org/project/ruamel.yaml/
 pandas
 click
 gitpython
 tqdm
 tables
 tensorflow_probability
+tensorflow
+tfscripts @ git+https://github.com/icecube/TFScripts
