@@ -592,8 +592,7 @@ class CascadeLEModel(Source):
         # scale charges by energy
         if config['scale_charge']:
             # make sure energy does not turn negative
-            energy = tf.clip_by_value(
-                parameter_list[5], 0., float('inf'))
+            energy = tf.clip_by_value(parameter_list[5], 0., float('inf'))
             scale_factor = tf.expand_dims(energy, axis=-1) / 10.0
             dom_charges *= scale_factor
 

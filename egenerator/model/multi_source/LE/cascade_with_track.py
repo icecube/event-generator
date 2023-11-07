@@ -95,7 +95,7 @@ class CascadeWithTrackModel(MultiSource):
         # Compute parameters for Cascades
         # -------------------------------
         # parameters: x, y, z, zenith, azimuth, energy, time
-        cascade_base = tf.stack([x, y, z, zenith, azimuth, cscd_energy, time, trck_energy], axis=1,)
+        cascade_base = tf.stack([x, y, z, zenith, azimuth, cscd_energy, time, trck_energy], axis=1)
         source_parameter_dict['cascade'] = cascade_base
 
         return source_parameter_dict

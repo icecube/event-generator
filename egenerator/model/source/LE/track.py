@@ -601,9 +601,12 @@ class TrackLEModel(Source):
         # scale charges by DOM area
         dom_charges *= tf.expand_dims(dom_areas.astype(param_dtype_np)/0.0444, axis=-1)
 
-        # scale charges by energy
+        # scale charges by energy (experimental)
         if config['scale_charge']:
-             print('scale_charge ignored for track')
+            #energy = tf.cast(tf.cast(parameter_list[7], bool), parameter_list[7].dtype)
+            energy = 2*tf.math.sigmoid(tf.clip_by_value(parameter_list[7], 0., float('inf')))-1
+            scale_factor = tf.expand_dims(energy, axis=-1)
+            dom_charges *= scale_factor
 
         # scale charges by realtive DOM efficiency
         if config['scale_charge_by_relative_dom_efficiency']:
@@ -618,13 +621,7 @@ class TrackLEModel(Source):
         # apply time window exclusions if needed
         if time_exclusions_exist:
             dom_charges = dom_charges * (1. - dom_cdf_exclusion_sum + 1e-3)
-        
-        # set charges to 0 if there is no track
-        #if is_training:
-        #    energy = tf.cast(tf.cast(parameter_list[7], bool), parameter_list[7].dtype)
-        #    scale_factor = tf.expand_dims(energy, axis=-1)
-        #    dom_charges *= scale_factor
-            
+
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
 
@@ -781,9 +778,6 @@ class TrackLEModel(Source):
                                         tf.reduce_sum(pulse_pdf_values, axis=-1),
                                         1e-3
                                        )
-            # set time PDFs to 0 if there is no track
-            #scale = tf.cast(tf.gather(parameters[:, 7], indices=pulse_batch_id), bool)
-            #pulse_pdf_values *= tf.cast(scale, parameter_list[7].dtype)
         else:
             pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
 
