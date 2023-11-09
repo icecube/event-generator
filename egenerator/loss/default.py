@@ -180,9 +180,9 @@ class DefaultLossModule(BaseComponent):
 
             dom_tensor = data_batch_dict['x_dom_charge'][..., 0]
             if loss_terms[0] is None:
-                loss_terms[0] = tf.zeros_like(dom_tensor[0, 0, 0])
+                loss_terms[0] = tf.zeros_like(0)
             if loss_terms[1] is None:
-                loss_terms[1] = tf.zeros_like(dom_tensor[:, 0, 0])
+                loss_terms[1] = tf.zeros(len(dom_tensor))
             if loss_terms[2] is None:
                 loss_terms[2] = tf.zeros_like(dom_tensor)
 

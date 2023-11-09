@@ -969,7 +969,7 @@ class SourceManager(BaseModelManager):
                 
                 # reshape and convert to tensor
                 scalar, event, dom = loss_function(x, db)
-                loss = np.sum(dom.numpy().astype('float64'), axis=(1, 2))
+                loss = np.sum(dom.numpy().astype('float64'), axis=tuple(range(dom.ndim)[1:]))
                 return np.where(bounds == 1e7, bounds, loss)
                 
             else:
