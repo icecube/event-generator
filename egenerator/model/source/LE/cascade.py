@@ -82,6 +82,9 @@ class CascadeLEModel(Source):
 
         if config['add_dom_coordinates']:
             num_inputs += 3
+            
+        if 'add_pmt_orientations' in config and config['add_pmt_orientations']:
+            num_inputs += 3
         
         if config['num_local_vars'] > 0:
             self._untracked_data['local_vars'] = new_weights(
@@ -267,7 +270,7 @@ class CascadeLEModel(Source):
         dir_y = -tf.sin(zenith) * tf.sin(azimuth)
         dir_z = -tf.cos(zenith)
        
-        # calculate direction of pmt orientations
+        # calculate (-) direction of pmt orientations
         dom_azimuths_tf = tf.convert_to_tensor(dom_azimuths, dtype=tf.float32)
         dom_zeniths_tf = tf.convert_to_tensor(dom_zeniths, dtype=tf.float32)
         pmt_orientations = angles.sph_to_cart_tf(azimuth=dom_azimuths_tf, zenith=dom_zeniths_tf)
@@ -309,7 +312,7 @@ class CascadeLEModel(Source):
         #modified_parameters = tf.stack(x_parameters_expanded[:3] #pos
         #                               + [dir_x,
         #                                  dir_y,
-        #                                  dir_z],
+        #                                  dir_z]
         #                               + [x_parameters_expanded[5]], #cscd energy
         #                               axis=-1)
         modified_parameters = tf.stack([x_parameters_expanded[5]], #cscd energy
@@ -339,6 +342,17 @@ class CascadeLEModel(Source):
             print('\t dom_coords', dom_coords)
             input_list.append(dom_coords)
 
+        if 'add_pmt_orientations' in config and config['add_pmt_orientations']:
+            
+            # transform coordinates to correct scale with mean 0 std dev 1
+            pmt_orientations = np.expand_dims(
+                pmt_orientations.astype(param_dtype_np), axis=0)
+
+            # extend to correct batch shape:
+            pmt_orientations = (tf.ones_like(dx_normed) * pmt_orientations)
+
+            input_list.append(pmt_orientations)
+            
         if config['num_local_vars'] > 0:
 
             # extend to correct shape:

@@ -82,6 +82,9 @@ class TrackLEModel(Source):
 
         if config['add_dom_coordinates']:
             num_inputs += 3
+            
+        if 'add_pmt_orientations' in config and config['add_pmt_orientations']:
+            num_inputs += 3
         
         if config['num_local_vars'] > 0:
             self._untracked_data['local_vars'] = new_weights(
@@ -267,7 +270,7 @@ class TrackLEModel(Source):
         dir_y = -tf.sin(zenith) * tf.sin(azimuth)
         dir_z = -tf.cos(zenith)
        
-        # calculate direction of pmt orientations
+        # calculate (-) direction of pmt orientations
         dom_azimuths_tf = tf.convert_to_tensor(dom_azimuths, dtype=tf.float32)
         dom_zeniths_tf = tf.convert_to_tensor(dom_zeniths, dtype=tf.float32)
         pmt_orientations = angles.sph_to_cart_tf(azimuth=dom_azimuths_tf,zenith=dom_zeniths_tf)
@@ -286,9 +289,13 @@ class TrackLEModel(Source):
         T_lengths = tf.expand_dims(parameter_list[7]*4.8, axis=-1)
         T = tf.clip_by_value(distance * opening_angle, 0, T_lengths)
 
-        d_p_x = dom_coordinates[..., 0] - (parameter_list[0] + T[..., 0] * dir_x)
-        d_p_y = dom_coordinates[..., 1] - (parameter_list[1] + T[..., 0] * dir_y)
-        d_p_z = dom_coordinates[..., 2] - (parameter_list[2] + T[..., 0] * dir_z)
+        p_x = parameter_list[0] + T[..., 0] * dir_x
+        p_y = parameter_list[1] + T[..., 0] * dir_y
+        p_z = parameter_list[2] + T[..., 0] * dir_z
+
+        d_p_x = dom_coordinates[..., 0] - p_x
+        d_p_y = dom_coordinates[..., 1] - p_y
+        d_p_z = dom_coordinates[..., 2] - p_z
         
         # get distance to closest point on (finite) track to DOM
         T_distance = tf.sqrt(d_p_x**2 + d_p_y**2 + d_p_z**2)
@@ -306,6 +313,9 @@ class TrackLEModel(Source):
         params_std = self.data_trafo.data[parameter_tensor_name+'_std']
         norm_const = self.data_trafo.data['norm_constant']
 
+        p_x = tf.expand_dims((p_x - params_mean[0]) / (params_std[0] + norm_const), axis=-1)
+        p_y = tf.expand_dims((p_y - params_mean[1]) / (params_std[1] + norm_const), axis=-1)
+        p_z = tf.expand_dims((p_z - params_mean[2]) / (params_std[2] + norm_const), axis=-1)
         T_distance = tf.expand_dims(T_distance, axis=-1)
         T_distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
         p_dens_T = tf.clip_by_value(1/T_distance**2, 0, 10)
@@ -318,10 +328,9 @@ class TrackLEModel(Source):
                                                 [-1]+[1]*ndim+[num_features]),
                                            axis=-1)
 
-        #modified_parameters = tf.stack(x_parameters_expanded[:3] #pos
-        #                               + [dir_x,
-        #                                  dir_y,
-        #                                  dir_z],
+        #modified_parameters = tf.stack([dir_x,
+        #                                dir_y,
+        #                                dir_z]
         #                               + [x_parameters_expanded[7]], #trck energy
         #                               axis=-1)
         modified_parameters = tf.stack([x_parameters_expanded[7]], #trck energy
@@ -350,6 +359,17 @@ class TrackLEModel(Source):
 
             print('\t dom_coords', dom_coords)
             input_list.append(dom_coords)
+            
+        if 'add_pmt_orientations' in config and config['add_pmt_orientations']:
+            
+            # transform coordinates to correct scale with mean 0 std dev 1
+            pmt_orientations = np.expand_dims(
+                pmt_orientations.astype(param_dtype_np), axis=0)
+
+            # extend to correct batch shape:
+            pmt_orientations = (tf.ones_like(dx_normed) * pmt_orientations)
+
+            input_list.append(pmt_orientations)
 
         if config['num_local_vars'] > 0:
 
