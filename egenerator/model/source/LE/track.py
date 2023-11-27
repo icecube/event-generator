@@ -362,9 +362,7 @@ class TrackLEModel(Source):
             
         if 'add_pmt_orientations' in config and config['add_pmt_orientations']:
             
-            # transform coordinates to correct scale with mean 0 std dev 1
-            pmt_orientations = np.expand_dims(
-                pmt_orientations.astype(param_dtype_np), axis=0)
+            pmt_orientations = tf.expand_dims(pmt_orientations, axis=0)
 
             # extend to correct batch shape:
             pmt_orientations = (tf.ones_like(dx_normed) * pmt_orientations)
