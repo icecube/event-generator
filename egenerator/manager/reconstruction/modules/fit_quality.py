@@ -119,8 +119,8 @@ class GoodnessOfFit:
         self.param_time_index = self.manager.models[0].get_index('time')
 
         # parameter input signature
-        self.param_dtype = getattr(tf, self.manager.data_trafo.data['tensors'][
-            parameter_tensor_name].dtype)
+        self.param_dtype = self.manager.data_trafo.data['tensors'][
+            parameter_tensor_name].dtype_tf
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=self.param_dtype)

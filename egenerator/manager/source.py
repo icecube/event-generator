@@ -573,16 +573,13 @@ class SourceManager(BaseModelManager):
         """
         model = self.models[model_index]
 
-        pulse_dtype = getattr(
-            tf, self.data_trafo.data['tensors']['x_pulses'].dtype)
-        id_dtype = getattr(
-            tf, self.data_trafo.data['tensors']['x_pulses_ids'].dtype)
-        param_dtype = getattr(
-            tf, self.data_trafo.data['tensors']['x_parameters'].dtype)
-        tw_dtype = getattr(
-            tf, self.data_trafo.data['tensors']['x_time_window'].dtype)
-        t_exclusions_dtype = getattr(
-            tf, self.data_trafo.data['tensors']['x_time_exclusions'].dtype)
+        pulse_dtype = self.data_trafo.data['tensors']['x_pulses'].dtype_tf
+        id_dtype = self.data_trafo.data['tensors']['x_pulses_ids'].dtype_tf
+        param_dtype = self.data_trafo.data['tensors']['x_parameters'].dtype_tf
+        tw_dtype = self.data_trafo.data['tensors']['x_time_window'].dtype_tf
+        t_exclusions_dtype = self.data_trafo.data['tensors'][
+            'x_time_exclusions'].dtype_tf
+
         param_signature = tf.TensorSpec(
             shape=[None, model.num_parameters], dtype=param_dtype)
         x_pulses_shape = self.data_trafo.data['tensors']['x_pulses'].shape
@@ -602,7 +599,7 @@ class SourceManager(BaseModelManager):
         for tensor_name in tensor_names:
             tensor = self.data_trafo.data['tensors'][tensor_name]
             input_signature.append(tf.TensorSpec(
-                shape=tensor.shape, dtype=getattr(tf, tensor.dtype)))
+                shape=tensor.shape, dtype=tensor.dtype_tf))
 
         @tf.function(input_signature=tuple(input_signature))
         def model_tensors_function(
@@ -751,7 +748,7 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        param_dtype = getattr(np, param_tensor.dtype)
+        param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
 
@@ -903,7 +900,7 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        param_dtype = getattr(np, param_tensor.dtype)
+        param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
 
@@ -1052,7 +1049,7 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        param_dtype = getattr(np, param_tensor.dtype)
+        param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
 
@@ -1180,7 +1177,7 @@ class SourceManager(BaseModelManager):
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        parameter_dtype = getattr(tf, param_tensor.dtype)
+        parameter_dtype = param_tensor.dtype_tf
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
 
@@ -1380,7 +1377,7 @@ class SourceManager(BaseModelManager):
         step_size = np.array(step_size)
 
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        parameter_dtype = getattr(tf, param_tensor.dtype)
+        parameter_dtype = param_tensor.dtype_tf
 
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
         step_size = tf.reshape(step_size, [1, num_params])
@@ -1505,7 +1502,7 @@ class SourceManager(BaseModelManager):
         # parameter input signature
         parameter_tensor_name = reco_config['parameter_tensor_name']
         param_tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
-        param_dtype = getattr(tf, param_tensor.dtype)
+        param_dtype = param_tensor.dtype_tf
         param_index = self.data_handler.tensors.get_index(
                                                         parameter_tensor_name)
 

@@ -21,7 +21,10 @@ class DataTensor(object):
             The type of tensor: 'data', 'label', 'weight', 'misc'
         dtype : str
             The data type of the tensor as str.
-            getattr(np, dtype) and getattr(tf, dtype) must exist.
+            hasattr(tf, dtype) must be true and either
+            hasattr(np, dtype) or dtype is a builtin type.
+            Corresponding dtypes for numpy and tensorflow can be obtained
+            via the class properties `dtype_np` and `dtype_tf`.
         exists : bool, optional
             Indicates whether this data tensor is being loaded.
         vector_info : dict, optional
@@ -95,8 +98,12 @@ class DataTensor(object):
         if not isinstance(self.dtype, str):
             raise ValueError('{!r} != {!r}'.format(type(self.dtype), str))
 
-        if not hasattr(np, self.dtype):
-            raise ValueError('Invalid dtype str: {!r}'.format(self.type))
+        try:
+            self.dtype_tf
+            self.dtype_np
+        except AttributeError as e:
+            print('Invalid dtype str: {!r}'.format(self.dtype))
+            raise e
 
         if self.vector_info is not None:
             if self.vector_info['type'] not in ['index', 'value']:
@@ -111,6 +118,43 @@ class DataTensor(object):
                 raise ValueError(msg.format(self.trafo_log_axis, self.shape))
             self.trafo_log = [self.trafo_log for i in
                               range(self.shape[self.trafo_log_axis])]
+
+    @property
+    def dtype_tf(self):
+        """Return the tensorflow dtype
+
+        Returns
+        -------
+        tf.dtypes.DType
+            The tensorlfow data type.
+        """
+        return getattr(tf, self.dtype)
+
+    @property
+    def dtype_np(self):
+        """Return the numpy dtype
+
+        Returns
+        -------
+        dtype
+            The numpy/builtin data type.
+        """
+        builtin_replacements = {
+            "bool": "bool_",
+            "int": "int_",
+            "float": "float_",
+            "complex": "complex_",
+            "object": "object_",
+            "str": "str_",
+            "long": "longlong",
+            "unicode": "_unicode",
+        }
+
+        if hasattr(np, self.dtype):
+            dtype = getattr(np, self.dtype)
+        else:
+            dtype = getattr(np, builtin_replacements[self.dtype])
+        return dtype
 
     def __eq__(self, other):
         """Check for equality of two data tensors.

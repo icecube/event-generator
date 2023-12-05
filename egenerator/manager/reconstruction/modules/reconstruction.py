@@ -96,8 +96,8 @@ class Reconstruction:
                 seed_tensor_name)
 
         # parameter input signature
-        param_dtype = getattr(tf, manager.data_trafo.data['tensors'][
-            parameter_tensor_name].dtype)
+        param_dtype = manager.data_trafo.data['tensors'][
+            parameter_tensor_name].dtype_tf
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_parameter_list, dtype=int)],
             dtype=param_dtype)

@@ -223,7 +223,7 @@ class SystematicsCascadeModel(Source):
 
         # get parameters tensor dtype
         tensors = self.data_trafo.data['tensors']
-        param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
+        param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
         # -----------------------------------
         # Calculate input values for DOMs

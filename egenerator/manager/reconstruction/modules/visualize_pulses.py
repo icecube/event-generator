@@ -69,7 +69,7 @@ class VisualizePulseLikelihood:
 
         param_tensor = manager.data_trafo.data['tensors'][
             parameter_tensor_name]
-        param_dtype = getattr(tf, param_tensor.dtype)
+        param_dtype = param_tensor.dtype_tf
         param_signature = tf.TensorSpec(
             shape=param_tensor.shape,
             dtype=param_dtype)
