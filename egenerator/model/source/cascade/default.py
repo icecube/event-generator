@@ -185,7 +185,7 @@ class DefaultCascadeModel(Source):
         print('\t Applying time exclusions:', time_exclusions_exist)
 
         # get parameters tensor dtype
-        param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
+        param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']

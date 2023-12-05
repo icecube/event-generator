@@ -146,7 +146,7 @@ class DefaultNoiseModel(Source):
         print('\t Applying time exclusions:', time_exclusions_exist)
 
         # get parameters tensor dtype
-        param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
+        param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
         # shape: [n_pulses, 2]
         pulses = data_batch_dict['x_pulses']

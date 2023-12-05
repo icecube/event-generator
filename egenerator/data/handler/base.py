@@ -336,7 +336,7 @@ class BaseDataHandler(BaseComponent):
             if tensor.exists:
                 data_tensors.append(data[i])
             else:
-                data_tensors.append(getattr(np, tensor.dtype)())
+                data_tensors.append(tensor.dtype_np())
 
         return num_events, tuple(data_tensors)
 
@@ -383,7 +383,7 @@ class BaseDataHandler(BaseComponent):
             if tensor.exists:
                 data_tensors.append(tf.convert_to_tensor(data[i]))
             else:
-                data_tensors.append(getattr(np, tensor.dtype)())
+                data_tensors.append(tensor.dtype_np())
         return tuple(data_tensors)
 
     def _get_data_from_frame(self, frame, *args, **kwargs):
@@ -929,7 +929,7 @@ class BaseDataHandler(BaseComponent):
                                     indices[:, 0] = size
                                     batch[i].append(indices)
                             else:
-                                batch[i].append(getattr(np, tensor.dtype)())
+                                batch[i].append(tensor.dtype_np())
                                 # batch[i].append(None)
                         size += 1
 
@@ -941,17 +941,17 @@ class BaseDataHandler(BaseComponent):
                                 if exists[i]:
                                     if tensor.vector_info is None:
                                         batch[i] = np.asarray(
-                                            batch[i],
-                                            dtype=getattr(np, tensor.dtype))
+                                            batch[i], dtype=tensor.dtype_np,
+                                        )
 
                                     else:
                                         batch[i] = np.concatenate(
                                                 batch[i], axis=0).astype(
-                                                    getattr(np, tensor.dtype))
+                                                    tensor.dtype_np)
                                 else:
                                     batch[i] = np.asarray(
-                                            batch[i],
-                                            dtype=getattr(np, tensor.dtype))
+                                            batch[i], dtype=tensor.dtype_np,
+                                    )
 
                             if verbose:
                                 usage = resource.getrusage(
@@ -1114,7 +1114,7 @@ class BaseDataHandler(BaseComponent):
         output_types = []
         output_shapes = []
         for tensor in self.tensors.list:
-            output_types.append(getattr(tf, tensor.dtype))
+            output_types.append(tensor.dtype_tf)
             if tensor.exists:
                 output_shapes.append(tf.TensorShape(tensor.shape))
             else:
@@ -1144,7 +1144,7 @@ class BaseDataHandler(BaseComponent):
             else:
                 shape = tf.TensorShape(None)
             spec.append(
-                tf.TensorSpec(shape=shape, dtype=getattr(tf, tensor.dtype)))
+                tf.TensorSpec(shape=shape, dtype=tensor.dtype_tf))
         return tuple(spec)
 
     def kill(self):
