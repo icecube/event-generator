@@ -255,7 +255,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             raise NotImplementedError('Tracks not yet supported')
 
         # convert cascade to source hypotheses
-        cascade_sources = self.convert_cascades_to_tensor(cascades)
+        cascade_sources = self.convert_cascades_to_tensor(cascades, frame)
 
         # timer after source collection
         t_1 = timeit.default_timer()
@@ -409,7 +409,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         return pulse_series_map
 
-    def convert_cascades_to_tensor(self, cascades):
+    def convert_cascades_to_tensor(self, cascades, frame):
         """Convert a list of cascades to a source parameter tensor.
 
         Parameters
@@ -417,6 +417,9 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         cascades : list of I3Particles
             The list of cascade I3Particles.
 
+        frame : I3Frame
+            Necessary to get additional parameter from frame.
+        
         Returns
         -------
         tf.Tensor
@@ -492,8 +495,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # check if we have a branch that we can't simulate
         if len(daughters) == 0 and parent.type not in self.dark_particles:
-            log_warn(parent)
-            log_warn(mc_tree)
+            log_warn(f"Particle: {parent}")
+            log_warn(f"Tree: {mc_tree}")
             raise NotImplementedError(
                 'Particle can not be simulated: ', parent.type)
 
