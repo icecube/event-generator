@@ -572,6 +572,8 @@ class BaseModelManager(Model):
         variables = []
         for model in self.models:
             variables.extend(model.trainable_variables)
+        if 'fix_layers' in opt_config and opt_config['fix_layers']: # HACK!!!
+            variables = variables[len(variables)/2:]
         gradients = tape.gradient(combined_loss, variables)
 
         # remove nans in gradients and replace these with zeros
