@@ -259,23 +259,15 @@ class DefaultCascadeModel(Source):
         cascade_dir_x = -tf.sin(cascade_zenith) * tf.cos(cascade_azimuth)
         cascade_dir_y = -tf.sin(cascade_zenith) * tf.sin(cascade_azimuth)
         cascade_dir_z = -tf.cos(cascade_zenith)
-       
+
         # calculate direction of pmt orientations
         dom_azimuths_tf = tf.convert_to_tensor(dom_azimuths, dtype=tf.float32)
         dom_zeniths_tf = tf.convert_to_tensor(dom_zeniths, dtype=tf.float32)
         pmt_orientations = angles.sph_to_cart_tf(azimuth=dom_azimuths_tf,zenith=dom_zeniths_tf)
 
-        # calculate the relative neutrino direction for each PMT
-        cascade_dir = tf.stack([cascade_dir_x, cascade_dir_y, cascade_dir_z], axis=-1)
-        relative_cascade_dir = cascade_dir - pmt_orientations
-
-        # Normalize the relative neutrino direction vector
-        relative_cascade_dir_norm = tf.linalg.norm(relative_cascade_dir, axis=-1, keepdims=True)
-        relative_cascade_dir_normalized = relative_cascade_dir / relative_cascade_dir_norm
-
-
         # calculate opening angle of displacement vector and cascade direction
-        opening_angle = angles.get_angle(relative_cascade_dir_normalized,
+        cascade_dir = tf.stack([cascade_dir_x, cascade_dir_y, cascade_dir_z], axis=-1)
+        opening_angle = angles.get_angle(cascade_dir,
                                          tf.concat([dx_normed,
                                                     dy_normed,
                                                     dz_normed], axis=-1)
