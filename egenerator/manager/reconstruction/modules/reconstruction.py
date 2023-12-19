@@ -190,9 +190,8 @@ class Reconstruction:
             func_loss_settings = dict(loss_settings)
 
             batch_size = spherical_optimizer_settings['batch_size']
-            if batch_size > 1:
-                func_loss_settings['reduce_to_scalar'] = False
-                func_loss_settings['sort_loss_terms'] = True
+            func_loss_settings['reduce_to_scalar'] = False
+            func_loss_settings['sort_loss_terms'] = True
 
             # get concrete loss function
             loss_function = function_cache.get(
@@ -206,6 +205,14 @@ class Reconstruction:
             limits = np.array(spherical_optimizer_settings['limits'])
             seed_box = np.array(spherical_optimizer_settings['seed_box'])
             geo = np.load(spherical_optimizer_settings['detector_pickle'], allow_pickle=True)['dom_coordinates']
+            if 'noise' in spherical_optimizer_settings:
+                noise = spherical_optimizer_settings['noise']
+            else:
+                noise = False
+            if 'run_local' in spherical_optimizer_settings:
+                run_local = spherical_optimizer_settings['run_local']
+            else:
+                run_local = False
 
             def reconstruction_method(data_batch, seed_tensor):
                 return manager.reconstruct_events_spherical_opt(
@@ -217,7 +224,10 @@ class Reconstruction:
                     geo=geo,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     parameter_tensor_name=parameter_tensor_name,
-                    batch_size=batch_size)
+                    batch_size=batch_size,
+                    noise=noise,
+                    run_local=run_local,
+                )
 
         else:
             raise ValueError('Unknown interface {!r}. Options are {!r}'.format(

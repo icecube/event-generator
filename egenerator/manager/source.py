@@ -867,6 +867,8 @@ class SourceManager(BaseModelManager):
                                          parameter_tensor_name='x_parameters',
                                          batch_size=12,
                                          spherical_indices=[[4,3]],
+                                         noise=False,
+                                         run_local=False,
                                          **kwargs):
         """Reconstruct events with scipy.optimize.minimize interface.
 
@@ -906,6 +908,11 @@ class SourceManager(BaseModelManager):
             `[[0,1], [7,8]]` would identify indices 0 as azimuth and 1 as zenith as
             spherical coordinates and 7 and 8 another pair of independent spherical
             coordinates
+        run_local : bool, optional
+            Does the model include a NN that predicts noise?
+        run_local : bool, optional
+            If True, a second (local) minimization is performed using the CRS2 
+            best-fit point as seed.
         **kwargs
             Keyword arguments that will be passed on to scipy.optimize.minimize
 
@@ -936,14 +943,15 @@ class SourceManager(BaseModelManager):
             return best_fit, {}
 
         # define helper function
-        def func(x, data_batch):
+        def func(x, data_batch, noise=False):
             if len(x.shape) == 1:
                 if ~np.all(np.logical_and(limits[:,0] <= x, x <= limits[:,1]), axis=-1):
                     return 1e7
             
                 # reshape and convert to tensor
                 x = np.reshape(x, param_shape).astype(param_dtype)
-                loss = loss_function(x, data_batch)
+                scalar, event, dom = loss_function(x, data_batch)
+                loss = np.sum(dom.numpy())
                 return loss
             
             elif len(x.shape) == 2:
@@ -967,6 +975,11 @@ class SourceManager(BaseModelManager):
                 db[3] = x_pulses
                 db[4] = x_pulses_ids
                 
+                if noise:
+                    noise = data_batch[7]
+                    noise = np.repeat(noise, nPoints, axis=0)
+                    db[7] = noise
+                
                 # reshape and convert to tensor
                 scalar, event, dom = loss_function(x, db)
                 loss = np.sum(dom.numpy().astype('float64'), axis=tuple(range(dom.ndim)[1:]))
@@ -982,23 +995,32 @@ class SourceManager(BaseModelManager):
         elif idx.shape[-1] == 2:
             x_s, y_s, z_s = np.average(geo[idx[:,0], idx[:,1]], axis=0, weights=data_batch[3][:,0])
         t_s = np.average(data_batch[3][:,1], weights=data_batch[3][:,0])
-        box = np.array([[x_s, x_s], [y_s, y_s], [z_s, z_s], [0, 0], [0, 0], [0, 0], [t_s, t_s], [0, 0]]) + seed_box
+        if seed_box.shape[0] == 8: # low energy
+            box = np.array([[x_s, x_s], [y_s, y_s], [z_s, z_s], [0, 0], [0, 0], [0, 0], [t_s, t_s], [0, 0]]) + seed_box
+        elif seed_box.shape[0] == 9: # astro tau
+            box = np.array([[x_s, x_s], [y_s, y_s], [z_s, z_s], [0, 0], [0, 0], [0, 0], [t_s, t_s], [0, 0], [0, 0]]) + seed_box
         
         nPoints = batch_size * num_fit_params + 1 # make this an input?
         x0 = np.random.uniform(size=(nPoints, len(box))) * (box[:, 1] - box[:, 0]) + box[:, 0]
         x0[:, 3] = np.arccos(x0[:, 3])
         x0[:, 5] = 10 ** x0[:, 5]
+        x0[:, 6] = np.clip(x0[:, 6], limits[6][0], limits[6][1])
         x0[:, 7] = 10 ** x0[:, 7]
+        if seed_box.shape[0] == 9: x0[:, 8] = 10 ** x0[:, 8]
 
         # fit
         result = spherical_opt(
-            func=lambda x: func(x, data_batch),
+            func=lambda x: func(x, data_batch, noise),
             spherical_indices=spherical_indices,
             initial_points=x0,
             method='CRS2',
             batch_size=batch_size,
             **kwargs
         )
+        
+        if run_local:
+            result = optimize.minimize(fun=lambda x: func(x, data_batch, noise), x0=result['x'], method='Nelder-Mead')
+        
         print('success', result['success'])
         print('n_calls', result['n_calls'])
         print('nit', result['nit'])
