@@ -412,6 +412,9 @@ class CascadeLEModel(Source):
             n_charge = 2
         else:
             n_charge = 1
+            
+        if optical_module.dom_name == 'ICU':
+            n_charge *= 3
 
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
@@ -589,8 +592,11 @@ class CascadeLEModel(Source):
         # -------------------------------------------
 
         # the result of the convolution layers are the latent variables
-        dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
-                                           axis=-1)
+        if optical_module.dom_name == 'ICU':
+            dom_charges_trafo = conv_hex3d_layers[-1][..., :3]
+        else:
+            dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
+                                               axis=-1)
 
         # clip value range for more stability during training
         dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20., 15)
@@ -625,6 +631,13 @@ class CascadeLEModel(Source):
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
 
+        if optical_module.dom_name == 'ICU':
+            ids = []
+            for a in np.unique(dom_areas):
+                ids.append(dom_areas == a)
+            ids = np.stack(ids).T
+            dom_charges = tf.reduce_sum(dom_charges*ids, axis=-1)
+            dom_charges = tf.expand_dims(dom_charges, axis=-1)
         tensor_dict['dom_charges'] = dom_charges
 
         # -------------------------------------

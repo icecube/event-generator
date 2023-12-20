@@ -313,9 +313,9 @@ class TrackLEModel(Source):
         params_std = self.data_trafo.data[parameter_tensor_name+'_std']
         norm_const = self.data_trafo.data['norm_constant']
 
-        p_x = tf.expand_dims((p_x - params_mean[0]) / (params_std[0] + norm_const), axis=-1)
-        p_y = tf.expand_dims((p_y - params_mean[1]) / (params_std[1] + norm_const), axis=-1)
-        p_z = tf.expand_dims((p_z - params_mean[2]) / (params_std[2] + norm_const), axis=-1)
+        #p_x = tf.expand_dims((p_x - params_mean[0]) / (params_std[0] + norm_const), axis=-1)
+        #p_y = tf.expand_dims((p_y - params_mean[1]) / (params_std[1] + norm_const), axis=-1)
+        #p_z = tf.expand_dims((p_z - params_mean[2]) / (params_std[2] + norm_const), axis=-1)
         T_distance = tf.expand_dims(T_distance, axis=-1)
         T_distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
         p_dens_T = tf.clip_by_value(1/T_distance**2, 0, 10)
@@ -430,6 +430,9 @@ class TrackLEModel(Source):
             n_charge = 2
         else:
             n_charge = 1
+            
+        if optical_module.dom_name == 'ICU':
+            n_charge *= 3
 
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
@@ -607,8 +610,11 @@ class TrackLEModel(Source):
         # -------------------------------------------
 
         # the result of the convolution layers are the latent variables
-        dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
-                                           axis=-1)
+        if optical_module.dom_name == 'ICU':
+            dom_charges_trafo = conv_hex3d_layers[-1][..., :3]
+        else:
+            dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
+                                               axis=-1)
 
         # clip value range for more stability during training
         dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20., 15)
@@ -643,6 +649,13 @@ class TrackLEModel(Source):
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
 
+        if optical_module.dom_name == 'ICU':
+            ids = []
+            for a in np.unique(dom_areas):
+                ids.append(dom_areas == a)
+            ids = np.stack(ids).T
+            dom_charges = tf.reduce_sum(dom_charges*ids, axis=-1)
+            dom_charges = tf.expand_dims(dom_charges, axis=-1)
         tensor_dict['dom_charges'] = dom_charges
 
         # -------------------------------------
