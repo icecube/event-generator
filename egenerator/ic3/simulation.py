@@ -244,6 +244,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # Define type of particles that can be simulated as tracks
         self.tracks = [
+            dataclasses.I3Particle.MuMinus,
+            dataclasses.I3Particle.MuPlus,
         ]
 
         # define particles that do not deposit light, in other words
@@ -321,7 +323,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             The sampled pulse series map.
         """
 
-        # draw total charge per DOM and cascade
+        # draw total charge per DOM and cascade - shape: (n_cascades, n_string, n_dom, n_model)
         dom_charges = basis_functions.sample_from_negative_binomial(
             rng=self.random_service,
             mu=result_tensors['dom_charges'].numpy(),
@@ -330,7 +332,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         )
         # dom_charges = self.random_service.poisson(
         #     result_tensors['dom_charges'].numpy())
-        dom_charges_total = np.sum(dom_charges, axis=0)
+
+        dom_charges_total = np.sum(dom_charges, axis=0)  # sum over cascades
         num_cascades = dom_charges.shape[0]
 
         cascade_times = cascade_sources.numpy()[
@@ -353,7 +356,6 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         latent_var_mu = result_tensors['latent_var_mu'].numpy()
         latent_var_sigma = result_tensors['latent_var_sigma'].numpy()
         latent_var_r = result_tensors['latent_var_r'].numpy()
-
         # for numerical stability:
         cum_scale[..., -1] = 1.00000001
 
@@ -451,7 +453,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         frame : I3Frame
             Necessary to get additional parameter from frame.
-        
+
         Returns
         -------
         tf.Tensor
