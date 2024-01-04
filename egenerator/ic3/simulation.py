@@ -99,6 +99,13 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                           'integer, a numpy random state will be created with '
                           'the seed set to `random_service`',
                           42)
+        self.AddParameter('SimulateElectronDaughterParticles',
+                          'If true, look for daughter particles of an electron and '
+                          'simulate their light yield rather than from the '
+                          'mother electron. This is necessary to correctly '
+                          'simulate the cascade longitudinal extension of '
+                          'high energy cascades.',
+                          False)
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -115,6 +122,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             'correct_sampled_charge')
         self.num_threads = self.GetParameter('num_threads')
         self.random_service = self.GetParameter('random_service')
+        self.simulate_electron_daughters = self.GetParameter('SimulateElectronDaughterParticles')
 
         if isinstance(self.random_service, int):
             self.random_service = np.random.RandomState(self.random_service)
@@ -208,6 +216,11 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             dataclasses.I3Particle.NuTauBar,
             dataclasses.I3Particle.Hadrons,
         ]
+        if self.simulate_electron_daughters:
+            self.allowed_parent_particles += [
+                dataclasses.I3Particle.EMinus,
+                dataclasses.I3Particle.EPlus,
+            ]
 
         # Define type of particles that can be simulated as EM cascades
         self.em_cascades = [
@@ -482,7 +495,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             return [], []
 
         if parent.type in self.em_cascades:
-            return [parent], []
+            if self.simulate_electron_daughters and len(mc_tree.get_daughters(parent)):
+                pass # get light sourced from daughters
+            else:
+                return [parent], []
 
         elif parent.type in self.tracks:
             return [], [parent]
