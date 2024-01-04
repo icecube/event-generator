@@ -106,6 +106,13 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                           'simulate the cascade longitudinal extension of '
                           'high energy cascades.',
                           False)
+        self.AddParameter('MergePulses',
+                          'If true, pulses in one DOM within a `PulseMergeWindow` '
+                          'will be merged together.',
+                          False)
+        self.AddParameter('PulseMergeWindow',
+                          'Timewindow within pulses are merged together.',
+                          5)
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -123,6 +130,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         self.num_threads = self.GetParameter('num_threads')
         self.random_service = self.GetParameter('random_service')
         self.simulate_electron_daughters = self.GetParameter('SimulateElectronDaughterParticles')
+        self.merge_pulses = self.GetParameter('MergePulses')
+        self.pulse_merge_window = self.GetParameter('PulseMergeWindow')
 
         if isinstance(self.random_service, int):
             self.random_service = np.random.RandomState(self.random_service)
@@ -408,9 +417,19 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 pulse_times = pulse_times[sorted_indices]
                 pulse_charges = pulse_charges[sorted_indices]
 
+                if self.merge_pulses:
+                    if len(pulse_times) > 1:
+                        time_bins = np.arange(pulse_times[0], pulse_times[-1] + self.pulse_merge_window, self.pulse_merge_window) # ns
+                        n, bin_edges = np.histogram(pulse_times, time_bins, weights=pulse_charges)
+
+                        pulse_times = bin_edges[:-1] # take left bin edge as time
+                        pulse_charges = n
+
                 # create pulse series
                 pulse_series = dataclasses.I3RecoPulseSeries()
                 for time, charge in zip(pulse_times, pulse_charges):
+                    if charge <= 0:
+                        continue
                     pulse = dataclasses.I3RecoPulse()
                     pulse.time = time
                     pulse.charge = charge
