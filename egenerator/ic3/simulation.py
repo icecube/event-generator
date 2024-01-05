@@ -113,6 +113,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         self.AddParameter('PulseMergeWindow',
                           'Timewindow within pulses are merged together.',
                           5)
+        self.AddParameter('StoreChargePrediction',
+                          'If true, store the mean charge prediction per DOM. '
+                          'Prediction will be stored in a frame with name \'`output_key` + \"_Prediction\"\'.',
+                          False)
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -132,6 +136,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         self.simulate_electron_daughters = self.GetParameter('SimulateElectronDaughterParticles')
         self.merge_pulses = self.GetParameter('MergePulses')
         self.pulse_merge_window = self.GetParameter('PulseMergeWindow')
+        self.store_pulse_prediction = self.GetParameter('StoreChargePrediction')
 
         if isinstance(self.random_service, int):
             self.random_service = np.random.RandomState(self.random_service)
@@ -304,6 +309,28 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # write to frame
         frame[self.output_key] = pulses
 
+        if self.store_pulse_prediction:
+            pulse_series_map_pred = dataclasses.I3RecoPulseSeriesMap()
+
+            dom_charges_total = np.sum(result_tensors['dom_charges'].numpy(), axis=0)  # sum over cascades
+
+            # walk through DOMs
+            for string in range(86):
+                for om in range(60):
+
+                    # create pulse series
+                    pulse_series = dataclasses.I3RecoPulseSeries()
+
+                    pulse = dataclasses.I3RecoPulse()
+                    pulse.time = np.nan
+                    pulse.charge = float(dom_charges_total[string, om, 0])
+                    pulse_series.append(pulse)
+
+                    # add to pulse series map
+                    pulse_series_map_pred[icetray.OMKey(string + 1, om + 1)] = pulse_series
+
+            frame[self.output_key + "_Prediction"] = pulse_series_map_pred
+
         # push frame to next modules
         self.PushFrame(frame)
 
@@ -330,8 +357,6 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             alpha_or_var=result_tensors['dom_charges_variance'].numpy(),
             param_is_alpha=False,
         )
-        # dom_charges = self.random_service.poisson(
-        #     result_tensors['dom_charges'].numpy())
 
         dom_charges_total = np.sum(dom_charges, axis=0)  # sum over cascades
         num_cascades = dom_charges.shape[0]
