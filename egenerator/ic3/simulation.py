@@ -345,10 +345,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             if 'latent_var_scale' not in result_tensors:
                 result_tensors = result_tensors['nested_results'][
                     self._prefix[:-1]]
-            log_warn(
-                'Using nested result tensors, this is potentially wrong, '
-                'since this is not the complete time PDF!'
-            )
+                log_warn(
+                    'Using nested result tensors, this is potentially wrong, '
+                    'since this is not the complete time PDF!'
+                )
 
         cum_scale = np.cumsum(
             result_tensors['latent_var_scale'].numpy(), axis=-1)
