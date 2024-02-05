@@ -201,7 +201,7 @@ class Reconstruction:
                 loss_function = manager.get_parameter_loss_function(
                     **func_loss_settings)
                 function_cache.add(loss_function, func_loss_settings)
-                
+
             limits = np.array(spherical_optimizer_settings['limits'])
             seed_box = np.array(spherical_optimizer_settings['seed_box'])
             geo = np.load(spherical_optimizer_settings['detector_pickle'], allow_pickle=True)['dom_coordinates']
@@ -231,7 +231,7 @@ class Reconstruction:
 
         else:
             raise ValueError('Unknown interface {!r}. Options are {!r}'.format(
-                reco_optimizer_interface, ['scipy', 'tfp']))
+                reco_optimizer_interface, ['scipy', 'shog', 'tfp', 'spherical_opt']))
 
         self.reconstruction_method = reconstruction_method
 
