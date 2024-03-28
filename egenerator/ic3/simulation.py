@@ -99,6 +99,24 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                           'integer, a numpy random state will be created with '
                           'the seed set to `random_service`',
                           42)
+        self.AddParameter('SimulateElectronDaughterParticles',
+                          'If true, look for daughter particles of an electron and '
+                          'simulate their light yield rather than from the '
+                          'mother electron. This is necessary to correctly '
+                          'simulate the cascade longitudinal extension of '
+                          'high energy cascades.',
+                          False)
+        self.AddParameter('MergePulses',
+                          'If true, pulses in one DOM within a `PulseMergeWindow` '
+                          'will be merged together.',
+                          False)
+        self.AddParameter('PulseMergeWindow',
+                          'Timewindow within pulses are merged together.',
+                          5)
+        self.AddParameter('StoreChargePrediction',
+                          'If true, store the mean charge prediction per DOM. '
+                          'Prediction will be stored in a frame with name \'`output_key` + \"_Prediction\"\'.',
+                          False)
 
     def Configure(self):
         """Configures Module and loads model from file.
@@ -115,6 +133,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             'correct_sampled_charge')
         self.num_threads = self.GetParameter('num_threads')
         self.random_service = self.GetParameter('random_service')
+        self.simulate_electron_daughters = self.GetParameter('SimulateElectronDaughterParticles')
+        self.merge_pulses = self.GetParameter('MergePulses')
+        self.pulse_merge_window = self.GetParameter('PulseMergeWindow')
+        self.store_pulse_prediction = self.GetParameter('StoreChargePrediction')
 
         if isinstance(self.random_service, int):
             self.random_service = np.random.RandomState(self.random_service)
@@ -208,6 +230,11 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             dataclasses.I3Particle.NuTauBar,
             dataclasses.I3Particle.Hadrons,
         ]
+        if self.simulate_electron_daughters:
+            self.allowed_parent_particles += [
+                dataclasses.I3Particle.EMinus,
+                dataclasses.I3Particle.EPlus,
+            ]
 
         # Define type of particles that can be simulated as EM cascades
         self.em_cascades = [
@@ -222,6 +249,8 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # Define type of particles that can be simulated as tracks
         self.tracks = [
+            dataclasses.I3Particle.MuMinus,
+            dataclasses.I3Particle.MuPlus,
         ]
 
         # define particles that do not deposit light, in other words
@@ -280,6 +309,28 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         # write to frame
         frame[self.output_key] = pulses
 
+        if self.store_pulse_prediction:
+            pulse_series_map_pred = dataclasses.I3RecoPulseSeriesMap()
+
+            dom_charges_total = np.sum(result_tensors['dom_charges'].numpy(), axis=0)  # sum over cascades
+
+            # walk through DOMs
+            for string in range(86):
+                for om in range(60):
+
+                    # create pulse series
+                    pulse_series = dataclasses.I3RecoPulseSeries()
+
+                    pulse = dataclasses.I3RecoPulse()
+                    pulse.time = np.nan
+                    pulse.charge = float(dom_charges_total[string, om, 0])
+                    pulse_series.append(pulse)
+
+                    # add to pulse series map
+                    pulse_series_map_pred[icetray.OMKey(string + 1, om + 1)] = pulse_series
+
+            frame[self.output_key + "_Prediction"] = pulse_series_map_pred
+
         # push frame to next modules
         self.PushFrame(frame)
 
@@ -299,16 +350,15 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             The sampled pulse series map.
         """
 
-        # draw total charge per DOM and cascade
+        # draw total charge per DOM and cascade - shape: (n_cascades, n_string, n_dom, n_model)
         dom_charges = basis_functions.sample_from_negative_binomial(
             rng=self.random_service,
             mu=result_tensors['dom_charges'].numpy(),
             alpha_or_var=result_tensors['dom_charges_variance'].numpy(),
             param_is_alpha=False,
         )
-        # dom_charges = self.random_service.poisson(
-        #     result_tensors['dom_charges'].numpy())
-        dom_charges_total = np.sum(dom_charges, axis=0)
+
+        dom_charges_total = np.sum(dom_charges, axis=0)  # sum over cascades
         num_cascades = dom_charges.shape[0]
 
         cascade_times = cascade_sources.numpy()[
@@ -318,12 +368,13 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
             # allow for max 1-depth of nested results for mixture model comp.
             if 'latent_var_scale' not in result_tensors:
+                log_warn(
+                    f'Using nested result tensors from \'{self._prefix[:-1]}\' model for time PDF. '
+                    'This is potentially wrong, since this is not the complete time PDF! All models: '
+                    f"{list(result_tensors['nested_results'].keys())}"
+                )
                 result_tensors = result_tensors['nested_results'][
                     self._prefix[:-1]]
-            log_warn(
-                'Using nested result tensors, this is potentially wrong, '
-                'since this is not the complete time PDF!'
-            )
 
         cum_scale = np.cumsum(
             result_tensors['latent_var_scale'].numpy(), axis=-1)
@@ -331,7 +382,6 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         latent_var_mu = result_tensors['latent_var_mu'].numpy()
         latent_var_sigma = result_tensors['latent_var_sigma'].numpy()
         latent_var_r = result_tensors['latent_var_r'].numpy()
-
         # for numerical stability:
         cum_scale[..., -1] = 1.00000001
 
@@ -395,9 +445,19 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 pulse_times = pulse_times[sorted_indices]
                 pulse_charges = pulse_charges[sorted_indices]
 
+                if self.merge_pulses:
+                    if len(pulse_times) > 1:
+                        time_bins = np.arange(pulse_times[0], pulse_times[-1] + self.pulse_merge_window, self.pulse_merge_window) # ns
+                        n, bin_edges = np.histogram(pulse_times, time_bins, weights=pulse_charges)
+
+                        pulse_times = bin_edges[:-1] # take left bin edge as time
+                        pulse_charges = n
+
                 # create pulse series
                 pulse_series = dataclasses.I3RecoPulseSeries()
                 for time, charge in zip(pulse_times, pulse_charges):
+                    if charge <= 0:
+                        continue
                     pulse = dataclasses.I3RecoPulse()
                     pulse.time = time
                     pulse.charge = charge
@@ -419,7 +479,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         frame : I3Frame
             Necessary to get additional parameter from frame.
-        
+
         Returns
         -------
         tf.Tensor
@@ -482,7 +542,10 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             return [], []
 
         if parent.type in self.em_cascades:
-            return [parent], []
+            if self.simulate_electron_daughters and len(mc_tree.get_daughters(parent)):
+                pass # get light sourced from daughters
+            else:
+                return [parent], []
 
         elif parent.type in self.tracks:
             return [], [parent]
