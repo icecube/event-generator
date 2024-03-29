@@ -40,7 +40,7 @@ class PulseDataModule(BaseComponent):
 
     def _configure(self, config_data, pulse_key, dom_exclusions_key,
                    time_exclusions_key, float_precision, add_charge_quantiles,
-                   discard_pulses_from_excluded_doms):
+                   discard_pulses_from_excluded_doms, pulse_is_mcpe=False):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -67,6 +67,9 @@ class PulseDataModule(BaseComponent):
         discard_pulses_from_excluded_doms : bool, optional
             If True, pulses on excluded DOMs are discarded. The pulses are
             discarded after the charge at the DOM is collected.
+        pulse_is_mcpe : bool, optional
+            If True, train on MCPE pulses instead of RecoPulses. This setting
+            changes how the charge is read out of the hdf5 files. (Default: False)
 
         Returns
         -------
@@ -114,6 +117,14 @@ class PulseDataModule(BaseComponent):
 
         time_exclusions_exist = time_exclusions_key is not None
         dom_exclusions_exist = dom_exclusions_key is not None
+
+
+        self._hdf_time_index = 10
+        # 11: npe, 12: charge
+        if pulse_is_mcpe:
+            self._hdf_charge_index = 11
+        else:
+            self._hdf_charge_index = 12
 
         if add_charge_quantiles:
             pulse_dim = 3
@@ -187,6 +198,7 @@ class PulseDataModule(BaseComponent):
                           add_charge_quantiles=add_charge_quantiles),
             mutable_settings=dict(
                 pulse_key=pulse_key,
+                pulse_is_mcpe=pulse_is_mcpe,
                 dom_exclusions_key=dom_exclusions_key,
                 time_exclusions_key=time_exclusions_key,
                 discard_pulses_from_excluded_doms=(
@@ -221,10 +233,9 @@ class PulseDataModule(BaseComponent):
 
         # open file
         f = pd.HDFStore(file, 'r')
-
         try:
             pulses = f[self.configuration.config['pulse_key']]
-            _labels = f['LabelsDeepLearning']
+            _labels = f[kwargs['label_key']]
             if self.data['dom_exclusions_exist']:
                 try:
                     dom_exclusions = \
@@ -311,29 +322,29 @@ class PulseDataModule(BaseComponent):
                 continue
             index = event_dict[(row[1:5])]
 
-            # pulse charge: row[12], time: row[10]
+            # pulse charge: row[self._hdf_charge_index], time: row[self._hdf_time_index]
             # accumulate charge in DOMs
-            x_dom_charge[index, string-1, dom-1, 0] += row[12]
+            x_dom_charge[index, string-1, dom-1, 0] += row[self._hdf_charge_index]
 
             # gather pulses
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
                 cum_charge = float(x_dom_charge[index, string-1, dom-1, 0])
-                x_pulses[pulse_index] = [row[12], row[10], cum_charge]
+                x_pulses[pulse_index] = [row[self._hdf_charge_index], row[self._hdf_time_index], cum_charge]
 
             else:
                 # (charge, time)
-                x_pulses[pulse_index] = [row[12], row[10]]
+                x_pulses[pulse_index] = [row[self._hdf_charge_index], row[self._hdf_time_index]]
 
             # gather pulse ids (batch index, string, dom)
             x_pulses_ids[pulse_index] = [index, string-1, dom-1]
 
             # update time window
-            if row[10] > x_time_window[index, 1]:
-                x_time_window[index, 1] = row[10]
-            if row[10] < x_time_window[index, 0]:
-                x_time_window[index, 0] = row[10]
+            if row[self._hdf_time_index] > x_time_window[index, 1]:
+                x_time_window[index, 1] = row[self._hdf_time_index]
+            if row[self._hdf_time_index] < x_time_window[index, 0]:
+                x_time_window[index, 0] = row[self._hdf_time_index]
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
@@ -364,10 +375,10 @@ class PulseDataModule(BaseComponent):
                     continue
                 index = event_dict[(row[1:5])]
 
-                # t_start (pulse time): row[10], t_end (pulse width): row[11]
+                # t_start (pulse time): row[self._hdf_time_index], t_end (pulse width): row[11]
 
                 # (t_start, t_end)
-                x_time_exclusions[tw_index] = [row[10], row[11]]
+                x_time_exclusions[tw_index] = [row[self._hdf_time_index], row[11]]
 
                 # gather pulse ids (batch index, string, dom)
                 x_time_exclusions_ids[tw_index] = [index, string-1, dom-1]
@@ -524,7 +535,7 @@ class PulseDataModule(BaseComponent):
             for pulse in pulse_list:
                 index = 0
 
-                # pulse charge: row[12], time: row[10]
+                # pulse charge: row[self._hdf_charge_index], time: row[self._hdf_time_index]
                 # accumulate charge in DOMs
                 x_dom_charge[index, string-1, dom-1, 0] += pulse.charge
 
