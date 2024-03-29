@@ -335,11 +335,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         self.manager = self.manager_configurator.manager
         self.loss_module = self.manager_configurator.loss_module
 
-        if 'I3ParticleMapping' in self.manager.configuration.config['config']:
-            self.i3_mapping = self.manager.configuration.config['config'][
-                'I3ParticleMapping']
-        else:
-            self.i3_mapping = None
+        self.i3_mapping = self.manager.configuration.config['config'].get('I3ParticleMapping', None)
 
         for model in self.manager.models:
             num_vars, num_total_vars = model.num_variables
