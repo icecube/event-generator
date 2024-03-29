@@ -118,6 +118,14 @@ class PulseDataModule(BaseComponent):
         time_exclusions_exist = time_exclusions_key is not None
         dom_exclusions_exist = dom_exclusions_key is not None
 
+
+        self._hdf_time_index = 10
+        # 11: npe, 12: charge
+        if pulse_is_mcpe:
+            self._hdf_charge_index = 11
+        else:
+            self._hdf_charge_index = 12
+
         if add_charge_quantiles:
             pulse_dim = 3
         else:
@@ -383,7 +391,6 @@ class PulseDataModule(BaseComponent):
 
                 # (t_start, t_end)
                 x_time_exclusions[tw_index] = [row[hdf_time_index], row[11]]
-
                 # gather pulse ids (batch index, string, dom)
                 x_time_exclusions_ids[tw_index] = [index, string-1, dom-1]
 
