@@ -118,14 +118,6 @@ class PulseDataModule(BaseComponent):
         time_exclusions_exist = time_exclusions_key is not None
         dom_exclusions_exist = dom_exclusions_key is not None
 
-
-        self._hdf_time_index = 10
-        # 11: npe, 12: charge
-        if pulse_is_mcpe:
-            self._hdf_charge_index = 11
-        else:
-            self._hdf_charge_index = 12
-
         if add_charge_quantiles:
             pulse_dim = 3
         else:
