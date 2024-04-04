@@ -62,7 +62,7 @@ training_settings: {
 
     # Number of training iterations to train the model for
     'num_training_iterations': 1000000,
-
+    
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
         'normalize_by_total_charge': False,
@@ -400,7 +400,7 @@ model_settings: {
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': False,
         'prevent_mixture_component_swapping': False,
-        'estimate_charge_distribution': False,
+        'estimate_charge_distribution': 'negative_binomial',
         'num_latent_models': 10,
 
         # This is a list of labels in addition to
@@ -410,7 +410,7 @@ model_settings: {
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [25, 500, 500, 500, 41],  # The last dimension should be 4 * num_asym_gauss + num_charge_pdf; num_asym_gauss = 10,  num_charge_pdf = 1 (poisson) or 2 (binominal)
+        'num_filters_list' : [25, 500, 500, 500, 42],  # The last dimension should be 4 * num_asym_gauss + num_charge_pdf; num_asym_gauss = 10,  num_charge_pdf = 1 (poisson) or 2 (binominal)
         'method_list' : ['locally_connected',
                             'convolution', 'convolution', 'convolution',
                             'convolution',
