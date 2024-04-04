@@ -185,7 +185,6 @@ data_iterator_settings: {
                 '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000001*.hdf5',
                 '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000002*.hdf5',       
                 '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000003*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000004*.hdf5',       
         ],
     },
 
@@ -204,7 +203,6 @@ data_iterator_settings: {
                 '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000001*.hdf5',
                 '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000002*.hdf5',       
                 '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000003*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000004*.hdf5',       
         ],
     },
 
