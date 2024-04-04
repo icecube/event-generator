@@ -119,7 +119,9 @@ class CascadeGeneratorLabelModule(BaseComponent):
                           shift_cascade_vertex=shift_cascade_vertex,
                           trafo_log=trafo_log,
                           float_precision=float_precision,
-                          label_key=label_key))
+                          label_key=label_key,
+                          parameter_names=parameter_names))
+
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
