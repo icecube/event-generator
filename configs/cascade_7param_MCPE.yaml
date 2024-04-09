@@ -181,10 +181,10 @@ data_iterator_settings: {
         'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000000*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000001*.hdf5',
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000002*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000003*.hdf5',       
+          '/data/user/fschluter/eg-data/electrons/set_4/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_5/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_6-9/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_10-15/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
         ],
     },
 
@@ -194,15 +194,15 @@ data_iterator_settings: {
         'num_splits': ,
         'file_capacity': 1,
         'batch_capacity': 2,
-        'num_jobs': 10,
+        'num_jobs': 12,
         'num_add_files': 1,
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000000*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000001*.hdf5',
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000002*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000003*.hdf5',       
+          '/data/user/fschluter/eg-data/electrons/set_4/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_5/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_6-9/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_10-15/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
         ],
     },
 
@@ -218,11 +218,9 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000040*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000041*.hdf5',
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000042*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000043*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000044*.hdf5',       
+          '/data/user/fschluter/eg-data/electrons/set_0/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_1/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_2/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
         ],
     },
 
@@ -238,12 +236,9 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000045*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000046*.hdf5',
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000046*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000047*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000048*.hdf5',       
-                '/lustre/fs22/group/radio/felix/data/eg/hdf5/photons_hese_000049*.hdf5',       
+          '/data/user/fschluter/eg-data/electrons/set_3/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_16/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
+          '/data/user/fschluter/eg-data/electrons/set_17/Gen1k_10TeV_EMinus_FTP_V3_*.hdf5',
         ],
     },
 }
@@ -253,34 +248,18 @@ data_iterator_settings: {
 #---------------------
 
 # Settings for the loss module class
-loss_module_settings: [
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+loss_module_settings: {
+    # The loss module class to use
+    'loss_module': 'egenerator.loss.default.DefaultLossModule',
 
-        config: {
-            # the float precision to use
-            'float_precision': 'float32',
-            # Add normalization terms to llh if True
-            'add_normalization_term': True,
-            # choose the loss function to use
-            'loss_function_name': 'unbinned_pulse_time_llh',
-        },
-    },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    config: {
+        # the float precision to use
+        'float_precision': 'float32',
 
-        config: {
-            # the float precision to use
-            'float_precision': 'float32',
-            # Add normalization terms to llh if True
-            'add_normalization_term': True,
-            # choose the loss function to use
-            'loss_function_name': 'negative_binomial_charge_pdf',
-        },
+        # choose the loss function to use
+        'loss_function_name': 'unbinned_extended_pulse_llh',  # this implies a Poisson likelihood for the charge
     },
-]
+}
 
 #---------------------------
 # Evaluation module settings
@@ -301,8 +280,8 @@ evaluation_module_settings: {
 data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
-    'num_batches': 500,
-    'model_dir': '/lustre/fs22/group/radio/felix/data/{unique_name}',
+    'num_batches': 2000,
+    'model_dir': '../data/trafo/{unique_name}',
 }
 
 #----------------------
@@ -343,6 +322,7 @@ data_handler_settings: {
         'shift_cascade_vertex': True,
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, energy, time)?
+        # 'parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time'],
         'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
         'float_precision': 'float32',
@@ -399,7 +379,7 @@ model_settings: {
         'scale_charge_by_relative_dom_efficiency': True,
         'scale_charge_by_global_dom_efficiency': False,
         'prevent_mixture_component_swapping': False,
-        'estimate_charge_distribution': 'negative_binomial',
+        'estimate_charge_distribution': False,
         'num_latent_models': 10,
 
         # This is a list of labels in addition to
@@ -409,7 +389,7 @@ model_settings: {
 
         # First convolutions
         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [25, 500, 500, 500, 42],
+        'num_filters_list' : [25, 500, 500, 500, 41],  # The last dimension should be 4 * num_asym_gauss + num_charge_pdf; num_asym_gauss = 10,  num_charge_pdf = 1 (poisson) or 2 (binominal)
         'method_list' : ['locally_connected',
                             'convolution', 'convolution', 'convolution',
                             'convolution',
