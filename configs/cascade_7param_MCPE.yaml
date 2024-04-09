@@ -61,7 +61,7 @@ training_settings: {
     'save_frequency': 500,
 
     # Number of training iterations to train the model for
-    'num_training_iterations': 1,
+    'num_training_iterations': 1000000,
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
