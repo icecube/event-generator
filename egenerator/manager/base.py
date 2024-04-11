@@ -776,7 +776,6 @@ class BaseModelManager(Model):
             # increment step counter
             for model in self.models:
                 model.step.assign_add(1)
-
             # get new batch of training data
             training_data_batch = next(train_dataset)
 
@@ -786,7 +785,7 @@ class BaseModelManager(Model):
             # --------------------------
             # evaluate on validation set
             # --------------------------
-            if step % opt_config['validation_frequency'] == 0:
+            if step % opt_config['validation_frequency'] == 0 and step:
                 new_validation_time = timeit.default_timer()
                 time_diff = new_validation_time - validation_time
                 validation_time = new_validation_time
