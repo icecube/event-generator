@@ -55,19 +55,25 @@ class StochasticTrackSegmentModel(Source):
             float_precision = 'float32'
 
         # Define optical modules to use
-        optical_module = DetectorInfoModule(config['optical_module_key'])
+        optical_module = DetectorInfoModule(config['optical_module_key1'])
         self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string   
         num_pmts = optical_module.num_pmts 
 
+        optical_module_2 = DetectorInfoModule(config['optical_module_key2'])
+        self.optical_module_2 = optical_module_2
+        num_strings_2=optical_module_2.num_strings
+        doms_per_string_2=optical_module_2.doms_per_string   
+        num_pmts_2 = optical_module_2.num_pmts 
 
         # -------------------------------------------
         # Define input parameters of track hypothesis
         # -------------------------------------------
         parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
                            'energy', 'time', 'length', 'stochasticity', 'cascade_energy', 'cascade_distance','muon_energy']
-        # remove "cascade_distance" in the future"
+        
+        # Remove cascade_distance in the future
 
         num_snowstorm_params = 0
         if 'snowstorm_parameter_names' in config:
@@ -76,7 +82,7 @@ class StochasticTrackSegmentModel(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_inputs = 21  + num_snowstorm_params 
+        num_inputs = 21 + num_snowstorm_params 
 
         if config['add_opening_angle']:
             num_inputs += 1
@@ -95,7 +101,7 @@ class StochasticTrackSegmentModel(Source):
         # convolutional hex3d layers over X_IC86 data
         # -------------------------------------------
         self._untracked_data['conv_hex3d_layer'] = tfs.ConvNdLayers(
-            input_shape=[-1, num_strings, doms_per_string*num_pmts, num_inputs],
+            input_shape=[-1, num_strings, doms_per_string*num_pmts, num_inputs], 
             filter_size_list=config['filter_size_list'],
             num_filters_list=config['num_filters_list'],
             pooling_type_list=None,
@@ -112,8 +118,29 @@ class StochasticTrackSegmentModel(Source):
             hex_num_rotations_list=1,
             method_list=config['method_list'],
             float_precision=float_precision,
+           # name="Gen2_conv_{}d_layer",
             )
         
+        self._untracked_data['conv_hex3d_layer_icecube_2'] = tfs.ConvNdLayers( # it is important to name this *_2 for the time being
+            input_shape=[-1, num_strings_2, doms_per_string_2*num_pmts_2, (num_inputs-1)],# no pmt opening angle needed
+            filter_size_list=config['filter_size_list'],
+            num_filters_list=config['num_filters_list'],
+            pooling_type_list=None,
+            pooling_strides_list=[1, 1, 1, 1],
+            pooling_ksize_list=[1, 1, 1, 1],
+            use_dropout_list=config['use_dropout_list'],
+            padding_list='SAME',
+            strides_list=[1, 1, 1, 1],
+            use_batch_normalisation_list=config['use_batch_norm_list'],
+            activation_list=config['activation_list'],
+            use_residual_list=config['use_residual_list'],
+            hex_zero_out_list=False,
+            dilation_rate_list=None,
+            hex_num_rotations_list=1,
+            method_list=config['method_list'],
+            float_precision=float_precision,
+            name='IceCube_conv_{}d_layer',
+            )
         
         return parameter_names
 
@@ -235,10 +262,10 @@ class StochasticTrackSegmentModel(Source):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, num_strings, doms_per_string*num_pmts]
+                               Shape: [-1, 86, 60]
                 'dom_charges_variance':
                     the predicted variance on the charge at each DOM.
-                    Shape: [-1, num_strings, doms_per_string*num_pmts]
+                    Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         """
@@ -262,6 +289,18 @@ class StochasticTrackSegmentModel(Source):
         print('pulses_ids', pulses_ids)
         print('parameters', parameters)
 
+        # IceCube-86 -------------------------------------------
+        pulses_2 = data_batch_dict['x_pulses_2'] # important to call *_2 to all these tensors
+        pulses_ids_2 = data_batch_dict['x_pulses_ids_2']
+
+        # shape: [n_batch, 86, 60, 1]
+        dom_charges_true_2 = data_batch_dict['x_dom_charge_2']
+
+        pulse_times_2 = pulses_2[:, 1]
+        pulse_charges_2 = pulses_2[:, 0]
+        pulse_batch_id_2 = pulses_ids_2[:, 0]
+        #-----------------------------------------------------------------
+
         # Define optical module to use
         try:
             optical_module = self.optical_module
@@ -278,10 +317,31 @@ class StochasticTrackSegmentModel(Source):
         dom_azimuths = optical_module.dom_azimuths
         dom_zeniths = optical_module.dom_zeniths
 
+        # IceCube-86 -------------------------------------------
+        try:
+            optical_module_2 = self.optical_module_2
+        except:
+            optical_module_2 = DetectorInfoModule(config['optical_module_key2'])
+
+        num_strings_2=optical_module_2.num_strings
+        doms_per_string_2=optical_module_2.doms_per_string  
+        num_pmts_2 = optical_module_2.num_pmts    
+        coordinates_std_2=optical_module_2.coordinates_std
+        coordinates_mean_2=optical_module_2.coordinates_mean    
+        dom_coordinates_2=optical_module_2.dom_coordinates   
+        rel_dom_eff_2=optical_module_2.dom_rel_eff
+        dom_azimuths_2 = optical_module_2.dom_azimuths
+        dom_zeniths_2 = optical_module_2.dom_zeniths
+        #-----------------------------------------------------------------
+
         
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(
                                 parameters, tensor_name=parameter_tensor_name)
+
+        #parameters_trafo_2 = self.data_trafo.transform( #icecube trafo is going to be different due to different trigger
+        #                        parameters, tensor_name=parameter_tensor_name+"_2")
+        parameters_trafo_2 = parameters_trafo # Use different trafo if convenient using commented code above
 
         num_features = parameters.get_shape().as_list()[-1]
 
@@ -349,26 +409,56 @@ class StochasticTrackSegmentModel(Source):
         
         distance_to_cascade_gen2 = tf.sqrt(h_xc**2+h_yc**2+h_zc**2)
         
+        # IceCube-86 -------------------------------------------
+        # vector of track vertex to DOM
+        h_x_ice = dom_coordinates_2[..., 0] - parameter_list[0]
+        h_y_ice = dom_coordinates_2[..., 1] - parameter_list[1]
+        h_z_ice = dom_coordinates_2[..., 2] - parameter_list[2]
+        #vector director of cascade_vertex to DOM
+        h_xc_ice = dom_coordinates_2[..., 0] - (parameter_list[0]-parameter_list[10]*tf.sin(parameter_list[3])*tf.cos(parameter_list[4]))
+        h_yc_ice = dom_coordinates_2[..., 1] - (parameter_list[1]-parameter_list[10]*tf.sin(parameter_list[3])*tf.sin(parameter_list[4]))
+        h_zc_ice = dom_coordinates_2[..., 2] - (parameter_list[2]-parameter_list[10]*tf.cos(parameter_list[3]))
+        distance_to_cascade_icecube = tf.sqrt(h_xc_ice**2+h_yc_ice**2+h_zc_ice**2)
+        #-----------------------------------------------------------------
 
         # distance between track vertex and closest approach of infinite track
         # Shape: [-1, num_strings, doms_per_string*num_pmts]
         dist_infinite_approach = dir_x*h_x + dir_y*h_y + dir_z*h_z 
         rel_dist_infinite_approach = dist_infinite_approach / track_length
 
+        # IceCube-86 -------------------------------------------
+        dist_infinite_approach_2 = dir_x*h_x_ice + dir_y*h_y_ice + dir_z*h_z_ice
+        rel_dist_infinite_approach_2 = dist_infinite_approach_2 / track_length
+        #-----------------------------------------------------------------
+
         # this value can get extremely large if track length is ~ 0
         # Therefore: limit it to range -10, 10 and map it onto (-1, 1)
         rel_dist_infinite_approach_trafo = tf.math.tanh(
             rel_dist_infinite_approach / 10.)
+        
+        # IceCube-86 -------------------------------------------
+        rel_dist_infinite_approach_trafo_2 = tf.math.tanh(
+            rel_dist_infinite_approach_2 / 10.)
+        #-----------------------------------------------------------------
 
         # shift distance of infinite track onto the finite track
         dist_closest_approach = self.shift_distance_on_track(
             track_length, dist_infinite_approach)
         rel_dist_closest_approach = dist_closest_approach / track_length
 
+        # IceCube-86 -------------------------------------------
+        dist_closest_approach_2 = self.shift_distance_on_track(
+            track_length, dist_infinite_approach_2)
+        rel_dist_closest_approach_2 = dist_closest_approach_2 / track_length
+        #-----------------------------------------------------------------
 
         # compute delta in distance of true closest approach and of closest
         # approach of infinite track
         delta_dist_approach = dist_infinite_approach - dist_closest_approach
+
+        # IceCube-86 -------------------------------------------------------------
+        delta_dist_approach_2 = dist_infinite_approach_2 - dist_closest_approach_2
+        # -------------------------------------------------------------------------
 
         # calculate closest approach points of track to each DOM
         closest_x = parameter_list[0] + dist_closest_approach*dir_x
@@ -394,7 +484,7 @@ class StochasticTrackSegmentModel(Source):
         dx = tf.expand_dims(dx, axis=-1)
         dy = tf.expand_dims(dy, axis=-1)
         dz = tf.expand_dims(dz, axis=-1)
-        #Aquiiii
+       
         # shape: [-1, num_strings, doms_per_string*num_pmts, 1]
         distance = tf.sqrt(dx**2 + dy**2 + dz**2) + 1e-1
 
@@ -420,7 +510,7 @@ class StochasticTrackSegmentModel(Source):
             d2=dist_infinite_approach,
         )
 
-        # calculate observation angle 
+        
         dx_normed = dx / distance
         dy_normed = dy / distance
         dz_normed = dz / distance
@@ -429,8 +519,64 @@ class StochasticTrackSegmentModel(Source):
         #dy_c_normed = h_yc / distance_to_cascade_gen2
         #dz_c_normed = h_zc / distance_to_cascade_gen2
 
+        # IceCube-86 -------------------------------------------
+        # calculate closest approach points of track to each DOM
+        closest_x_ice = parameter_list[0] + dist_closest_approach_2*dir_x
+        closest_y_ice = parameter_list[1] + dist_closest_approach_2*dir_y
+        closest_z_ice = parameter_list[2] + dist_closest_approach_2*dir_z
+
+        infinite_x_ice = parameter_list[0] + dist_infinite_approach_2*dir_x
+        infinite_y_ice = parameter_list[1] + dist_infinite_approach_2*dir_y
+        infinite_z_ice = parameter_list[2] + dist_infinite_approach_2*dir_z
+
+        # calculate displacement vectors
+        dx_inf_ice = optical_module_2.dom_coordinates[..., 0] - infinite_x_ice
+        dy_inf_ice = optical_module_2.dom_coordinates[..., 1] - infinite_y_ice
+        dz_inf_ice = optical_module_2.dom_coordinates[..., 2] - infinite_z_ice
+
+
+        # shape: [-1, 86, 60]
+        distance_infinite_ice = tf.sqrt(dx_inf_ice**2 + dy_inf_ice**2 + dz_inf_ice**2)
+
+        dx_ice = optical_module_2.dom_coordinates[..., 0] - closest_x_ice
+        dy_ice = optical_module_2.dom_coordinates[..., 1] - closest_y_ice
+        dz_ice = optical_module_2.dom_coordinates[..., 2] - closest_z_ice
+        dx_ice = tf.expand_dims(dx_ice, axis=-1)
+        dy_ice = tf.expand_dims(dy_ice, axis=-1)
+        dz_ice = tf.expand_dims(dz_ice, axis=-1)
+        
+        # shape: [-1, 86, 60, 1]
+        distance_ice = tf.sqrt(dx_ice**2 + dy_ice**2 + dz_ice**2) + 1e-1
+
+        # calculate distance on track of cherenkov position
+        cherenkov_angle = np.arccos(1./1.3195)
+        dist_cherenkov_pos_ice = (
+            dist_infinite_approach_2 - distance_infinite_ice/np.tan(cherenkov_angle))
+
+        # calculate deposited energies between points on track
+        energy_before_ice = self.get_dep_energy(
+            energy, track_length,
+            d1=dist_closest_approach_2 - 100,
+            d2=dist_closest_approach_2,
+        )
+        energy_after_ice = self.get_dep_energy(
+            energy, track_length,
+            d1=dist_closest_approach_2,
+            d2=dist_closest_approach_2 + 100,
+        )
+        energy_cherenkov_ice = self.get_dep_energy(
+            energy, track_length,
+            d1=dist_cherenkov_pos_ice,
+            d2=dist_infinite_approach_2,
+        )
+
+        # calculate observation angle (not really)
+        dx_normed_ice = dx_ice / distance_ice
+        dy_normed_ice = dy_ice / distance_ice
+        dz_normed_ice = dz_ice / distance_ice
+        #-----------------------------------------------------------------
         # calculate direction of pmt orientations
-        dom_azimuths_tf = tf.convert_to_tensor(dom_azimuths, dtype=tf.float32)
+        dom_azimuths_tf = tf.convert_to_tensor(dom_azimuths, dtype=tf.float32) 
         dom_zeniths_tf = tf.convert_to_tensor(dom_zeniths, dtype=tf.float32)
         pmt_orientations = angles.sph_to_cart_tf(azimuth=dom_azimuths_tf,zenith=dom_zeniths_tf)
 
@@ -438,15 +584,12 @@ class StochasticTrackSegmentModel(Source):
         # Define track_dir
         track_dir = tf.stack([dir_x, dir_y, dir_z], axis=-1)  
 
-        # Calculate the rotation matrices
-
         # calculate opening angle of displacement vector and track direction
         opening_angle = angles.get_angle(track_dir,
                                          tf.concat([dx_normed,
                                                     dy_normed,
                                                     dz_normed], axis=-1)
                                          )
-        
         opening_angle = tf.expand_dims(opening_angle, axis=-1)
         
         opening_angle_pmt = angles.get_angle(pmt_orientations,
@@ -455,36 +598,22 @@ class StochasticTrackSegmentModel(Source):
                                                     dz_normed], axis=-1)
                                          )
         opening_angle_pmt = tf.expand_dims(opening_angle_pmt, axis=-1)
-        
-        # Same but for hadronic cascade in case of starting tracks, I do not think it is very important, but just in case
-        '''
-        opening_angle_c = angles.get_angle(track_dir,
-                                         tf.concat([dx_c_normed,
-                                                    dy_c_normed,
-                                                    dz_c_normed], axis=-1)
-                                         )
-        
-        opening_angle_c = tf.expand_dims(opening_angle_c, axis=-1)
-        
-        opening_angle_pmt_c = angles.get_angle(pmt_orientations,
-                                         tf.concat([dx_c_normed,
-                                                    dy_c_normed,
-                                                    dz_c_normed], axis=-1)
-                                         )
-        opening_angle_pmt_c = tf.expand_dims(opening_angle_pmt_c, axis=-1)
-        '''
+
         # transform dx, dy, dz, distance, zenith, azimuth to correct scale
         params_mean = self.data_trafo.data[parameter_tensor_name+'_mean']
         params_std = self.data_trafo.data[parameter_tensor_name+'_std']
-
         tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
         norm_const = self.data_trafo.data['norm_constant']
         
-        distance = distance + np.mean(params_mean[0:3]) 
+        distance = distance + np.mean(params_mean[0:3])
         distance /= (np.linalg.norm(params_std[0:3]) + norm_const)
 
         combined_vector = np.append(params_std[0:3], params_std[-1])
-        distance_to_cascade_gen2 /= (np.linalg.norm(combined_vector) + norm_const) 
+        distance_to_cascade_gen2 /= (np.linalg.norm(combined_vector) + norm_const)
+
+        # IceCube-86 --------------------------------------------------------------
+        distance_to_cascade_icecube /= (np.linalg.norm(combined_vector) + norm_const)
+        #----------------------------------------------------------------------------
 
         delta_dist_approach_trafo = delta_dist_approach / (
             np.linalg.norm(params_std[0:3]) + norm_const)
@@ -492,6 +621,42 @@ class StochasticTrackSegmentModel(Source):
                               (norm_const + params_std[3]))
         opening_angle_pmt_traf = ((opening_angle_pmt - params_mean[3]) /
                               (norm_const + params_std[3]))
+
+        # IceCube-86 -------------------------------------------
+        # all pmts have same orientation in IceCube
+        # Normalize the relative neutrino direction vector, it should be normal, but just in case
+        track_dir_ice = tf.stack([dir_x, dir_y, dir_z], axis=-1)
+        track_dir_norm = tf.linalg.norm(track_dir_ice, axis=-1, keepdims=True)
+        track_dir_normalized = track_dir_ice / track_dir_norm
+
+        # calculate opening angle of displacement vector and cascade direction
+        # calculate opening angle of displacement vector and cascade direction
+        opening_angle_ice = angles.get_angle(track_dir_normalized,
+                                         tf.concat([dx_normed_ice,
+                                                    dy_normed_ice,
+                                                    dz_normed_ice], axis=-1)
+                                         )
+        opening_angle_ice = tf.expand_dims(opening_angle_ice, axis=-1)
+
+        # transform dx, dy, dz, distance, zenith, azimuth to correct scale
+        #params_mean_2 = self.data_trafo.data[parameter_tensor_name+'_2_mean']
+        #params_std_2 = self.data_trafo.data[parameter_tensor_name+'_2_std']
+        params_mean_2 = params_mean
+        params_std_2 = params_std
+        tensor = self.data_trafo.data['tensors'][parameter_tensor_name]
+        norm_const = self.data_trafo.data['norm_constant']
+
+        distance_ice /= (np.linalg.norm(params_std_2[0:3]) + norm_const)
+        delta_dist_approach_ice_trafo = delta_dist_approach_2 / (
+            np.linalg.norm(params_std_2[0:3]) + norm_const)
+        opening_angle_ice_traf = ((opening_angle_ice - params_mean_2[3]) /
+                              (norm_const + params_std_2[3]))
+        
+        x_parameters_expanded_2 = tf.unstack(tf.reshape(
+                                                parameters_trafo_2,
+                                                [-1, 1, 1, num_features]),
+                                           axis=-1)
+        #-----------------------------------------------------------------
 
         x_parameters_expanded = tf.unstack(tf.reshape(
                                                 parameters_trafo,
@@ -504,6 +669,10 @@ class StochasticTrackSegmentModel(Source):
             energy_after_trafo = tf.math.log(1 + energy_after)
             energy_cherenkov_trafo = tf.math.log(1 + energy_cherenkov)
 
+            energy_before_ice_trafo = tf.math.log(1 + energy_before_ice)
+            energy_after_ice_trafo = tf.math.log(1 + energy_after_ice)
+            energy_cherenkov_ice_trafo = tf.math.log(1 + energy_cherenkov_ice)
+
         # apply bias correction
         
         energy_before_trafo -= params_mean[5]
@@ -514,7 +683,6 @@ class StochasticTrackSegmentModel(Source):
         energy_before_trafo /= (params_std[5] + norm_const)
         energy_after_trafo /= (params_std[5] + norm_const)
         energy_cherenkov_trafo /= (params_std[5] + norm_const)
-        
 
         # parameters: x, y, z, zenith, azimuth, energy, time, length, stoch
         modified_parameters = tf.stack([dir_x, dir_y, dir_z]
@@ -524,10 +692,10 @@ class StochasticTrackSegmentModel(Source):
 
         # put everything together
         params_expanded = tf.tile(modified_parameters, [1, num_strings, doms_per_string*num_pmts, 1])
-        
+
         input_list = [
-            params_expanded, dx_normed, dy_normed, dz_normed, #dx_c_normed, dy_c_normed, dz_c_normed,
-            distance,  tf.expand_dims((distance_to_cascade_gen2),axis=-1), # some parameters normalized by hand...
+            params_expanded, dx_normed, dy_normed, dz_normed,
+            (distance),  tf.expand_dims((distance_to_cascade_gen2),axis=-1), # some parameters normalized by hand...
             tf.expand_dims(delta_dist_approach_trafo, axis=-1),
             tf.expand_dims(energy_before_trafo, axis=-1),
             tf.expand_dims(energy_after_trafo, axis=-1),
@@ -535,7 +703,52 @@ class StochasticTrackSegmentModel(Source):
             tf.expand_dims(rel_dist_closest_approach, axis=-1),
             tf.expand_dims(rel_dist_infinite_approach_trafo, axis=-1),
             opening_angle_pmt_traf,
+           
         ]
+        # IceCube-86 -------------------------------------------
+        # apply bias correction
+        modified_parameters_2 = tf.stack([dir_x, dir_y, dir_z]
+                                       + [x_parameters_expanded_2[5]]
+                                       + x_parameters_expanded_2[7:],
+                                       axis=-1)
+
+        energy_before_ice_trafo -= params_mean_2[5]
+        energy_after_ice_trafo -= params_mean_2[5]
+        energy_cherenkov_ice_trafo -= params_mean_2[5]
+
+        # apply scaling factor
+        energy_before_ice_trafo /= (params_std_2[5] + norm_const)
+        energy_after_ice_trafo /= (params_std_2[5] + norm_const)
+        energy_cherenkov_ice_trafo /= (params_std_2[5] + norm_const)
+
+        distance_to_cascade_icecube /= (np.linalg.norm(params_std_2[0:3]+params_std_2[-1]) + norm_const)
+
+
+        # put everything together
+        params_expanded_ice = tf.tile(modified_parameters_2, [1, num_strings_2, doms_per_string_2*num_pmts_2, 1])
+
+        input_list_ice = [
+            params_expanded_ice, dx_normed_ice, dy_normed_ice, dz_normed_ice,
+            distance_ice, tf.expand_dims(distance_to_cascade_icecube, axis = -1),
+            tf.expand_dims(delta_dist_approach_ice_trafo, axis=-1),
+            tf.expand_dims(energy_before_ice_trafo, axis=-1),
+            tf.expand_dims(energy_after_ice_trafo, axis=-1),
+            tf.expand_dims(energy_cherenkov_ice_trafo, axis=-1),
+            tf.expand_dims(rel_dist_closest_approach_2, axis=-1),
+            tf.expand_dims(rel_dist_infinite_approach_trafo_2, axis=-1),
+            
+        ]
+        #tf.print("\n")
+        #for i, input_i in enumerate(input_list_ice):
+        #    tf.print(
+        #        'input summary iceeeee: {}'.format(i),
+        #         tf.reduce_min(input_i),
+        #         tf.reduce_max(input_i),
+        #         tf.reduce_mean(input_i),
+        #         tf.math.reduce_std(input_i),
+        #     )
+        #tf.print("\n")
+        #-----------------------------------------------------------------
 
         # for i, input_i in enumerate(input_list):
         #     tf.print(
@@ -547,35 +760,36 @@ class StochasticTrackSegmentModel(Source):
 
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
+            input_list_ice.append(opening_angle_ice_traf)
 
-        if config['add_dom_coordinates'] and False:
+        #if config['add_dom_coordinates'] and False:
 
             # transform coordinates to correct scale with mean 0 std dev 1
-            dom_coords = np.expand_dims(
-                detector.x_coords.astype(param_dtype_np), axis=0)
-            # scale of coordinates is ~-500m to ~500m with std dev of ~ 284m
-            dom_coords /= 284.
+        #   dom_coords = np.expand_dims(
+        #        detector.x_coords.astype(param_dtype_np), axis=0)
+        #    # scale of coordinates is ~-500m to ~500m with std dev of ~ 284m
+        #    dom_coords /= 284.
 
             # extend to correct batch shape:
-            dom_coords = (tf.ones_like(dx_normed) * dom_coords)
+        #    dom_coords = (tf.ones_like(dx_normed) * dom_coords)
 
-            print('dom_coords', dom_coords)
-            input_list.append(dom_coords)
+        #    print('dom_coords', dom_coords)
+        #    input_list.append(dom_coords)
 
-        if config['num_local_vars'] > 0:
+        #if config['num_local_vars'] > 0:
 
             # extend to correct shape:
-            local_vars = (tf.ones_like(dx_normed) *
-                          self._untracked_data['local_vars'])
-            print('local_vars', local_vars)
+        #    local_vars = (tf.ones_like(dx_normed) *
+        #                  self._untracked_data['local_vars'])
+        #    print('local_vars', local_vars)
 
-            input_list.append(local_vars)
+        #    input_list.append(local_vars)
         
         #tf.print("\n")
         #for i, input_i in enumerate(input_list):
         #    tf.print(
         #        'input summary: {}'.format(i),
-                 #tf.reduce_min(input_i),
+        #         #tf.reduce_min(input_i),
         #         #tf.reduce_max(input_i),
         #         tf.reduce_mean(input_i),
         #         tf.math.reduce_std(input_i),
@@ -598,13 +812,21 @@ class StochasticTrackSegmentModel(Source):
                     tf.reduce_mean(rel_dist_infinite_approach_trafo),
                     tf.reduce_mean(rel_dist_infinite_approach),
                     tf.reduce_mean(dist_closest_approach),
+                    tf.reduce_mean(delta_dist_approach_ice_trafo),
+                    tf.reduce_mean(energy_before_ice_trafo),
+                    tf.reduce_mean(energy_after_ice_trafo),
+                    tf.reduce_mean(energy_cherenkov_ice_trafo),
+                    tf.reduce_mean(rel_dist_closest_approach_2),
+                    tf.reduce_mean(rel_dist_infinite_approach_trafo_2),
+                    tf.reduce_mean(rel_dist_infinite_approach_2),
+                    tf.reduce_mean(dist_closest_approach_2),
                 ])
             with tf.control_dependencies([assert_op]):
                 x_doms_input = tf.concat(input_list, axis=-1)
-              
+                x_doms_input_ice = tf.concat(input_list_ice, axis=-1)
         else:
             x_doms_input = tf.concat(input_list, axis=-1)
-          
+            x_doms_input_ice = tf.concat(input_list_ice, axis=-1)
         print('x_doms_input', x_doms_input)
 
         # -------------------------------------------
@@ -612,6 +834,10 @@ class StochasticTrackSegmentModel(Source):
         # -------------------------------------------
         conv_hex3d_layers = self._untracked_data['conv_hex3d_layer'](
                                         x_doms_input, is_training=is_training,
+                                        keep_prob=config['keep_prob'])
+        
+        conv_hex3d_layers_icecube = self._untracked_data['conv_hex3d_layer_icecube_2'](
+                                        x_doms_input_ice, is_training=is_training,
                                         keep_prob=config['keep_prob'])
 
         # -------------------------------------------
@@ -627,12 +853,29 @@ class StochasticTrackSegmentModel(Source):
         # the result of the convolution layers are the latent variables
         dom_charges_trafo = tf.expand_dims(conv_hex3d_layers[-1][..., 0],
                                            axis=-1)
+        
+        dom_charges_trafo_ice = tf.expand_dims(conv_hex3d_layers_icecube[-1][..., 0],
+                                           axis=-1)
+        
+        shape_diff_2 = tf.shape(dom_charges_trafo)[1] - tf.shape(dom_charges_trafo_ice)[1]
+        shape_diff_3 = tf.shape(dom_charges_trafo)[2] - tf.shape(dom_charges_trafo_ice)[2]
 
-        # clip value range for more stability during training
+        #print("charge_trafo",dom_charges_trafo.shape,dom_charges_trafo_ice.shape)
+        padded_dom_charges_trafo_ice = tf.pad(dom_charges_trafo_ice, 
+                              [[0, 0],  # No padding for the first dimension
+                               [0, shape_diff_2],  # Padding for the second dimension
+                               [0, shape_diff_3],  # Padding for the third dimension
+                               [0, 0]])
+
+        dom_charges_trafo = dom_charges_trafo #+ padded_dom_charges_trafo_ice*0 # If there is no icecube input pulse uncomment this
+
+        # clip value range for more stability during training (maybe increase the ranges? might be the reason of underestimation for very large true charges)
         dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20., 15)
+        dom_charges_trafo_ice = tf.clip_by_value(dom_charges_trafo_ice, -20., 15)
 
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
+        dom_charges_ice = tf.exp(dom_charges_trafo_ice)
 
         # scale charges by cascade energy
         if config['scale_charge']:
@@ -644,6 +887,8 @@ class StochasticTrackSegmentModel(Source):
         if config['scale_charge_by_relative_dom_efficiency']:
             dom_charges *= tf.expand_dims(
                 rel_dom_eff.astype(param_dtype_np), axis=-1)
+            dom_charges_ice *= tf.expand_dims(
+                rel_dom_eff_2.astype(param_dtype_np), axis=-1)
 
         # scale charges by global DOM efficiency
         if config['scale_charge_by_global_dom_efficiency']:
@@ -652,10 +897,11 @@ class StochasticTrackSegmentModel(Source):
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += 1e-7
-    
+        dom_charges_ice += 1e-7
 
         tensor_dict['dom_charges'] = dom_charges
-      
+        tensor_dict['dom_charges_ice'] = dom_charges_ice
+
         # -------------------------------------
         # get charge distribution uncertainties
         # -------------------------------------
@@ -697,7 +943,7 @@ class StochasticTrackSegmentModel(Source):
             charge_threshold = 5
 
             # Apply Asymmetric Gaussian and/or Poisson Likelihood
-            # shape: [n_batch, num_strings, doms_per_string*num_pmts, 1]
+            # shape: [n_batch, 86, 60, 1]
             eps = 1e-7
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
@@ -745,11 +991,22 @@ class StochasticTrackSegmentModel(Source):
             alpha_trafo = tf.expand_dims(
                 conv_hex3d_layers[-1][..., 1], axis=-1)
             
+            alpha_trafo_ice = tf.expand_dims(
+                conv_hex3d_layers_icecube[-1][..., 1], axis=-1)
+            
+            padded_alpha_trafo_ice = tf.pad(alpha_trafo_ice, 
+                              [[0, 0],  # No padding for the first dimension
+                               [0, shape_diff_2],  # Padding for the second dimension
+                               [0, shape_diff_3],  # Padding for the third dimension
+                               [0, 0]])
+
+            alpha_trafo = alpha_trafo + padded_alpha_trafo_ice*0
 
             # create correct offset and force positive and min values
             # The over-dispersion parameterized by alpha must be greater zero
             dom_charges_alpha = tf.nn.elu(alpha_trafo - 5) + 1.000001
-        
+            dom_charges_alpha_ice = tf.nn.elu(alpha_trafo_ice - 5) + 1.000001
+
             # compute log pdf
             dom_charges_llh = basis_functions.tf_log_negative_binomial(
                 x=dom_charges_true,
@@ -757,11 +1014,23 @@ class StochasticTrackSegmentModel(Source):
                 alpha=dom_charges_alpha,
             )
 
+            dom_charges_llh_ice = basis_functions.tf_log_negative_binomial(
+                x=dom_charges_true_2,
+                mu=dom_charges_ice,
+                alpha=dom_charges_alpha_ice,
+            )
+
             # compute standard deviation
             # std = sqrt(var) = sqrt(mu + alpha*mu**2)
             dom_charges_variance = (
                 dom_charges + dom_charges_alpha*dom_charges**2)
             dom_charges_unc = tf.sqrt(dom_charges_variance)
+
+            dom_charges_variance_ice = (
+                dom_charges_ice + dom_charges_alpha_ice*dom_charges_ice**2)
+            dom_charges_unc_ice = tf.sqrt(dom_charges_variance_ice)
+
+            print('dom_charges_llh', dom_charges_llh, dom_charges_llh_ice)
 
             # tf.print(
             #     'dom_charges_alpha',
@@ -776,12 +1045,18 @@ class StochasticTrackSegmentModel(Source):
             tensor_dict['dom_charges_variance'] = dom_charges_variance
             tensor_dict['dom_charges_log_pdf_values'] = dom_charges_llh
 
+            tensor_dict['dom_charges_alpha_ice'] = dom_charges_alpha_ice
+            tensor_dict['dom_charges_unc_ice'] = dom_charges_unc_ice
+            tensor_dict['dom_charges_variance_ice'] = dom_charges_variance_ice
+            tensor_dict['dom_charges_log_pdf_values_ice'] = dom_charges_llh_ice
 
         else:
             # Poisson Distribution: variance is equal to expected charge
             tensor_dict['dom_charges_unc'] = tf.sqrt(dom_charges)
             tensor_dict['dom_charges_variance'] = dom_charges
 
+            tensor_dict['dom_charges_unc_ice'] = tf.sqrt(dom_charges_ice)
+            tensor_dict['dom_charges_variance_ice'] = dom_charges_ice
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF
@@ -795,11 +1070,19 @@ class StochasticTrackSegmentModel(Source):
         t_pdf = tf.expand_dims(t_pdf, axis=-1)
         t_pdf = tf.ensure_shape(t_pdf, [None, 1])
 
+        # icecube modification --------------------------------
+        t_pdf_ice = pulse_times_2 - tf.gather(parameters[:, 6],
+                                        indices=pulse_batch_id_2)
+        # new shape: [None, 1]
+        t_pdf_ice = tf.expand_dims(t_pdf_ice, axis=-1)
+        t_pdf_ice = tf.ensure_shape(t_pdf_ice, [None, 1])
+        # -----------------------------------------------------
 
         # scale time range down to avoid big numbers:
         t_scale = 1. / self.time_unit_in_ns  # [1./ns]
         average_t_dist = 1000. * t_scale # increase this for Gen2 or tracks in General?
         t_pdf = t_pdf * t_scale
+        t_pdf_ice = t_pdf_ice * t_scale
 
         # -------------------------------------------
         # Gather latent vars of mixture model
@@ -821,6 +1104,45 @@ class StochasticTrackSegmentModel(Source):
         latent_scale = out_layer[...,
                                  n_charge + 3*n_models:n_charge + 4*n_models]
         
+        # icecube modification ----------------------------------------------
+        out_layer_ice = conv_hex3d_layers_icecube[-1]
+
+        latent_mu_ice = out_layer_ice[...,
+                              n_charge + 0*n_models:n_charge + 1*n_models]
+       
+        latent_sigma_ice = out_layer_ice[...,
+                                 n_charge + 1*n_models:n_charge + 2*n_models]
+        latent_r_ice = out_layer_ice[..., n_charge + 2*n_models:n_charge + 3*n_models]
+        latent_scale_ice = out_layer_ice[...,
+                                 n_charge + 3*n_models:n_charge + 4*n_models]
+        
+        padded_latent_mu_ice = tf.pad(latent_mu_ice, 
+                              [[0, 0],  # No padding for the first dimension
+                               [0, shape_diff_2],  # Padding for the second dimension
+                               [0, shape_diff_3],  # Padding for the third dimension
+                               [0, 0]])
+
+        padded_latent_sigma_ice = tf.pad(latent_sigma_ice, 
+                              [[0, 0],  # No padding for the first dimension
+                               [0, shape_diff_2],  # Padding for the second dimension
+                               [0, shape_diff_3],  # Padding for the third dimension
+                               [0, 0]])
+        padded_latent_r_ice = tf.pad(latent_r_ice, 
+                              [[0, 0],  # No padding for the first dimension
+                               [0, shape_diff_2],  # Padding for the second dimension
+                               [0, shape_diff_3],  # Padding for the third dimension
+                               [0, 0]])
+        padded_latent_scale_ice = tf.pad(latent_scale_ice, 
+                              [[0, 0],  # No padding for the first dimension
+                               [0, shape_diff_2],  # Padding for the second dimension
+                               [0, shape_diff_3],  # Padding for the third dimension
+                               [0, 0]])
+
+
+        latent_mu = latent_mu #+ padded_latent_mu_ice*0
+        latent_sigma = latent_sigma #+ padded_latent_sigma_ice*0
+        latent_r = latent_r #+ padded_latent_r_ice*0
+        latent_scale = latent_scale #+ padded_latent_scale_ice*0
         # -------------------------------------------------------------------
 
         # add reasonable scaling for parameters assuming the latent vars
@@ -844,12 +1166,31 @@ class StochasticTrackSegmentModel(Source):
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
 
+        # IceCube-86 --------------------------------------------
+        # create correct offset and scaling
+        latent_mu_ice = average_t_dist + factor_mu * latent_mu_ice
+        latent_sigma_ice = 2 + factor_sigma * latent_sigma_ice
+        latent_r_ice = 1 + factor_r * latent_r_ice
+        latent_scale_ice = 1 + factor_scale * latent_scale_ice
+
+        # force positive and min values
+        latent_scale_ice = tf.nn.elu(latent_scale_ice) + 1.00001
+        latent_r_ice = tf.nn.elu(latent_r_ice) + 1.001
+        latent_sigma_ice = tf.nn.elu(latent_sigma_ice) + 1.001
+
+        # normalize scale to sum to 1
+        latent_scale_ice /= tf.reduce_sum(latent_scale_ice, axis=-1, keepdims=True)
+        # -----------------------------------------------------------------
 
         tensor_dict['latent_var_mu'] = latent_mu
         tensor_dict['latent_var_sigma'] = latent_sigma
         tensor_dict['latent_var_r'] = latent_r
         tensor_dict['latent_var_scale'] = latent_scale
 
+        tensor_dict['latent_var_mu_ice'] = latent_mu_ice
+        tensor_dict['latent_var_sigma_ice'] = latent_sigma_ice
+        tensor_dict['latent_var_r_ice'] = latent_r_ice
+        tensor_dict['latent_var_scale_ice'] = latent_scale_ice
 
         # get latent vars for each pulse
         pulse_latent_mu = tf.gather_nd(latent_mu, pulses_ids)
@@ -883,6 +1224,29 @@ class StochasticTrackSegmentModel(Source):
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
         print('pulse_pdf_values', pulse_pdf_values)
 
+        # IceCube-86 --------------------------------------------
+        pulse_latent_mu_ice = tf.gather_nd(latent_mu_ice, pulses_ids_2)
+        pulse_latent_sigma_ice = tf.gather_nd(latent_sigma_ice, pulses_ids_2)
+        pulse_latent_r_ice = tf.gather_nd(latent_r_ice, pulses_ids_2)
+        pulse_latent_scale_ice = tf.gather_nd(latent_scale_ice, pulses_ids_2)
+
+        # ensure shapes
+        pulse_latent_mu_ice = tf.ensure_shape(pulse_latent_mu_ice, [None, n_models])
+        pulse_latent_sigma_ice = tf.ensure_shape(pulse_latent_sigma_ice,
+                                             [None, n_models])
+        pulse_latent_r_ice = tf.ensure_shape(pulse_latent_r_ice, [None, n_models])
+        pulse_latent_scale_ice = tf.ensure_shape(pulse_latent_scale_ice,
+                                             [None, n_models])
+        
+                # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
+        pulse_pdf_values_ice = basis_functions.tf_asymmetric_gauss(
+                    x=t_pdf_ice, mu=pulse_latent_mu_ice, sigma=pulse_latent_sigma_ice,
+                    r=pulse_latent_r_ice) * pulse_latent_scale_ice
+
+        # new shape: [n_pulses]
+        pulse_pdf_values_ice = tf.reduce_sum(pulse_pdf_values_ice, axis=-1)
+        print('pulse_pdf_values', pulse_pdf_values_ice)
+        # -----------------------------------------------------------------
 
         if is_training:
             # Ensure finite values
@@ -894,9 +1258,10 @@ class StochasticTrackSegmentModel(Source):
                 asserts.append(assert_finite)
             with tf.control_dependencies(asserts):
                 tensor_dict['pulse_pdf'] = pulse_pdf_values
-            
+                tensor_dict['pulse_pdf_ice'] = pulse_pdf_values_ice
         else:
             tensor_dict['pulse_pdf'] = pulse_pdf_values
+            tensor_dict['pulse_pdf_ice'] = pulse_pdf_values_ice
         # -------------------------------------------
 
         return tensor_dict
