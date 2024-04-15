@@ -122,7 +122,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, num_strings, doms_per_string*num_pmts, 1]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         tensors : DataTensorList
@@ -149,7 +149,7 @@ class DefaultLossModule(BaseComponent):
                     scalar loss for the whole batch of events
                 event: shape [n_batch]
                     vector loss with one value per event
-                dom: shape [n_batch, 86, 60]
+                dom: shape [n_batch, num_strings, doms_per_string*num_pmts]
                     tensor loss with one value for each DOM and event
         **kwargs
             Arbitrary keyword arguments.
@@ -251,7 +251,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, num_strings, doms_per_string*num_pmts, 1]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         tensors : DataTensorList
@@ -263,7 +263,7 @@ class DefaultLossModule(BaseComponent):
                     scalar loss for the whole batch of events
                 event: shape [n_batch]
                     vector loss with one value per event
-                dom: shape [n_batch, 86, 60]
+                dom: shape [n_batch, num_strings, doms_per_string*num_pmts]
                     tensor loss with one value for each DOM and event
 
         Returns
@@ -284,10 +284,10 @@ class DefaultLossModule(BaseComponent):
         pulse_charges = data_batch_dict['x_pulses'][:, 0]
         pulse_pdf_values = result_tensors['pulse_pdf']
 
-        # shape: [n_batch, 86, 60, 1]
+        # shape: [n_batch, num_strings, doms_per_string*num_pmts, 1]
         hits_true = data_batch_dict['x_dom_charge']
 
-        # shape: [n_batch, 86, 60]
+        # shape: [n_batch, num_strings, doms_per_string*num_pmts]
         dom_charges_true = tf.squeeze(hits_true, axis=-1)
         dom_charges_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
 
