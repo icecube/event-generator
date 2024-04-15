@@ -33,7 +33,7 @@ class DataTransformer(BaseComponent):
 
     def _configure(self, data_handler, data_iterator_settings, num_batches,
                    float_precision='float64',
-                   norm_constant=1e-6):
+                   norm_constant=1e-6, combined=False):
         """Configure DataTransformer object.
 
         Iteratively create a transformation model for a given data_handler and
@@ -98,7 +98,7 @@ class DataTransformer(BaseComponent):
         # create data iterator
         data_iterator = data_handler.get_batch_generator(
                                                 **data_iterator_settings)
-    
+
         check_values = {}
         data = {}
         data['tensors'] = data_handler.tensors
@@ -118,22 +118,26 @@ class DataTransformer(BaseComponent):
                 trafo_shape = list(tensor.shape)
                 # remove batch axis
                 trafo_shape.pop(tensor.trafo_batch_axis)
-
+                #print(tensor.name,trafo_shape)
                 var_dict[tensor.name] = {
                     'n': 0.,
                     'mean': np.zeros(trafo_shape),
                     'M2': np.zeros(trafo_shape),
                 }
-
+                
         for i in tqdm(range(num_batches)):
-            
+
             data_batch = next(data_iterator)
-           
+            
             # loop through tensors and update online variance calculation
             for tensor in data_handler.tensors.list:
+                #print(tensor.name)
                 if tensor.exists and tensor.trafo:
-                    
                     index = data_handler.tensors.get_index(tensor.name)
+                    #print(tensor.name,index,tensor.shape,data_batch[index].shape)
+                    if index==2 and combined:
+                        print("\n"*5,"Only if several detectors are being trained at the same time","\n"*5)
+                        continue # This should apply only to x_parameters?
                     n, mean, m2 = self._perform_update_step(
                                     trafo_log=tensor.trafo_log,
                                     data_batch=data_batch[index],
@@ -148,6 +152,10 @@ class DataTransformer(BaseComponent):
         # Calculate standard deviation
         for tensor in data_handler.tensors.list:
             if tensor.exists and tensor.trafo:
+                print("\n")
+                print(tensor.name)
+                print(var_dict[tensor.name]['M2'],var_dict[tensor.name]['n'])
+                print("\n")
                 std_dev = np.sqrt(var_dict[tensor.name]['M2'] /
                                   var_dict[tensor.name]['n'])
 
@@ -183,7 +191,8 @@ class DataTransformer(BaseComponent):
             settings=dict(data_iterator_settings=data_iterator_settings,
                           num_batches=num_batches,
                           float_precision=float_precision,
-                          norm_constant=norm_constant),
+                          norm_constant=norm_constant,
+                          combined=combined),
             check_values=check_values)
 
         return configuration, data, {}
@@ -296,17 +305,24 @@ class DataTransformer(BaseComponent):
                              'model prior to transform call.')
 
         if tensor_name not in self.data['tensors'].names:
-            raise ValueError('Tensor {!r} is unknown!'.format(tensor_name))
+            if tensor_name[:-2] not in self.data['tensors'].names:
+                raise ValueError('Tensor {!r} is unknown!'.format(tensor_name))
 
         # get tensor
-        tensor = self.data['tensors'][tensor_name]
+        try:
+            tensor = self.data['tensors'][tensor_name]
+        except:
+            assert tensor_name[-2:]=="_2", f"Tensor {tensor_name} does not exist"
+            print("Transforming x_parameters tensor with different trafo")
+            tensor = self.data['tensors'][tensor_name[:-2]]
+
         # check if shape of data matches expected shape
         if check_shape:
             trafo_shape = list(tensor.shape)
             trafo_shape.pop(tensor.trafo_batch_axis)
             data_shape = list(data.shape)
             data_shape.pop(tensor.trafo_batch_axis)
-            
+
             if list(data_shape) != trafo_shape:
                 msg = (
                     'Shape of data {} for tensor {} does not match '
@@ -357,7 +373,6 @@ class DataTransformer(BaseComponent):
         type(data)
             The transformed data.
         """
-        
         data, log_func, exp_func, is_tf, dtype, tensor = self._check_settings(
                                                             data, tensor_name)
 
