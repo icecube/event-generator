@@ -10,9 +10,10 @@ from egenerator import misc
 
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles
-# from egenerator.manager.component import Configuration, BaseComponent
-from egenerator.data.trafo import DataTransformer
 from egenerator.utils.optical_module.DetectorInfo import DetectorInfoModule
+# from egenerator.manager.component import Configuration, BaseComponent
+
+
 class DefaultCascadeModel(Source):
 
     def __init__(self, logger=None):
@@ -25,7 +26,6 @@ class DefaultCascadeModel(Source):
         """
         self._logger = logger or logging.getLogger(__name__)
         super(DefaultCascadeModel, self).__init__(logger=self._logger)
-        
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -58,11 +58,8 @@ class DefaultCascadeModel(Source):
             float_precision = 'float32'
     
         # Define optical module to use
-        try:
-            optical_module = self.optical_module
-        except:
-            optical_module = DetectorInfoModule(config['optical_module_key']) #It is not configured, 
-            self.optical_module = optical_module
+        optical_module = DetectorInfoModule(config['optical_module_key'])
+        self.optical_module = optical_module
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string   
         num_pmts = optical_module.num_pmts 
@@ -85,7 +82,7 @@ class DefaultCascadeModel(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_inputs = 11 + num_add_labels + num_snowstorm_params
+        num_inputs = 11 + num_add_labels + num_snowstorm_params + 1
 
         if config['add_opening_angle']:
             num_inputs += 1
@@ -170,10 +167,10 @@ class DefaultCascadeModel(Source):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60]
+                               Shape: [-1, num_strings, doms_per_string*num_pmts]
                 'dom_charges_variance':
                     the predicted variance on the charge at each DOM.
-                    Shape: [-1, 86, 60]
+                    Shape: [-1, num_strings, doms_per_strings*num_pmts]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         """
@@ -181,18 +178,17 @@ class DefaultCascadeModel(Source):
 
         print('Applying Default Cascade Model...')
         tensor_dict = {}
+
         config = self.configuration.config['config']
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict['x_pulses']
         pulses_ids = data_batch_dict['x_pulses_ids']
-    
-        # Define optical module to use
-        try: 
+       
+        try:
             optical_module = self.optical_module
         except:
-            optical_module = optical_module = DetectorInfoModule(config['optical_module_key'])
-            self.optical_module = optical_module
-
+            optical_module = DetectorInfoModule(config['optical_module_key'])
+           
         num_strings=optical_module.num_strings
         doms_per_string=optical_module.doms_per_string  
         num_pmts = optical_module.num_pmts    
@@ -202,6 +198,7 @@ class DefaultCascadeModel(Source):
         rel_dom_eff=optical_module.dom_rel_eff
         dom_azimuths = optical_module.dom_azimuths
         dom_zeniths = optical_module.dom_zeniths
+
 
         tensors = self.data_trafo.data['tensors']
         if ('x_time_exclusions' in tensors.names and
@@ -216,7 +213,7 @@ class DefaultCascadeModel(Source):
         # get parameters tensor dtype
         param_dtype_np = getattr(np, tensors[parameter_tensor_name].dtype)
 
-        # shape: [n_batch, 86, 60, 1]
+        # shape: [n_batch, num_strings, doms_per_strings*num_pmts, 1]
         dom_charges_true = data_batch_dict['x_dom_charge']
 
         pulse_times = pulses[:, 1]
@@ -224,11 +221,6 @@ class DefaultCascadeModel(Source):
         pulse_batch_id = pulses_ids[:, 0]
 
         # get transformed parameters
-        
-        
-        #data_transformer = DataTransformer()
-        #data_transformer.load("/data/user/jvara/egenerator_tutorial/repositories/event-generator/trafo_models/starter_cascade_trafo")
-        
         parameters_trafo = self.data_trafo.transform(
                                 parameters, tensor_name=parameter_tensor_name)
 
@@ -276,16 +268,19 @@ class DefaultCascadeModel(Source):
         pmt_orientations = angles.sph_to_cart_tf(azimuth=dom_azimuths_tf,zenith=dom_zeniths_tf)
 
         # calculate the relative neutrino direction for each PMT
-        cascade_dir = tf.stack([cascade_dir_x, cascade_dir_y, cascade_dir_z], axis=-1)
-        relative_cascade_dir = cascade_dir - pmt_orientations
+        # Define track_dir
+        cascade_dir = tf.stack([cascade_dir_x, cascade_dir_y, cascade_dir_z], axis=-1) 
 
-        # Normalize the relative neutrino direction vector
-        relative_cascade_dir_norm = tf.linalg.norm(relative_cascade_dir, axis=-1, keepdims=True)
-        relative_cascade_dir_normalized = relative_cascade_dir / relative_cascade_dir_norm
-
+        # Calculate opening angle between PMT orientation and displacement vector
+        opening_angle_pmt = angles.get_angle(pmt_orientations ,
+                                         tf.concat([dx_normed,
+                                                    dy_normed,
+                                                    dz_normed], axis=-1)
+                                         )
+        opening_angle_pmt = tf.expand_dims(opening_angle_pmt, axis=-1)
 
         # calculate opening angle of displacement vector and cascade direction
-        opening_angle = angles.get_angle(relative_cascade_dir_normalized,
+        opening_angle = angles.get_angle(tf.stack([cascade_dir_x, cascade_dir_y, cascade_dir_z], axis=-1) ,
                                          tf.concat([dx_normed,
                                                     dy_normed,
                                                     dz_normed], axis=-1)
@@ -301,6 +296,10 @@ class DefaultCascadeModel(Source):
         opening_angle_traf = ((opening_angle - params_mean[3]) /
                               (norm_const + params_std[3]))
 
+        opening_angle_pmt_trafo = ((opening_angle_pmt - params_mean[3]) /
+                              (norm_const + params_std[3]))
+
+        
         x_parameters_expanded = tf.unstack(tf.reshape(
                                                 parameters_trafo,
                                                 [-1, 1, 1, num_features]),
@@ -318,17 +317,26 @@ class DefaultCascadeModel(Source):
         params_expanded = tf.tile(modified_parameters, [1, num_strings, doms_per_string*num_pmts, 1])
        
         input_list = [params_expanded, dx_normed, dy_normed, dz_normed,
-                      distance]
+                      distance,  opening_angle_pmt_trafo]
        
         if config['add_opening_angle']:
             input_list.append(opening_angle_traf)
+        
+        #tf.print("\n")
+        #for i, input_i in enumerate(input_list):
+        #    tf.print(
+        #        'input summary: {}'.format(i),
+        #         tf.reduce_mean(input_i),
+        #         tf.math.reduce_std(input_i),
+        #     )
+        #tf.print("\n")
 
         if config['add_dom_coordinates']:
 
             # transform coordinates to correct scale with mean 0 std dev 1
             dom_coords = np.expand_dims(
                 dom_coordinates.astype(param_dtype_np), axis=0)
-            # scale of coordinates is ~-500m to ~500m with std dev of ~ 284m
+            
             dom_coords -= coordinates_mean
             dom_coords /= coordinates_std
 
@@ -507,7 +515,7 @@ class DefaultCascadeModel(Source):
                     tw_cdf_exclusion, 0., 1.)
 
             # accumulate time window exclusions for each DOM and MM component
-            # shape: [None, 86, 60, n_models]
+            # shape: [None, num_strings, doms_per_string*num_pmts, n_models]
             dom_cdf_exclusion = tf.zeros_like(latent_mu)
 
             dom_cdf_exclusion = tf.tensor_scatter_nd_add(
@@ -540,7 +548,7 @@ class DefaultCascadeModel(Source):
                 dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
                     dom_cdf_exclusion, 0., 1.)
 
-            # Shape: [None, 86, 60, 1]
+            # Shape: [None, num_strings, doms_per_string*num_pmts, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
                 dom_cdf_exclusion * latent_scale, axis=-1, keepdims=True)
 
@@ -653,7 +661,7 @@ class DefaultCascadeModel(Source):
             charge_threshold = 5
 
             # Apply Asymmetric Gaussian and/or Poisson Likelihood
-            # shape: [n_batch, 86, 60, 1]
+            # shape: [n_batch, num_strings, doms_per_string*num_pmts, 1]
             eps = 1e-7
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
