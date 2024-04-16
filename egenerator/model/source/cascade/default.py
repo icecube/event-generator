@@ -355,9 +355,11 @@ class DefaultCascadeModel(Source):
 
         # check if we have the right amount of filters in the latent dimension
         n_models = config['num_latent_models']
-        if n_models*4 + n_charge != config['num_filters_list'][-1]:
-            raise ValueError('{!r} != {!r}'.format(
-                n_models*4 + n_charge, config['num_filters_list'][-1]))
+        exp_num_filts = n_models * 4 + n_charge
+        if exp_num_filts != config['num_filters_list'][-1]:
+            raise ValueError('{!r} (expected) != {!r} (configured)'.format(
+                exp_num_filts, config['num_filters_list'][-1]))
+
         if n_models <= 1:
             raise ValueError('{!r} !> 1'.format(n_models))
 
