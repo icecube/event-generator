@@ -12,14 +12,14 @@ from icecube.icetray.i3logging import log_info, log_warn
 
 from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.utils import basis_functions
-
+from egenerator.ic3.simulation import EventGeneratorSimulation
 
 def calculate_loss(pred, true):
     assert true % 1 == 0, "Not a int value"
     return np.exp(-1 * pred) * pred ** true / math.factorial(true)
 
 
-class CalculateLikelihood(icetray.I3ConditionalModule):
+class CalculateLikelihood(EventGeneratorSimulation):
 
     """Class to evaluate predictions of MCPE with Event-Generator model.
 
@@ -356,7 +356,9 @@ class CalculateLikelihood(icetray.I3ConditionalModule):
                     if validate_photonics:
                         position = geo.omgeo[omkey].position
                         # for pulse in pulse_series:
-                        table_pdf, dom_charges_pred = self.photonics.get_pdf(particle, position, [pulse.time for pulse in pulse_series])
+                        table_pdf, dom_charges_pred = self.photonics.get_pdf(
+                            particle, position, [pulse.time for pulse in pulse_series],
+                            quantiles=False)
 
                         time_log_likelihood = -dom_charges_true * np.log(np.array(table_pdf) + eps)
                         llh_poisson = dom_charges_pred - np.sum(dom_charges_true) * np.log(dom_charges_pred + eps)
@@ -391,66 +393,6 @@ class CalculateLikelihood(icetray.I3ConditionalModule):
             frame.Put("PhotonicsLoss", loss_photonics)
             frame.Put("PhotonicsLossTotal", dataclasses.I3Double(loss_photonics_total))
 
-        # t0 = timeit.default_timer()
-        # pdf_values = self.model.pdf(x_times, result_tensors=result_tensors)
-        # t1 = timeit.default_timer()
-        # print(f"Predict PDF EG: {t1 - t0:.2f}s")
-
-        # assert pdf_values.shape[0] == 1, "PDF result has unexpected shape"
-        # pdf_values = pdf_values[0]
-        # dt = x_times[1] - x_times[0]
-        # pdf_values = pdf_values * dt  # For normalisation
-
-        # pulse_series_map = dataclasses.I3RecoPulseSeriesMap()
-
-        # if self.cascade_service is not None:
-        #     pulse_series_map_photonics = dataclasses.I3RecoPulseSeriesMap()
-
-        # total_charge = result_tensors['dom_charges'].numpy()
-        # assert total_charge.shape[0] == 1, "Total charge has unexpected shape"
-        # total_charge = np.squeeze(total_charge[0])
-
-        # geo = frame["I3Geometry"]
-
-        # # walk through DOMs
-        # for string in range(86):
-        #     for om in range(60):
-        #         om_key = icetray.OMKey(string+1, om+1)
-        #         position = geo.omgeo[om_key].position
-
-        #         if self.cascade_service is not None:
-
-        #             table_pdf, table_charge = self.photonics.get_pdf(frame["I3MCTree"].get_head(), position, x_times)
-        #             if table_charge > 0.1:
-        #                 pulse_series_pht = dataclasses.I3RecoPulseSeries()
-        #                 for t, charge in zip(x_times, table_pdf * table_charge):
-        #                     pulse = dataclasses.I3RecoPulse()
-        #                     if charge <= 0:
-        #                         continue
-        #                     pulse.time = t
-        #                     pulse.charge = charge
-        #                     pulse_series_pht.append(pulse)
-
-        #                 pulse_series_map_photonics[om_key] = pulse_series_pht
-
-        #         if total_charge[string, om] > 0.1:
-        #             # create pulse series
-        #             pulse_series = dataclasses.I3RecoPulseSeries()
-        #             charge_distribution = pdf_values[string, om] * total_charge[string, om]
-        #             for t, charge in zip(x_times, charge_distribution):
-        #                 if charge <= 0:
-        #                     continue
-        #                 pulse = dataclasses.I3RecoPulse()
-        #                 pulse.time = t
-        #                 pulse.charge = charge
-        #                 pulse_series.append(pulse)
-
-        #             # add to pulse series map
-        #             pulse_series_map[om_key] = pulse_series
-
-        # if self.cascade_service is not None:
-        #     frame["Photonics_Prediction"] = pulse_series_map_photonics
-
 
     def plot_pdfs(self, frame, result_tensors, validate_photonics=False):
 
@@ -477,25 +419,33 @@ class CalculateLikelihood(icetray.I3ConditionalModule):
         string = hom.string - 1
         om = hom.om - 1
 
-        times = np.arange(0, 1000, 5)
-        dt = np.diff(times)[0]
-        ctime = times[:-1] + dt / 2
-
-        pulse_log_pdf_values = np.array([self.model.pdf_per_dom(time, result_tensors=result_tensors,
-                                         string=string, dom=om) for time in ctime]) * dt
-        tot_charge = total_charge[0, string, om, 0]
-        fig, ax = plt.subplots()
-        ax.hist([p.time for p in mcpe_series_map[hom]], times, weights=[p.npe for p in mcpe_series_map[hom]], alpha=0.5, color="k", label="MC")
-
-        ax.plot(ctime, pulse_log_pdf_values * tot_charge, label="EventGenerator", lw=1)
-
         if validate_photonics:
             geo = frame["I3Geometry"]
             particle = frame["I3MCTree"].get_head()
             position = geo.omgeo[hom].position
-            table_pdf, dom_charges_pred = self.photonics._get_pdf2(particle, position, times)
+            self.photonics.cascade_pxs.SelectModuleCoordinates(*position)
+            _, _, t0 = self.photonics.cascade_pxs.SelectSource(photonics_service.PhotonicsSource(particle))
+        else:
+            t0 = 0
 
-            ax.plot(ctime, np.array(table_pdf) * dom_charges_pred, label="Photonics", lw=1, ls=":")
+        times = np.arange(t0 - 50, t0 + 300, 5)
+        dt = np.diff(times)[0]
+        ctime = times[:-1] + dt / 2
+
+        fig, ax = plt.subplots()
+        charges_mc = [p.npe for p in mcpe_series_map[hom]]
+        ax.hist([p.time for p in mcpe_series_map[hom]], times,
+                weights=charges_mc, alpha=0.5, color="k", label=f"MC {np.sum(charges_mc)}")
+
+        eg_pdf_values = np.squeeze(self.model.get_probability_quantiles_per_dom(times, result_tensors=result_tensors,
+                                         string=string, dom=om))
+        tot_charge = total_charge[0, string, om, 0]
+        ax.plot(ctime, eg_pdf_values * tot_charge, label=f"EventGenerator {tot_charge:.2f}", lw=1)
+
+        if validate_photonics:
+
+            table_pdf, dom_charges_pred = self.photonics.get_pdf(particle, position, times)
+            ax.plot(ctime, np.array(table_pdf) * dom_charges_pred, label=f"Photonics {dom_charges_pred:.2f}", lw=1, ls=":")
 
 
         ax.set_xlabel("time / ns")
@@ -505,185 +455,6 @@ class CalculateLikelihood(icetray.I3ConditionalModule):
 
         plt.tight_layout()
         plt.savefig(f"pdf_{self._counter}.png")
-
-
-
-    def convert_cascades_to_tensor(self, cascades, frame):
-        """Convert a list of cascades to a source parameter tensor.
-
-        Parameters
-        ----------
-        cascades : list of I3Particles
-            The list of cascade I3Particles.
-
-        frame : I3Frame
-            Necessary to get additional parameter from frame.
-
-        Returns
-        -------
-        tf.Tensor
-            The source hypothesis paramter tensor.
-        """
-        # create parameter array
-        parameters = np.empty([len(cascades), self.model.num_parameters])
-
-        # Fill default values
-        for name, value in self.default_values.items():
-
-            # assume that a I3Double exists in frame
-            if isinstance(value, str):
-                value = frame[value].value
-
-            # assign values
-            parameters[:, self.model.get_index(name)] = value
-
-        # now fill cascade parameters (x, y, z, zenith, azimuth, E, t)
-        for i, cascade in enumerate(cascades):
-            for name in self.param_names:
-
-                # remove prefix
-                name = name[len(self._prefix):]
-
-                if name in ['x', 'y', 'z']:
-                    value = getattr(cascade.pos, name)
-                elif name in ['azimuth', 'zenith']:
-                    value = getattr(cascade.dir, name)
-                else:
-                    value = getattr(cascade, name)
-
-                index = self.model.get_index(self._prefix + name)
-                parameters[i, index] = value
-
-        return tf.convert_to_tensor(parameters, dtype=self.param_dtype)
-
-    def _get_light_sources(self, mc_tree, parent):
-        """Get a list of cascade and track light sources from an I3MCTree
-
-        Recursive helper function for the method `get_light_sources`.
-
-        Parameters
-        ----------
-        mc_tree : I3MCTree
-            The I3MCTree from which to get the light sources
-
-        Returns
-        -------
-        array_like
-            The list of cascades.
-        array_like
-            The list of tracks.
-        """
-
-        # Stopping condition for recursion: either found a track or cascade
-        if (parent.energy < self.min_simulation_energy or
-                parent.pos.magnitude - parent.length
-                > self.max_simulation_distance):
-            return [], []
-
-        if parent.type in self.em_cascades:
-            if self.simulate_electron_daughters and len(mc_tree.get_daughters(parent)):
-                pass # get light sourced from daughters
-            else:
-                return [parent], []
-
-        elif parent.type in self.tracks:
-            return [], [parent]
-
-        cascades = []
-        tracks = []
-
-        # need further recursion
-        daughters = mc_tree.get_daughters(parent)
-
-        # check if we have a branch that we can't simulate
-        if len(daughters) == 0 and parent.type not in self.dark_particles:
-            log_warn(f"Particle: {parent}")
-            log_warn(f"Tree: {mc_tree}")
-            raise NotImplementedError(
-                'Particle can not be simulated: ', parent.type)
-
-        if len(daughters) > 0:
-            if parent.type not in self.allowed_parent_particles:
-                raise ValueError('Unknown parent type:', parent.type)
-
-        for daughter in daughters:
-
-            # get list of cascades and tracks
-            cascades_i, tracks_i = self._get_light_sources(mc_tree, daughter)
-
-            # extend lists
-            cascades.extend(cascades_i)
-            tracks.extend(tracks_i)
-
-        return cascades, tracks
-
-    def get_light_sources(self, mc_tree):
-        """Get a list of cascade and track light sources from an I3MCTree
-
-        This method recursively walks through the I3MCTree by looking at
-        daughter particles. All daughter particles are collected, that need
-        to be simulated.
-
-        Parameters
-        ----------
-        mc_tree : I3MCTree
-            The I3MCTree from which to get the light sources
-
-        Returns
-        -------
-        array_like
-            The list of cascades.
-        array_like
-            The list of tracks.
-        """
-
-        cascades = []
-        tracks = []
-        for primary in mc_tree.get_primaries():
-
-            # get list of cascades and tracks
-            cascades_i, tracks_i = self._get_light_sources(mc_tree, primary)
-
-            # extend lists
-            cascades.extend(cascades_i)
-            tracks.extend(tracks_i)
-
-        return cascades, tracks
-
-
-
-def convert_params_to_particle(params):
-    """
-    Converts a list of parameters defining a source into a I3Particle
-
-    Parameters
-    ----------
-
-    params: list
-        List of parameters defining a source: [x, y, z, zenith, azimuth, energy, time]
-
-    Returns
-    -------
-
-    cascade: icecube.dataclasses.I3Particle
-        Particle describing a cascade
-    """
-    cascade = dataclasses.I3Particle()
-
-    cascade.pos = dataclasses.I3Position(params[0], params[1], params[2])
-    cascade.dir = dataclasses.I3Direction(params[3], params[4])
-
-    cascade.fit_status == dataclasses.I3Particle.NotSet
-    cascade.location_type = dataclasses.I3Particle.InIce
-    cascade.time = 0
-
-    # set particle type
-    cascade.type = dataclasses.I3Particle.ParticleType.EMinus
-
-    # set energy for each particle
-    cascade.energy = params[5] * I3Units.GeV
-
-    return cascade
 
 
 class Photonics(object):
@@ -743,7 +514,7 @@ class Photonics(object):
             raise TypeError(f"The type of sources \"{type(sources)}\" is not supported.")
 
 
-    def _get_pdf(self, source, position, times):
+    def _get_pdf(self, source, position, times, quantiles=True):
 
         if not isinstance(source, dataclasses.I3Particle):
             source = convert_params_to_particle(source)
@@ -756,45 +527,40 @@ class Photonics(object):
         if pes <= 0:
             return np.zeros_like(times), 0
 
-        pdf = [self.cascade_pxs.GetProbabilityDensity(t0 + t) for t in times]
+        if quantiles:
+            pdf = self.cascade_pxs.GetProbabilityQuantiles(times, t0, 0)  # Reading charge distribution (normalized to 1)
 
-        # quantiles = self.cascade_pxs.GetProbabilityQuantiles(times, t0, 0)  # Reading charge distribution (normalized to 1)
-        # print(pdf, quantiles)
+            # dt = np.diff(times)
+            # ctime = times[:-1] + dt / 2
+            # pdf2 = [self.cascade_pxs.GetProbabilityDensity(float(t) - t0) for t in ctime]
+            # pdf2 = pdf2 * dt
 
-        return pdf, pes
+            # for t, p1, p2 in zip(ctime, pdf, pdf2):
+            #     print(f"{t:.1f}, {p1 / p2:.2f}")
+            # print()
 
-
-    def _get_pdf2(self, source, position, times):
-
-        if not isinstance(source, dataclasses.I3Particle):
-            source = convert_params_to_particle(source)
-
-        if source.energy == 0:
-            return np.zeros_like(times), 0
-
-        self.cascade_pxs.SelectModuleCoordinates(*position)
-        pes, _, t0 = self.cascade_pxs.SelectSource(photonics_service.PhotonicsSource(source))
-        if pes <= 0:
-            return np.zeros_like(times), 0
-
-        quantiles = self.cascade_pxs.GetProbabilityQuantiles(times, t0, 0)  # Reading charge distribution (normalized to 1)
-
-        return quantiles, pes
+            return pdf, pes
+        else:
+            if isinstance(times, list):
+                pdf = [self.cascade_pxs.GetProbabilityDensity(t - t0) for t in times]
+            else:
+                pdf = self.cascade_pxs.GetProbabilityDensity(times - t0)
+            return pdf, pes
 
 
-    def get_pdf(self, sources, position, t):
+    def get_pdf(self, sources, position, t, quantiles=True):
         if isinstance(sources, dataclasses.I3Particle):
-            return self._get_pdf(sources, position, t)
+            return self._get_pdf(sources, position, t, quantiles)
 
         elif isinstance(sources, list) and isinstance(sources[0], float):
-            return self._get_pdf(sources, position, t)
+            return self._get_pdf(sources, position, t, quantiles)
 
         else:
             pdf_tot = np.zeros_like(t)
             pdfs = []
             nps_tot = 0
             for source in sources:
-                pdf, nps = self._self._get_pdf(source, position, t)
+                pdf, nps = self._self._get_pdf(source, position, t, quantiles)
                 pdfs.append(pdf)
                 pdf_tot += pdf * nps
                 nps_tot += nps
