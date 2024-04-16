@@ -511,6 +511,132 @@ class Source(Model):
 
         return cdf_values
 
+    def cdf_per_dom(self, x, result_tensors, string, dom, **kwargs):
+        """Compute CDF values at x for given result_tensors
+
+        This is a numpy, i.e. not tensorflow, method to compute the CDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        string : int
+            String id of the DOM
+        dom : int
+            Module id of the DOM
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF values at times x for the given event hypothesis and
+            exclusions that were used to compute `result_tensors`.
+            Shape: [n_events, n_points]
+
+        Raises
+        ------
+        NotImplementedError
+            If assymetric Gaussian latent variables are not present in
+            `result_tensors` dictionary.
+        """
+
+        x_orig = np.atleast_1d(x)
+        assert len(x_orig.shape) == 1, x_orig.shape
+        n_points = len(x_orig)
+
+        # shape: [1, 1, n_points]
+        x = np.reshape(x_orig, (1, 1, -1))
+
+        if result_tensors['time_offsets'] is not None:
+            # shape: [n_events]
+            t_offsets = result_tensors['time_offsets'].numpy()
+            # shape: [n_events, 1, 1]
+            t_offsets = np.reshape(t_offsets, [-1, 1, 1])
+            # shape: [n_events, 1, n_points]
+            x = x - t_offsets
+        else:
+            t_offsets = 0.
+
+        # internally we are working with different time units
+        x = x / self.time_unit_in_ns
+
+        # Check if the asymmetric Gaussian latent variables exist
+        for latent_name in ['mu', 'scale', 'sigma', 'r']:
+            if 'latent_var_' + latent_name not in result_tensors:
+                msg = 'PDF evaluation is not supported for this model: {}'
+                raise NotImplementedError(msg.format(
+                    self._untracked_data['name']))
+
+        # extract values
+        # shape: [n_events, n_components, 1]
+        mu = result_tensors['latent_var_mu'].numpy()[:, string, dom, :, np.newaxis]
+        scale = result_tensors['latent_var_scale'].numpy()[:, string, dom, :, np.newaxis]
+        sigma = result_tensors['latent_var_sigma'].numpy()[:, string, dom, :, np.newaxis]
+        r = result_tensors['latent_var_r'].numpy()[:, string, dom, :, np.newaxis]
+
+        # shape: [n_events, n_components, n_points]
+        mixture_cdf = basis_functions.asymmetric_gauss_cdf(
+            x=x, mu=mu, sigma=sigma, r=r
+        )
+
+        # shape: [n_events, n_points]
+        cdf_values = np.sum(mixture_cdf * scale, axis=1)
+
+        return cdf_values
+
+
+    def get_probability_quantiles_per_dom(self, x, result_tensors, string, dom, **kwargs):
+        """
+        This is a numpy, i.e. not tensorflow, method to compute the CDF based
+        on a provided `result_tensors`. This can be used to investigate
+        the generated PDFs.
+
+        Note: this function only works for sources that use asymmetric
+        Gaussians to parameterize the PDF. The latent values of the AG
+        must be included in the `result_tensors`.
+
+        Parameters
+        ----------
+        x : array_like
+            The times in ns at which to evaluate the result tensors.
+            Shape: () or [n_points]
+        result_tensors : dict of tf.tensor
+            The dictionary of output tensors as obtained from `get_tensors`.
+        string : int
+            String id of the DOM
+        dom : int
+            Module id of the DOM
+        **kwargs
+            Keyword arguments.
+
+        Returns
+        -------
+        array_like
+            Shape: [n_events, n_points - 1]
+
+        Raises
+        ------
+        NotImplementedError
+            If assymetric Gaussian latent variables are not present in
+            `result_tensors` dictionary.
+        """
+
+        cdf = self.cdf_per_dom(x, result_tensors, string, dom, **kwargs)
+        quantiles = cdf[..., 1:] - cdf[..., :-1]
+
+        return quantiles
+
+
     def pdf(self, x, result_tensors,
             tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
         """Compute PDF values at x for given result_tensors
@@ -669,7 +795,7 @@ class Source(Model):
         array_like
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, n_points]
 
         Raises
         ------
