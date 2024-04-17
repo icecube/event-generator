@@ -325,21 +325,28 @@ class CalculateLikelihood(EventGeneratorSimulation):
         loss_event_generator = dataclasses.I3MapKeyDouble()
         loss_event_generator_total = 0
 
+        event_generator_total_dom_charge = dataclasses.I3MapKeyDouble()
+        mc_total_dom_charge = dataclasses.I3MapKeyDouble()
+
         if validate_photonics:
             loss_photonics = dataclasses.I3MapKeyDouble()
             loss_photonics_total = 0
             geo = frame["I3Geometry"]
             particle = frame["I3MCTree"].get_head()
+            photonics_total_dom_charge = dataclasses.I3MapKeyDouble()
+
 
         for string in range(86):
             for om in range(60):
                 omkey = icetray.OMKey(string + 1, om + 1)
 
+                event_generator_total_dom_charge[omkey] = float(total_charge[0, string, om, 0])
 
                 if omkey in mcpe_series_map:
                     pulse_series = mcpe_series_map[omkey]
 
                     dom_charges_true = np.array([pulse.npe for pulse in pulse_series])
+                    mc_total_dom_charge[omkey] = float(np.sum(dom_charges_true))
                     pulse_log_pdf_values = np.log([self.model.pdf_per_dom(pulse.time, result_tensors=result_tensors,
                                                     string=string, dom=om) + eps for pulse in pulse_series])
 
@@ -359,6 +366,7 @@ class CalculateLikelihood(EventGeneratorSimulation):
                         table_pdf, dom_charges_pred = self.photonics.get_pdf(
                             particle, position, [pulse.time for pulse in pulse_series],
                             quantiles=False)
+                        photonics_total_dom_charge[omkey] = float(dom_charges_pred)
 
                         time_log_likelihood = -dom_charges_true * np.log(np.array(table_pdf) + eps)
                         llh_poisson = dom_charges_pred - np.sum(dom_charges_true) * np.log(dom_charges_pred + eps)
@@ -370,7 +378,7 @@ class CalculateLikelihood(EventGeneratorSimulation):
 
                 elif self.add_dark_doms:
                     expected_charge = total_charge[0, string, om, 0]
-
+                    mc_total_dom_charge[omkey] = 0
                     loss = expected_charge - 0 * np.log(expected_charge + 1e-7)
                     loss_event_generator_total += loss
                     loss_event_generator[omkey] = loss
@@ -378,6 +386,7 @@ class CalculateLikelihood(EventGeneratorSimulation):
                     if validate_photonics:
                         position = geo.omgeo[omkey].position
                         expected_charge, _ = self.photonics.get_PE(particle, position)
+                        photonics_total_dom_charge[omkey] = float(expected_charge)
 
                         loss = expected_charge - 0 * np.log(expected_charge + 1e-7)
                         loss_photonics_total += loss
@@ -386,10 +395,13 @@ class CalculateLikelihood(EventGeneratorSimulation):
                 else:
                     pass
 
+        frame.Put("MCTotalChargePerDOM", mc_total_dom_charge)
+        frame.Put("EventGeneratorTotalChargePerDOM", event_generator_total_dom_charge)
         frame.Put("EventGeneratorLoss", loss_event_generator)
         frame.Put("EventGeneratorLossTotal", dataclasses.I3Double(loss_event_generator_total))
 
         if validate_photonics:
+            frame.Put("PhotonicsTotalChargePerDOM", photonics_total_dom_charge)
             frame.Put("PhotonicsLoss", loss_photonics)
             frame.Put("PhotonicsLossTotal", dataclasses.I3Double(loss_photonics_total))
 
@@ -453,8 +465,10 @@ class CalculateLikelihood(EventGeneratorSimulation):
         ax.legend()
         ax.grid()
 
+        header = frame["I3EventHeader"]
+
         plt.tight_layout()
-        plt.savefig(f"pdf_{self._counter}.png")
+        plt.savefig(f"{self.model_name}_{header.run_id}_{header.event_id}_pdf.png")
 
 
 class Photonics(object):
