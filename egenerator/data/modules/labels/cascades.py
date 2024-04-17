@@ -11,7 +11,6 @@ from egenerator.utils.cascades import shift_to_maximum
 
 
 class CascadeGeneratorLabelModule(BaseComponent):
-
     """This is a label module that loads the cascade labels which are also used
     for the cascade-generator project.
     """
@@ -28,8 +27,14 @@ class CascadeGeneratorLabelModule(BaseComponent):
         logger = logger or logging.getLogger(__name__)
         super(CascadeGeneratorLabelModule, self).__init__(logger=logger)
 
-    def _configure(self, config_data, shift_cascade_vertex, trafo_log,
-                   float_precision, label_key='LabelsDeepLearning'):
+    def _configure(
+        self,
+        config_data,
+        shift_cascade_vertex,
+        trafo_log,
+        float_precision,
+        label_key="LabelsDeepLearning",
+    ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -92,30 +97,40 @@ class CascadeGeneratorLabelModule(BaseComponent):
 
         # sanity checks:
         if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError('{!r} is not a boolean value!'.format(
-                shift_cascade_vertex))
+            raise TypeError(
+                "{!r} is not a boolean value!".format(shift_cascade_vertex)
+            )
 
         data = {}
-        data['label_tensors'] = DataTensorList([DataTensor(
-                                        name='x_parameters',
-                                        shape=[None, 7],
-                                        tensor_type='label',
-                                        dtype=float_precision,
-                                        trafo=True,
-                                        trafo_log=trafo_log)])
+        data["label_tensors"] = DataTensorList(
+            [
+                DataTensor(
+                    name="x_parameters",
+                    shape=[None, 7],
+                    tensor_type="label",
+                    dtype=float_precision,
+                    trafo=True,
+                    trafo_log=trafo_log,
+                )
+            ]
+        )
 
         if isinstance(config_data, DataTensorList):
-            if config_data != data['label_tensors']:
-                msg = 'Tensors are wrong: {!r} != {!r}'
-                raise ValueError(msg.format(config_data,
-                                            data['label_tensors']))
+            if config_data != data["label_tensors"]:
+                msg = "Tensors are wrong: {!r} != {!r}"
+                raise ValueError(
+                    msg.format(config_data, data["label_tensors"])
+                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config_data=config_data,
-                          shift_cascade_vertex=shift_cascade_vertex,
-                          trafo_log=trafo_log,
-                          float_precision=float_precision,
-                          label_key=label_key))
+            settings=dict(
+                config_data=config_data,
+                shift_cascade_vertex=shift_cascade_vertex,
+                trafo_log=trafo_log,
+                float_precision=float_precision,
+                label_key=label_key,
+            ),
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -140,27 +155,34 @@ class CascadeGeneratorLabelModule(BaseComponent):
             Returns None if no label data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         # open file
-        f = pd.HDFStore(file, 'r')
+        f = pd.HDFStore(file, "r")
 
         cascade_parameters = []
         try:
-            _labels = f[self.configuration.config['label_key']]
-            for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
-                      'cascade_azimuth', 'cascade_energy', 'cascade_t']:
+            _labels = f[self.configuration.config["label_key"]]
+            for l in [
+                "cascade_x",
+                "cascade_y",
+                "cascade_z",
+                "cascade_zenith",
+                "cascade_azimuth",
+                "cascade_energy",
+                "cascade_t",
+            ]:
                 cascade_parameters.append(_labels[l])
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping file: {}'.format(file))
+            self._logger.warning("Skipping file: {}".format(file))
             return None, None
         finally:
             f.close()
 
         # shift cascade vertex to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
+        if self.configuration.config["shift_cascade_vertex"]:
             x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
             cascade_parameters[0] = x
             cascade_parameters[1] = y
@@ -168,9 +190,8 @@ class CascadeGeneratorLabelModule(BaseComponent):
             cascade_parameters[6] = t
 
         # format cascade parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
-        cascade_parameters = np.array(cascade_parameters,
-                                      dtype=dtype).T
+        dtype = getattr(np, self.configuration.config["float_precision"])
+        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
         num_events = len(cascade_parameters)
 
         return num_events, (cascade_parameters,)
@@ -197,22 +218,29 @@ class CascadeGeneratorLabelModule(BaseComponent):
             Returns None if no label data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         cascade_parameters = []
         try:
-            _labels = frame[self.configuration.config['label_key']]
-            for l in ['cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
-                      'cascade_azimuth', 'cascade_energy', 'cascade_t']:
+            _labels = frame[self.configuration.config["label_key"]]
+            for l in [
+                "cascade_x",
+                "cascade_y",
+                "cascade_z",
+                "cascade_zenith",
+                "cascade_azimuth",
+                "cascade_energy",
+                "cascade_t",
+            ]:
                 cascade_parameters.append(np.atleast_1d(_labels[l]))
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping frame: {}'.format(frame))
+            self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
         # shift cascade vertex to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
+        if self.configuration.config["shift_cascade_vertex"]:
             x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
             cascade_parameters[0] = x
             cascade_parameters[1] = y
@@ -220,9 +248,8 @@ class CascadeGeneratorLabelModule(BaseComponent):
             cascade_parameters[6] = t
 
         # format cascade parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
-        cascade_parameters = np.array(cascade_parameters,
-                                      dtype=dtype).T
+        dtype = getattr(np, self.configuration.config["float_precision"])
+        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
         num_events = len(cascade_parameters)
 
         return num_events, (cascade_parameters,)
@@ -249,7 +276,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
             Returns None if no label data is created.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         return self.get_data_from_frame(frame, *args, **kwargs)
 
@@ -269,12 +296,13 @@ class CascadeGeneratorLabelModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         pass
 
-    def _shift_to_maximum(self, x, y, z, zenith, azimuth, ref_energy, t,
-                          eps=1e-6):
+    def _shift_to_maximum(
+        self, x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6
+    ):
         """
         PPC does its own cascade extension, leaving the showers at the
         production vertex. Reapply the parametrization to find the
@@ -307,6 +335,13 @@ class CascadeGeneratorLabelModule(BaseComponent):
             shifted vertex time in nano seconds.
         """
         return shift_to_maximum(
-            x=x, y=y, z=z, zenith=zenith, azimuth=azimuth,
-            ref_energy=ref_energy, t=t, eps=eps, reverse=False,
+            x=x,
+            y=y,
+            z=z,
+            zenith=zenith,
+            azimuth=azimuth,
+            ref_energy=ref_energy,
+            t=t,
+            eps=eps,
+            reverse=False,
         )

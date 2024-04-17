@@ -7,18 +7,22 @@ from egenerator.utils.ic3 import exclusions, bright_doms
 
 @icetray.traysegment
 def ApplyEventGeneratorReconstruction(
-        tray, name,
-        pulse_key='SplitInIceDSTPulses',
-        dom_and_tw_exclusions=[
-            'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
-        partial_exclusion=True,
-        exclude_bright_doms=True,
-        bright_doms_threshold_fraction=0.4,
-        bright_doms_threshold_charge=100.,
-        merge_pulses_time_threshold=None,
-        clean_up=True,
-        **egenerator_kwargs
-        ):
+    tray,
+    name,
+    pulse_key="SplitInIceDSTPulses",
+    dom_and_tw_exclusions=[
+        "BadDomsList",
+        "CalibrationErrata",
+        "SaturationWindows",
+    ],
+    partial_exclusion=True,
+    exclude_bright_doms=True,
+    bright_doms_threshold_fraction=0.4,
+    bright_doms_threshold_charge=100.0,
+    merge_pulses_time_threshold=None,
+    clean_up=True,
+    **egenerator_kwargs
+):
     """Convenice I3TraySegment to apply Event-Generator reconstruction
 
     Combines DOM and time window exclusions in addition to computing bright
@@ -70,7 +74,8 @@ def ApplyEventGeneratorReconstruction(
 
     # combine exclusions and mask pulses
     masked_pulses, excluded_dom_k, excluded_tw_k, added_keys = tray.AddSegment(
-        CombineAndApplyExclusions, name + 'CombinedExclusions',
+        CombineAndApplyExclusions,
+        name + "CombinedExclusions",
         pulse_key=pulse_key,
         dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
@@ -82,7 +87,8 @@ def ApplyEventGeneratorReconstruction(
 
     # apply event-generator reconstruction
     tray.AddModule(
-        EventGeneratorReconstruction, name + 'Reco',
+        EventGeneratorReconstruction,
+        name + "Reco",
         pulse_key=masked_pulses,
         dom_exclusions_key=excluded_dom_k,
         time_exclusions_key=excluded_tw_k,
@@ -91,23 +97,27 @@ def ApplyEventGeneratorReconstruction(
 
     # clean up
     if clean_up:
-        tray.AddModule('Delete', name + 'CleanUp', Keys=added_keys)
+        tray.AddModule("Delete", name + "CleanUp", Keys=added_keys)
 
 
 @icetray.traysegment
 def ApplyEventGeneratorVisualizeBestFit(
-        tray, name,
-        pulse_key='SplitInIceDSTPulses',
-        dom_and_tw_exclusions=[
-            'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
-        partial_exclusion=True,
-        exclude_bright_doms=True,
-        bright_doms_threshold_fraction=0.4,
-        bright_doms_threshold_charge=100.,
-        merge_pulses_time_threshold=None,
-        clean_up=True,
-        **egenerator_kwargs
-        ):
+    tray,
+    name,
+    pulse_key="SplitInIceDSTPulses",
+    dom_and_tw_exclusions=[
+        "BadDomsList",
+        "CalibrationErrata",
+        "SaturationWindows",
+    ],
+    partial_exclusion=True,
+    exclude_bright_doms=True,
+    bright_doms_threshold_fraction=0.4,
+    bright_doms_threshold_charge=100.0,
+    merge_pulses_time_threshold=None,
+    clean_up=True,
+    **egenerator_kwargs
+):
     """Convenice I3TraySegment to apply Event-Generator best fit visualization
 
     Combines DOM and time window exclusions in addition to computing bright
@@ -159,7 +169,8 @@ def ApplyEventGeneratorVisualizeBestFit(
 
     # combine exclusions and mask pulses
     masked_pulses, excluded_dom_k, excluded_tw_k, added_keys = tray.AddSegment(
-        CombineAndApplyExclusions, name + 'CombinedExclusions',
+        CombineAndApplyExclusions,
+        name + "CombinedExclusions",
         pulse_key=pulse_key,
         dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
@@ -171,7 +182,8 @@ def ApplyEventGeneratorVisualizeBestFit(
 
     # apply event-generator reconstruction
     tray.AddModule(
-        EventGeneratorVisualizeBestFit, name + 'Visualization',
+        EventGeneratorVisualizeBestFit,
+        name + "Visualization",
         pulse_key=masked_pulses,
         dom_exclusions_key=excluded_dom_k,
         time_exclusions_key=excluded_tw_k,
@@ -180,21 +192,25 @@ def ApplyEventGeneratorVisualizeBestFit(
 
     # clean up
     if clean_up:
-        tray.AddModule('Delete', name + 'CleanUp', Keys=added_keys)
+        tray.AddModule("Delete", name + "CleanUp", Keys=added_keys)
 
 
 @icetray.traysegment
 def CombineAndApplyExclusions(
-        tray, name,
-        pulse_key='SplitInIceDSTPulses',
-        dom_and_tw_exclusions=[
-            'BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
-        partial_exclusion=True,
-        exclude_bright_doms=True,
-        bright_doms_threshold_fraction=0.4,
-        bright_doms_threshold_charge=100.,
-        merge_pulses_time_threshold=None,
-        ):
+    tray,
+    name,
+    pulse_key="SplitInIceDSTPulses",
+    dom_and_tw_exclusions=[
+        "BadDomsList",
+        "CalibrationErrata",
+        "SaturationWindows",
+    ],
+    partial_exclusion=True,
+    exclude_bright_doms=True,
+    bright_doms_threshold_fraction=0.4,
+    bright_doms_threshold_charge=100.0,
+    merge_pulses_time_threshold=None,
+):
     """Combine and Apply DOM and TimeWindow exclusions
 
     Parameters
@@ -252,10 +268,10 @@ def CombineAndApplyExclusions(
         dom_and_tw_exclusions = [dom_and_tw_exclusions]
 
     combined_exclusion_key = name
-    bright_dom_key = name + 'BrightDOMs'
-    excluded_dom_key = combined_exclusion_key + 'DOMs'
-    excluded_tw_key = combined_exclusion_key + 'TimeWindows'
-    masked_pulses_key = combined_exclusion_key + 'Pulses'
+    bright_dom_key = name + "BrightDOMs"
+    excluded_dom_key = combined_exclusion_key + "DOMs"
+    excluded_tw_key = combined_exclusion_key + "TimeWindows"
+    masked_pulses_key = combined_exclusion_key + "Pulses"
     added_keys = [masked_pulses_key, excluded_dom_key, excluded_tw_key]
 
     if exclude_bright_doms:
@@ -264,7 +280,8 @@ def CombineAndApplyExclusions(
 
         # compute and add bright DOMs to frame
         tray.AddModule(
-            bright_doms.AddBrightDOMs, name + 'BrightDOMs',
+            bright_doms.AddBrightDOMs,
+            name + "BrightDOMs",
             PulseKey=pulse_key,
             BrightThresholdFraction=bright_doms_threshold_fraction,
             BrightThresholdCharge=bright_doms_threshold_charge,
@@ -273,7 +290,8 @@ def CombineAndApplyExclusions(
 
     # combine exclusions in a single key for DOMs and TWs
     tray.AddModule(
-        exclusions.get_combined_exclusions, combined_exclusion_key,
+        exclusions.get_combined_exclusions,
+        combined_exclusion_key,
         dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
         output_key=combined_exclusion_key,
@@ -281,7 +299,8 @@ def CombineAndApplyExclusions(
 
     # mask pulses
     tray.AddModule(
-        exclusions.get_valid_pulse_map, name + 'MaskPulses',
+        exclusions.get_valid_pulse_map,
+        name + "MaskPulses",
         pulse_key=pulse_key,
         output_key=masked_pulses_key,
         dom_and_tw_exclusions=dom_and_tw_exclusions,
@@ -292,12 +311,13 @@ def CombineAndApplyExclusions(
     if merge_pulses_time_threshold is not None:
         # merge_pulses
         tray.AddModule(
-            exclusions.get_merged_pulse_map, name + 'MergePulses',
+            exclusions.get_merged_pulse_map,
+            name + "MergePulses",
             pulse_key=masked_pulses_key,
             time_threshold=merge_pulses_time_threshold,
-            output_key=masked_pulses_key + 'Merged',
+            output_key=masked_pulses_key + "Merged",
         )
-        masked_pulses_key = masked_pulses_key + 'Merged'
+        masked_pulses_key = masked_pulses_key + "Merged"
         added_keys.append(masked_pulses_key)
 
     return masked_pulses_key, excluded_dom_key, excluded_tw_key, added_keys

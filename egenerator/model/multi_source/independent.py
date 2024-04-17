@@ -5,7 +5,6 @@ from egenerator.model.multi_source.base import MultiSource
 
 
 class IndependentMultiSource(MultiSource):
-
     """This is a MultiSource that assumes that the parameters of each of its
     sources are independent, e.g. there are no constraints on the source
     parameters.
@@ -57,13 +56,13 @@ class IndependentMultiSource(MultiSource):
             required: the cascade source. The mapping will then map all
             cascades in the hypothesis to this one base cascade source.
         """
-        sources = config['sources']
+        sources = config["sources"]
 
         parameters = []
         for cascade in sorted(sources.keys()):
             base = sources[cascade]
             for variable in base_sources[base].parameter_names:
-                parameters.append(cascade + '_' + variable)
+                parameters.append(cascade + "_" + variable)
         return parameters, sources
 
     def get_source_parameters(self, parameters):
@@ -86,11 +85,12 @@ class IndependentMultiSource(MultiSource):
         """
         source_parameter_dict = {}
         counter = 0
-        for cascade in sorted(self._untracked_data['sources'].keys()):
-            base = self._untracked_data['sources'][cascade]
+        for cascade in sorted(self._untracked_data["sources"].keys()):
+            base = self._untracked_data["sources"][cascade]
             num = self.sub_components[base].num_parameters
-            source_parameter_dict[cascade] = \
-                parameters[:, counter:counter + num]
+            source_parameter_dict[cascade] = parameters[
+                :, counter : counter + num
+            ]
             counter += num
 
         return source_parameter_dict

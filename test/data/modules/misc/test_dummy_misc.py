@@ -7,13 +7,10 @@ from egenerator.data.tensor import DataTensorList
 
 
 class TestDummyMiscModule(unittest.TestCase):
-
-    """Test dummy misc module.
-    """
+    """Test dummy misc module."""
 
     def test_member_variables(self):
-        """Test if member variables have correct values.
-        """
+        """Test if member variables have correct values."""
         dummy_module = DummyMiscModule()
         self.assertEqual(dummy_module.data, None)
         self.assertEqual(dummy_module.is_configured, False)
@@ -27,7 +24,7 @@ class TestDummyMiscModule(unittest.TestCase):
         # check if error is correctly rasied when wrong data type is passed
         with self.assertRaises(ValueError) as context:
             dummy_module.configure(config_data=4)
-        self.assertTrue('Unknown type:' in str(context.exception))
+        self.assertTrue("Unknown type:" in str(context.exception))
 
     def test_configuration(self):
         dummy_module = DummyMiscModule()
@@ -37,21 +34,22 @@ class TestDummyMiscModule(unittest.TestCase):
 
         # now configure model
         dummy_module.configure(config_data=None)
-        data_tensors = dummy_module.data['misc_tensors']
+        data_tensors = dummy_module.data["misc_tensors"]
 
         # check if model is now configured
         self.assertEqual(dummy_module.is_configured, True)
 
         # check if configured data_tensors are correct
         self.assertEqual(data_tensors, DataTensorList([]))
-        self.assertEqual(dummy_module.configuration.config,
-                         {'config_data': None})
-        self.assertEqual(dummy_module.configuration.settings,
-                         {'config_data': None})
+        self.assertEqual(
+            dummy_module.configuration.config, {"config_data": None}
+        )
+        self.assertEqual(
+            dummy_module.configuration.settings, {"config_data": None}
+        )
 
     def test_dummy_data_method(self):
-        """Test the dummy weight data loading method
-        """
+        """Test the dummy weight data loading method"""
         dummy_module = DummyMiscModule()
         data_tensors = dummy_module.configure(config_data=None)
         num_events, values = dummy_module.get_data_from_hdf(None)
@@ -59,5 +57,5 @@ class TestDummyMiscModule(unittest.TestCase):
         self.assertEqual(values, (None,))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

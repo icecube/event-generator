@@ -12,54 +12,62 @@ from egenerator.data.tensor import DataTensor, DataTensorList
 class DummyDataHandler(BaseDataHandler):
 
     def _configure(self, data, new_subcomponent=None, **kwargs):
-        kwargs['data'] = data
-        class_string = os.path.splitext(
-            __file__.split('event-generator/')[-1])[0].replace('/', '.') + \
-            '.DummyDataHandler'
+        kwargs["data"] = data
+        class_string = (
+            os.path.splitext(__file__.split("event-generator/")[-1])[
+                0
+            ].replace("/", ".")
+            + ".DummyDataHandler"
+        )
         configuration = Configuration(class_string, kwargs)
         if new_subcomponent is None:
             dependent_components = None
         else:
-            dependent_components = {'new_subcomponent': new_subcomponent}
+            dependent_components = {"new_subcomponent": new_subcomponent}
         return configuration, data, dependent_components
 
 
 class TestBaseDataHandler(unittest.TestCase):
+    """Test base data handler class."""
 
-    """Test base data handler class.
-    """
     def setUp(self):
         # create handler object
         data_handler = DummyDataHandler()
 
         # fake setup
-        tensors = DataTensorList([DataTensor(name='data_tensor',
-                                             shape=[None, 86, 1],
-                                             tensor_type='data',
-                                             dtype='float32')])
-        settings = dict(data={'tensors': tensors}, param=42)
+        tensors = DataTensorList(
+            [
+                DataTensor(
+                    name="data_tensor",
+                    shape=[None, 86, 1],
+                    tensor_type="data",
+                    dtype="float32",
+                )
+            ]
+        )
+        settings = dict(data={"tensors": tensors}, param=42)
         data_handler.configure(**settings)
 
         self.data_handler = data_handler
-        self.config = {'config': 'good_setting'}
+        self.config = {"config": "good_setting"}
 
     def test_object_initialization(self):
         data_handler = BaseDataHandler()
         self.assertEqual(data_handler.tensors, None)
         self.assertEqual(data_handler.configuration, None)
-        self.assertEqual(data_handler._untracked_data['mp_processes'], [])
-        self.assertEqual(data_handler._untracked_data['mp_managers'], [])
+        self.assertEqual(data_handler._untracked_data["mp_processes"], [])
+        self.assertEqual(data_handler._untracked_data["mp_managers"], [])
         self.assertEqual(data_handler._is_configured, False)
 
     def test_method_check_if_configured(self):
-        """Test if check if configured raises an error
-        """
+        """Test if check if configured raises an error"""
         data_handler = BaseDataHandler()
 
         with self.assertRaises(ValueError) as context:
             data_handler.check_if_configured()
-        self.assertTrue('Data handler needs to be set up first!'
-                        in str(context.exception))
+        self.assertTrue(
+            "Data handler needs to be set up first!" in str(context.exception)
+        )
 
         # if we setup the data handler this shoudl run without any errors
         data_handler._is_configured = True
@@ -71,14 +79,16 @@ class TestBaseDataHandler(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             data_handler._is_configured = True
             data_handler._configure(**self.config)
-        self.assertTrue('The data handler is already set up!'
-                        in str(context.exception))
+        self.assertTrue(
+            "The data handler is already set up!" in str(context.exception)
+        )
 
         with self.assertRaises(ValueError) as context:
             data_handler._is_configured = True
             data_handler.configure(**self.config)
-        self.assertTrue('Component is already configured!'
-                        in str(context.exception))
+        self.assertTrue(
+            "Component is already configured!" in str(context.exception)
+        )
 
     def test_method_configure_pure_virtual_method(self):
         data_handler = BaseDataHandler()
@@ -89,27 +99,28 @@ class TestBaseDataHandler(unittest.TestCase):
 
         # with a file path string
         with self.assertRaises(NotImplementedError) as context:
-            data_handler.configure(config=None, config_data='dummy_file_path')
+            data_handler.configure(config=None, config_data="dummy_file_path")
 
         # with a list of file path strings
         with self.assertRaises(NotImplementedError) as context:
-            data_handler.configure(config=None,
-                                   config_data=['dummy_file_path1',
-                                                'dummy_file_path2'])
+            data_handler.configure(
+                config=None,
+                config_data=["dummy_file_path1", "dummy_file_path2"],
+            )
 
     def test_methods_load_and_save(self):
-        """Test the saving and loading of a previously created data handler obj.
-        """
+        """Test the saving and loading of a previously created data handler obj."""
 
         # save trafo model
         directory = os.path.join(
             os.path.dirname(__file__),
-            '../../../data/temp_test_files/data_handler')
+            "../../../data/temp_test_files/data_handler",
+        )
 
         # remove it if it already exists
         if os.path.exists(directory):
-            os.remove(os.path.join(directory, 'configuration.yaml'))
-            os.remove(os.path.join(directory, 'data.pickle'))
+            os.remove(os.path.join(directory, "configuration.yaml"))
+            os.remove(os.path.join(directory, "data.pickle"))
             os.removedirs(directory)
 
         self.data_handler.save(directory, overwrite=False)
@@ -118,14 +129,16 @@ class TestBaseDataHandler(unittest.TestCase):
         # check error message when attempting to overwrite file
         with self.assertRaises(IOError) as context:
             self.data_handler.save(directory, overwrite=False)
-        self.assertTrue(' already exists!' in str(context.exception))
+        self.assertTrue(" already exists!" in str(context.exception))
 
         # check error message when attempting to load component with wron class
         data_handler_new = BaseDataHandler()
         with self.assertRaises(TypeError) as context:
             data_handler_new.load(directory)
-        self.assertTrue("The object's class" in str(context.exception) and
-                        'not match the saved class' in str(context.exception))
+        self.assertTrue(
+            "The object's class" in str(context.exception)
+            and "not match the saved class" in str(context.exception)
+        )
 
         # check loading of data handler
         data_handler_new = DummyDataHandler()
@@ -142,17 +155,17 @@ class TestBaseDataHandler(unittest.TestCase):
         # check error message when length does not match
         with self.assertRaises(ValueError) as context:
             self.data_handler._check_data_structure(wrong_rank_data)
-        self.assertTrue('Length' in str(context.exception))
+        self.assertTrue("Length" in str(context.exception))
 
         # check error message when rank does not match
         with self.assertRaises(ValueError) as context:
             self.data_handler._check_data_structure([wrong_rank_data])
-        self.assertTrue('Rank' in str(context.exception))
+        self.assertTrue("Rank" in str(context.exception))
 
         # check error message when shapes does not match
         with self.assertRaises(ValueError) as context:
             self.data_handler._check_data_structure([wrong_shape_data])
-        self.assertTrue('Shapes' in str(context.exception))
+        self.assertTrue("Shapes" in str(context.exception))
 
         # check not implemented error message when trying to check
         # vector data tensors (tensor.vector_info is not None)
@@ -161,7 +174,7 @@ class TestBaseDataHandler(unittest.TestCase):
 
     def test_not_implemented_method_get_data_from_hdf(self):
         with self.assertRaises(NotImplementedError) as context:
-            self.data_handler.get_data_from_hdf('file_name_path')
+            self.data_handler.get_data_from_hdf("file_name_path")
 
     def test_not_implemented_method_get_data_from_frame(self):
         with self.assertRaises(NotImplementedError) as context:
@@ -204,7 +217,8 @@ class TestBaseDataHandler(unittest.TestCase):
         indices = np.array(indices)
 
         values_list, indices_list = self.data_handler.batch_to_event_structure(
-            values, indices, num_events)
+            values, indices, num_events
+        )
 
         for v1, v2 in zip(values_list, values_list_true):
             self.assertTrue(np.allclose(v1, v2))
@@ -212,5 +226,5 @@ class TestBaseDataHandler(unittest.TestCase):
             self.assertTrue(np.allclose(v1, v2))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

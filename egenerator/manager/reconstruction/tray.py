@@ -4,7 +4,6 @@ from egenerator import misc
 
 
 class ReconstructionTray:
-
     """ReconstructionTray Class
 
     A class that combines a set of reconstruction modules which are to be run
@@ -77,13 +76,14 @@ class ReconstructionTray:
 
         # load module class
         ModuleClass = misc.load_class(
-            'egenerator.manager.reconstruction.modules.{}'.format(module))
+            "egenerator.manager.reconstruction.modules.{}".format(module)
+        )
 
         if name is None:
-            name = 'module_{:04d}'.format(len(self.module_names))
+            name = "module_{:04d}".format(len(self.module_names))
 
         if name in self.module_names:
-            raise ValueError('Name {} already exists!'.format(name))
+            raise ValueError("Name {} already exists!".format(name))
 
         # set up module
         module = ModuleClass(
@@ -129,16 +129,14 @@ class ReconstructionTray:
             # run module
             start_t = timeit.default_timer()
             module_results = module.execute(
-                data_batch=data_batch,
-                results=results,
-                **kwargs
+                data_batch=data_batch, results=results, **kwargs
             )
             end_t = timeit.default_timer()
 
-            if 'runtime' in module_results:
+            if "runtime" in module_results:
                 raise ValueError('Module results must not contain "runtime"!')
 
-            module_results['runtime'] = end_t - start_t
+            module_results["runtime"] = end_t - start_t
 
             results[name] = module_results
 
@@ -166,8 +164,7 @@ class FunctionCache:
     """
 
     def __init__(self):
-        """Initialize data structure
-        """
+        """Initialize data structure"""
         self.functions = {}
 
     def add(self, function, settings):
@@ -190,9 +187,8 @@ class FunctionCache:
             # check if the function already exists
             for function_entry in self.functions[function.__name__]:
                 if settings == function_entry[0]:
-                    msg = 'Function {} with settings {} already exists!'
-                    raise KeyError(msg.format(
-                        function.__name__, settings))
+                    msg = "Function {} with settings {} already exists!"
+                    raise KeyError(msg.format(function.__name__, settings))
 
             # append to list
             self.functions[function.__name__].append((settings, function))

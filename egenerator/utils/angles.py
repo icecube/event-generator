@@ -28,10 +28,12 @@ def get_angle(vec1, vec2):
         Same shape as input vectors.
     """
     # transform into numpy array with dtype
-    assert vec1.get_shape().as_list()[-1] == 3, \
-        "Expect shape [?,3] or [3], but got {}".format(vec1.get_shape())
-    assert vec2.get_shape().as_list()[-1] == 3, \
-        "Expect shape [?,3] or [3], but got {}".format(vec2.get_shape())
+    assert (
+        vec1.get_shape().as_list()[-1] == 3
+    ), "Expect shape [?,3] or [3], but got {}".format(vec1.get_shape())
+    assert (
+        vec2.get_shape().as_list()[-1] == 3
+    ), "Expect shape [?,3] or [3], but got {}".format(vec2.get_shape())
 
     norm1 = tf.linalg.norm(vec1, axis=-1, keepdims=True)
     norm2 = tf.linalg.norm(vec2, axis=-1, keepdims=True)
@@ -41,7 +43,7 @@ def get_angle(vec1, vec2):
     tmp3 = tf.linalg.norm(tmp1 - tmp2, axis=-1)
     tmp4 = tf.linalg.norm(tmp1 + tmp2, axis=-1)
 
-    theta = 2*tf.atan2(tmp3, tmp4)
+    theta = 2 * tf.atan2(tmp3, tmp4)
 
     return theta
 
@@ -66,10 +68,10 @@ def get_angle_deviation(azimuth1, zenith1, azimuth2, zenith2):
         The opening angle in rad between the vector 1 and 2.
         Same shape as input vectors.
     """
-    cos_dist = (tf.cos(azimuth1 - azimuth2) *
-                tf.sin(zenith1) * tf.sin(zenith2) +
-                tf.cos(zenith1) * tf.cos(zenith2))
-    cos_dist = tf.clip_by_value(cos_dist, -1., 1.)
+    cos_dist = tf.cos(azimuth1 - azimuth2) * tf.sin(zenith1) * tf.sin(
+        zenith2
+    ) + tf.cos(zenith1) * tf.cos(zenith2)
+    cos_dist = tf.clip_by_value(cos_dist, -1.0, 1.0)
     return tf.acos(cos_dist)
 
 
@@ -93,18 +95,22 @@ def get_angle_deviation_np(azimuth1, zenith1, azimuth2, zenith2):
         The opening angle in rad between the vector 1 and 2.
         Same shape as input vectors.
     """
-    cos_dist = (np.cos(azimuth1 - azimuth2) *
-                np.sin(zenith1) * np.sin(zenith2) +
-                np.cos(zenith1) * np.cos(zenith2))
-    cos_dist = np.clip(cos_dist, -1., 1.)
+    cos_dist = np.cos(azimuth1 - azimuth2) * np.sin(zenith1) * np.sin(
+        zenith2
+    ) + np.cos(zenith1) * np.cos(zenith2)
+    cos_dist = np.clip(cos_dist, -1.0, 1.0)
     return np.arccos(cos_dist)
 
 
-def get_delta_psi_vector(zenith, azimuth, delta_psi,
-                         random_service=None,
-                         randomize_for_each_delta_psi=True,
-                         is_degree=True,
-                         return_angles=True):
+def get_delta_psi_vector(
+    zenith,
+    azimuth,
+    delta_psi,
+    random_service=None,
+    randomize_for_each_delta_psi=True,
+    is_degree=True,
+    return_angles=True,
+):
     """Get new angles with an opening angle of delta_psi.
 
     Parameters
@@ -146,32 +152,41 @@ def get_delta_psi_vector(zenith, azimuth, delta_psi,
             coordinates.
             Shape: [..., 3]
     """
-    vec = np.array([np.sin(zenith) * np.cos(azimuth),
-                    np.sin(zenith) * np.sin(azimuth),
-                    np.cos(zenith)]).T
+    vec = np.array(
+        [
+            np.sin(zenith) * np.cos(azimuth),
+            np.sin(zenith) * np.sin(azimuth),
+            np.cos(zenith),
+        ]
+    ).T
     vec = np.atleast_2d(vec)
     delta_vec = get_delta_psi_vector_dir(
         vec,
         delta_psi=delta_psi,
         random_service=random_service,
         randomize_for_each_delta_psi=randomize_for_each_delta_psi,
-        is_degree=is_degree)
+        is_degree=is_degree,
+    )
     if return_angles:
         # calculate zenith
         d_zenith = np.arccos(np.clip(delta_vec[..., 2], -1, 1))
 
         # calculate azimuth
-        d_azimuth = (np.arctan2(delta_vec[..., 1], delta_vec[..., 0])
-                     + 2 * np.pi) % (2 * np.pi)
+        d_azimuth = (
+            np.arctan2(delta_vec[..., 1], delta_vec[..., 0]) + 2 * np.pi
+        ) % (2 * np.pi)
         return d_zenith, d_azimuth
     else:
         return delta_vec
 
 
-def get_delta_psi_vector_dir(vec, delta_psi,
-                             randomize_for_each_delta_psi=True,
-                             random_service=None,
-                             is_degree=True):
+def get_delta_psi_vector_dir(
+    vec,
+    delta_psi,
+    randomize_for_each_delta_psi=True,
+    random_service=None,
+    is_degree=True,
+):
     """Get a new direction vector with an opening angle of delta_psi to vec.
 
     Parameters
@@ -219,7 +234,7 @@ def get_delta_psi_vector_dir(vec, delta_psi,
 
     # This calculation is only valid if delta_psi < 90 degree
     if np.any(delta_psi >= np.deg2rad(90)):
-        msg = 'Delta Psi angle must be smaller than 90 degrees, but it is {!r}'
+        msg = "Delta Psi angle must be smaller than 90 degrees, but it is {!r}"
         raise ValueError(msg.format(np.rad2deg(delta_psi)))
 
     # get a random orthogonal vector
@@ -276,7 +291,7 @@ def convert_to_range(zenith, azimuth):
     zenith = np.arccos(z)
     azimuth = np.arctan2(y, x)
 
-    azimuth = np.mod(azimuth, 2*np.pi)
+    azimuth = np.mod(azimuth, 2 * np.pi)
 
     return zenith, azimuth
 
@@ -303,7 +318,7 @@ def normalize(dir_x, dir_y, dir_z):
         The z-coordinate of the normalized unit vector.
     """
     norm = np.sqrt(dir_x**2 + dir_y**2 + dir_z**2)
-    return dir_x/norm, dir_y/norm, dir_z/norm
+    return dir_x / norm, dir_y / norm, dir_z / norm
 
 
 def angle2vec(zenith, azimuth, with_flip=False):
@@ -389,11 +404,11 @@ def dir2angle(dir_x, dir_y, dir_z, with_flip=False):
 
 
 def compute_coverage(
-        cdf_values,
-        weights=None,
-        quantiles=np.linspace(0.001, 1, 100),
-        verbose=True,
-        ):
+    cdf_values,
+    weights=None,
+    quantiles=np.linspace(0.001, 1, 100),
+    verbose=True,
+):
     """Compute Coverage
 
     Parameters
@@ -429,7 +444,7 @@ def compute_coverage(
     indices = np.searchsorted(sorted_cdf_values, quantiles)
     mask_over = indices >= len(cum_sum)
     if verbose and np.sum(mask_over) > 0:
-        print('Clipping {} events to max.'.format(np.sum(mask_over)))
+        print("Clipping {} events to max.".format(np.sum(mask_over)))
         indices = np.clip(indices, 0, len(cum_sum) - 1)
     coverage = cum_sum[indices]
 
@@ -646,7 +661,7 @@ class DistributionOnSphere:
             zenith, azimuth = (samples[..., i] for i in range(2))
             dir_x, dir_y, dir_z = angle2vec(zenith, azimuth)
         else:
-            raise ValueError('Shape not understood:', samples.shape)
+            raise ValueError("Shape not understood:", samples.shape)
 
         zenith, azimuth = convert_to_range(zenith, azimuth)
 
@@ -687,8 +702,14 @@ class DistributionOnSphere:
 
 class FB8Distribution(DistributionOnSphere):
 
-    def set(self, params, cdf_levels=np.linspace(0., .999, 1000),
-            seed=42, *args, **kwargs):
+    def set(
+        self,
+        params,
+        cdf_levels=np.linspace(0.0, 0.999, 1000),
+        seed=42,
+        *args,
+        **kwargs
+    ):
         """Set parameters of the distribution and initialize it
 
         Parameters
@@ -713,8 +734,16 @@ class FB8Distribution(DistributionOnSphere):
         fb8 = distribution.fb8(**params)
         self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed, *args, **kwargs)
 
-    def fit(self, samples, cdf_levels=np.linspace(0., .999, 1000),
-            fb5_only=True, warning=None, seed=42, *args, **kwargs):
+    def fit(
+        self,
+        samples,
+        cdf_levels=np.linspace(0.0, 0.999, 1000),
+        fb5_only=True,
+        warning=None,
+        seed=42,
+        *args,
+        **kwargs
+    ):
         """Fits the distribution parameters to the provided samples
 
         Parameters
@@ -778,24 +807,25 @@ class FB8Distribution(DistributionOnSphere):
             # older fb8 package version did not have seed parameter
             try:
                 self.neg_log_p_levels[i] = self.fb8.level(
-                    percentile=level*100,
+                    percentile=level * 100,
                     seed=self.seed,
                     n_samples=self.n_samples,
                 )
             except TypeError as e:
                 self.neg_log_p_levels[i] = self.fb8.level(
-                    percentile=level*100, n_samples=self.n_samples)
+                    percentile=level * 100, n_samples=self.n_samples
+                )
 
         # set parameters
         self._params = {
-            'theta': self.fb8.theta,
-            'phi': self.fb8.phi,
-            'psi': self.fb8.psi,
-            'kappa': self.fb8.kappa,
-            'beta': self.fb8.beta,
-            'eta': self.fb8.eta,
-            'alpha': self.fb8.alpha,
-            'rho': self.fb8.rho,
+            "theta": self.fb8.theta,
+            "phi": self.fb8.phi,
+            "psi": self.fb8.psi,
+            "kappa": self.fb8.kappa,
+            "beta": self.fb8.beta,
+            "eta": self.fb8.eta,
+            "alpha": self.fb8.alpha,
+            "rho": self.fb8.rho,
         }
 
     def log_pdf(self, zenith, azimuth, *args, **kwargs):
@@ -871,7 +901,7 @@ class FB8Distribution(DistributionOnSphere):
             specified contour.
         """
 
-        theta, phi = self.fb8.contour(percentile=level*100.)
+        theta, phi = self.fb8.contour(percentile=level * 100.0)
         theta, phi = convert_to_range(theta, phi)
         return theta, phi
 
@@ -904,6 +934,7 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         eps = 1e-4
 
         if fit_position:
+
             def loss(params):
                 zen, azi, sigma = params
                 zen, azi = convert_to_range(zen, azi)
@@ -919,18 +950,24 @@ class VonMisesFisherDistribution(DistributionOnSphere):
                     zenith2=zenith,
                 )
 
-                return -np.sum(np.log(basis_functions.von_mises_in_dPsi_pdf(
-                    x=delta_psi, sigma=sigma,
-                )))
+                return -np.sum(
+                    np.log(
+                        basis_functions.von_mises_in_dPsi_pdf(
+                            x=delta_psi,
+                            sigma=sigma,
+                        )
+                    )
+                )
 
             res = minimize(loss, x0=x0)
             zen, azi = convert_to_range(res.x[0], res.x[1])
             self._params = {
-                'zenith': zen,
-                'azimuth': azi,
-                'sigma': res.x[2],
+                "zenith": zen,
+                "azimuth": azi,
+                "sigma": res.x[2],
             }
         else:
+
             def loss(sigma):
 
                 if sigma < eps:
@@ -944,16 +981,21 @@ class VonMisesFisherDistribution(DistributionOnSphere):
                     zenith2=zenith,
                 )
 
-                return -np.sum(np.log(basis_functions.von_mises_in_dPsi_pdf(
-                    x=delta_psi, sigma=sigma,
-                )))
+                return -np.sum(
+                    np.log(
+                        basis_functions.von_mises_in_dPsi_pdf(
+                            x=delta_psi,
+                            sigma=sigma,
+                        )
+                    )
+                )
 
             res = minimize(loss, x0=x0[2])
 
             self._params = {
-                'zenith': x0[0],
-                'azimuth': x0[1],
-                'sigma': res.x[0],
+                "zenith": x0[0],
+                "azimuth": x0[1],
+                "sigma": res.x[0],
             }
 
     def log_pdf(self, zenith, azimuth, *args, **kwargs):
@@ -980,15 +1022,18 @@ class VonMisesFisherDistribution(DistributionOnSphere):
 
         # get opening angle to center of distribution
         delta_psi = get_angle_deviation_np(
-            azimuth1=self.params['azimuth'],
-            zenith1=self.params['zenith'],
+            azimuth1=self.params["azimuth"],
+            zenith1=self.params["zenith"],
             azimuth2=azimuth,
             zenith2=zenith,
         )
 
-        return np.log(basis_functions.von_mises_in_dPsi_pdf(
-            x=delta_psi, sigma=self.params['sigma'],
-        ))
+        return np.log(
+            basis_functions.von_mises_in_dPsi_pdf(
+                x=delta_psi,
+                sigma=self.params["sigma"],
+            )
+        )
 
     def cdf(self, zenith, azimuth, *args, **kwargs):
         """Computes the CDF.
@@ -1014,19 +1059,20 @@ class VonMisesFisherDistribution(DistributionOnSphere):
 
         # get opening angle to center of distribution
         delta_psi = get_angle_deviation_np(
-            azimuth1=self.params['azimuth'],
-            zenith1=self.params['zenith'],
+            azimuth1=self.params["azimuth"],
+            zenith1=self.params["zenith"],
             azimuth2=azimuth,
             zenith2=zenith,
         )
-        sigma = np.zeros_like(delta_psi) + self.params['sigma']
+        sigma = np.zeros_like(delta_psi) + self.params["sigma"]
 
         return basis_functions.von_mises_in_dPsi_cdf(
             x=delta_psi, sigma=sigma, *args, **kwargs
         )
 
     def contour(
-            self, level, n_samples=1000, x0=None, seed=42, *args, **kwargs):
+        self, level, n_samples=1000, x0=None, seed=42, *args, **kwargs
+    ):
         """Return zenith/azimuth pairs belonging to a certain contour line.
 
         Parameters
@@ -1054,16 +1100,17 @@ class VonMisesFisherDistribution(DistributionOnSphere):
         """
 
         # compute opening angle delta_psi that corresponds to given contour
-        sigma = np.atleast_1d(self.params['sigma'])
+        sigma = np.atleast_1d(self.params["sigma"])
 
         def loss(delta_psi):
             cdf_value = basis_functions.von_mises_in_dPsi_cdf(
-                x=delta_psi, sigma=sigma,
+                x=delta_psi,
+                sigma=sigma,
             )
-            return (cdf_value - level)**2
+            return (cdf_value - level) ** 2
 
         if x0 is None:
-            x0 = self.params['sigma']
+            x0 = self.params["sigma"]
 
         res = minimize(loss, x0=x0)
 
@@ -1072,8 +1119,8 @@ class VonMisesFisherDistribution(DistributionOnSphere):
 
         # sample new opening vectors for this opening angle delta_psi
         zenith, azimuth = get_delta_psi_vector(
-            zenith=self.params['zenith'],
-            azimuth=self.params['azimuth'],
+            zenith=self.params["zenith"],
+            azimuth=self.params["azimuth"],
             delta_psi=delta_psi,
             random_service=np.random.RandomState(seed),
             randomize_for_each_delta_psi=True,
@@ -1085,7 +1132,6 @@ class VonMisesFisherDistribution(DistributionOnSphere):
 
 
 class Gauss2D(DistributionOnSphere):
-
     """Note this does not define a proper PDF on the sphere!
 
     Only approximately valid in cartesian approximation of small angles
@@ -1106,12 +1152,16 @@ class Gauss2D(DistributionOnSphere):
         array_like
             The residuals between the two provided azimuth values.
         """
-        azimuth1 = np.mod(azimuth1, 2*np.pi)
-        azimuth2 = np.mod(azimuth2, 2*np.pi)
+        azimuth1 = np.mod(azimuth1, 2 * np.pi)
+        azimuth2 = np.mod(azimuth2, 2 * np.pi)
 
         residuals = azimuth1 - azimuth2
-        residuals[residuals < -np.pi] = residuals[residuals < -np.pi] + 2*np.pi
-        residuals[residuals > +np.pi] = residuals[residuals > +np.pi] - 2*np.pi
+        residuals[residuals < -np.pi] = (
+            residuals[residuals < -np.pi] + 2 * np.pi
+        )
+        residuals[residuals > +np.pi] = (
+            residuals[residuals > +np.pi] - 2 * np.pi
+        )
         return residuals
 
     def nearestPD(self, A):
@@ -1200,8 +1250,16 @@ class Gauss2D(DistributionOnSphere):
         """
         self._setup(params, allow_singular=allow_singular, seed=seed)
 
-    def fit(self, samples, x0=None, fit_position=True, allow_singular=True,
-            seed=42, *args, **kwargs):
+    def fit(
+        self,
+        samples,
+        x0=None,
+        fit_position=True,
+        allow_singular=True,
+        seed=42,
+        *args,
+        **kwargs
+    ):
         """Fits the distribution parameters to the provided samples
 
         Parameters
@@ -1235,8 +1293,11 @@ class Gauss2D(DistributionOnSphere):
         if x0 is None:
             cov = np.cov(zenith, azimuth)
             x0 = [
-                np.median(zenith), np.median(azimuth),
-                cov[0, 0], cov[0, 1], cov[1, 1],
+                np.median(zenith),
+                np.median(azimuth),
+                cov[0, 0],
+                cov[0, 1],
+                cov[1, 1],
             ]
 
         if fit_position:
@@ -1273,13 +1334,14 @@ class Gauss2D(DistributionOnSphere):
             res = minimize(loss, x0=x0)
             zen, azi = convert_to_range(res.x[0], res.x[1])
             params = {
-                'zenith': zen,
-                'azimuth': azi,
-                'cov_00': res.x[2],
-                'cov_01': res.x[3],
-                'cov_11': res.x[4],
+                "zenith": zen,
+                "azimuth": azi,
+                "cov_00": res.x[2],
+                "cov_01": res.x[3],
+                "cov_11": res.x[4],
             }
         else:
+
             def loss(params):
 
                 cov_00, cov_01, cov_11 = params
@@ -1312,11 +1374,11 @@ class Gauss2D(DistributionOnSphere):
             res = minimize(loss, x0=x0[2:])
 
             params = {
-                'zenith': x0[0],
-                'azimuth': x0[1],
-                'cov_00': res.x[0],
-                'cov_01': res.x[1],
-                'cov_11': res.x[2],
+                "zenith": x0[0],
+                "azimuth": x0[1],
+                "cov_00": res.x[0],
+                "cov_01": res.x[1],
+                "cov_11": res.x[2],
             }
 
         self._setup(params)
@@ -1338,16 +1400,18 @@ class Gauss2D(DistributionOnSphere):
         self.allow_singular = allow_singular
         self._params = dict(params)
 
-        self.cov = np.array([
-            [self.params['cov_00'], self.params['cov_01']],
-            [self.params['cov_01'], self.params['cov_11']],
-        ])
+        self.cov = np.array(
+            [
+                [self.params["cov_00"], self.params["cov_01"]],
+                [self.params["cov_01"], self.params["cov_11"]],
+            ]
+        )
 
         # update cov matrix
         self.cov = self.nearestPD(self.cov)
-        self.params['cov_00'] = self.cov[0, 0]
-        self.params['cov_01'] = self.cov[0, 1]
-        self.params['cov_11'] = self.cov[1, 1]
+        self.params["cov_00"] = self.cov[0, 0]
+        self.params["cov_01"] = self.cov[0, 1]
+        self.params["cov_11"] = self.cov[1, 1]
 
         self.dist = stats.multivariate_normal(
             mean=[0, 0],
@@ -1379,8 +1443,8 @@ class Gauss2D(DistributionOnSphere):
         azimuth = np.atleast_1d(azimuth)
 
         # get delta values
-        d_zen = self.params['zenith'] - zenith
-        d_azi = self.get_azimuth_residuals(self.params['azimuth'], azimuth)
+        d_zen = self.params["zenith"] - zenith
+        d_azi = self.get_azimuth_residuals(self.params["azimuth"], azimuth)
 
         values = np.stack([d_zen, d_azi], axis=1)
         return self.dist.logpdf(values)
@@ -1408,8 +1472,8 @@ class Gauss2D(DistributionOnSphere):
         azimuth = np.atleast_1d(azimuth)
 
         # get delta values
-        d_zen = self.params['zenith'] - zenith
-        d_azi = self.get_azimuth_residuals(self.params['azimuth'], azimuth)
+        d_zen = self.params["zenith"] - zenith
+        d_azi = self.get_azimuth_residuals(self.params["azimuth"], azimuth)
 
         values = np.stack([d_zen, d_azi], axis=1)
         return self.dist.cdf(values)

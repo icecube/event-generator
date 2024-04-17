@@ -21,11 +21,12 @@ def extract_model_class(manager_dir):
         egenerator.misc.load_class().
     """
     model_config_file = os.path.join(
-        manager_dir, 'models_0000/configuration.yaml')
+        manager_dir, "models_0000/configuration.yaml"
+    )
 
-    with open(model_config_file, 'r') as stream:
+    with open(model_config_file, "r") as stream:
         config_dict = yaml.load(stream, Loader=yaml.Loader)
-    return config_dict['class_string']
+    return config_dict["class_string"]
 
 
 def extract_model_parameters(manager_dir):
@@ -43,5 +44,5 @@ def extract_model_parameters(manager_dir):
         The ordered model parameter names.
     """
     model = misc.load_class(extract_model_class(manager_dir))()
-    model.load(os.path.join(manager_dir, 'models_0000/'))
+    model.load(os.path.join(manager_dir, "models_0000/"))
     return list(model.parameter_names)

@@ -18,7 +18,8 @@ class StartingVariableMultiCascadeModel(MultiSource):
         """
         self._logger = logger or logging.getLogger(__name__)
         super(StartingVariableMultiCascadeModel, self).__init__(
-            logger=self._logger)
+            logger=self._logger
+        )
 
     def get_parameters_and_mapping(self, config, base_sources):
         """Get parameter names and their ordering as well as source mapping.
@@ -50,19 +51,19 @@ class StartingVariableMultiCascadeModel(MultiSource):
             required: the cascade source. The mapping will then map all
             cascades in the hypothesis to this one base cascade source.
         """
-        self._untracked_data['num_cascades'] = config['num_cascades']
+        self._untracked_data["num_cascades"] = config["num_cascades"]
 
-        if list(base_sources.keys()) != ['cascade']:
+        if list(base_sources.keys()) != ["cascade"]:
             msg = "Expected only 'cascade' base, but got {!r}"
             raise ValueError(msg.format(base_sources.keys()))
 
-        sources = {'starting_cascade': 'cascade'}
-        parameters = ['x', 'y', 'z', 'zenith', 'azimuth', 'energy', 'time']
-        for index in range(1, self._untracked_data['num_cascades']):
-            cascade_name = 'cascade_{:05d}'.format(index)
-            parameters.append(cascade_name + '_energy')
-            parameters.append(cascade_name + '_distance')
-            sources[cascade_name] = 'cascade'
+        sources = {"starting_cascade": "cascade"}
+        parameters = ["x", "y", "z", "zenith", "azimuth", "energy", "time"]
+        for index in range(1, self._untracked_data["num_cascades"]):
+            cascade_name = "cascade_{:05d}".format(index)
+            parameters.append(cascade_name + "_energy")
+            parameters.append(cascade_name + "_distance")
+            sources[cascade_name] = "cascade"
 
         return parameters, sources
 
@@ -86,13 +87,13 @@ class StartingVariableMultiCascadeModel(MultiSource):
         """
         c = 0.299792458  # meter / ns
 
-        x = parameters.params['x']
-        y = parameters.params['y']
-        z = parameters.params['z']
-        zenith = parameters.params['zenith']
-        azimuth = parameters.params['azimuth']
-        time = parameters.params['time']
-        energy = parameters.params['energy']
+        x = parameters.params["x"]
+        y = parameters.params["y"]
+        z = parameters.params["z"]
+        zenith = parameters.params["zenith"]
+        azimuth = parameters.params["azimuth"]
+        time = parameters.params["time"]
+        energy = parameters.params["energy"]
 
         # calculate direction vector
         dir_x = -tf.sin(zenith) * tf.cos(azimuth)
@@ -100,17 +101,17 @@ class StartingVariableMultiCascadeModel(MultiSource):
         dir_z = -tf.cos(zenith)
 
         source_parameter_dict = {}
-        for cascade in sorted(self._untracked_data['sources'].keys()):
+        for cascade in sorted(self._untracked_data["sources"].keys()):
 
-            if cascade == 'starting_cascade':
+            if cascade == "starting_cascade":
                 source_parameter_dict[cascade] = tf.stack(
                     [x, y, z, zenith, azimuth, energy, time],
                     axis=1,
                 )
 
             else:
-                dist = parameters.params[cascade + '_distance']
-                cascade_energy = parameters.params[cascade + '_energy']
+                dist = parameters.params[cascade + "_distance"]
+                cascade_energy = parameters.params[cascade + "_energy"]
 
                 # calculate position and time of cascade
                 cascade_x = x + dist * dir_x
@@ -120,20 +121,38 @@ class StartingVariableMultiCascadeModel(MultiSource):
 
                 # make sure cascade energy does not turn negative
                 cascade_energy = tf.clip_by_value(
-                    cascade_energy, 0., float('inf'))
+                    cascade_energy, 0.0, float("inf")
+                )
 
                 # set cascades far out to zero energy
                 d_thresh = 700
-                cascade_energy = tf.where(tf.abs(cascade_x) > d_thresh,
-                                          cascade_energy*0., cascade_energy)
-                cascade_energy = tf.where(tf.abs(cascade_y) > d_thresh,
-                                          cascade_energy*0., cascade_energy)
-                cascade_energy = tf.where(tf.abs(cascade_z) > d_thresh,
-                                          cascade_energy*0., cascade_energy)
+                cascade_energy = tf.where(
+                    tf.abs(cascade_x) > d_thresh,
+                    cascade_energy * 0.0,
+                    cascade_energy,
+                )
+                cascade_energy = tf.where(
+                    tf.abs(cascade_y) > d_thresh,
+                    cascade_energy * 0.0,
+                    cascade_energy,
+                )
+                cascade_energy = tf.where(
+                    tf.abs(cascade_z) > d_thresh,
+                    cascade_energy * 0.0,
+                    cascade_energy,
+                )
 
-                source_parameter_dict[cascade] = tf.stack([
-                    cascade_x, cascade_y, cascade_z,
-                    zenith, azimuth, cascade_energy, cascade_time],
-                    axis=1)
+                source_parameter_dict[cascade] = tf.stack(
+                    [
+                        cascade_x,
+                        cascade_y,
+                        cascade_z,
+                        zenith,
+                        azimuth,
+                        cascade_energy,
+                        cascade_time,
+                    ],
+                    axis=1,
+                )
 
         return source_parameter_dict

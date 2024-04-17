@@ -9,7 +9,6 @@ from egenerator.utils import basis_functions
 
 
 class SnowstormPriorLossModule(BaseComponent):
-
     """Calculates a loss for the default snowstorm configuration:
 
     May also be used to impose uniform priors on any other model parameters.
@@ -50,9 +49,8 @@ class SnowstormPriorLossModule(BaseComponent):
 
     @property
     def sigmas(self):
-        if (self.untracked_data is not None and
-                'sigmas' in self.untracked_data):
-            return self.untracked_data['sigmas']
+        if self.untracked_data is not None and "sigmas" in self.untracked_data:
+            return self.untracked_data["sigmas"]
         else:
             return None
 
@@ -113,39 +111,57 @@ class SnowstormPriorLossModule(BaseComponent):
         """
 
         # define parameterizations
-        if 'sigmas' in config:
-            self.untracked_data['sigmas'] = config['sigmas']
+        if "sigmas" in config:
+            self.untracked_data["sigmas"] = config["sigmas"]
         else:
-            self.untracked_data['sigmas'] = [
-
+            self.untracked_data["sigmas"] = [
                 # Amplitude sigmas
-                0.00500100, 0.03900780, 0.04500900, 0.17903581, 0.07101420,
-                0.30306061, 0.14502901, 0.09501900, 0.16103221, 0.13302661,
-                0.15703141, 0.13302661,
-
+                0.00500100,
+                0.03900780,
+                0.04500900,
+                0.17903581,
+                0.07101420,
+                0.30306061,
+                0.14502901,
+                0.09501900,
+                0.16103221,
+                0.13302661,
+                0.15703141,
+                0.13302661,
                 # Phase sigmas
-                0.00000001, 0.01664937, 0.02708014, 0.43171273, 0.02351273,
-                2.33565571, 0.16767628, 0.05414841, 0.31355088, 0.04227052,
-                0.27955606, 4.02237848
+                0.00000001,
+                0.01664937,
+                0.02708014,
+                0.43171273,
+                0.02351273,
+                2.33565571,
+                0.16767628,
+                0.05414841,
+                0.31355088,
+                0.04227052,
+                0.27955606,
+                4.02237848,
             ]
 
-        if 'uniform_parameters' in config:
-            self.untracked_data['uniform_parameters'] = config[
-                                                        'uniform_parameters']
+        if "uniform_parameters" in config:
+            self.untracked_data["uniform_parameters"] = config[
+                "uniform_parameters"
+            ]
         else:
-            self.untracked_data['uniform_parameters'] = {
-                'Absorption': [0.9, 1.1],
-                'AnisotropyScale': [0., 2.0],
-                'DOMEfficiency': [0.9, 1.1],
-                'Scattering': [0.9, 1.1],
-                'HoleIceForward_Unified_00': [-2., 1.],
-                'HoleIceForward_Unified_01': [-0.2, 0.2],
+            self.untracked_data["uniform_parameters"] = {
+                "Absorption": [0.9, 1.1],
+                "AnisotropyScale": [0.0, 2.0],
+                "DOMEfficiency": [0.9, 1.1],
+                "Scattering": [0.9, 1.1],
+                "HoleIceForward_Unified_00": [-2.0, 1.0],
+                "HoleIceForward_Unified_01": [-0.2, 0.2],
             }
 
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config=config))
+            settings=dict(config=config),
+        )
 
         return configuration, {}, {}
 
@@ -172,7 +188,7 @@ class SnowstormPriorLossModule(BaseComponent):
             Description
         """
         if high <= low:
-            msg = 'Upper bound [{}] must be greater than lower bound [{}]'
+            msg = "Upper bound [{}] must be greater than lower bound [{}]"
             raise ValueError(msg.format(high, low))
 
         scale = high - low
@@ -180,20 +196,31 @@ class SnowstormPriorLossModule(BaseComponent):
         normalization = np.exp(exp_factor)
 
         def loss_excess(scaled_excess):
-            return tf.exp((scaled_excess + 1)*exp_factor) - normalization
+            return tf.exp((scaled_excess + 1) * exp_factor) - normalization
 
-        loss = tf.where(values > high - eps,
-                        loss_excess((values - high) / scale),
-                        tf.zeros_like(values))
-        loss += tf.where(values < low + eps,
-                         loss_excess((low - values) / scale),
-                         tf.zeros_like(values))
+        loss = tf.where(
+            values > high - eps,
+            loss_excess((values - high) / scale),
+            tf.zeros_like(values),
+        )
+        loss += tf.where(
+            values < low + eps,
+            loss_excess((low - values) / scale),
+            tf.zeros_like(values),
+        )
         return loss
 
-    def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters', reduce_to_scalar=True,
-                 sort_loss_terms=False,
-                 **kwargs):
+    def get_loss(
+        self,
+        data_batch_dict,
+        result_tensors,
+        tensors,
+        model,
+        parameter_tensor_name="x_parameters",
+        reduce_to_scalar=True,
+        sort_loss_terms=False,
+        **kwargs
+    ):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -255,26 +282,30 @@ class SnowstormPriorLossModule(BaseComponent):
 
         # get parameters
         parameters = model.add_parameter_indexing(
-            data_batch_dict[parameter_tensor_name])
+            data_batch_dict[parameter_tensor_name]
+        )
 
         loss_terms = []
 
         # compute loss for uniform priors
         for name, bounds in sorted(
-                self.untracked_data['uniform_parameters'].items()):
+            self.untracked_data["uniform_parameters"].items()
+        ):
             values = parameters.params[name]
             loss_terms.append(self.uniform_log_prior_loss(values, *bounds))
 
         # compute loss for Fourier modes
-        num_sigmas = len(self.untracked_data['sigmas'])
+        num_sigmas = len(self.untracked_data["sigmas"])
         if num_sigmas > 0:
-            start_index = model.get_index('IceWavePlusModes_00')
-            end_index = model.get_index('IceWavePlusModes_{:02d}'.format(
-                                                            num_sigmas)) + 1
+            start_index = model.get_index("IceWavePlusModes_00")
+            end_index = (
+                model.get_index("IceWavePlusModes_{:02d}".format(num_sigmas))
+                + 1
+            )
             assert end_index - start_index == num_sigmas
             for i, exp_index in enumerate(range(start_index, end_index)):
-                index = model.get_index('IceWavePlusModes_{:02d}'.format(i))
-                assert exp_index == index, '{} != {}'.format(exp_index, index)
+                index = model.get_index("IceWavePlusModes_{:02d}".format(i))
+                assert exp_index == index, "{} != {}".format(exp_index, index)
 
             # shape: [batch, n_fourier]
             fourier_values = parameters[:, start_index:end_index]
@@ -300,7 +331,7 @@ class SnowstormPriorLossModule(BaseComponent):
                 else:
                     event_loss += loss_term
 
-            dom_tensor = data_batch_dict['x_dom_charge'][..., 0]
+            dom_tensor = data_batch_dict["x_dom_charge"][..., 0]
             loss_terms = [
                 tf.zeros_like(dom_tensor[0, 0, 0]),
                 event_loss,
@@ -308,7 +339,8 @@ class SnowstormPriorLossModule(BaseComponent):
             ]
 
         if reduce_to_scalar:
-            return tf.math.accumulate_n([tf.reduce_sum(loss_term)
-                                         for loss_term in loss_terms])
+            return tf.math.accumulate_n(
+                [tf.reduce_sum(loss_term) for loss_term in loss_terms]
+            )
         else:
             return loss_terms

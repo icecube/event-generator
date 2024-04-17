@@ -29,8 +29,11 @@ def build_data_handler(data_handler_settings):
     DataHandler object
         The data handler object.
     """
-    DataHandlerClass = misc.load_class('egenerator.data.handler.{}'.format(
-                    data_handler_settings['data_handler']))
+    DataHandlerClass = misc.load_class(
+        "egenerator.data.handler.{}".format(
+            data_handler_settings["data_handler"]
+        )
+    )
     data_handler = DataHandlerClass()
     data_handler.configure(config=data_handler_settings)
     return data_handler
@@ -56,17 +59,17 @@ def build_loss_module(loss_module_settings):
 
     # If a dictionary is provided, then this is just a single loss module
     if isinstance(loss_module_settings, dict):
-        LossModuleClass = misc.load_class(loss_module_settings['loss_module'])
+        LossModuleClass = misc.load_class(loss_module_settings["loss_module"])
         loss_module = LossModuleClass()
-        loss_module.configure(config=loss_module_settings['config'])
+        loss_module.configure(config=loss_module_settings["config"])
 
     # A list of dictionaries is provided which each define a loss module
     else:
         loss_modules = []
         for settings in loss_module_settings:
-            LossModuleClass = misc.load_class(settings['loss_module'])
+            LossModuleClass = misc.load_class(settings["loss_module"])
             loss_module_i = LossModuleClass()
-            loss_module_i.configure(config=settings['config'])
+            loss_module_i.configure(config=settings["config"])
             loss_modules.append(loss_module_i)
 
         # create a multi loss module from a list of given loss modules
@@ -76,8 +79,9 @@ def build_loss_module(loss_module_settings):
     return loss_module
 
 
-def build_model(model_settings, data_transformer,
-                allow_rebuild_base_sources=False):
+def build_model(
+    model_settings, data_transformer, allow_rebuild_base_sources=False
+):
     """Build a Model object
 
     Parameters
@@ -106,31 +110,31 @@ def build_model(model_settings, data_transformer,
 
     # check if base sources need to be built:
     base_sources = {}
-    if 'multi_source_bases' in model_settings:
+    if "multi_source_bases" in model_settings:
 
-        multi_source_bases = model_settings['multi_source_bases']
+        multi_source_bases = model_settings["multi_source_bases"]
 
         # loop through defined multi-source bases and create them
         for name, settings in multi_source_bases.items():
 
             # create base source
-            BaseSourceClass = misc.load_class(settings['model_class'])
+            BaseSourceClass = misc.load_class(settings["model_class"])
             base_source = BaseSourceClass()
 
             # load model
-            if ('load_dir' in settings and settings['load_dir'] is not None):
-                base_source.load(settings['load_dir'])
+            if "load_dir" in settings and settings["load_dir"] is not None:
+                base_source.load(settings["load_dir"])
 
             # configure model if we are not loading it new
             else:
                 if not allow_rebuild_base_sources:
-                    msg = 'Model is not allowed to be rebuild! To change this '
+                    msg = "Model is not allowed to be rebuild! To change this "
                     msg += "setting, set 'allow_rebuild_base_sources' to True."
                     raise ValueError(msg)
 
                 # if this multi source base is a nested multi source
                 # with sub sources, we need to recursively build them
-                if 'multi_source_bases' in settings:
+                if "multi_source_bases" in settings:
                     base_source = build_model(
                         model_settings=settings,
                         data_transformer=data_transformer,
@@ -139,35 +143,42 @@ def build_model(model_settings, data_transformer,
                 else:
 
                     # check if the base model has its own data transformer defined
-                    if 'data_trafo_settings' in settings:
+                    if "data_trafo_settings" in settings:
                         data_transformer_base = DataTransformer()
                         data_transformer_base.load(
-                            settings['data_trafo_settings']['model_dir'])
+                            settings["data_trafo_settings"]["model_dir"]
+                        )
                     else:
                         data_transformer_base = data_transformer
-                    base_source.configure(config=settings['config'],
-                                          data_trafo=data_transformer_base)
+                    base_source.configure(
+                        config=settings["config"],
+                        data_trafo=data_transformer_base,
+                    )
 
             base_sources[name] = base_source
 
-    ModelClass = misc.load_class(model_settings['model_class'])
+    ModelClass = misc.load_class(model_settings["model_class"])
     model = ModelClass()
 
-    arguments = dict(config=model_settings['config'],
-                     data_trafo=data_transformer)
+    arguments = dict(
+        config=model_settings["config"], data_trafo=data_transformer
+    )
     if base_sources != {}:
-        arguments['base_sources'] = base_sources
+        arguments["base_sources"] = base_sources
 
     model.configure(**arguments)
     return model
 
 
-def build_manager(config, restore,
-                  data_handler=None,
-                  data_transformer=None,
-                  models=None,
-                  modified_sub_components={},
-                  allow_rebuild_base_sources=False):
+def build_manager(
+    config,
+    restore,
+    data_handler=None,
+    data_transformer=None,
+    models=None,
+    modified_sub_components={},
+    allow_rebuild_base_sources=False,
+):
     """Build the Manager Component.
 
     Parameters
@@ -203,39 +214,40 @@ def build_manager(config, restore,
         Returns the created or passed data transformer object.
     """
 
-    manager_config = config['model_manager_settings']
-    manager_dir = manager_config['config']['manager_dir']
+    manager_config = config["model_manager_settings"]
+    manager_dir = manager_config["config"]["manager_dir"]
 
     # ---------------------------------------
     # Create and configure/load Model Manager
     # ---------------------------------------
-    ModelManagerClass = misc.load_class(manager_config['model_manager_class'])
+    ModelManagerClass = misc.load_class(manager_config["model_manager_class"])
     manager = ModelManagerClass()
 
     if restore:
-        manager.load(manager_dir,
-                     modified_sub_components=modified_sub_components)
+        manager.load(
+            manager_dir, modified_sub_components=modified_sub_components
+        )
 
     else:
         # --------------------------
         # Create Data Handler object
         # --------------------------
         if data_handler is None:
-            data_handler = build_data_handler(config['data_handler_settings'])
+            data_handler = build_data_handler(config["data_handler_settings"])
 
         # --------------------------
         # create and load TrafoModel
         # --------------------------
         if data_transformer is None:
             data_transformer = DataTransformer()
-            data_transformer.load(config['data_trafo_settings']['model_dir'])
+            data_transformer.load(config["data_trafo_settings"]["model_dir"])
 
         # -----------------------
         # create and Model object
         # -----------------------
         if models is None:
             model = build_model(
-                config['model_settings'],
+                config["model_settings"],
                 data_transformer=data_transformer,
                 allow_rebuild_base_sources=allow_rebuild_base_sources,
             )
@@ -244,8 +256,10 @@ def build_manager(config, restore,
         # -----------------------
         # configure model manager
         # -----------------------
-        manager.configure(config=manager_config['config'],
-                          data_handler=data_handler,
-                          models=models)
+        manager.configure(
+            config=manager_config["config"],
+            data_handler=data_handler,
+            models=models,
+        )
 
     return manager, manager.models, manager.data_handler, manager.data_trafo

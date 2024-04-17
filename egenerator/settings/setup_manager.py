@@ -64,11 +64,13 @@ class SetupManager:
         """
         if not isinstance(self._config_files, (list, tuple)):
             raise ValueError(
-                'Wrong data type: {!r}. Must be list of file paths'.format(
-                    self._config_files))
+                "Wrong data type: {!r}. Must be list of file paths".format(
+                    self._config_files
+                )
+            )
 
         if len(self._config_files) == 0:
-            raise ValueError('You must specify at least one config file!')
+            raise ValueError("You must specify at least one config file!")
 
         # ----------------------------------
         # load config
@@ -78,42 +80,45 @@ class SetupManager:
         for config_file in self._config_files:
 
             # append yaml file to config_name
-            file_base_name = os.path.basename(config_file).replace('.yaml', '')
+            file_base_name = os.path.basename(config_file).replace(".yaml", "")
             if config_name is None:
                 config_name = file_base_name
             else:
-                config_name += '__' + file_base_name
+                config_name += "__" + file_base_name
 
             # config_update = yaml.round_trip_load(open(config_file),
             #                                      preserve_quotes=True)
-            yaml_loader = yaml.YAML(typ='safe')
+            yaml_loader = yaml.YAML(typ="safe")
             config_update = yaml_loader.load(open(config_file))
             # config_update = yaml.load(open(config_file), loader=yaml.Loader())
             duplicates = set(new_config.keys()).intersection(
-                                                    set(config_update.keys()))
+                set(config_update.keys())
+            )
 
             # make sure no options are defined multiple times
             if duplicates:
-                raise ValueError('Keys are defined multiple times {!r}'.format(
-                                                                duplicates))
+                raise ValueError(
+                    "Keys are defined multiple times {!r}".format(duplicates)
+                )
             # update config
             new_config.update(config_update)
         config = dict(self._default_config)
         config.update(new_config)
 
         # get git repo information
-        config['git_short_sha'] = str(version_control.short_sha)
-        config['git_sha'] = str(version_control.sha)
-        config['git_origin'] = str(version_control.origin)
-        config['git_uncommited_changes'] = version_control.uncommitted_changes
-        config['pip_installed_packages'] = version_control.installed_packages
+        config["git_short_sha"] = str(version_control.short_sha)
+        config["git_sha"] = str(version_control.sha)
+        config["git_origin"] = str(version_control.origin)
+        config["git_uncommited_changes"] = version_control.uncommitted_changes
+        config["pip_installed_packages"] = version_control.installed_packages
 
         # ----------------------------------
         # expand all strings with variables
         # ----------------------------------
-        config['config_name'] = str(config_name)
-        config['egenerator_dir'] = os.path.join(os.path.dirname(__file__),
-                                                '../..')
+        config["config_name"] = str(config_name)
+        config["egenerator_dir"] = os.path.join(
+            os.path.dirname(__file__), "../.."
+        )
         config = self.expand_strings(config, config)
 
         self.config = config

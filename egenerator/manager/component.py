@@ -15,7 +15,6 @@ from egenerator.settings import version_control
 
 
 class Configuration(object):
-
     """This class gathers all settings necessary to configure a component or
     to check its compatibility. It does *not* contain data attributes of the
     component. Each component has a configuration.
@@ -73,31 +72,31 @@ class Configuration(object):
 
     @property
     def class_string(self):
-        return deepcopy(self._dict['class_string'])
+        return deepcopy(self._dict["class_string"])
 
     @property
     def check_values(self):
-        return dict(deepcopy(self._dict['check_values']))
+        return dict(deepcopy(self._dict["check_values"]))
 
     @property
     def mutable_settings(self):
-        return dict(deepcopy(self._dict['mutable_settings']))
+        return dict(deepcopy(self._dict["mutable_settings"]))
 
     @property
     def settings(self):
-        return dict(deepcopy(self._dict['settings']))
+        return dict(deepcopy(self._dict["settings"]))
 
     @property
     def sub_component_configurations(self):
-        return dict(deepcopy(self._dict['sub_component_configurations']))
+        return dict(deepcopy(self._dict["sub_component_configurations"]))
 
     @property
     def dependent_sub_components(self):
-        return self._dict['dependent_sub_components']
+        return self._dict["dependent_sub_components"]
 
     @property
     def mutable_sub_components(self):
-        return self._dict['mutable_sub_components']
+        return self._dict["mutable_sub_components"]
 
     @property
     def dict(self):
@@ -114,16 +113,22 @@ class Configuration(object):
         """
         return dict(deepcopy(self._config))
 
-    def __init__(self, class_string, settings, mutable_settings={},
-                 check_values={}, dependent_sub_components=[],
-                 mutable_sub_components=[],
-                 sub_component_configurations={},
-                 event_generator_version=egenerator.__version__,
-                 event_generator_git_short_sha=None,
-                 event_generator_git_sha=None,
-                 event_generator_origin=None,
-                 event_generator_uncommitted_changes=None,
-                 logger=None):
+    def __init__(
+        self,
+        class_string,
+        settings,
+        mutable_settings={},
+        check_values={},
+        dependent_sub_components=[],
+        mutable_sub_components=[],
+        sub_component_configurations={},
+        event_generator_version=egenerator.__version__,
+        event_generator_git_short_sha=None,
+        event_generator_git_sha=None,
+        event_generator_origin=None,
+        event_generator_uncommitted_changes=None,
+        logger=None,
+    ):
         """Create a configuration object.
 
         Parameters
@@ -171,8 +176,9 @@ class Configuration(object):
         logger : logging.logger, optional
             The logger to use.
         """
-        short_sha, sha, origin, uncommitted_changes = \
+        short_sha, sha, origin, uncommitted_changes = (
             version_control.get_git_infos()
+        )
         if event_generator_git_short_sha is None:
             event_generator_git_short_sha = short_sha
         if event_generator_git_sha is None:
@@ -184,21 +190,21 @@ class Configuration(object):
 
         self._logger = logger or logging.getLogger(__name__)
         self._dict = {
-            'event_generator_version': egenerator.__version__,
-            'event_generator_git_sha': event_generator_git_sha,
-            'event_generator_origin': event_generator_origin,
-            'event_generator_uncommitted_changes':
-                event_generator_uncommitted_changes,
-            'class_string': class_string,
-            'check_values': dict(deepcopy(check_values)),
-            'settings': dict(deepcopy(settings)),
-            'mutable_settings': dict(deepcopy(mutable_settings)),
-            'sub_component_configurations':
-                dict(deepcopy(sub_component_configurations)),
-            'dependent_sub_components':
-                list(deepcopy(dependent_sub_components)),
-            'mutable_sub_components':
-                list(deepcopy(mutable_sub_components)),
+            "event_generator_version": egenerator.__version__,
+            "event_generator_git_sha": event_generator_git_sha,
+            "event_generator_origin": event_generator_origin,
+            "event_generator_uncommitted_changes": event_generator_uncommitted_changes,
+            "class_string": class_string,
+            "check_values": dict(deepcopy(check_values)),
+            "settings": dict(deepcopy(settings)),
+            "mutable_settings": dict(deepcopy(mutable_settings)),
+            "sub_component_configurations": dict(
+                deepcopy(sub_component_configurations)
+            ),
+            "dependent_sub_components": list(
+                deepcopy(dependent_sub_components)
+            ),
+            "mutable_sub_components": list(deepcopy(mutable_sub_components)),
         }
 
         # make sure defined dependen sub components exist in the configuration
@@ -216,10 +222,11 @@ class Configuration(object):
             that should be updated.
         """
         for key, value in new_settings.items():
-            if key not in self._dict['mutable_settings']:
-                raise KeyError('Mutable setting: {!r} does not exist'.format(
-                    key))
-            self._dict['mutable_settings'][key] = value
+            if key not in self._dict["mutable_settings"]:
+                raise KeyError(
+                    "Mutable setting: {!r} does not exist".format(key)
+                )
+            self._dict["mutable_settings"][key] = value
 
         # update config
         self._config = self._combine_settings()
@@ -236,17 +243,18 @@ class Configuration(object):
         """
         for name in dependent_sub_components:
             if name not in self.sub_component_configurations:
-                msg = 'Sub component {!r} does not exist in {!r}'
-                raise KeyError(msg.format(
-                    name, self.sub_component_configurations.keys()))
+                msg = "Sub component {!r} does not exist in {!r}"
+                raise KeyError(
+                    msg.format(name, self.sub_component_configurations.keys())
+                )
 
     def add_dependent_sub_components(self, dependent_components):
         self._check_dependent_names(dependent_components)
-        self._dict['dependent_sub_components'].extend(dependent_components)
+        self._dict["dependent_sub_components"].extend(dependent_components)
 
     def add_mutable_sub_components(self, mutable_sub_components):
         self._check_dependent_names(mutable_sub_components)
-        self._dict['mutable_sub_components'].extend(mutable_sub_components)
+        self._dict["mutable_sub_components"].extend(mutable_sub_components)
 
     def _combine_settings(self):
         """Combine the constant and mutable settings in a single config.
@@ -264,10 +272,12 @@ class Configuration(object):
 
         # make sure no options are defined multiple times
         duplicates = set(self.settings.keys()).intersection(
-                                        set(self.mutable_settings.keys()))
+            set(self.mutable_settings.keys())
+        )
         if duplicates:
-            raise ValueError('Keys are defined multiple times: {!r}'.format(
-                                                                duplicates))
+            raise ValueError(
+                "Keys are defined multiple times: {!r}".format(duplicates)
+            )
 
         config = dict(self.settings)
         config.update(self.mutable_settings)
@@ -285,15 +295,18 @@ class Configuration(object):
         """
         for name, component in sub_components.items():
             if not issubclass(type(component), BaseComponent):
-                raise TypeError('Incorrect type: {!r}'.format(type(component)))
+                raise TypeError("Incorrect type: {!r}".format(type(component)))
             if name in self.sub_component_configurations:
-                raise KeyError('Sub component {!r} already exists!'.format(
-                                                                        name))
+                raise KeyError(
+                    "Sub component {!r} already exists!".format(name)
+                )
             if not component.is_configured:
-                raise ValueError('Component {!r} is not configured!'.format(
-                                                                        name))
-            self._dict['sub_component_configurations'][name] = \
-                component.configuration.dict
+                raise ValueError(
+                    "Component {!r} is not configured!".format(name)
+                )
+            self._dict["sub_component_configurations"][
+                name
+            ] = component.configuration.dict
 
     def replace_sub_components(self, new_sub_components):
         """Replace sub components with new sub components.
@@ -307,17 +320,19 @@ class Configuration(object):
         """
         for name, component in new_sub_components.items():
             if not issubclass(type(component), BaseComponent):
-                raise TypeError('Incorrect type: {!r}'.format(type(component)))
+                raise TypeError("Incorrect type: {!r}".format(type(component)))
             if name not in self.sub_component_configurations:
-                msg = 'Sub component {!r} cannot be replaced because it '
-                msg += 'does not exists!'
+                msg = "Sub component {!r} cannot be replaced because it "
+                msg += "does not exists!"
                 raise KeyError(msg.format(name))
             if not component.is_configured:
-                raise ValueError('Component {!r} is not configured!'.format(
-                                                                        name))
+                raise ValueError(
+                    "Component {!r} is not configured!".format(name)
+                )
             # replace sub component's configuration
-            self._dict['sub_component_configurations'][name] = \
-                component.configuration.dict
+            self._dict["sub_component_configurations"][
+                name
+            ] = component.configuration.dict
 
     def is_compatible(self, other):
         """Check compatibility between two configuration objects.
@@ -332,13 +347,16 @@ class Configuration(object):
         bool
             True if configuration objects are compatible, false if not.
         """
-        if self.settings != other.settings or \
-                self.check_values != other.check_values or \
-                self.class_string != other.class_string:
+        if (
+            self.settings != other.settings
+            or self.check_values != other.check_values
+            or self.class_string != other.class_string
+        ):
             return False
 
-        if set(self.sub_component_configurations.keys()) != \
-                set(other.sub_component_configurations.keys()):
+        if set(self.sub_component_configurations.keys()) != set(
+            other.sub_component_configurations.keys()
+        ):
             return False
 
         # now check if sub components are also compatible
@@ -347,10 +365,12 @@ class Configuration(object):
             # create a Configuration object from sub component
             this_sub_configuration = Configuration(**sub_conf)
             other_sub_configuration = Configuration(
-                **other.sub_component_configurations[name])
+                **other.sub_component_configurations[name]
+            )
 
             if not this_sub_configuration.is_compatible(
-                    other_sub_configuration):
+                other_sub_configuration
+            ):
 
                 # only now check if module is mutable in order to
                 # log warnings of modified settings
@@ -371,14 +391,13 @@ class Configuration(object):
                 keys_changed.append(key)
         keys_changed = set(keys_changed)
         if keys_changed:
-            msg = 'The following mutable settings have changed: {!r}'
+            msg = "The following mutable settings have changed: {!r}"
             self._logger.warning(msg.format(keys_changed))
 
         return True
 
 
 class BaseComponent(object):
-
     """This is the base class for components used within the event-generator
     project.
 
@@ -524,34 +543,61 @@ class BaseComponent(object):
 
         """
         attributes = inspect.getmembers(
-            self, lambda a: not inspect.isroutine(a))
+            self, lambda a: not inspect.isroutine(a)
+        )
 
-        filtered_attributes = [a[0] for a in attributes if not
-                               (a[0].startswith('__') and a[0].endswith('__'))]
+        filtered_attributes = [
+            a[0]
+            for a in attributes
+            if not (a[0].startswith("__") and a[0].endswith("__"))
+        ]
 
         # tracked or knowingly untracked data
-        tracked_attributes = ['_is_configured', '_logger', '_configuration',
-                              '_data', '_untracked_data', 'is_configured',
-                              'logger', 'configuration', 'data',
-                              'untracked_data', '_sub_components',
-                              'sub_components']
-        untracked_attributes = [a for a in filtered_attributes if a not in
-                                tracked_attributes]
+        tracked_attributes = [
+            "_is_configured",
+            "_logger",
+            "_configuration",
+            "_data",
+            "_untracked_data",
+            "is_configured",
+            "logger",
+            "configuration",
+            "data",
+            "untracked_data",
+            "_sub_components",
+            "sub_components",
+        ]
+        untracked_attributes = [
+            a for a in filtered_attributes if a not in tracked_attributes
+        ]
 
         # if this is a tf.Module derived class instance, then we need to
         # also remove the following variables:
         if issubclass(type(self), tf.Module):
             tf_module_vars = [
-                '_TF_MODULE_IGNORED_PROPERTIES', '_name', '_scope_name',
-                '_setattr_tracking', '_tf_api_names', '_tf_api_names_v1',
-                'name', 'name_scope', 'submodules', 'trainable_variables',
-                'variables', '_name_scope', '_self_name_based_restores',
-                '_self_setattr_tracking', '_self_saveable_object_factories',
-                '_self_unconditional_checkpoint_dependencies',
-                '_self_unconditional_deferred_dependencies',
-                '_self_unconditional_dependency_names', '_self_update_uid']
-            untracked_attributes = [a for a in untracked_attributes if a
-                                    not in tf_module_vars]
+                "_TF_MODULE_IGNORED_PROPERTIES",
+                "_name",
+                "_scope_name",
+                "_setattr_tracking",
+                "_tf_api_names",
+                "_tf_api_names_v1",
+                "name",
+                "name_scope",
+                "submodules",
+                "trainable_variables",
+                "variables",
+                "_name_scope",
+                "_self_name_based_restores",
+                "_self_setattr_tracking",
+                "_self_saveable_object_factories",
+                "_self_unconditional_checkpoint_dependencies",
+                "_self_unconditional_deferred_dependencies",
+                "_self_unconditional_dependency_names",
+                "_self_update_uid",
+            ]
+            untracked_attributes = [
+                a for a in untracked_attributes if a not in tf_module_vars
+            ]
 
         # remove properties:
         object_class = getclass(self)
@@ -574,8 +620,8 @@ class BaseComponent(object):
         """
         untracked_attributes = self._get_untracked_member_attributes()
         if len(untracked_attributes) > 0:
-            msg = 'Class contains member variables that it should not at '
-            msg += 'this point: {!r}'
+            msg = "Class contains member variables that it should not at "
+            msg += "this point: {!r}"
             raise ValueError(msg.format(untracked_attributes))
 
     def configure(self, **kwargs):
@@ -594,7 +640,7 @@ class BaseComponent(object):
             Arbitrary keyword arguments.
         """
         if self.is_configured:
-            raise ValueError('Component is already configured!')
+            raise ValueError("Component is already configured!")
 
         # Get the dictionary format of the passed Configuration object
         if isinstance(kwargs, Configuration):
@@ -615,7 +661,7 @@ class BaseComponent(object):
 
                 # make sure the component is configured
                 if not value.is_configured:
-                    msg = 'Component {!r} is not configured!'
+                    msg = "Component {!r} is not configured!"
                     raise ValueError(msg.format(key))
 
             # check if this is a dict of Components
@@ -629,7 +675,7 @@ class BaseComponent(object):
 
                         # make sure the component is configured
                         if not comp.is_configured:
-                            msg = 'Component {!r} is not configured!'
+                            msg = "Component {!r} is not configured!"
                             raise ValueError(msg.format(name))
                     else:
                         all_components = False
@@ -642,14 +688,14 @@ class BaseComponent(object):
 
                 all_components = True
                 for i, comp in enumerate(value):
-                    name = key + '_{:04d}'.format(i)
+                    name = key + "_{:04d}".format(i)
                     if issubclass(type(comp), BaseComponent):
                         # found another component, keep track of it
                         parameter_sub_components[name] = comp
 
                         # make sure the component is configured
                         if not comp.is_configured:
-                            msg = 'Component {!r} is not configured!'
+                            msg = "Component {!r} is not configured!"
                             raise ValueError(msg.format(name))
                     else:
                         all_components = False
@@ -659,8 +705,9 @@ class BaseComponent(object):
 
             else:
                 missing_settings[key] = value
-        self._configuration, self._data, self._sub_components = \
+        self._configuration, self._data, self._sub_components = (
             self._configure(**kwargs)
+        )
 
         if self._data is None:
             self._data = {}
@@ -669,8 +716,8 @@ class BaseComponent(object):
             self._sub_components = {}
 
         if not isinstance(self._sub_components, dict):
-            msg = 'Sub components must be provided as a dictionary, '
-            msg += 'but are: {!r}'
+            msg = "Sub components must be provided as a dictionary, "
+            msg += "but are: {!r}"
             raise TypeError(msg.format(type(self._sub_components)))
 
         # add sub component configurations to this configuration
@@ -678,17 +725,20 @@ class BaseComponent(object):
 
         # add dependent sub components to this configuration
         self._configuration.add_dependent_sub_components(
-            [component for component in self._sub_components.keys()])
+            [component for component in self._sub_components.keys()]
+        )
 
         # check if specified mutable sub components exist in configuration
         self._configuration._check_dependent_names(
-            self._configuration.mutable_sub_components)
+            self._configuration.mutable_sub_components
+        )
 
         # check if data has correct type
         if self._data is not None:
             if not isinstance(self._data, dict):
-                raise TypeError('Wrong type {!r}. Expected dict.'.format(
-                    type(self._data)))
+                raise TypeError(
+                    "Wrong type {!r}. Expected dict.".format(type(self._data))
+                )
 
         # check if passed settings are all defined in configuration
         # and if they are set to the correct values. A component may have
@@ -698,14 +748,15 @@ class BaseComponent(object):
 
             # setting is missing
             if key not in self._configuration.config:
-                msg = 'Key {!r} is missing in configuration {!r}'
+                msg = "Key {!r} is missing in configuration {!r}"
                 raise ValueError(msg.format(key, self._configuration.config))
 
             # setting has wrong value
             elif value != self._configuration.config[key]:
-                msg = 'Values of {!r} do not match: {!r} != {!r}'
-                raise ValueError(msg.format(key, value,
-                                            self._configuration.config[key]))
+                msg = "Values of {!r} do not match: {!r} != {!r}"
+                raise ValueError(
+                    msg.format(key, value, self._configuration.config[key])
+                )
 
         self._is_configured = True
 
@@ -777,9 +828,13 @@ class BaseComponent(object):
 
         return self.configuration.is_compatible(other.configuration)
 
-    def save(self, dir_path, overwrite=False,
-             allow_untracked_attributes=False,
-             **kwargs):
+    def save(
+        self,
+        dir_path,
+        overwrite=False,
+        allow_untracked_attributes=False,
+        **kwargs
+    ):
         """Save component to file.
 
         Parameters
@@ -809,12 +864,12 @@ class BaseComponent(object):
             If the component is not configured yet.
         """
         if not self.is_configured:
-            raise ValueError('Component is not configured!')
+            raise ValueError("Component is not configured!")
 
         # check if there are any untracked attributes
         untracked_attributes = self._get_untracked_member_attributes()
         if len(untracked_attributes) > 0:
-            msg = 'Found untracked attributes: {!r}'
+            msg = "Found untracked attributes: {!r}"
             if allow_untracked_attributes:
                 self._logger.warning(msg.format(untracked_attributes))
             else:
@@ -822,38 +877,40 @@ class BaseComponent(object):
 
         # split of possible extension
         dir_path = os.path.splitext(dir_path)[0]
-        config_file_path = os.path.join(dir_path, 'configuration.yaml')
-        data_file_path = os.path.join(dir_path, 'data.pickle')
+        config_file_path = os.path.join(dir_path, "configuration.yaml")
+        data_file_path = os.path.join(dir_path, "data.pickle")
 
         # check if file already exists
         for file in [config_file_path, data_file_path]:
             if os.path.exists(file):
                 if overwrite:
-                    msg = 'Overwriting existing file at: {}'
+                    msg = "Overwriting existing file at: {}"
                     self._logger.info(msg.format(file))
                 else:
-                    raise IOError('File {!r} already exists!'.format(file))
+                    raise IOError("File {!r} already exists!".format(file))
 
         # check if directory needs to be created
         if not os.path.isdir(dir_path):
             os.makedirs(dir_path)
-            self._logger.info('Creating directory: {}'.format(dir_path))
+            self._logger.info("Creating directory: {}".format(dir_path))
 
         # save configuration settings
-        with open(config_file_path, 'w') as yaml_file:
+        with open(config_file_path, "w") as yaml_file:
             yaml.dump(self.configuration.dict, yaml_file)
 
         # write data
-        with open(data_file_path, 'wb') as handle:
+        with open(data_file_path, "wb") as handle:
             pickle.dump(self.data, handle, protocol=2)
 
         # walk through dependent sub components and save these as well
         for name, sub_component in self.sub_components.items():
             sub_component_dir_path = os.path.join(dir_path, name)
             sub_component.save(
-                sub_component_dir_path, overwrite=overwrite,
+                sub_component_dir_path,
+                overwrite=overwrite,
                 allow_untracked_attributes=allow_untracked_attributes,
-                **kwargs)
+                **kwargs
+            )
 
         # call additional tasks of derived class via virtual method
         self._save(dir_path, **kwargs)
@@ -892,7 +949,7 @@ class BaseComponent(object):
 
         """
         if self.is_configured:
-            raise ValueError('Component is already configured!')
+            raise ValueError("Component is already configured!")
 
         # check if it already has attributes other than the allowed ones
         # This indicates an incorrect usage of the BaseComponent class.
@@ -900,70 +957,84 @@ class BaseComponent(object):
 
         # split of possible extension
         dir_path = os.path.splitext(dir_path)[0]
-        config_file_path = os.path.join(dir_path, 'configuration.yaml')
-        data_file_path = os.path.join(dir_path, 'data.pickle')
+        config_file_path = os.path.join(dir_path, "configuration.yaml")
+        data_file_path = os.path.join(dir_path, "data.pickle")
 
         # load files
-        with open(config_file_path, 'r') as stream:
+        with open(config_file_path, "r") as stream:
             config_dict = yaml.load(stream, Loader=yaml.Loader)
 
-        with open(data_file_path, 'rb') as handle:
+        with open(data_file_path, "rb") as handle:
             data = pickle.load(handle)
 
         # get configuration of self:
         self._configuration = Configuration(**config_dict)
 
         # check if the version is correct
-        if config_dict['event_generator_version'] != egenerator.__version__:
-            msg = 'Event-Generator versions do not match. '
-            msg += 'Make sure they are still compatible. '
-            msg += 'Saved component was created with version {!r}, but this is'
-            msg += ' version {!r}.'
-            self._logger.info(msg.format(
-                config_dict['event_generator_version'],
-                egenerator.__version__))
+        if config_dict["event_generator_version"] != egenerator.__version__:
+            msg = "Event-Generator versions do not match. "
+            msg += "Make sure they are still compatible. "
+            msg += "Saved component was created with version {!r}, but this is"
+            msg += " version {!r}."
+            self._logger.info(
+                msg.format(
+                    config_dict["event_generator_version"],
+                    egenerator.__version__,
+                )
+            )
 
         # check if this is the correct class
-        if self.configuration.class_string != \
-                misc.get_full_class_string_of_object(self):
+        if (
+            self.configuration.class_string
+            != misc.get_full_class_string_of_object(self)
+        ):
             msg = "The object's class {!r} does not match the saved "
-            msg += 'class string {!r}'
-            raise TypeError(msg.format(
-                misc.get_full_class_string_of_object(self),
-                self.configuration.class_string))
+            msg += "class string {!r}"
+            raise TypeError(
+                msg.format(
+                    misc.get_full_class_string_of_object(self),
+                    self.configuration.class_string,
+                )
+            )
 
         # get data and check if it has correct type
         self._data = data
         if self._data is not None:
             if not isinstance(self._data, dict):
-                raise ValueError('Wrong type {!r}. Expected dict.'.format(
-                    type(self._data)))
+                raise ValueError(
+                    "Wrong type {!r}. Expected dict.".format(type(self._data))
+                )
 
         # walk through dependent sub components and load these as well
         updated_sub_components = []
         for name in self.configuration.dependent_sub_components:
 
             # check if there is a nested modified_sub_components dictionary
-            if (name in modified_sub_components and
-                    isinstance(modified_sub_components[name], dict)):
+            if name in modified_sub_components and isinstance(
+                modified_sub_components[name], dict
+            ):
                 nested_dict = modified_sub_components.pop(name)
                 updated_sub_components.append(name)
             else:
                 nested_dict = {}
 
-            sub_configuration = \
+            sub_configuration = (
                 self.configuration.sub_component_configurations[name]
+            )
             sub_component_dir_path = os.path.join(dir_path, name)
 
-            sub_class = misc.load_class(sub_configuration['class_string'])
+            sub_class = misc.load_class(sub_configuration["class_string"])
             sub_component = sub_class()
-            sub_component.load(sub_component_dir_path,
-                               modified_sub_components=nested_dict,
-                               **kwargs)
+            sub_component.load(
+                sub_component_dir_path,
+                modified_sub_components=nested_dict,
+                **kwargs
+            )
             self._sub_components[name] = sub_component
             if name in updated_sub_components:
                 self.configuration.replace_sub_components(
-                    {name: sub_component})
+                    {name: sub_component}
+                )
 
             # check if this sub component is to be replaced with a new
             # (and compatible) version
@@ -972,19 +1043,20 @@ class BaseComponent(object):
 
                 # check if configured
                 if not modified_sub_component.is_configured:
-                    msg = 'Sub component {!r} is not configured.'
+                    msg = "Sub component {!r} is not configured."
                     raise ValueError(msg.format(name))
 
                 # check if compatible
                 if name not in self.configuration.mutable_sub_components:
                     if not sub_component.is_compatible(modified_sub_component):
-                        msg = 'Sub component {!r} is not compatible.'
+                        msg = "Sub component {!r} is not compatible."
                         raise ValueError(msg.format(name))
 
                 # replace sub component and its configuration
                 self._sub_components[name] = modified_sub_component
                 self.configuration.replace_sub_components(
-                    {name: modified_sub_component})
+                    {name: modified_sub_component}
+                )
                 updated_sub_components.append(name)
 
         if updated_sub_components != []:
@@ -993,7 +1065,7 @@ class BaseComponent(object):
             self._update_sub_components(updated_sub_components)
 
         if modified_sub_components != {}:
-            msg = 'The following modified sub components were unused: {!r}'
+            msg = "The following modified sub components were unused: {!r}"
             raise ValueError(msg.format(modified_sub_components.keys()))
 
         # call additional tasks of derived class via virtual method

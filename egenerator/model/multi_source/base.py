@@ -10,7 +10,6 @@ from egenerator.manager.component import Configuration
 
 
 class MultiSource(Source):
-
     """Defines base class for an unbinned MultiSource.
 
     This is an abstract class for a combination of unbinned sources.
@@ -138,9 +137,9 @@ class MultiSource(Source):
         """
         raise NotImplementedError()
 
-    def _configure_derived_class(self, base_sources, config,
-                                 data_trafo=None,
-                                 name=None):
+    def _configure_derived_class(
+        self, base_sources, config, data_trafo=None, name=None
+    ):
         """Setup and configure the Source's architecture.
 
         After this function call, the sources's architecture (weights) must
@@ -210,11 +209,12 @@ class MultiSource(Source):
         # build architecture: create and save model weights
         # returns parameter_names
         parameter_names, sources = self.get_parameters_and_mapping(
-            config, base_sources)
+            config, base_sources
+        )
 
         sub_components = base_sources
         if data_trafo is not None:
-            sub_components['data_trafo'] = data_trafo
+            sub_components["data_trafo"] = data_trafo
 
         # # collect all tensorflow variables after creation and match
         # variables_after = set([
@@ -227,26 +227,33 @@ class MultiSource(Source):
         #     raise ValueError(msg.format(new_unaccounted_variables))
 
         # get names of parameters
-        self._untracked_data['name'] = name
-        self._untracked_data['sources'] = sources
-        self._untracked_data['num_parameters'] = len(parameter_names)
-        self._untracked_data['parameter_names'] = parameter_names
-        self._untracked_data['parameter_name_dict'] = \
-            {name: index for index, name in enumerate(parameter_names)}
-        self._untracked_data['parameter_index_dict'] = \
-            {index: name for index, name in enumerate(parameter_names)}
+        self._untracked_data["name"] = name
+        self._untracked_data["sources"] = sources
+        self._untracked_data["num_parameters"] = len(parameter_names)
+        self._untracked_data["parameter_names"] = parameter_names
+        self._untracked_data["parameter_name_dict"] = {
+            name: index for index, name in enumerate(parameter_names)
+        }
+        self._untracked_data["parameter_index_dict"] = {
+            index: name for index, name in enumerate(parameter_names)
+        }
 
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config=config),
-            mutable_settings=dict(name=name))
+            mutable_settings=dict(name=name),
+        )
 
         return configuration, {}, sub_components
 
     @tf.function
-    def get_tensors(self, data_batch_dict, is_training,
-                    parameter_tensor_name='x_parameters'):
+    def get_tensors(
+        self,
+        data_batch_dict,
+        is_training,
+        parameter_tensor_name="x_parameters",
+    ):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -297,16 +304,18 @@ class MultiSource(Source):
         self.assert_configured(True)
 
         parameters = data_batch_dict[parameter_tensor_name]
-        pulses = data_batch_dict['x_pulses']
-        pulses_ids = data_batch_dict['x_pulses_ids']
+        pulses = data_batch_dict["x_pulses"]
+        pulses_ids = data_batch_dict["x_pulses_ids"]
 
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
 
         # check if time exclusions exist
-        tensors = self.data_trafo.data['tensors']
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+        tensors = self.data_trafo.data["tensors"]
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
             time_exclusions_exist = True
         else:
             time_exclusions_exist = False
@@ -328,7 +337,7 @@ class MultiSource(Source):
         dom_cdf_exclusion_sum = None
         pulse_pdf = None
         nested_results = {}
-        for name, base in sorted(self._untracked_data['sources'].items()):
+        for name, base in sorted(self._untracked_data["sources"].items()):
 
             # get the base source
             sub_component = self.sub_components[base]
@@ -338,38 +347,40 @@ class MultiSource(Source):
             parameters_i = sub_component.add_parameter_indexing(parameters_i)
 
             # Get expected DOM charge and Likelihood evaluations for source i
-            data_batch_dict_i = {'x_parameters': parameters_i}
+            data_batch_dict_i = {"x_parameters": parameters_i}
             for key, values in data_batch_dict.items():
-                if key != 'x_parameters':
+                if key != "x_parameters":
                     data_batch_dict_i[key] = values
 
             result_tensors_i = func_cache.get_or_add_tf_func(
-                source_name=name, base_name=base)(data_batch_dict_i)
+                source_name=name, base_name=base
+            )(data_batch_dict_i)
             nested_results[name] = result_tensors_i
 
-            dom_charges_i = result_tensors_i['dom_charges']
-            dom_charges_variance_i = result_tensors_i['dom_charges_variance']
-            pulse_pdf_i = result_tensors_i['pulse_pdf']
+            dom_charges_i = result_tensors_i["dom_charges"]
+            dom_charges_variance_i = result_tensors_i["dom_charges_variance"]
+            pulse_pdf_i = result_tensors_i["pulse_pdf"]
 
             if dom_charges_i.shape[1:] != [86, 60, 1]:
-                msg = 'DOM charges of source {!r} ({!r}) have an unexpected '
-                msg += 'shape {!r}.'
+                msg = "DOM charges of source {!r} ({!r}) have an unexpected "
+                msg += "shape {!r}."
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
             if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
-                msg = 'DOM charge variances of source {!r} ({!r}) have an '
-                msg += 'unexpected shape {!r}.'
+                msg = "DOM charge variances of source {!r} ({!r}) have an "
+                msg += "unexpected shape {!r}."
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
             if time_exclusions_exist:
-                dom_cdf_exclusion_sum_i = (
-                    result_tensors_i['dom_cdf_exclusion_sum']
-                )
+                dom_cdf_exclusion_sum_i = result_tensors_i[
+                    "dom_cdf_exclusion_sum"
+                ]
                 if dom_cdf_exclusion_sum_i.shape[1:] != [86, 60, 1]:
-                    msg = 'DOM exclusions of source {!r} ({!r}) have an  '
-                    msg += 'unexpected shape {!r}.'
-                    raise ValueError(msg.format(
-                        name, base, dom_cdf_exclusion_sum_i.shape))
+                    msg = "DOM exclusions of source {!r} ({!r}) have an  "
+                    msg += "unexpected shape {!r}."
+                    raise ValueError(
+                        msg.format(name, base, dom_cdf_exclusion_sum_i.shape)
+                    )
 
             # accumulate charge
             # (assumes that sources are linear and independent)
@@ -390,38 +401,43 @@ class MultiSource(Source):
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
-            pulse_weight_i = tf.gather_nd(tf.squeeze(dom_charges_i, axis=3),
-                                          pulses_ids)
+            pulse_weight_i = tf.gather_nd(
+                tf.squeeze(dom_charges_i, axis=3), pulses_ids
+            )
             if pulse_pdf is None:
                 pulse_pdf = pulse_pdf_i * pulse_weight_i
             else:
                 pulse_pdf += pulse_pdf_i * pulse_weight_i
 
         # normalize pulse_pdf values: divide by total charge at DOM
-        pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
-                                          pulses_ids)
+        pulse_weight_total = tf.gather_nd(
+            tf.squeeze(dom_charges, axis=3), pulses_ids
+        )
 
-        pulse_pdf /= (pulse_weight_total + 1e-6)
+        pulse_pdf /= pulse_weight_total + 1e-6
 
         result_tensors = {
-            'dom_charges': dom_charges,
-            'dom_charges_variance': dom_charges_variance,
-            'pulse_pdf': pulse_pdf,
-            'nested_results': nested_results,
+            "dom_charges": dom_charges,
+            "dom_charges_variance": dom_charges_variance,
+            "pulse_pdf": pulse_pdf,
+            "nested_results": nested_results,
         }
 
         # normalize time exclusion sum: divide by total charge at DOM
         if time_exclusions_exist:
             dom_cdf_exclusion_sum /= dom_charges
 
-            result_tensors['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
+            result_tensors["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
 
         return result_tensors
 
     @tf.function
     def get_tensors_batched(
-            self, data_batch_dict, is_training,
-            parameter_tensor_name='x_parameters'):
+        self,
+        data_batch_dict,
+        is_training,
+        parameter_tensor_name="x_parameters",
+    ):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -481,21 +497,23 @@ class MultiSource(Source):
         self.assert_configured(True)
 
         parameters = data_batch_dict[parameter_tensor_name]
-        pulses = data_batch_dict['x_pulses']
-        pulses_ids = data_batch_dict['x_pulses_ids']
-        source_names = sorted(self._untracked_data['sources'].keys())
-        n_events = tf.shape(data_batch_dict['x_dom_charge'])[0]
+        pulses = data_batch_dict["x_pulses"]
+        pulses_ids = data_batch_dict["x_pulses_ids"]
+        source_names = sorted(self._untracked_data["sources"].keys())
+        n_events = tf.shape(data_batch_dict["x_dom_charge"])[0]
 
         parameters = self.add_parameter_indexing(parameters)
         source_parameters = self.get_source_parameters(parameters)
 
         # check if time exclusions exist
-        tensors = self.data_trafo.data['tensors']
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
+        tensors = self.data_trafo.data["tensors"]
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
             time_exclusions_exist = True
-            tws = data_batch_dict['x_time_exclusions']
-            tws_ids = data_batch_dict['x_time_exclusions_ids']
+            tws = data_batch_dict["x_time_exclusions"]
+            tws_ids = data_batch_dict["x_time_exclusions_ids"]
         else:
             time_exclusions_exist = False
 
@@ -506,16 +524,18 @@ class MultiSource(Source):
         input_signature = None
 
         concrete_tensor_funcs = {}
-        for base in set(self._untracked_data['sources'].values()):
+        for base in set(self._untracked_data["sources"].values()):
             base_source = self.sub_components[base]
 
             @tf.function(input_signature=input_signature)
             def concrete_function(data_batch_dict_i):
-                print('Tracing multi-source base: {}'.format(base))
+                print("Tracing multi-source base: {}".format(base))
                 return base_source.get_tensors(
-                                data_batch_dict_i,
-                                is_training=is_training,
-                                parameter_tensor_name='x_parameters')
+                    data_batch_dict_i,
+                    is_training=is_training,
+                    parameter_tensor_name="x_parameters",
+                )
+
             concrete_tensor_funcs[base] = concrete_function
 
         # --------------------------------------
@@ -523,24 +543,27 @@ class MultiSource(Source):
         # --------------------------------------
         base_parameter_tensors = {}
         base_parameter_count = {}
-        for base in set(self._untracked_data['sources'].values()):
+        for base in set(self._untracked_data["sources"].values()):
             base_parameter_tensors[base] = []
             base_parameter_count[base] = 0
 
         for source_name in source_names:
 
             # get input parameters for Source i
-            base = self._untracked_data['sources'][source_name]
+            base = self._untracked_data["sources"][source_name]
             base_parameter_tensors[base].append(source_parameters[source_name])
             base_parameter_count[base] += 1
             print(
-                base, base_parameter_count[base],
-                source_parameters[source_name])
+                base,
+                base_parameter_count[base],
+                source_parameters[source_name],
+            )
 
         # concatenate tensors: [n_sources * n_batch, ...]
-        for base in set(self._untracked_data['sources'].values()):
+        for base in set(self._untracked_data["sources"].values()):
             base_parameter_tensors[base] = tf.concat(
-                base_parameter_tensors[base], axis=0,
+                base_parameter_tensors[base],
+                axis=0,
             )
         # --------------------------------------
 
@@ -548,7 +571,7 @@ class MultiSource(Source):
         dom_charges_variance = None
         dom_cdf_exclusion_sum = None
         pulse_pdf = None
-        for base in set(self._untracked_data['sources'].values()):
+        for base in set(self._untracked_data["sources"].values()):
 
             # get the base source
             n_sources = base_parameter_count[base]
@@ -566,7 +589,7 @@ class MultiSource(Source):
                     x_time_exclusions_ids_i = []
 
                 for i in range(n_sources):
-                    offset = [[i*n_events, 0, 0]]
+                    offset = [[i * n_events, 0, 0]]
                     x_pulses_ids_i.append(pulses_ids + offset)
                     if time_exclusions_exist:
                         x_time_exclusions_ids_i.append(tws_ids + offset)
@@ -575,23 +598,28 @@ class MultiSource(Source):
                 x_pulses_i = tf.tile(pulses, multiples=[n_sources, 1])
                 x_pulses_ids_i = tf.concat(x_pulses_ids_i, axis=0)
                 if time_exclusions_exist:
-                    x_time_exclusions_i = tf.tile(tws, multiples=[n_sources, 1])
+                    x_time_exclusions_i = tf.tile(
+                        tws, multiples=[n_sources, 1]
+                    )
                     x_time_exclusions_ids_i = tf.concat(
-                        x_time_exclusions_ids_i, axis=0)
+                        x_time_exclusions_ids_i, axis=0
+                    )
 
                 # Get expected DOM charge and Likelihood evaluations for base i
                 data_batch_dict_i = {
-                    'x_parameters': parameters_i,
-                    'x_pulses': x_pulses_i,
-                    'x_pulses_ids': x_pulses_ids_i,
+                    "x_parameters": parameters_i,
+                    "x_pulses": x_pulses_i,
+                    "x_pulses_ids": x_pulses_ids_i,
                 }
                 if time_exclusions_exist:
-                    data_batch_dict_i.update({
-                        'x_time_exclusions': x_time_exclusions_i,
-                        'x_time_exclusions_ids': x_time_exclusions_ids_i,
-                    })
+                    data_batch_dict_i.update(
+                        {
+                            "x_time_exclusions": x_time_exclusions_i,
+                            "x_time_exclusions_ids": x_time_exclusions_ids_i,
+                        }
+                    )
             else:
-                data_batch_dict_i = {'x_parameters': parameters_i}
+                data_batch_dict_i = {"x_parameters": parameters_i}
                 x_pulses_ids_i = pulses_ids
 
             set_keys = data_batch_dict_i.keys()
@@ -603,104 +631,115 @@ class MultiSource(Source):
             result_tensors_i = concrete_tensor_funcs[base](data_batch_dict_i)
 
             # shape: [n_sources * n_batch, ...]
-            dom_charges_i = result_tensors_i['dom_charges']
-            dom_charges_variance_i = result_tensors_i['dom_charges_variance']
-            pulse_pdf_i = result_tensors_i['pulse_pdf']
+            dom_charges_i = result_tensors_i["dom_charges"]
+            dom_charges_variance_i = result_tensors_i["dom_charges_variance"]
+            pulse_pdf_i = result_tensors_i["pulse_pdf"]
 
             if dom_charges_i.shape[1:] != [86, 60, 1]:
-                msg = 'DOM charges of source {!r} ({!r}) have an unexpected '
-                msg += 'shape {!r}.'
+                msg = "DOM charges of source {!r} ({!r}) have an unexpected "
+                msg += "shape {!r}."
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
             if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
-                msg = 'DOM charge variances of source {!r} ({!r}) have an '
-                msg += 'unexpected shape {!r}.'
+                msg = "DOM charge variances of source {!r} ({!r}) have an "
+                msg += "unexpected shape {!r}."
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
             if time_exclusions_exist:
-                dom_cdf_exclusion_sum_i = (
-                    result_tensors_i['dom_cdf_exclusion_sum']
-                )
+                dom_cdf_exclusion_sum_i = result_tensors_i[
+                    "dom_cdf_exclusion_sum"
+                ]
                 if dom_cdf_exclusion_sum_i.shape[1:] != [86, 60, 1]:
-                    msg = 'DOM exclusions of source {!r} ({!r}) have an  '
-                    msg += 'unexpected shape {!r}.'
-                    raise ValueError(msg.format(
-                        name, base, dom_cdf_exclusion_sum_i.shape))
+                    msg = "DOM exclusions of source {!r} ({!r}) have an  "
+                    msg += "unexpected shape {!r}."
+                    raise ValueError(
+                        msg.format(name, base, dom_cdf_exclusion_sum_i.shape)
+                    )
 
             # reshape to: [n_sources, n_batch, 86, 60, 1]
             dom_charges_i = tf.reshape(
-                dom_charges_i, [n_sources, -1, 86, 60, 1])
+                dom_charges_i, [n_sources, -1, 86, 60, 1]
+            )
             dom_charges_variance_i = tf.reshape(
-                dom_charges_variance_i, [n_sources, -1, 86, 60, 1])
+                dom_charges_variance_i, [n_sources, -1, 86, 60, 1]
+            )
 
             # reshape to: [n_sources, n_pulses]
-            pulse_pdf_i = tf.reshape(
-                pulse_pdf_i, [n_sources, -1])
+            pulse_pdf_i = tf.reshape(pulse_pdf_i, [n_sources, -1])
 
             if time_exclusions_exist:
                 dom_cdf_exclusion_sum_i = tf.reshape(
-                    dom_cdf_exclusion_sum_i, [n_sources, -1, 86, 60, 1])
+                    dom_cdf_exclusion_sum_i, [n_sources, -1, 86, 60, 1]
+                )
 
             # accumulate charge
             # (assumes that sources are linear and independent)
             if dom_charges is None:
                 dom_charges = tf.reduce_sum(dom_charges_i, axis=0)
                 dom_charges_variance = tf.reduce_sum(
-                    dom_charges_variance_i, axis=0)
+                    dom_charges_variance_i, axis=0
+                )
                 if time_exclusions_exist:
-                    dom_cdf_exclusion_sum = tf.reduce_sum((
-                        dom_cdf_exclusion_sum_i * dom_charges_i
-                    ), axis=0)
+                    dom_cdf_exclusion_sum = tf.reduce_sum(
+                        (dom_cdf_exclusion_sum_i * dom_charges_i), axis=0
+                    )
             else:
                 dom_charges += tf.reduce_sum(dom_charges_i, axis=0)
                 dom_charges_variance += tf.reduce_sum(
-                    dom_charges_variance_i, axis=0)
+                    dom_charges_variance_i, axis=0
+                )
                 if time_exclusions_exist:
-                    dom_cdf_exclusion_sum += tf.reduce_sum((
-                        dom_cdf_exclusion_sum_i * dom_charges_i
-                    ), axis=0)
+                    dom_cdf_exclusion_sum += tf.reduce_sum(
+                        (dom_cdf_exclusion_sum_i * dom_charges_i), axis=0
+                    )
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
             pulse_weight_i = tf.gather_nd(
                 # shape: [n_sources * n_batch, 86, 60]
-                tf.squeeze(result_tensors_i['dom_charges'], axis=3),
+                tf.squeeze(result_tensors_i["dom_charges"], axis=3),
                 # shape: [n_sources * n_pulses, 3], indexes to [b_i, s_i, d_i]
-                x_pulses_ids_i
+                x_pulses_ids_i,
             )
             # reshape to: [n_sources, n_pulses]
-            pulse_weight_i = tf.reshape(
-                pulse_weight_i, [n_sources, -1])
+            pulse_weight_i = tf.reshape(pulse_weight_i, [n_sources, -1])
 
             if pulse_pdf is None:
-                pulse_pdf = tf.reduce_sum(
-                    pulse_pdf_i * pulse_weight_i, axis=0)
+                pulse_pdf = tf.reduce_sum(pulse_pdf_i * pulse_weight_i, axis=0)
             else:
                 pulse_pdf += tf.reduce_sum(
-                    pulse_pdf_i * pulse_weight_i, axis=0)
+                    pulse_pdf_i * pulse_weight_i, axis=0
+                )
 
         # normalize pulse_pdf values: divide by total charge at DOM
-        pulse_weight_total = tf.gather_nd(tf.squeeze(dom_charges, axis=3),
-                                          pulses_ids)
+        pulse_weight_total = tf.gather_nd(
+            tf.squeeze(dom_charges, axis=3), pulses_ids
+        )
 
-        pulse_pdf /= (pulse_weight_total + 1e-6)
+        pulse_pdf /= pulse_weight_total + 1e-6
 
         result_tensors = {
-            'dom_charges': dom_charges,
-            'dom_charges_variance': dom_charges_variance,
-            'pulse_pdf': pulse_pdf,
+            "dom_charges": dom_charges,
+            "dom_charges_variance": dom_charges_variance,
+            "pulse_pdf": pulse_pdf,
         }
 
         # normalize time exclusion sum: divide by total charge at DOM
         if time_exclusions_exist:
             dom_cdf_exclusion_sum /= dom_charges
 
-            result_tensors['dom_cdf_exclusion_sum'] = dom_cdf_exclusion_sum
+            result_tensors["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
 
         return result_tensors
 
-    def save_weights(self, dir_path, max_keep=3, protected=False,
-                     description=None, num_training_steps=None):
+    def save_weights(
+        self,
+        dir_path,
+        max_keep=3,
+        protected=False,
+        description=None,
+        num_training_steps=None,
+    ):
         """Save the model weights.
 
         Metadata on the checkpoints is stored in a model_checkpoints.yaml
@@ -765,9 +804,12 @@ class MultiSource(Source):
             if issubclass(type(sub_component), Model):
                 # save weights of Model sub component
                 sub_component.save_weights(
-                    dir_path=sub_dir_path, max_keep=max_keep,
-                    protected=protected, description=description,
-                    num_training_steps=num_training_steps)
+                    dir_path=sub_dir_path,
+                    max_keep=max_keep,
+                    protected=protected,
+                    description=description,
+                    num_training_steps=num_training_steps,
+                )
 
     def _flatten_nested_results(self, result_tensors, parent=None):
         """Gather nested result tensors and return as flattened dictionary.
@@ -790,15 +832,16 @@ class MultiSource(Source):
             }
         """
         flattened_results = {}
-        for name, result_tensors_i in result_tensors['nested_results'].items():
+        for name, result_tensors_i in result_tensors["nested_results"].items():
 
-            base_name = self._untracked_data['sources'][name]
+            base_name = self._untracked_data["sources"][name]
             base_source = self.sub_components[base_name]
 
-            if 'nested_results' in result_tensors_i:
+            if "nested_results" in result_tensors_i:
                 # found another Multi-Source, so keep going
                 flattened_results_i = base_source._flatten_nested_results(
-                    result_tensors_i, parent=name)
+                    result_tensors_i, parent=name
+                )
                 flattened_results.update(flattened_results_i)
             else:
                 # found a base source
@@ -806,12 +849,19 @@ class MultiSource(Source):
                 if parent is None:
                     flattened_results[name] = values
                 else:
-                    flattened_results['{}/{}'.format(parent, name)] = values
+                    flattened_results["{}/{}".format(parent, name)] = values
 
         return flattened_results
 
-    def cdf(self, x, result_tensors, output_nested_pdfs=False,
-            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+    def cdf(
+        self,
+        x,
+        result_tensors,
+        output_nested_pdfs=False,
+        tw_exclusions=None,
+        tw_exclusions_ids=None,
+        **kwargs
+    ):
         """Compute CDF values at x for given result_tensors
 
         This is a numpy, i.e. not tensorflow, method to compute the PDF based
@@ -882,19 +932,21 @@ class MultiSource(Source):
 
         nested_cdfs = {}
         cdf_values = None
-        dom_charges = result_tensors['dom_charges'].numpy()
+        dom_charges = result_tensors["dom_charges"].numpy()
         for name, (base_source, result_tensors_i) in sorted(
-                flattened_results.items()):
+            flattened_results.items()
+        ):
 
             # shape: [n_events, 86, 60, n_points]
             cdf_values_i = base_source.cdf(
-                x, result_tensors_i,
+                x,
+                result_tensors_i,
                 tw_exclusions=tw_exclusions,
                 tw_exclusions_ids=tw_exclusions_ids,
             )
 
             # shape: [n_events, 86, 60, 1]
-            dom_charges_i = result_tensors_i['dom_charges'].numpy()
+            dom_charges_i = result_tensors_i["dom_charges"].numpy()
 
             if cdf_values is None:
                 cdf_values = cdf_values_i * dom_charges_i
@@ -912,8 +964,15 @@ class MultiSource(Source):
         else:
             return cdf_values
 
-    def pdf(self, x, result_tensors, output_nested_pdfs=False,
-            tw_exclusions=None, tw_exclusions_ids=None, **kwargs):
+    def pdf(
+        self,
+        x,
+        result_tensors,
+        output_nested_pdfs=False,
+        tw_exclusions=None,
+        tw_exclusions_ids=None,
+        **kwargs
+    ):
         """Compute PDF values at x for given result_tensors
 
         This is a numpy, i.e. not tensorflow, method to compute the PDF based
@@ -984,19 +1043,21 @@ class MultiSource(Source):
 
         nested_pdfs = {}
         pdf_values = None
-        dom_charges = result_tensors['dom_charges'].numpy()
+        dom_charges = result_tensors["dom_charges"].numpy()
         for name, (base_source, result_tensors_i) in sorted(
-                flattened_results.items()):
+            flattened_results.items()
+        ):
 
             # shape: [n_events, 86, 60, n_points]
             pdf_values_i = base_source.pdf(
-                x, result_tensors_i,
+                x,
+                result_tensors_i,
                 tw_exclusions=tw_exclusions,
                 tw_exclusions_ids=tw_exclusions_ids,
             )
 
             # shape: [n_events, 86, 60, 1]
-            dom_charges_i = result_tensors_i['dom_charges'].numpy()
+            dom_charges_i = result_tensors_i["dom_charges"].numpy()
 
             if pdf_values is None:
                 pdf_values = pdf_values_i * dom_charges_i
@@ -1038,8 +1099,9 @@ class MultiSource(Source):
 
             if issubclass(type(sub_component), Model):
                 # load weights of Model sub component
-                sub_component.load_weights(dir_path=sub_dir_path,
-                                           checkpoint_number=checkpoint_number)
+                sub_component.load_weights(
+                    dir_path=sub_dir_path, checkpoint_number=checkpoint_number
+                )
 
     def _save(self, dir_path, **kwargs):
         """Virtual method for additional save tasks by derived class
@@ -1096,16 +1158,14 @@ class MultiSource(Source):
 
             # rebuild graph
             config_dict = self.configuration.config
-            data_trafo = self._sub_components['data_trafo']
+            data_trafo = self._sub_components["data_trafo"]
             base_sources = {}
             for key, sub_component in self._sub_components.items():
-                if key != 'data_trafo':
+                if key != "data_trafo":
                     base_sources[key] = sub_component
 
             self._configure(
-                data_trafo=data_trafo,
-                base_sources=base_sources,
-                **config_dict
+                data_trafo=data_trafo, base_sources=base_sources, **config_dict
             )
 
             # make sure that no additional class attributes are created
@@ -1113,12 +1173,14 @@ class MultiSource(Source):
             self._check_member_attributes()
 
             # make sure the other values weren't overwritten
-            if (not configuration.is_compatible(self.configuration) or
-                configuration_id != id(self.configuration) or
-                data != self.data or
-                sub_components != self.sub_components or
-                    sub_components_id != id(self.sub_components)):
-                raise ValueError('Tracked components were changed!')
+            if (
+                not configuration.is_compatible(self.configuration)
+                or configuration_id != id(self.configuration)
+                or data != self.data
+                or sub_components != self.sub_components
+                or sub_components_id != id(self.sub_components)
+            ):
+                raise ValueError("Tracked components were changed!")
 
     def check_source_parameter_creation(self):
         """Check created source input parameters
@@ -1130,8 +1192,9 @@ class MultiSource(Source):
         """
 
         # create a dummy input tensor for the MultiSource
-        input_tensor = tf.ones([3, self.num_parameters],
-                               name='MultiSourceInput')
+        input_tensor = tf.ones(
+            [3, self.num_parameters], name="MultiSourceInput"
+        )
 
         # get source parameters
         input_tensor = self.add_parameter_indexing(input_tensor)
@@ -1139,7 +1202,7 @@ class MultiSource(Source):
 
         # check if each specified source has the correct amount of input
         # parameters and if these are only based on the MultiSourceInput
-        for name, base in self._untracked_data['sources'].items():
+        for name, base in self._untracked_data["sources"].items():
 
             # get base component
             sub_component = self.sub_components[base]
@@ -1149,17 +1212,23 @@ class MultiSource(Source):
 
             # check number of parameters
             if source_parameters_i.shape[-1] != sub_component.num_parameters:
-                msg = 'Source {!r} with base component {!r} expected {!r} '
-                msg += 'number of parameters but got {!r}'
-                raise ValueError(msg.format(
-                    name, base, sub_component.num_parameters,
-                    source_parameters_i.shape[-1]))
+                msg = "Source {!r} with base component {!r} expected {!r} "
+                msg += "number of parameters but got {!r}"
+                raise ValueError(
+                    msg.format(
+                        name,
+                        base,
+                        sub_component.num_parameters,
+                        source_parameters_i.shape[-1],
+                    )
+                )
 
             # check input tensor dependency of input
             try:
                 # get parent tensor
-                top_nodes = self._find_top_nodes(source_parameters_i,
-                                                 input_tensor.name)
+                top_nodes = self._find_top_nodes(
+                    source_parameters_i, input_tensor.name
+                )
                 if top_nodes == set([input_tensor.name]):
                     continue
 
@@ -1167,30 +1236,40 @@ class MultiSource(Source):
                     tensor_i = source_parameters_i[:, i]
 
                     # get parent tensor
-                    top_nodes = self._find_top_nodes(tensor_i,
-                                                     input_tensor.name)
+                    top_nodes = self._find_top_nodes(
+                        tensor_i, input_tensor.name
+                    )
 
                     if input_tensor.name not in top_nodes:
-                        msg = 'Source {!r} with base component {!r} has '
-                        msg += 'an input tensor component {!r} ({!r}) that '
-                        msg += 'does not depend on MultiSourceInput!'
-                        raise ValueError(msg.format(name, base, i,
-                                                    sub_component.get_name(i)))
+                        msg = "Source {!r} with base component {!r} has "
+                        msg += "an input tensor component {!r} ({!r}) that "
+                        msg += "does not depend on MultiSourceInput!"
+                        raise ValueError(
+                            msg.format(
+                                name, base, i, sub_component.get_name(i)
+                            )
+                        )
 
                     for node in top_nodes:
                         if node != input_tensor.name:
-                            msg = 'Source {!r} with base component {!r} has '
-                            msg += 'an input tensor component {!r} ({!r}) '
-                            msg += 'that depends on {!r} instead of the '
-                            msg += 'MultiSourceInput {!r}!'
-                            raise ValueError(msg.format(
-                                name, base, i,
-                                sub_component.get_name(i),
-                                node, input_tensor.name),
+                            msg = "Source {!r} with base component {!r} has "
+                            msg += "an input tensor component {!r} ({!r}) "
+                            msg += "that depends on {!r} instead of the "
+                            msg += "MultiSourceInput {!r}!"
+                            raise ValueError(
+                                msg.format(
+                                    name,
+                                    base,
+                                    i,
+                                    sub_component.get_name(i),
+                                    node,
+                                    input_tensor.name,
+                                ),
                             )
             except AttributeError as e:
                 self._logger.warning(
-                    'Can not check inputs since Tensorflow is in eager mode.')
+                    "Can not check inputs since Tensorflow is in eager mode."
+                )
 
     def print_parameters(self, source=None):
         """Print parameters of the MultiSource model and its components.
@@ -1222,27 +1301,34 @@ class MultiSource(Source):
         if len(tensor.op.inputs) == 0:
 
             # ignore constant inputs unless they match the collect_name
-            if (tensor.op.node_def.op == 'Const' and
-                    tensor.name == collect_name):
+            if (
+                tensor.op.node_def.op == "Const"
+                and tensor.name == collect_name
+            ):
                 return set([tensor.name])
             else:
                 return set()
 
         tensor_list = set()
         for in_tensor in tensor.op.inputs:
-            tensor_list = tensor_list.union(self._find_top_nodes(
-                in_tensor, collect_name=collect_name))
+            tensor_list = tensor_list.union(
+                self._find_top_nodes(in_tensor, collect_name=collect_name)
+            )
 
         return tensor_list
 
 
-class ConcreteFunctionCache():
+class ConcreteFunctionCache:
+    """Concrete Function Container"""
 
-    """Concrete Function Container
-    """
-
-    def __init__(self, source_parameters, sub_components,
-                 data_batch_dict, is_training, logger=None):
+    def __init__(
+        self,
+        source_parameters,
+        sub_components,
+        data_batch_dict,
+        is_training,
+        logger=None,
+    ):
         self.source_parameters = source_parameters
         self.sub_components = sub_components
         self.data_batch_dict = data_batch_dict
@@ -1270,21 +1356,25 @@ class ConcreteFunctionCache():
 
             @tf.function
             def concrete_function(data_batch_dict_i):
-                print('Tracing multi-source base: {} ({})'.format(
-                    base_name, base_source))
+                print(
+                    "Tracing multi-source base: {} ({})".format(
+                        base_name, base_source
+                    )
+                )
                 return base_source.get_tensors(
-                                data_batch_dict_i,
-                                is_training=self.is_training,
-                                parameter_tensor_name='x_parameters')
+                    data_batch_dict_i,
+                    is_training=self.is_training,
+                    parameter_tensor_name="x_parameters",
+                )
 
             # get input parameters for Source i
             parameters_i = self.source_parameters[source_name]
             parameters_i = base_source.add_parameter_indexing(parameters_i)
 
             # Create data batch for this source
-            data_batch_dict_i = {'x_parameters': parameters_i}
+            data_batch_dict_i = {"x_parameters": parameters_i}
             for key, values in self.data_batch_dict.items():
-                if key != 'x_parameters':
+                if key != "x_parameters":
                     data_batch_dict_i[key] = values
 
             self.concrete_tensor_funcs[base_name] = (

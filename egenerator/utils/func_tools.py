@@ -31,7 +31,7 @@ def weighted_quantile(x, weights, quantile=0.68):
 
 
 def weighted_std(x, weights=None):
-    """"
+    """ "
     Weighted std deviation.
     Source:
     http://www.itl.nist.gov/div898/software/dataplot/refman2/ch2/weightsd.pdf
@@ -62,8 +62,11 @@ def weighted_std(x, weights=None):
     w_mean_x = np.average(x, weights=weights)
     n = len(weights[weights != 0])
 
-    s = n * np.sum(
-        weights*(x - w_mean_x)*(x - w_mean_x)) / ((n - 1) * np.sum(weights))
+    s = (
+        n
+        * np.sum(weights * (x - w_mean_x) * (x - w_mean_x))
+        / ((n - 1) * np.sum(weights))
+    )
     return np.sqrt(s)
 
 
@@ -112,7 +115,8 @@ def weighted_pearson_corr(x, y, w=None):
         # w = np.ones_like(x)
 
     return weighted_cov(x, y, w) / np.sqrt(
-        weighted_cov(x, x, w) * weighted_cov(y, y, w))
+        weighted_cov(x, x, w) * weighted_cov(y, y, w)
+    )
 
 
 def weighted_spearman_corr(x, y, w=None):

@@ -7,7 +7,6 @@ from egenerator.utils import detector
 
 
 class CascadeClusterSearchModule(icetray.I3ConditionalModule):
-
     """Class to create cascade clusters for an event.
 
     Clusters of charge will be computed within the detector based on the
@@ -19,52 +18,56 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
     def __init__(self, context):
         icetray.I3ConditionalModule.__init__(self, context)
         self.AddParameter(
-            'pulse_key',
-            'The name of the pulse series to use.',
-            'InIceDSTPulses')
+            "pulse_key",
+            "The name of the pulse series to use.",
+            "InIceDSTPulses",
+        )
         self.AddParameter(
-            'output_key',
-            'The output frame key to which the clusters will be written.',
-            'CascadeClusters')
+            "output_key",
+            "The output frame key to which the clusters will be written.",
+            "CascadeClusters",
+        )
         self.AddParameter(
-            'n_clusters',
-            'The maximum number of clusters to compute.',
-            10)
+            "n_clusters", "The maximum number of clusters to compute.", 10
+        )
         self.AddParameter(
-            'min_dist',
-            'The minimum distance [m] that two clusters must be separated by.',
-            200)
+            "min_dist",
+            "The minimum distance [m] that two clusters must be separated by.",
+            200,
+        )
         self.AddParameter(
-            'min_cluster_charge',
-            'The minimum cluster charge [PE].',
-            3)
+            "min_cluster_charge", "The minimum cluster charge [PE].", 3
+        )
         self.AddParameter(
-            'min_hit_doms',
-            'The minimum number of hit DOMs a cluster must have.',
-            3)
+            "min_hit_doms",
+            "The minimum number of hit DOMs a cluster must have.",
+            3,
+        )
         self.AddParameter(
-            'initial_clusters_particles',
-            'A list of I3Particles keys. The vertices of thes particles will '
-            'be used as initial clusters.',
-            None)
+            "initial_clusters_particles",
+            "A list of I3Particles keys. The vertices of thes particles will "
+            "be used as initial clusters.",
+            None,
+        )
         self.AddParameter(
-            'add_to_frame',
-            'If True, the clusters will be added to the I3Frame as '
-            'I3Positions.',
-            False)
+            "add_to_frame",
+            "If True, the clusters will be added to the I3Frame as "
+            "I3Positions.",
+            False,
+        )
 
     def Configure(self):
-        """Configure
-        """
-        self._pulse_key = self.GetParameter('pulse_key')
-        self._output_key = self.GetParameter('output_key')
-        self._n_clusters = self.GetParameter('n_clusters')
-        self._min_dist = self.GetParameter('min_dist')
-        self._min_cluster_charge = self.GetParameter('min_cluster_charge')
-        self._min_hit_doms = self.GetParameter('min_hit_doms')
-        self._add_to_frame = self.GetParameter('add_to_frame')
+        """Configure"""
+        self._pulse_key = self.GetParameter("pulse_key")
+        self._output_key = self.GetParameter("output_key")
+        self._n_clusters = self.GetParameter("n_clusters")
+        self._min_dist = self.GetParameter("min_dist")
+        self._min_cluster_charge = self.GetParameter("min_cluster_charge")
+        self._min_hit_doms = self.GetParameter("min_hit_doms")
+        self._add_to_frame = self.GetParameter("add_to_frame")
         self._initial_clusters_particles = self.GetParameter(
-            'initial_clusters_particles')
+            "initial_clusters_particles"
+        )
 
     def Physics(self, frame):
         """Compute Clusters
@@ -76,7 +79,7 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
         """
 
         # get pulses
-        pulse_series = frame['InIceDSTPulses'].apply(frame)
+        pulse_series = frame["InIceDSTPulses"].apply(frame)
 
         # get initial clusters
         if self._initial_clusters_particles is None:
@@ -126,25 +129,25 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
             zenith = direction.zenith
             azimuth = direction.azimuth
         else:
-            azimuth = float('nan')
-            zenith = float('nan')
+            azimuth = float("nan")
+            zenith = float("nan")
 
         output = dataclasses.I3MapStringDouble()
-        output['found_clusters'] = found_clusters
-        output['azimuth'] = azimuth
-        output['zenith'] = zenith
+        output["found_clusters"] = found_clusters
+        output["azimuth"] = azimuth
+        output["zenith"] = zenith
 
         # add clusters
         for i, cluster in enumerate(clusters):
-            prefix = 'cluster_{:06d}'.format(i)
-            output[prefix + '_x'] = cluster[0]
-            output[prefix + '_y'] = cluster[1]
-            output[prefix + '_z'] = cluster[2]
-            output[prefix + '_t'] = cluster[3]
+            prefix = "cluster_{:06d}".format(i)
+            output[prefix + "_x"] = cluster[0]
+            output[prefix + "_y"] = cluster[1]
+            output[prefix + "_z"] = cluster[2]
+            output[prefix + "_t"] = cluster[3]
 
             if self._add_to_frame and np.isfinite(cluster).all():
                 pos = dataclasses.I3Position(*cluster[:3])
-                frame[self._output_key + '_' + prefix] = pos
+                frame[self._output_key + "_" + prefix] = pos
 
         frame[self._output_key] = output
 
@@ -188,8 +191,14 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
 
     @classmethod
     def calculate_clusters(
-            self, pulse_series, n_clusters=10, min_dist=50,
-            min_cluster_charge=3, min_hit_doms=3, initial_clusters=None):
+        self,
+        pulse_series,
+        n_clusters=10,
+        min_dist=50,
+        min_cluster_charge=3,
+        min_hit_doms=3,
+        initial_clusters=None,
+    ):
         """Compute charge clusters
 
         Parameters
@@ -228,14 +237,14 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
         # sum up neighbouring strings and DOMs within approx 125m
         # but only 3 DOMs up and down, so roughly 50m
         conv_kernel = np.ones((3, 3, 7, 1))
-        conv_kernel[0, 0] = 0.
-        conv_kernel[2, 2] = 0.
+        conv_kernel[0, 0] = 0.0
+        conv_kernel[2, 2] = 0.0
 
         # Convolve to sum up charge in neighbourhood
         charges_conv = ndimage.convolve(
             input=charges,
             weights=conv_kernel,
-            mode='constant',
+            mode="constant",
             cval=0.0,
         )
 
@@ -243,7 +252,7 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
         hits_conv = ndimage.convolve(
             input=hits,
             weights=conv_kernel,
-            mode='constant',
+            mode="constant",
             cval=0.0,
         )
 
@@ -255,14 +264,14 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
         avg_coords_time = ndimage.convolve(
             input=coords_time * charges,
             weights=conv_kernel,
-            mode='constant',
+            mode="constant",
             cval=0.0,
         ) / (charges_conv + eps)
 
         # flatten spatial dimensions
-        charges_conv_flat = np.reshape(charges_conv, [10*10*60])
-        hits_conv_flat = np.reshape(hits_conv, [10*10*60])
-        avg_coords_time_flat = np.reshape(avg_coords_time, [10*10*60, 4])
+        charges_conv_flat = np.reshape(charges_conv, [10 * 10 * 60])
+        hits_conv_flat = np.reshape(hits_conv, [10 * 10 * 60])
+        avg_coords_time_flat = np.reshape(avg_coords_time, [10 * 10 * 60, 4])
 
         # Find n_clusters clusters with a separation of min_dist
         clusters = np.ones((n_clusters, 4)) * np.inf
@@ -278,21 +287,25 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
 
         current_charge = np.inf
         index = 0
-        while (found_clusters < n_clusters and
-                current_charge > min_cluster_charge):
+        while (
+            found_clusters < n_clusters and current_charge > min_cluster_charge
+        ):
 
             current_charge = charges_conv_flat[sorted_indices[index]]
             current_n_hits = hits_conv_flat[sorted_indices[index]]
             current_cluster = avg_coords_time_flat[sorted_indices[index]]
 
             # compute distances to existing clusters
-            distances = np.sqrt(np.sum(
-                (clusters - current_cluster)[:, :3]**2, axis=1))
+            distances = np.sqrt(
+                np.sum((clusters - current_cluster)[:, :3] ** 2, axis=1)
+            )
             distances[~np.isfinite(distances)] = np.inf
 
-            if (np.min(distances) > min_dist and
-                    current_charge > min_cluster_charge and
-                    current_n_hits > min_hit_doms):
+            if (
+                np.min(distances) > min_dist
+                and current_charge > min_cluster_charge
+                and current_n_hits > min_hit_doms
+            ):
                 clusters[found_clusters] = current_cluster
                 found_clusters += 1
             index += 1

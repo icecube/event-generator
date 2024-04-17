@@ -7,7 +7,8 @@ from ic3_data.ext_boost import get_valid_pulse_map as get_valid_pulse_map_cpp
 
 
 def get_combined_exclusions(
-        frame, dom_and_tw_exclusions, partial_exclusion, output_key):
+    frame, dom_and_tw_exclusions, partial_exclusion, output_key
+):
     """Get combined exclusions and write them to the frame.
 
     Parameters
@@ -25,16 +26,21 @@ def get_combined_exclusions(
         dom_and_tw_exclusions = [dom_and_tw_exclusions]
 
     excluded_doms, excluded_tws = combine_exclusions(
-        frame, dom_and_tw_exclusions, partial_exclusion)
+        frame, dom_and_tw_exclusions, partial_exclusion
+    )
 
-    frame[output_key + 'DOMs'] = excluded_doms
-    frame[output_key + 'TimeWindows'] = excluded_tws
+    frame[output_key + "DOMs"] = excluded_doms
+    frame[output_key + "TimeWindows"] = excluded_tws
 
 
-def get_valid_pulse_map(frame, pulse_key, dom_and_tw_exclusions,
-                        partial_exclusion,
-                        output_key=None,
-                        verbose=False):
+def get_valid_pulse_map(
+    frame,
+    pulse_key,
+    dom_and_tw_exclusions,
+    partial_exclusion,
+    output_key=None,
+    verbose=False,
+):
     """Simple wrapper over c++ version.
     Necessary for I3 Magic...
 
@@ -58,16 +64,16 @@ def get_valid_pulse_map(frame, pulse_key, dom_and_tw_exclusions,
         dom_and_tw_exclusions = [dom_and_tw_exclusions]
 
     pulses = get_valid_pulse_map_cpp(
-        frame, pulse_key, dom_and_tw_exclusions, partial_exclusion, verbose)
+        frame, pulse_key, dom_and_tw_exclusions, partial_exclusion, verbose
+    )
 
     if output_key is None:
-        frame[pulse_key + '_masked'] = pulses
+        frame[pulse_key + "_masked"] = pulses
     else:
         frame[output_key] = pulses
 
 
-def get_merged_pulse_map(frame, pulse_key, time_threshold,
-                         output_key=None):
+def get_merged_pulse_map(frame, pulse_key, time_threshold, output_key=None):
     """Simple wrapper over c++ version.
     Necessary for I3 Magic...
 
@@ -85,11 +91,11 @@ def get_merged_pulse_map(frame, pulse_key, time_threshold,
         The name to which the merged pulse series map will be written to.
         If none provided, the output name will be `pulse_key`+'_merged'.
     """
-    assert time_threshold > 0., time_threshold
+    assert time_threshold > 0.0, time_threshold
 
     pulses = merge_pulses(frame, pulse_key, time_threshold)
 
     if output_key is None:
-        frame[pulse_key + '_merged'] = pulses
+        frame[pulse_key + "_merged"] = pulses
     else:
         frame[output_key] = pulses

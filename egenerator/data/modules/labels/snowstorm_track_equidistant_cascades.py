@@ -10,7 +10,6 @@ from egenerator.data.tensor import DataTensorList, DataTensor
 
 
 class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
-
     """Track Equidistant Cascades
 
     This is a label module that loads the snowstorm track labels
@@ -29,14 +28,19 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
 
         logger = logger or logging.getLogger(__name__)
         super(SnowstormTrackEquidistantCascadesLabelModule, self).__init__(
-                                                                logger=logger)
+            logger=logger
+        )
 
-    def _configure(self, config_data, trafo_log,
-                   float_precision,
-                   num_cascades=5,
-                   label_key='MCLabelsMuonEnergyLossesInCylinder',
-                   snowstorm_key='SnowstormParameters',
-                   num_snowstorm_params=30):
+    def _configure(
+        self,
+        config_data,
+        trafo_log,
+        float_precision,
+        num_cascades=5,
+        label_key="MCLabelsMuonEnergyLossesInCylinder",
+        snowstorm_key="SnowstormParameters",
+        num_snowstorm_params=30,
+    ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -112,20 +116,24 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
 
         # sanity checks:
         if num_cascades < 1:
-            raise ValueError('Num cascades {} must be > 0!'.format(
-                num_cascades))
+            raise ValueError(
+                "Num cascades {} must be > 0!".format(num_cascades)
+            )
 
         # compute number of parameters
         num_params = 6 + num_cascades
 
         # create list of parameter names which is needed for data loading
         parameter_names = [
-            'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-            'zenith', 'azimuth',
-            'track_anchor_time',
+            "track_anchor_x",
+            "track_anchor_y",
+            "track_anchor_z",
+            "zenith",
+            "azimuth",
+            "track_anchor_time",
         ]
         for i in range(num_cascades):
-            parameter_names.append('EnergyLoss_{:05d}'.format(i))
+            parameter_names.append("EnergyLoss_{:05d}".format(i))
 
         parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):
@@ -138,34 +146,43 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             trafo_log_ext = (
                 list(trafo_log[:-1]) + [trafo_log[-1]] * num_cascades
             )
-        trafo_log_ext.extend([False]*num_snowstorm_params)
+        trafo_log_ext.extend([False] * num_snowstorm_params)
 
         data = {
-            'parameter_dict': parameter_dict,
-            'parameter_names': parameter_names,
+            "parameter_dict": parameter_dict,
+            "parameter_names": parameter_names,
         }
-        data['label_tensors'] = DataTensorList([DataTensor(
-            name='x_parameters',
-            shape=[None, num_params + num_snowstorm_params],
-            tensor_type='label',
-            dtype=float_precision,
-            trafo=True,
-            trafo_log=trafo_log_ext)])
+        data["label_tensors"] = DataTensorList(
+            [
+                DataTensor(
+                    name="x_parameters",
+                    shape=[None, num_params + num_snowstorm_params],
+                    tensor_type="label",
+                    dtype=float_precision,
+                    trafo=True,
+                    trafo_log=trafo_log_ext,
+                )
+            ]
+        )
 
         if isinstance(config_data, DataTensorList):
-            if config_data != data['label_tensors']:
-                msg = 'Tensors are wrong: {!r} != {!r}'
-                raise ValueError(msg.format(config_data,
-                                            data['label_tensors']))
+            if config_data != data["label_tensors"]:
+                msg = "Tensors are wrong: {!r} != {!r}"
+                raise ValueError(
+                    msg.format(config_data, data["label_tensors"])
+                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config_data=config_data,
-                          trafo_log=trafo_log,
-                          float_precision=float_precision,
-                          num_cascades=num_cascades,
-                          label_key=label_key,
-                          snowstorm_key=snowstorm_key,
-                          num_snowstorm_params=num_snowstorm_params))
+            settings=dict(
+                config_data=config_data,
+                trafo_log=trafo_log,
+                float_precision=float_precision,
+                num_cascades=num_cascades,
+                label_key=label_key,
+                snowstorm_key=snowstorm_key,
+                num_snowstorm_params=num_snowstorm_params,
+            ),
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -195,26 +212,26 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             Description
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         # open file
-        f = pd.HDFStore(file, 'r')
+        f = pd.HDFStore(file, "r")
 
         track_parameters = []
         try:
-            _labels = f[self.configuration.config['label_key']]
-            for l in self.data['parameter_names']:
-                    track_parameters.append(_labels[l])
+            _labels = f[self.configuration.config["label_key"]]
+            for l in self.data["parameter_names"]:
+                track_parameters.append(_labels[l])
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(track_parameters[0])
 
             if num_params > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = f[snowstorm_key]
-                    params = _snowstorm_params['item']
-                    index = _snowstorm_params['vector_index']
+                    params = _snowstorm_params["item"]
+                    index = _snowstorm_params["vector_index"]
                     assert max(index) == num_params - 1
                     assert min(index) == 0
 
@@ -231,13 +248,13 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping file: {}'.format(file))
+            self._logger.warning("Skipping file: {}".format(file))
             return None, None
         finally:
             f.close()
 
         # format track parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
+        dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
         num_events = len(track_parameters)
 
@@ -265,16 +282,16 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             Returns None if no label data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         track_parameters = []
         try:
-            _labels = frame[self.configuration.config['label_key']]
-            for l in self.data['parameter_names']:
+            _labels = frame[self.configuration.config["label_key"]]
+            for l in self.data["parameter_names"]:
                 track_parameters.append(np.atleast_1d(_labels[l]))
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(track_parameters[0])
 
             if num_params > 0:
@@ -295,11 +312,11 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping frame: {}'.format(frame))
+            self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
         # format track parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
+        dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
         num_events = len(track_parameters)
 
@@ -327,7 +344,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             Returns None if no label data is created.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         return self.get_data_from_frame(frame, *args, **kwargs)
 
@@ -347,6 +364,6 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         pass

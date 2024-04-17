@@ -11,9 +11,7 @@ from egenerator.utils.cascades import shift_to_maximum
 
 
 class SnowstormTrackGeneratorLabelModule(BaseComponent):
-
-    """This is a label module that loads the snowstorm track labels.
-    """
+    """This is a label module that loads the snowstorm track labels."""
 
     def __init__(self, logger=None):
         """Initialize track module
@@ -25,15 +23,19 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(SnowstormTrackGeneratorLabelModule, self).__init__(
-                                                                logger=logger)
+        super(SnowstormTrackGeneratorLabelModule, self).__init__(logger=logger)
 
-    def _configure(self, config_data, shift_cascade_vertex, trafo_log,
-                   float_precision,
-                   num_cascades=5,
-                   label_key='EventGeneratorMuonTrackLabels',
-                   snowstorm_key='SnowstormParameters',
-                   num_snowstorm_params=30):
+    def _configure(
+        self,
+        config_data,
+        shift_cascade_vertex,
+        trafo_log,
+        float_precision,
+        num_cascades=5,
+        label_key="EventGeneratorMuonTrackLabels",
+        snowstorm_key="SnowstormParameters",
+        num_snowstorm_params=30,
+    ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -115,11 +117,13 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
 
         # sanity checks:
         if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError('{!r} is not a boolean value!'.format(
-                shift_cascade_vertex))
+            raise TypeError(
+                "{!r} is not a boolean value!".format(shift_cascade_vertex)
+            )
         if num_cascades < 0:
-            raise ValueError('Num cascades {} must be positive!'.format(
-                num_cascades))
+            raise ValueError(
+                "Num cascades {} must be positive!".format(num_cascades)
+            )
 
         # compute number of parameters
         if num_cascades == 0:
@@ -131,19 +135,24 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
 
         # create list of parameter names which is needed for data loading
         parameter_names = [
-            'zenith', 'azimuth',
-            'track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-            'track_anchor_time', 'track_energy',
-            'track_distance_start', 'track_distance_end',
-            'track_stochasticity',
+            "zenith",
+            "azimuth",
+            "track_anchor_x",
+            "track_anchor_y",
+            "track_anchor_z",
+            "track_anchor_time",
+            "track_energy",
+            "track_distance_start",
+            "track_distance_end",
+            "track_stochasticity",
         ]
         if num_cascades >= 1:
-            parameter_names.append('cascade_0000_energy')
+            parameter_names.append("cascade_0000_energy")
 
             if num_cascades > 1:
                 for i in range(1, num_cascades):
-                    parameter_names.append('cascade_{:04d}_energy'.format(i))
-                    parameter_names.append('cascade_{:04d}_distance'.format(i))
+                    parameter_names.append("cascade_{:04d}_energy".format(i))
+                    parameter_names.append("cascade_{:04d}_distance".format(i))
 
         parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):
@@ -154,35 +163,44 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             trafo_log_ext = [trafo_log] * num_params
         else:
             trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False]*num_snowstorm_params)
+        trafo_log_ext.extend([False] * num_snowstorm_params)
 
         data = {
-            'parameter_dict': parameter_dict,
-            'parameter_names': parameter_names,
+            "parameter_dict": parameter_dict,
+            "parameter_names": parameter_names,
         }
-        data['label_tensors'] = DataTensorList([DataTensor(
-            name='x_parameters',
-            shape=[None, num_params + num_snowstorm_params],
-            tensor_type='label',
-            dtype=float_precision,
-            trafo=True,
-            trafo_log=trafo_log_ext)])
+        data["label_tensors"] = DataTensorList(
+            [
+                DataTensor(
+                    name="x_parameters",
+                    shape=[None, num_params + num_snowstorm_params],
+                    tensor_type="label",
+                    dtype=float_precision,
+                    trafo=True,
+                    trafo_log=trafo_log_ext,
+                )
+            ]
+        )
 
         if isinstance(config_data, DataTensorList):
-            if config_data != data['label_tensors']:
-                msg = 'Tensors are wrong: {!r} != {!r}'
-                raise ValueError(msg.format(config_data,
-                                            data['label_tensors']))
+            if config_data != data["label_tensors"]:
+                msg = "Tensors are wrong: {!r} != {!r}"
+                raise ValueError(
+                    msg.format(config_data, data["label_tensors"])
+                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config_data=config_data,
-                          shift_cascade_vertex=shift_cascade_vertex,
-                          trafo_log=trafo_log,
-                          float_precision=float_precision,
-                          num_cascades=num_cascades,
-                          label_key=label_key,
-                          snowstorm_key=snowstorm_key,
-                          num_snowstorm_params=num_snowstorm_params))
+            settings=dict(
+                config_data=config_data,
+                shift_cascade_vertex=shift_cascade_vertex,
+                trafo_log=trafo_log,
+                float_precision=float_precision,
+                num_cascades=num_cascades,
+                label_key=label_key,
+                snowstorm_key=snowstorm_key,
+                num_snowstorm_params=num_snowstorm_params,
+            ),
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -212,26 +230,26 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             Description
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         # open file
-        f = pd.HDFStore(file, 'r')
+        f = pd.HDFStore(file, "r")
 
         track_parameters = []
         try:
-            _labels = f[self.configuration.config['label_key']]
-            for l in self.data['parameter_names']:
-                    track_parameters.append(_labels[l])
+            _labels = f[self.configuration.config["label_key"]]
+            for l in self.data["parameter_names"]:
+                track_parameters.append(_labels[l])
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(track_parameters[0])
 
             if num_params > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = f[snowstorm_key]
-                    params = _snowstorm_params['item']
-                    index = _snowstorm_params['vector_index']
+                    params = _snowstorm_params["item"]
+                    index = _snowstorm_params["vector_index"]
                     assert max(index) == num_params - 1
                     assert min(index) == 0
 
@@ -248,17 +266,17 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping file: {}'.format(file))
+            self._logger.warning("Skipping file: {}".format(file))
             return None, None
         finally:
             f.close()
 
         # shift cascade vertices to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
+        if self.configuration.config["shift_cascade_vertex"]:
             track_parameters = self._shift_parameters(track_parameters)
 
         # format track parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
+        dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
         num_events = len(track_parameters)
 
@@ -286,16 +304,16 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             Returns None if no label data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         track_parameters = []
         try:
-            _labels = frame[self.configuration.config['label_key']]
-            for l in self.data['parameter_names']:
+            _labels = frame[self.configuration.config["label_key"]]
+            for l in self.data["parameter_names"]:
                 track_parameters.append(np.atleast_1d(_labels[l]))
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(track_parameters[0])
 
             if num_params > 0:
@@ -316,15 +334,15 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping frame: {}'.format(frame))
+            self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
         # shift cascade vertices to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
+        if self.configuration.config["shift_cascade_vertex"]:
             track_parameters = self._shift_parameters(track_parameters)
 
         # format track parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
+        dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
         num_events = len(track_parameters)
 
@@ -352,7 +370,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             Returns None if no label data is created.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         return self.get_data_from_frame(frame, *args, **kwargs)
 
@@ -372,7 +390,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         pass
 
@@ -389,11 +407,11 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         list of array
             The shifted parameters
         """
-        num_cascades = self.configuration.config['num_cascades']
-        param_dict = self.data['parameter_dict']
+        num_cascades = self.configuration.config["num_cascades"]
+        param_dict = self.data["parameter_dict"]
 
-        zenith = parameters[param_dict['zenith']]
-        azimuth = parameters[param_dict['azimuth']]
+        zenith = parameters[param_dict["zenith"]]
+        azimuth = parameters[param_dict["azimuth"]]
 
         c = 0.299792458  # meter / ns
         dir_x = -np.sin(zenith) * np.cos(azimuth)
@@ -405,23 +423,25 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         # must also be adjusted
         if num_cascades > 0:
             shift = self._get_cascade_extension(
-                parameters[param_dict['cascade_0000_energy']])
+                parameters[param_dict["cascade_0000_energy"]]
+            )
 
-            parameters[param_dict['track_anchor_x']] += dir_x * shift
-            parameters[param_dict['track_anchor_y']] += dir_y * shift
-            parameters[param_dict['track_anchor_z']] += dir_z * shift
-            parameters[param_dict['track_anchor_time']] += shift / c
+            parameters[param_dict["track_anchor_x"]] += dir_x * shift
+            parameters[param_dict["track_anchor_y"]] += dir_y * shift
+            parameters[param_dict["track_anchor_z"]] += dir_z * shift
+            parameters[param_dict["track_anchor_time"]] += shift / c
 
-            parameters[param_dict['track_distance_start']] -= shift
-            parameters[param_dict['track_distance_end']] -= shift
+            parameters[param_dict["track_distance_start"]] -= shift
+            parameters[param_dict["track_distance_end"]] -= shift
 
             # Also shift all of the remaining cascades
             for i in range(1, num_cascades):
                 shift_i = self._get_cascade_extension(
-                    parameters[param_dict['cascade_{:04d}_energy'.format(i)]])
+                    parameters[param_dict["cascade_{:04d}_energy".format(i)]]
+                )
 
                 # get index of cascade distance parameter
-                dist_index = param_dict['cascade_{:04d}_distance'.format(i)]
+                dist_index = param_dict["cascade_{:04d}_distance".format(i)]
 
                 # we need to compensate for the shift of the anchor point
                 parameters[dist_index] -= shift
@@ -452,7 +472,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         """
 
         # Radiation length in meters, assuming an ice density of 0.9216 g/cm^3
-        l_rad = (0.358/0.9216)  # in meter
+        l_rad = 0.358 / 0.9216  # in meter
 
         """
         Parameters taken from I3SimConstants (for particle e-):
@@ -461,14 +481,15 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         sim-services/I3SimConstants.cxx
         """
         a = 2.01849 + 0.63176 * np.log(ref_energy + eps)
-        b = l_rad/0.63207
+        b = l_rad / 0.63207
 
         # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
-        length_to_maximum = np.clip(((a-1.)/b)*l_rad, 0., float('inf'))
+        length_to_maximum = np.clip(((a - 1.0) / b) * l_rad, 0.0, float("inf"))
         return length_to_maximum
 
-    def _shift_to_maximum(self, x, y, z, zenith, azimuth, ref_energy, t,
-                          eps=1e-6):
+    def _shift_to_maximum(
+        self, x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6
+    ):
         """
         PPC does its own cascade extension, leaving the showers at the
         production vertex. Reapply the parametrization to find the
@@ -502,6 +523,13 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         """
 
         return shift_to_maximum(
-            x=x, y=y, z=z, zenith=zenith, azimuth=azimuth,
-            ref_energy=ref_energy, t=t, eps=eps, reverse=False,
+            x=x,
+            y=y,
+            z=z,
+            zenith=zenith,
+            azimuth=azimuth,
+            ref_energy=ref_energy,
+            t=t,
+            eps=eps,
+            reverse=False,
         )

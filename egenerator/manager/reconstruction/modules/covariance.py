@@ -6,11 +6,16 @@ from scipy.optimize import LbfgsInvHessProduct
 
 class CovarianceMatrix:
 
-    def __init__(self, manager, loss_module, function_cache,
-                 fit_parameter_list,
-                 reco_key,
-                 minimize_in_trafo_space=True,
-                 parameter_tensor_name='x_parameters',):
+    def __init__(
+        self,
+        manager,
+        loss_module,
+        function_cache,
+        fit_parameter_list,
+        reco_key,
+        minimize_in_trafo_space=True,
+        parameter_tensor_name="x_parameters",
+    ):
         """Initialize module and setup tensorflow functions.
 
         Parameters
@@ -39,8 +44,10 @@ class CovarianceMatrix:
         """
 
         if not np.all(fit_parameter_list):
-            raise NotImplementedError('Covariance currently only supports '
-                                      'calculation in all parameters')
+            raise NotImplementedError(
+                "Covariance currently only supports "
+                "calculation in all parameters"
+            )
 
         # store settings
         self.manager = manager
@@ -49,14 +56,16 @@ class CovarianceMatrix:
         self.minimize_in_trafo_space = minimize_in_trafo_space
         self.parameter_tensor_name = parameter_tensor_name
 
-        param_dtype = manager.data_trafo.data['tensors'][
-            parameter_tensor_name].dtype_tf
+        param_dtype = manager.data_trafo.data["tensors"][
+            parameter_tensor_name
+        ].dtype_tf
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_parameter_list, dtype=int)],
-            dtype=param_dtype)
+            dtype=param_dtype,
+        )
         param_signature_full = tf.TensorSpec(
-            shape=[None, len(fit_parameter_list)],
-            dtype=param_dtype)
+            shape=[None, len(fit_parameter_list)], dtype=param_dtype
+        )
 
         # define data batch tensor specification
         data_batch_signature = manager.data_handler.get_data_set_signature()
@@ -64,7 +73,10 @@ class CovarianceMatrix:
         # define function settings
         func_settings = dict(
             input_signature=(
-                param_signature, data_batch_signature, param_signature_full),
+                param_signature,
+                data_batch_signature,
+                param_signature_full,
+            ),
             loss_module=loss_module,
             fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
@@ -74,20 +86,24 @@ class CovarianceMatrix:
 
         # Get Hessian Function
         self.hessian_function = function_cache.get(
-            'hessian_function', func_settings)
+            "hessian_function", func_settings
+        )
 
         if self.hessian_function is None:
             self.hessian_function = manager.get_hessian_function(
-                **func_settings)
+                **func_settings
+            )
             function_cache.add(self.hessian_function, func_settings)
 
         # Get Outer-Product-Estimate Function
         self.opg_estimate_function = function_cache.get(
-            'opg_estimate_function', func_settings)
+            "opg_estimate_function", func_settings
+        )
 
         if self.opg_estimate_function is None:
             self.opg_estimate_function = manager.get_opg_estimate_function(
-                **func_settings)
+                **func_settings
+            )
             function_cache.add(self.opg_estimate_function, func_settings)
 
     def execute(self, data_batch, results, **kwargs):
@@ -108,57 +124,70 @@ class CovarianceMatrix:
             Description
         """
 
-        result_inv = results[self.reco_key]['result']
-        result_trafo = results[self.reco_key]['result_trafo']
-        result_obj = results[self.reco_key]['result_object']
+        result_inv = results[self.reco_key]["result"]
+        result_trafo = results[self.reco_key]["result_trafo"]
+        result_obj = results[self.reco_key]["result_object"]
 
         # get Hessian at reco best fit
-        hessian = self.hessian_function(
-            parameters_trafo=result_trafo,
-            data_batch=data_batch,
-            seed=result_inv).numpy().astype('float64')
+        hessian = (
+            self.hessian_function(
+                parameters_trafo=result_trafo,
+                data_batch=data_batch,
+                seed=result_inv,
+            )
+            .numpy()
+            .astype("float64")
+        )
 
-        opg_estimate = self.opg_estimate_function(
-            parameters_trafo=result_trafo,
-            data_batch=data_batch,
-            seed=result_inv).numpy().astype('float64')
+        opg_estimate = (
+            self.opg_estimate_function(
+                parameters_trafo=result_trafo,
+                data_batch=data_batch,
+                seed=result_inv,
+            )
+            .numpy()
+            .astype("float64")
+        )
 
         try:
             cov_trafo = np.linalg.inv(hessian)
         except np.linalg.LinAlgError as e:
             print(e)
-            print('Hessian is a singular matrix and cannot be inverted!')
+            print("Hessian is a singular matrix and cannot be inverted!")
             try:
                 cov_trafo = np.linalg.pinv(hessian, rcond=1e-8, hermitian=True)
-                print('Using (Moore-Penrose) pseudo-inverse of Hessian.')
+                print("Using (Moore-Penrose) pseudo-inverse of Hessian.")
             except np.linalg.LinAlgError as e2:
                 print(e2)
-                print('Setting covariance matrix to NaNs!')
-                cov_trafo = np.zeros_like(hessian) * float('nan')
+                print("Setting covariance matrix to NaNs!")
+                cov_trafo = np.zeros_like(hessian) * float("nan")
 
-        cov_sand_trafo = np.matmul(np.matmul(
-            cov_trafo, opg_estimate), cov_trafo)
-        if hasattr(result_obj, 'hess_inv'):
+        cov_sand_trafo = np.matmul(
+            np.matmul(cov_trafo, opg_estimate), cov_trafo
+        )
+        if hasattr(result_obj, "hess_inv"):
             if isinstance(result_obj.hess_inv, LbfgsInvHessProduct):
                 result_obj.hess_inv = result_obj.hess_inv.todense()
 
             cov_sand_fit_trafo = np.matmul(
                 np.matmul(result_obj.hess_inv, opg_estimate),
-                result_obj.hess_inv)
+                result_obj.hess_inv,
+            )
 
         if self.minimize_in_trafo_space:
             cov = self.manager.data_trafo.inverse_transform_cov(
-                cov_trafo=cov_trafo, tensor_name=self.parameter_tensor_name)
+                cov_trafo=cov_trafo, tensor_name=self.parameter_tensor_name
+            )
 
             cov_sand = self.manager.data_trafo.inverse_transform_cov(
                 cov_trafo=cov_sand_trafo,
-                tensor_name=self.parameter_tensor_name
+                tensor_name=self.parameter_tensor_name,
             )
 
-            if hasattr(result_obj, 'hess_inv'):
+            if hasattr(result_obj, "hess_inv"):
                 cov_sand_fit = self.manager.data_trafo.inverse_transform_cov(
                     cov_trafo=cov_sand_fit_trafo,
-                    tensor_name=self.parameter_tensor_name
+                    tensor_name=self.parameter_tensor_name,
                 )
                 cov_fit = self.manager.data_trafo.inverse_transform_cov(
                     cov_trafo=result_obj.hess_inv,
@@ -166,17 +195,19 @@ class CovarianceMatrix:
                 )
 
         results = {
-            'cov': cov,
-            'cov_sand': cov_sand,
-            'cov_trafo': cov_trafo,
-            'cov_sand_trafo': cov_sand_trafo,
+            "cov": cov,
+            "cov_sand": cov_sand,
+            "cov_trafo": cov_trafo,
+            "cov_sand_trafo": cov_sand_trafo,
         }
-        if hasattr(result_obj, 'hess_inv'):
-            results.update({
-                'cov_fit': cov_fit,
-                'cov_sand_fit': cov_sand_fit,
-                'cov_fit_trafo': result_obj.hess_inv,
-                'cov_sand_fit_trafo': cov_sand_fit_trafo,
-            })
+        if hasattr(result_obj, "hess_inv"):
+            results.update(
+                {
+                    "cov_fit": cov_fit,
+                    "cov_sand_fit": cov_sand_fit,
+                    "cov_fit_trafo": result_obj.hess_inv,
+                    "cov_sand_fit_trafo": cov_sand_fit_trafo,
+                }
+            )
 
         return results

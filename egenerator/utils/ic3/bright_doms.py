@@ -3,7 +3,7 @@ import numpy as np
 
 
 class AddBrightDOMs(icetray.I3ConditionalModule):
-    '''Module to add BrightDOMs for a given pulse series.
+    """Module to add BrightDOMs for a given pulse series.
 
     BrightDOMs are DOMs which collect a large fraction of the event charge.
     These DOMs are not saturated and should in principle be correctly
@@ -14,32 +14,37 @@ class AddBrightDOMs(icetray.I3ConditionalModule):
     deposition is to the DOM. In addition, we often do not properly simulate
     energy depositions very close to DOMs due to DOM oversizing and an
     effective hole-ice parameterization as an angular acceptance curve.
-    '''
+    """
+
     def __init__(self, context):
         icetray.I3ConditionalModule.__init__(self, context)
         self.AddParameter(
             "PulseKey",
             "Name of the pulses for which to add BrightDOMs.",
-            'SplitInIceDSTPulses')
+            "SplitInIceDSTPulses",
+        )
         self.AddParameter(
             "BrightThresholdFraction",
             "The threshold fraction of total event charge above which a DOM "
             "is considered as a bright DOM. A bright DOM is a DOM that "
             "fulfills: DOM charge > threshold fraction * event charge and "
             "which exceeds the threshold charge `BrightThresholdCharge`.",
-            0.4)
+            0.4,
+        )
         self.AddParameter(
             "BrightThresholdCharge",
             "The threshold charge a DOM must exceed to be eligible as a "
             "bright DOM. See also `BrightThresholdFraction`.",
-            100)
-        self.AddParameter("OutputKey",
-                          "The key to which to save the BrightDOMs.",
-                          'BrightDOMs')
+            100,
+        )
+        self.AddParameter(
+            "OutputKey",
+            "The key to which to save the BrightDOMs.",
+            "BrightDOMs",
+        )
 
     def Configure(self):
-        """Configure AddBrightDOMs module.
-        """
+        """Configure AddBrightDOMs module."""
         self._pulse_key = self.GetParameter("PulseKey")
         self._threshold_fraction = self.GetParameter("BrightThresholdFraction")
         self._threshold_charge = self.GetParameter("BrightThresholdCharge")
@@ -56,8 +61,9 @@ class AddBrightDOMs(icetray.I3ConditionalModule):
 
         # get pulses
         pulse_series = frame[self._pulse_key]
-        if isinstance(pulse_series, dataclasses.I3RecoPulseSeriesMapMask) or \
-           isinstance(pulse_series, dataclasses.I3RecoPulseSeriesMapUnion):
+        if isinstance(
+            pulse_series, dataclasses.I3RecoPulseSeriesMapMask
+        ) or isinstance(pulse_series, dataclasses.I3RecoPulseSeriesMapUnion):
             pulse_series = pulse_series.apply(frame)
 
         dom_charges = {}

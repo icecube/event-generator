@@ -9,7 +9,6 @@ from egenerator.manager.component import BaseComponent, Configuration
 
 
 class DefaultLossModule(BaseComponent):
-
     """Default loss module that implements some standard loss functions.
 
     A loss component that is used to compute the loss. The component
@@ -21,9 +20,11 @@ class DefaultLossModule(BaseComponent):
 
     @property
     def loss_function(self):
-        if (self.untracked_data is not None and
-                'loss_function' in self.untracked_data):
-            return self.untracked_data['loss_function']
+        if (
+            self.untracked_data is not None
+            and "loss_function" in self.untracked_data
+        ):
+            return self.untracked_data["loss_function"]
         else:
             return None
 
@@ -84,22 +85,30 @@ class DefaultLossModule(BaseComponent):
         """
 
         # choose loss function
-        self.untracked_data['loss_function'] = getattr(
-                                        self, config['loss_function_name'])
+        self.untracked_data["loss_function"] = getattr(
+            self, config["loss_function_name"]
+        )
 
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config=config))
+            settings=dict(config=config),
+        )
 
         return configuration, {}, {}
 
-    def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters',
-                 reduce_to_scalar=True,
-                 normalize_by_total_charge=False,
-                 sort_loss_terms=False,
-                 **kwargs):
+    def get_loss(
+        self,
+        data_batch_dict,
+        result_tensors,
+        tensors,
+        model,
+        parameter_tensor_name="x_parameters",
+        reduce_to_scalar=True,
+        normalize_by_total_charge=False,
+        sort_loss_terms=False,
+        **kwargs
+    ):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -166,19 +175,22 @@ class DefaultLossModule(BaseComponent):
         # sanity check
         if reduce_to_scalar and sort_loss_terms:
             raise ValueError(
-                'Both sort_loss_terms and reduce_to_scalar are set to True. '
-                'Sorting of loss terms is unecessary when reducing to scalar')
+                "Both sort_loss_terms and reduce_to_scalar are set to True. "
+                "Sorting of loss terms is unecessary when reducing to scalar"
+            )
 
-        loss_terms = self.loss_function(data_batch_dict=data_batch_dict,
-                                        result_tensors=result_tensors,
-                                        tensors=tensors,
-                                        sort_loss_terms=sort_loss_terms)
+        loss_terms = self.loss_function(
+            data_batch_dict=data_batch_dict,
+            result_tensors=result_tensors,
+            tensors=tensors,
+            sort_loss_terms=sort_loss_terms,
+        )
 
         # fill Nones with zeros of appropriate shape if sort_loss_terms
         if sort_loss_terms:
             assert len(loss_terms) == 3, loss_terms
 
-            dom_tensor = data_batch_dict['x_dom_charge'][..., 0]
+            dom_tensor = data_batch_dict["x_dom_charge"][..., 0]
             if loss_terms[0] is None:
                 loss_terms[0] = tf.zeros_like(dom_tensor[0, 0, 0])
             if loss_terms[1] is None:
@@ -187,10 +199,11 @@ class DefaultLossModule(BaseComponent):
                 loss_terms[2] = tf.zeros_like(dom_tensor)
 
         if normalize_by_total_charge:
-            total_charge = tf.reduce_sum(data_batch_dict['x_pulses'][:, 0])
+            total_charge = tf.reduce_sum(data_batch_dict["x_pulses"][:, 0])
             batch_size = tf.cast(
-                tf.shape(data_batch_dict['x_dom_charge'])[0],
-                dtype=total_charge.dtype)
+                tf.shape(data_batch_dict["x_dom_charge"])[0],
+                dtype=total_charge.dtype,
+            )
 
             # Note: this depends on the actual loss being used.
             # Here we assume that an additional poisson term for each DOM
@@ -202,8 +215,9 @@ class DefaultLossModule(BaseComponent):
             loss_terms = [loss / approx_number_of_terms for loss in loss_terms]
 
         if reduce_to_scalar:
-            return tf.math.accumulate_n([tf.reduce_sum(loss_term)
-                                         for loss_term in loss_terms])
+            return tf.math.accumulate_n(
+                [tf.reduce_sum(loss_term) for loss_term in loss_terms]
+            )
         else:
             return loss_terms
 
@@ -220,11 +234,13 @@ class DefaultLossModule(BaseComponent):
         tf.Tensor
             Description
         """
-        return tf.math.lgamma(tfp.math.clip_by_value_preserve_gradient(
-            x + 1, 2, float('inf')))
+        return tf.math.lgamma(
+            tfp.math.clip_by_value_preserve_gradient(x + 1, 2, float("inf"))
+        )
 
-    def unbinned_extended_pulse_llh(self, data_batch_dict, result_tensors,
-                                    tensors, sort_loss_terms):
+    def unbinned_extended_pulse_llh(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Unbinned extended poisson likelhood for data pulses.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -278,34 +294,40 @@ class DefaultLossModule(BaseComponent):
             Description
         """
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_pulses]
-        pulse_charges = data_batch_dict['x_pulses'][:, 0]
-        pulse_pdf_values = result_tensors['pulse_pdf']
+        pulse_charges = data_batch_dict["x_pulses"][:, 0]
+        pulse_pdf_values = result_tensors["pulse_pdf"]
 
         # shape: [n_batch, 86, 60, 1]
-        hits_true = data_batch_dict['x_dom_charge']
+        hits_true = data_batch_dict["x_dom_charge"]
 
         # shape: [n_batch, 86, 60]
         dom_charges_true = tf.squeeze(hits_true, axis=-1)
-        dom_charges_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        dom_charges_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
-            )
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
-        if ('x_dom_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
             mask_valid = tf.cast(
-                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
-                dtype=dtype)
+                tf.squeeze(data_batch_dict["x_dom_exclusions"], axis=-1),
+                dtype=dtype,
+            )
             dom_charges_true = dom_charges_true * mask_valid
             dom_charges_pred = dom_charges_pred * mask_valid
 
@@ -321,13 +343,14 @@ class DefaultLossModule(BaseComponent):
         time_log_likelihood = -pulse_charges * pulse_log_pdf_values
 
         # get poisson likelihood over total charge at a DOM for extendended LLH
-        llh_poisson = (dom_charges_pred -
-                       dom_charges_true * tf.math.log(dom_charges_pred + eps))
+        llh_poisson = dom_charges_pred - dom_charges_true * tf.math.log(
+            dom_charges_pred + eps
+        )
 
         if sort_loss_terms:
             loss_doms = tf.tensor_scatter_nd_add(
                 llh_poisson,
-                indices=data_batch_dict['x_pulses_ids'],
+                indices=data_batch_dict["x_pulses_ids"],
                 updates=time_log_likelihood,
             )
             loss_terms = [None, None, loss_doms]
@@ -337,7 +360,7 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             norm_doms = self.log_faculty(dom_charges_true)
             if sort_loss_terms:
                 loss_terms[2] += norm_doms
@@ -346,8 +369,9 @@ class DefaultLossModule(BaseComponent):
 
         return loss_terms
 
-    def unbinned_pulse_time_llh(self, data_batch_dict,
-                                result_tensors, tensors, sort_loss_terms):
+    def unbinned_pulse_time_llh(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Unbinned Pulse Time likelhood.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -401,20 +425,23 @@ class DefaultLossModule(BaseComponent):
             Description
         """
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_pulses]
-        pulse_charges = data_batch_dict['x_pulses'][:, 0]
-        pulse_pdf_values = result_tensors['pulse_pdf']
+        pulse_charges = data_batch_dict["x_pulses"][:, 0]
+        pulse_pdf_values = result_tensors["pulse_pdf"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
-            )
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # prevent log(zeros) issues
         eps = 1e-7
@@ -429,8 +456,8 @@ class DefaultLossModule(BaseComponent):
                 None,
                 None,
                 tf.tensor_scatter_nd_add(
-                    tf.zeros_like(data_batch_dict['x_dom_charge'][..., 0]),
-                    indices=data_batch_dict['x_pulses_ids'],
+                    tf.zeros_like(data_batch_dict["x_dom_charge"][..., 0]),
+                    indices=data_batch_dict["x_pulses_ids"],
                     updates=time_loss,
                 ),
             ]
@@ -440,16 +467,16 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             # pulse likelihood has everything included due to utilize
             # asymmetric Gaussian
             pass
 
         return loss_terms
 
-    def unbinned_pulse_and_dom_charge_pdf(self, data_batch_dict,
-                                          result_tensors, tensors,
-                                          sort_loss_terms):
+    def unbinned_pulse_and_dom_charge_pdf(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Unbinned extended poisson likelhood with DOM charge PDF.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -509,35 +536,42 @@ class DefaultLossModule(BaseComponent):
             Description
         """
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_pulses]
-        pulse_charges = data_batch_dict['x_pulses'][:, 0]
-        pulse_pdf_values = result_tensors['pulse_pdf']
+        pulse_charges = data_batch_dict["x_pulses"][:, 0]
+        pulse_pdf_values = result_tensors["pulse_pdf"]
 
         # shape: [n_batch, 86, 60, 1]
-        hits_true = data_batch_dict['x_dom_charge']
+        hits_true = data_batch_dict["x_dom_charge"]
 
         # get charge likelihood over total charge at a DOM for extendended LLH
         # shape: [n_batch, 86, 60]
-        llh_charge = tf.squeeze(result_tensors['dom_charges_log_pdf_values'],
-                                axis=-1)
+        llh_charge = tf.squeeze(
+            result_tensors["dom_charges_log_pdf_values"], axis=-1
+        )
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
-            )
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
-        if ('x_dom_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
             mask_valid = tf.cast(
-                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
-                dtype=dtype)
+                tf.squeeze(data_batch_dict["x_dom_exclusions"], axis=-1),
+                dtype=dtype,
+            )
             llh_charge = llh_charge * mask_valid
 
         # prevent log(zeros) issues
@@ -554,7 +588,7 @@ class DefaultLossModule(BaseComponent):
         if sort_loss_terms:
             loss_doms = tf.tensor_scatter_nd_add(
                 -llh_charge,
-                indices=data_batch_dict['x_pulses_ids'],
+                indices=data_batch_dict["x_pulses_ids"],
                 updates=time_loss,
             )
             loss_terms = [None, None, loss_doms]
@@ -564,7 +598,7 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             norm_doms = self.log_faculty(hits_true)
             if sort_loss_terms:
                 loss_terms[2] += norm_doms
@@ -573,8 +607,9 @@ class DefaultLossModule(BaseComponent):
 
         return loss_terms
 
-    def unbinned_charge_quantile_pdf(self, data_batch_dict, result_tensors,
-                                     tensors, sort_loss_terms):
+    def unbinned_charge_quantile_pdf(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Unbinned Pulse Quantile PDF.
 
         Pulses must *not* contain any pulses in excluded DOMs or excluded time
@@ -630,29 +665,37 @@ class DefaultLossModule(BaseComponent):
             List of tensors defining the terms of the log likelihood
         """
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_pulses]
-        pulse_charges = data_batch_dict['x_pulses'][:, 0]
-        pulse_quantiles = data_batch_dict['x_pulses'][:, 2]
-        pulse_pdf_values = result_tensors['pulse_quantile_pdf']
+        pulse_charges = data_batch_dict["x_pulses"][:, 0]
+        pulse_quantiles = data_batch_dict["x_pulses"][:, 2]
+        pulse_pdf_values = result_tensors["pulse_quantile_pdf"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            self._logger.warning('Pulses in excluded time windows must have '
-                                 'already been removed!')
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            self._logger.warning(
+                "Pulses in excluded time windows must have "
+                "already been removed!"
             )
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
-        if ('x_dom_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
-            self._logger.warning('Pulses at excluded DOMs must have already '
-                                 'been removed!')
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
+            self._logger.warning(
+                "Pulses at excluded DOMs must have already " "been removed!"
+            )
 
         # prevent log(zeros) issues
         eps = 1e-7
@@ -668,29 +711,25 @@ class DefaultLossModule(BaseComponent):
         time_loss = -pulse_log_pdf_values
 
         # only train for certain quantiles if bounds are provided
-        low_lim = self.configuration.config['config']['min_charge_quantile']
-        max_lim = self.configuration.config['config']['max_charge_quantile']
+        low_lim = self.configuration.config["config"]["min_charge_quantile"]
+        max_lim = self.configuration.config["config"]["max_charge_quantile"]
 
         if low_lim is not None:
             time_loss = tf.where(
-                    pulse_quantiles < low_lim,
-                    tf.zeros_like(time_loss),
-                    time_loss
-                )
+                pulse_quantiles < low_lim, tf.zeros_like(time_loss), time_loss
+            )
         if max_lim is not None:
             time_loss = tf.where(
-                    pulse_quantiles > max_lim,
-                    tf.zeros_like(time_loss),
-                    time_loss
-                )
+                pulse_quantiles > max_lim, tf.zeros_like(time_loss), time_loss
+            )
 
         if sort_loss_terms:
             loss_terms = [
                 None,
                 None,
                 tf.tensor_scatter_nd_add(
-                    tf.zeros_like(data_batch_dict['x_dom_charge'][..., 0]),
-                    indices=data_batch_dict['x_pulses_ids'],
+                    tf.zeros_like(data_batch_dict["x_dom_charge"][..., 0]),
+                    indices=data_batch_dict["x_pulses_ids"],
                     updates=time_loss,
                 ),
             ]
@@ -700,15 +739,16 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             # the pulse_pdf is already correctly normalized due to the
             # mixture model
             pass
 
         return loss_terms
 
-    def dom_and_event_charge_pdf(self, data_batch_dict, result_tensors,
-                                 tensors, sort_loss_terms):
+    def dom_and_event_charge_pdf(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Charge PDF (estimated by Model)
 
         This is a likelihood over the total event charge in addition to the
@@ -766,37 +806,45 @@ class DefaultLossModule(BaseComponent):
         """
         eps = 1e-7
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_batch, 86, 60, 1]
-        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
-        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
+        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
 
         # get charge likelihood over total charge at a DOM for extendended LLH
         # shape: [n_batch, 86, 60]
-        llh_charge = tf.squeeze(result_tensors['dom_charges_log_pdf_values'],
-                                axis=-1)
+        llh_charge = tf.squeeze(
+            result_tensors["dom_charges_log_pdf_values"], axis=-1
+        )
 
         # get variance on DOM charges
         # shape: [n_batch, 86, 60]
         dom_charges_variance = tf.squeeze(
-            result_tensors['dom_charges_variance'], axis=-1)
+            result_tensors["dom_charges_variance"], axis=-1
+        )
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
-            )
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
-        if ('x_dom_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
             mask_valid = tf.cast(
-                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
-                dtype=dtype)
+                tf.squeeze(data_batch_dict["x_dom_exclusions"], axis=-1),
+                dtype=dtype,
+            )
             llh_charge = llh_charge * mask_valid
             hits_true = hits_true * mask_valid
             hits_pred = hits_pred * mask_valid
@@ -805,8 +853,9 @@ class DefaultLossModule(BaseComponent):
         # Compute Gaussian likelihood over total event charge
         event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
         event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
-        event_charges_unc = tf.sqrt(tf.reduce_sum(dom_charges_variance,
-                                                  axis=[1, 2]))
+        event_charges_unc = tf.sqrt(
+            tf.reduce_sum(dom_charges_variance, axis=[1, 2])
+        )
         llh_event = basis_functions.tf_log_gauss(
             x=event_charges_true,
             mu=event_charges_pred,
@@ -825,14 +874,15 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             # total event charge is properly normalized due to the used gauss
             pass
 
         return loss_terms
 
-    def negative_binomial_charge_pdf(self, data_batch_dict, result_tensors,
-                                     tensors, sort_loss_terms):
+    def negative_binomial_charge_pdf(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Negative Binomial Charge PDF
 
         This is a likelihood over the charge measured at each DOM. A negative
@@ -891,22 +941,26 @@ class DefaultLossModule(BaseComponent):
         # underneath 5e-5 the log_negative_binomial function becomes unstable
         eps = 5e-5
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_batch, 86, 60]
-        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
-        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
+        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
         dom_charges_variance = tf.squeeze(
-            result_tensors['dom_charges_variance'], axis=-1)
+            result_tensors["dom_charges_variance"], axis=-1
+        )
 
         # compute over-dispersion factor alpha
         # var = mu + alpha*mu**2
         # alpha = (var - mu) / (mu**2)
         dom_charges_alpha = (dom_charges_variance - hits_pred) / (
-            hits_pred**2 + eps)
+            hits_pred**2 + eps
+        )
         # Make sure alpha is positive
         dom_charges_alpha = tfp.math.clip_by_value_preserve_gradient(
-            dom_charges_alpha, eps, float('inf'))
+            dom_charges_alpha, eps, float("inf")
+        )
 
         # compute negative binomial charge likelihood over DOMs
         # shape: [n_batch, 86, 60]
@@ -914,25 +968,31 @@ class DefaultLossModule(BaseComponent):
             x=hits_true,
             mu=hits_pred,
             alpha=dom_charges_alpha,
-            add_normalization_term=self.configuration.config[
-                'config']['add_normalization_term'],
+            add_normalization_term=self.configuration.config["config"][
+                "add_normalization_term"
+            ],
         )
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
-            )
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
-        if ('x_dom_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
             mask_valid = tf.cast(
-                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
-                dtype=dtype)
+                tf.squeeze(data_batch_dict["x_dom_exclusions"], axis=-1),
+                dtype=dtype,
+            )
             llh_charge = llh_charge * mask_valid
 
         if sort_loss_terms:
@@ -947,14 +1007,15 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             # total event charge is properly normalized due to the used gauss
             pass
 
         return loss_terms
 
     def negative_binomial_event_charge_pdf(
-            self, data_batch_dict, result_tensors, tensors, sort_loss_terms):
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Negative Binomial Event Charge PDF
 
         This is a likelihood over the total event charge. A negative binomial
@@ -1015,29 +1076,36 @@ class DefaultLossModule(BaseComponent):
         # underneath 5e-5 the log_negative_binomial function becomes unstable
         eps = 5e-5
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_batch, 86, 60]
-        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
-        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
+        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
         dom_charges_variance = tf.squeeze(
-            result_tensors['dom_charges_variance'], axis=-1)
+            result_tensors["dom_charges_variance"], axis=-1
+        )
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # reduce the predicted charge by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
-            )
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
-        if ('x_dom_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
             mask_valid = tf.cast(
-                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
-                dtype=dtype)
+                tf.squeeze(data_batch_dict["x_dom_exclusions"], axis=-1),
+                dtype=dtype,
+            )
             hits_true = hits_true * mask_valid
             hits_pred = hits_pred * mask_valid
             dom_charges_variance = dom_charges_variance * mask_valid
@@ -1048,24 +1116,28 @@ class DefaultLossModule(BaseComponent):
         event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
         event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
         event_charges_variance = tf.reduce_sum(
-            dom_charges_variance, axis=[1, 2])
+            dom_charges_variance, axis=[1, 2]
+        )
 
         # compute over-dispersion factor alpha
         # var = mu + alpha*mu**2
         # alpha = (var - mu) / (mu**2)
         event_charges_alpha = (event_charges_variance - event_charges_pred) / (
-            event_charges_pred**2)
+            event_charges_pred**2
+        )
 
         # Make sure alpha is positive
         event_charges_alpha = tfp.math.clip_by_value_preserve_gradient(
-            event_charges_alpha, eps, float('inf'))
+            event_charges_alpha, eps, float("inf")
+        )
 
         llh_event = basis_functions.tf_log_negative_binomial(
             x=event_charges_true,
             mu=event_charges_pred,
             alpha=event_charges_alpha,
-            add_normalization_term=self.configuration.config[
-                'config']['add_normalization_term'],
+            add_normalization_term=self.configuration.config["config"][
+                "add_normalization_term"
+            ],
         )
 
         if sort_loss_terms:
@@ -1080,14 +1152,15 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             # total event charge is properly normalized due to the used gauss
             pass
 
         return loss_terms
 
-    def normalized_dom_charge_pdf(self, data_batch_dict, result_tensors,
-                                  tensors, sort_loss_terms):
+    def normalized_dom_charge_pdf(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
         """Normalized DOM Charge PDF
 
         This is a likelihood over the normalized DOM charge PDF, e.g. this
@@ -1151,13 +1224,15 @@ class DefaultLossModule(BaseComponent):
         # underneath 5e-5 the log_negative_binomial function becomes unstable
         eps = 5e-5
         dtype = getattr(
-            tf, self.configuration.config['config']['float_precision'])
+            tf, self.configuration.config["config"]["float_precision"]
+        )
 
         # shape: [n_batch, 86, 60]
-        hits_true = tf.squeeze(data_batch_dict['x_dom_charge'], axis=-1)
-        hits_pred = tf.squeeze(result_tensors['dom_charges'], axis=-1)
+        hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
+        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
         dom_charges_variance = tf.squeeze(
-            result_tensors['dom_charges_variance'], axis=-1)
+            result_tensors["dom_charges_variance"], axis=-1
+        )
 
         # shape: [n_batch, 1, 1]
         event_total = tf.reduce_sum(hits_pred, axis=[1, 2], keepdims=True)
@@ -1169,18 +1244,23 @@ class DefaultLossModule(BaseComponent):
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
         # scale up the pulse pdf by this factor
-        if ('x_time_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_time_exclusions')].exists):
-            assert 'dom_cdf_exclusion_sum' in result_tensors, (
-                'Model must deal with time exclusions!'
-            )
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
-        if ('x_dom_exclusions' in tensors.names and
-                tensors.list[tensors.get_index('x_dom_exclusions')].exists):
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
             mask_valid = tf.cast(
-                tf.squeeze(data_batch_dict['x_dom_exclusions'], axis=-1),
-                dtype=dtype)
+                tf.squeeze(data_batch_dict["x_dom_exclusions"], axis=-1),
+                dtype=dtype,
+            )
             llh_dom = llh_dom * mask_valid
 
         if sort_loss_terms:
@@ -1195,7 +1275,7 @@ class DefaultLossModule(BaseComponent):
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
-        if self.configuration.config['config']['add_normalization_term']:
+        if self.configuration.config["config"]["add_normalization_term"]:
             pass
 
         return loss_terms

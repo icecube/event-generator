@@ -12,7 +12,6 @@ from egenerator.manager.component import BaseComponent, Configuration
 
 
 class DataTransformer(BaseComponent):
-
     """Data Transformer class
 
     Attributes
@@ -20,6 +19,7 @@ class DataTransformer(BaseComponent):
     trafo_model : dict
         The data transformation model.
     """
+
     def __init__(self, logger=None):
         """Instantiate DataTransformer class
 
@@ -31,9 +31,14 @@ class DataTransformer(BaseComponent):
         self._logger = logger or logging.getLogger(__name__)
         super(DataTransformer, self).__init__(logger=self._logger)
 
-    def _configure(self, data_handler, data_iterator_settings, num_batches,
-                   float_precision='float64',
-                   norm_constant=1e-6):
+    def _configure(
+        self,
+        data_handler,
+        data_iterator_settings,
+        num_batches,
+        float_precision="float64",
+        norm_constant=1e-6,
+    ):
         """Configure DataTransformer object.
 
         Iteratively create a transformation model for a given data_handler and
@@ -93,20 +98,21 @@ class DataTransformer(BaseComponent):
             Description
         """
         if self.is_configured:
-            raise ValueError('Trafo model is already setup!')
+            raise ValueError("Trafo model is already setup!")
 
         # create data iterator
         data_iterator = data_handler.get_batch_generator(
-                                                **data_iterator_settings)
+            **data_iterator_settings
+        )
 
         check_values = {}
         data = {}
-        data['tensors'] = data_handler.tensors
+        data["tensors"] = data_handler.tensors
 
         # set precision and norm constant
-        data['norm_constant'] = norm_constant
-        data['np_float_dtype'] = getattr(np, float_precision)
-        data['tf_float_dtype'] = getattr(tf, float_precision)
+        data["norm_constant"] = norm_constant
+        data["np_float_dtype"] = getattr(np, float_precision)
+        data["tf_float_dtype"] = getattr(tf, float_precision)
 
         # create empty onlince variance variables
         var_dict = {}
@@ -120,9 +126,9 @@ class DataTransformer(BaseComponent):
                 trafo_shape.pop(tensor.trafo_batch_axis)
 
                 var_dict[tensor.name] = {
-                    'n': 0.,
-                    'mean': np.zeros(trafo_shape),
-                    'M2': np.zeros(trafo_shape),
+                    "n": 0.0,
+                    "mean": np.zeros(trafo_shape),
+                    "M2": np.zeros(trafo_shape),
                 }
 
         for i in tqdm(range(num_batches)):
@@ -134,56 +140,65 @@ class DataTransformer(BaseComponent):
                 if tensor.exists and tensor.trafo:
                     index = data_handler.tensors.get_index(tensor.name)
                     n, mean, m2 = self._perform_update_step(
-                                    trafo_log=tensor.trafo_log,
-                                    data_batch=data_batch[index],
-                                    n=var_dict[tensor.name]['n'],
-                                    mean=var_dict[tensor.name]['mean'],
-                                    M2=var_dict[tensor.name]['M2'],
-                                    dtype=data['np_float_dtype'])
-                    var_dict[tensor.name]['n'] = n
-                    var_dict[tensor.name]['mean'] = mean
-                    var_dict[tensor.name]['M2'] = m2
+                        trafo_log=tensor.trafo_log,
+                        data_batch=data_batch[index],
+                        n=var_dict[tensor.name]["n"],
+                        mean=var_dict[tensor.name]["mean"],
+                        M2=var_dict[tensor.name]["M2"],
+                        dtype=data["np_float_dtype"],
+                    )
+                    var_dict[tensor.name]["n"] = n
+                    var_dict[tensor.name]["mean"] = mean
+                    var_dict[tensor.name]["M2"] = m2
 
         # Calculate standard deviation
         for tensor in data_handler.tensors.list:
             if tensor.exists and tensor.trafo:
-                std_dev = np.sqrt(var_dict[tensor.name]['M2'] /
-                                  var_dict[tensor.name]['n'])
+                std_dev = np.sqrt(
+                    var_dict[tensor.name]["M2"] / var_dict[tensor.name]["n"]
+                )
 
                 # combine mean and std. dev. values over specified
                 # reduction axes
-                data[tensor.name+'_std'] = np.mean(
-                    std_dev, axis=tensor.trafo_reduce_axes, keepdims=True)
+                data[tensor.name + "_std"] = np.mean(
+                    std_dev, axis=tensor.trafo_reduce_axes, keepdims=True
+                )
 
-                data[tensor.name+'_mean'] = np.mean(
-                    var_dict[tensor.name]['mean'],
-                    axis=tensor.trafo_reduce_axes, keepdims=True)
+                data[tensor.name + "_mean"] = np.mean(
+                    var_dict[tensor.name]["mean"],
+                    axis=tensor.trafo_reduce_axes,
+                    keepdims=True,
+                )
 
                 # set constant parameters to have a std dev of 1
                 # instead of zero
-                mask = data[tensor.name+'_std'] == 0
-                data[tensor.name+'_std'][mask] = 1.
+                mask = data[tensor.name + "_std"] == 0
+                data[tensor.name + "_std"][mask] = 1.0
 
                 # create check values for a simplified test to see if the data
                 # matches. This is only a simple hash (mean of tensor values)
                 # and does not guarantee that two models are identical
-                for suffix in ['_std', '_mean']:
+                for suffix in ["_std", "_mean"]:
                     check_values[tensor.name + suffix] = float(
-                                        np.mean(data[tensor.name + suffix]))
+                        np.mean(data[tensor.name + suffix])
+                    )
 
         # create an identifer for the trafo model
         now = datetime.now()
         dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
-        data['creation_time'] = dt_string
+        data["creation_time"] = dt_string
 
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(data_iterator_settings=data_iterator_settings,
-                          num_batches=num_batches,
-                          float_precision=float_precision,
-                          norm_constant=norm_constant),
-            check_values=check_values)
+            settings=dict(
+                data_iterator_settings=data_iterator_settings,
+                num_batches=num_batches,
+                float_precision=float_precision,
+                norm_constant=norm_constant,
+            ),
+            check_values=check_values,
+        )
 
         return configuration, data, {}
 
@@ -214,9 +229,9 @@ class DataTransformer(BaseComponent):
         for x in data_batch:
             n += 1
             delta = x - mean
-            mean += delta/n
+            mean += delta / n
             delta2 = x - mean
-            M2 += delta*delta2
+            M2 += delta * delta2
         return n, mean, M2
 
     def _perform_update_step(self, trafo_log, data_batch, n, mean, M2, dtype):
@@ -258,11 +273,13 @@ class DataTransformer(BaseComponent):
                 for bin_i, log_bin in enumerate(trafo_log):
                     if log_bin:
                         data_batch[..., bin_i] = np.log(
-                                                1.0 + data_batch[..., bin_i])
+                            1.0 + data_batch[..., bin_i]
+                        )
 
         # calculate onlince variance and mean for DOM responses
-        return self._update_online_variance_vars(data_batch=data_batch, n=n,
-                                                 mean=mean, M2=M2)
+        return self._update_online_variance_vars(
+            data_batch=data_batch, n=n, mean=mean, M2=M2
+        )
 
     def _check_settings(self, data, tensor_name, check_shape=True):
         """Check settings and return necessary parameters for trafo and inverse
@@ -291,14 +308,16 @@ class DataTransformer(BaseComponent):
         dtype = data.dtype
 
         if not self.is_configured:
-            raise ValueError('DataTransformer needs to create or load a trafo '
-                             'model prior to transform call.')
+            raise ValueError(
+                "DataTransformer needs to create or load a trafo "
+                "model prior to transform call."
+            )
 
-        if tensor_name not in self.data['tensors'].names:
-            raise ValueError('Tensor {!r} is unknown!'.format(tensor_name))
+        if tensor_name not in self.data["tensors"].names:
+            raise ValueError("Tensor {!r} is unknown!".format(tensor_name))
 
         # get tensor
-        tensor = self.data['tensors'][tensor_name]
+        tensor = self.data["tensors"][tensor_name]
 
         # check if shape of data matches expected shape
         if check_shape:
@@ -309,21 +328,22 @@ class DataTransformer(BaseComponent):
 
             if list(data_shape) != trafo_shape:
                 msg = (
-                    'Shape of data {} for tensor {} does not match '
-                    'expected shape {}'
+                    "Shape of data {} for tensor {} does not match "
+                    "expected shape {}"
                 )
-                raise ValueError(msg.format(
-                    data_shape, tensor_name, trafo_shape))
+                raise ValueError(
+                    msg.format(data_shape, tensor_name, trafo_shape)
+                )
 
         is_tf = tf.is_tensor(data)
 
         if is_tf:
-            if dtype != self.data['tf_float_dtype']:
-                data = tf.cast(data, dtype=self.data['tf_float_dtype'])
+            if dtype != self.data["tf_float_dtype"]:
+                data = tf.cast(data, dtype=self.data["tf_float_dtype"])
         else:
             # we need to create a copy of the array, so that we do not alter
             # the original one during the transformation steps
-            data = np.array(data, dtype=self.data['np_float_dtype'])
+            data = np.array(data, dtype=self.data["np_float_dtype"])
 
         # choose numpy or tensorflow log function
         if is_tf:
@@ -358,7 +378,8 @@ class DataTransformer(BaseComponent):
             The transformed data.
         """
         data, log_func, exp_func, is_tf, dtype, tensor = self._check_settings(
-                                                            data, tensor_name)
+            data, tensor_name
+        )
 
         # perform logarithm on bins
         if bias_correction and tensor.trafo_log is not None:
@@ -387,13 +408,15 @@ class DataTransformer(BaseComponent):
 
         # normalize data
         if bias_correction:
-            data -= self.data['{}_mean'.format(tensor_name)]
-        data /= (self.data['norm_constant'] +
-                 self.data['{}_std'.format(tensor_name)])
+            data -= self.data["{}_mean".format(tensor_name)]
+        data /= (
+            self.data["norm_constant"]
+            + self.data["{}_std".format(tensor_name)]
+        )
 
         # cast back to original dtype
         if is_tf:
-            if dtype != self.data['tf_float_dtype']:
+            if dtype != self.data["tf_float_dtype"]:
                 data = tf.cast(data, dtype=dtype)
         else:
             data = data.astype(dtype)
@@ -423,13 +446,16 @@ class DataTransformer(BaseComponent):
             cascade_parameters.
         """
         data, log_func, exp_func, is_tf, dtype, tensor = self._check_settings(
-                                                            data, tensor_name)
+            data, tensor_name
+        )
 
         # de-normalize data
-        data *= (self.data['norm_constant'] +
-                 self.data['{}_std'.format(tensor_name)])
+        data *= (
+            self.data["norm_constant"]
+            + self.data["{}_std".format(tensor_name)]
+        )
         if bias_correction:
-            data += self.data['{}_mean'.format(tensor_name)]
+            data += self.data["{}_mean".format(tensor_name)]
 
         # undo logarithm on bins
         if bias_correction and tensor.trafo_log is not None:
@@ -450,7 +476,8 @@ class DataTransformer(BaseComponent):
                     for bin_i, do_log in enumerate(tensor.trafo_log):
                         if do_log:
                             data_list[bin_i] = tf.clip_by_value(
-                                                data_list[bin_i], -60., 60.)
+                                data_list[bin_i], -60.0, 60.0
+                            )
                             data_list[bin_i] = exp_func(data_list[bin_i]) - 1.0
                     data = tf.stack(data_list, axis=-1)
                 else:
@@ -460,7 +487,7 @@ class DataTransformer(BaseComponent):
 
         # cast back to original dtype
         if is_tf:
-            if dtype != self.data['tf_float_dtype']:
+            if dtype != self.data["tf_float_dtype"]:
                 data = tf.cast(data, dtype=dtype)
         else:
             data = data.astype(dtype)
@@ -490,13 +517,15 @@ class DataTransformer(BaseComponent):
         """
 
         cov_trafo, _, _, is_tf, dtype, tensor = self._check_settings(
-            cov_trafo, tensor_name)
+            cov_trafo, tensor_name
+        )
 
         # V_trafo = B V B^T
         # V = B^-1 V_trafo (B^T)^-1
         # Define B^-1 which is a diagonal matrix
         B_inv = np.diag(
-            self.data['norm_constant'] + self.data[tensor_name+'_std'])
+            self.data["norm_constant"] + self.data[tensor_name + "_std"]
+        )
 
         # Since B is diagonal: B = B^T
         if is_tf:
@@ -506,7 +535,7 @@ class DataTransformer(BaseComponent):
 
         # cast back to original dtype
         if is_tf:
-            if dtype != self.data['tf_float_dtype']:
+            if dtype != self.data["tf_float_dtype"]:
                 cov = tf.cast(cov, dtype=dtype)
         else:
             cov = cov.astype(dtype)

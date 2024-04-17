@@ -15,19 +15,19 @@ from egenerator.data.tensor import DataTensor, DataTensorList
 
 
 class DummyDataHandler(BaseDataHandler):
+    """Create a dummy data hanlder for testing purposes"""
 
-    """Create a dummy data hanlder for testing purposes
-    """
     @property
     def n_batches(self):
-        return self.configuration.config['num_batches']
+        return self.configuration.config["num_batches"]
 
     @property
     def batch_size(self):
-        return self.configuration.config['batch_size']
+        return self.configuration.config["batch_size"]
 
-    def _configure_derived_class(self, config, config_data=None,
-                                 batch_size=5, num_batches=4, seed=42):
+    def _configure_derived_class(
+        self, config, config_data=None, batch_size=5, num_batches=4, seed=42
+    ):
         """Setup the data handler with a test input file.
         This method needs to be implemented by derived class.
 
@@ -75,56 +75,66 @@ class DummyDataHandler(BaseDataHandler):
         """
         # create dummy data
         random_state = np.random.RandomState(seed)
-        self._untracked_data['data'] = random_state.uniform(
-            size=(num_batches, batch_size, 86, 60, 1))
-        self._untracked_data['labels'] = random_state.uniform(
-            size=(num_batches, batch_size, 7))
+        self._untracked_data["data"] = random_state.uniform(
+            size=(num_batches, batch_size, 86, 60, 1)
+        )
+        self._untracked_data["labels"] = random_state.uniform(
+            size=(num_batches, batch_size, 7)
+        )
 
         # create a list of tensors
         tensors = [
-            DataTensor(name='data_tensor',
-                       shape=[None, 86, 60, 1],
-                       tensor_type='data',
-                       dtype='float32',
-                       trafo=config['trafo'][0],
-                       trafo_log=config['trafo_log'][0],
-                       trafo_log_axis=config['trafo_log_axis'][0]),
-            DataTensor(name='label_tensor',
-                       shape=[None, 7],
-                       tensor_type='label',
-                       dtype='float32',
-                       trafo=config['trafo'][1],
-                       trafo_log=config['trafo_log'][1],
-                       trafo_log_axis=config['trafo_log_axis'][1]),
+            DataTensor(
+                name="data_tensor",
+                shape=[None, 86, 60, 1],
+                tensor_type="data",
+                dtype="float32",
+                trafo=config["trafo"][0],
+                trafo_log=config["trafo_log"][0],
+                trafo_log_axis=config["trafo_log_axis"][0],
+            ),
+            DataTensor(
+                name="label_tensor",
+                shape=[None, 7],
+                tensor_type="label",
+                dtype="float32",
+                trafo=config["trafo"][1],
+                trafo_log=config["trafo_log"][1],
+                trafo_log_axis=config["trafo_log_axis"][1],
+            ),
         ]
-        data = {'tensors': DataTensorList(tensors)}
+        data = {"tensors": DataTensorList(tensors)}
 
         # define configuration
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings={'config': config,
-                      'batch_size': batch_size,
-                      'num_batches': num_batches,
-                      'seed': seed,
-                      })
+            settings={
+                "config": config,
+                "batch_size": batch_size,
+                "num_batches": num_batches,
+                "seed": seed,
+            },
+        )
 
         return configuration, data, {}
 
     def get_batch_generator(self):
-        """Create a python iterator object
-        """
+        """Create a python iterator object"""
+
         def iterator():
             batch_counter = 0
-            for i in range(self.configuration.config['num_batches']):
-                yield (self._untracked_data['data'][i],
-                       self._untracked_data['labels'][i])
+            for i in range(self.configuration.config["num_batches"]):
+                yield (
+                    self._untracked_data["data"][i],
+                    self._untracked_data["labels"][i],
+                )
+
         return iterator()
 
 
 class TestDataTransformer(unittest.TestCase):
+    """Test data transformer class."""
 
-    """Test data transformer class.
-    """
     @property
     def config(self):
         return dict(deepcopy(self.default_config))
@@ -132,9 +142,9 @@ class TestDataTransformer(unittest.TestCase):
     def setUp(self):
         self.data_trafo = DataTransformer()
         self.default_config = {
-            'trafo': [True, True],
-            'trafo_log': [True, True],
-            'trafo_log_axis': [-1, -1],
+            "trafo": [True, True],
+            "trafo_log": [True, True],
+            "trafo_log_axis": [-1, -1],
         }
 
     def get_data_handler(self, config, **kwargs):
@@ -165,8 +175,10 @@ class TestDataTransformer(unittest.TestCase):
         # create trafo model
         self.assertFalse(data_trafo._is_configured)
         data_trafo.configure(
-                data_handler=data_handler, data_iterator_settings={},
-                num_batches=data_handler.n_batches)
+            data_handler=data_handler,
+            data_iterator_settings={},
+            num_batches=data_handler.n_batches,
+        )
         return data_trafo, data_handler
 
     def check_correct_configuration(self, data_trafo, data_handler):
@@ -182,16 +194,16 @@ class TestDataTransformer(unittest.TestCase):
         self.assertTrue(data_trafo._is_configured)
 
         # check member variables and trafo model
-        data_values = data_handler._untracked_data['data']
-        label_values = data_handler._untracked_data['labels']
-        if data_handler.configuration.settings['config']['trafo_log'][0]:
+        data_values = data_handler._untracked_data["data"]
+        label_values = data_handler._untracked_data["labels"]
+        if data_handler.configuration.settings["config"]["trafo_log"][0]:
             data_tensor_mean = np.mean(np.log(data_values + 1), (0, 1))
             data_tensor_std = np.std(np.log(data_values + 1), (0, 1))
 
         else:
             data_tensor_mean = np.mean(data_values, (0, 1))
             data_tensor_std = np.std(data_values, (0, 1))
-        if data_handler.configuration.settings['config']['trafo_log'][1]:
+        if data_handler.configuration.settings["config"]["trafo_log"][1]:
             label_tensor_mean = np.mean(np.log(label_values + 1), (0, 1))
             label_tensor_std = np.std(np.log(label_values + 1), (0, 1))
         else:
@@ -199,51 +211,52 @@ class TestDataTransformer(unittest.TestCase):
             label_tensor_std = np.std(label_values, (0, 1))
 
         true_trafo_model = {
-            'tensors': data_handler.tensors,
-            'norm_constant': 1e-6,
-            'np_float_dtype': np.float64,
-            'tf_float_dtype': tf.float64,
+            "tensors": data_handler.tensors,
+            "norm_constant": 1e-6,
+            "np_float_dtype": np.float64,
+            "tf_float_dtype": tf.float64,
         }
         true_check_values = {}
-        if data_handler.configuration.settings['config']['trafo'][0]:
-            true_trafo_model['data_tensor_mean'] = data_tensor_mean
-            true_trafo_model['data_tensor_std'] = data_tensor_std
-            true_check_values['data_tensor_mean'] = np.mean(data_tensor_mean)
-            true_check_values['data_tensor_std'] = np.mean(data_tensor_std)
-        if data_handler.configuration.settings['config']['trafo'][1]:
-            true_trafo_model['label_tensor_mean'] = label_tensor_mean
-            true_trafo_model['label_tensor_std'] = label_tensor_std
-            true_check_values['label_tensor_mean'] = np.mean(label_tensor_mean)
-            true_check_values['label_tensor_std'] = np.mean(label_tensor_std)
+        if data_handler.configuration.settings["config"]["trafo"][0]:
+            true_trafo_model["data_tensor_mean"] = data_tensor_mean
+            true_trafo_model["data_tensor_std"] = data_tensor_std
+            true_check_values["data_tensor_mean"] = np.mean(data_tensor_mean)
+            true_check_values["data_tensor_std"] = np.mean(data_tensor_std)
+        if data_handler.configuration.settings["config"]["trafo"][1]:
+            true_trafo_model["label_tensor_mean"] = label_tensor_mean
+            true_trafo_model["label_tensor_std"] = label_tensor_std
+            true_check_values["label_tensor_mean"] = np.mean(label_tensor_mean)
+            true_check_values["label_tensor_std"] = np.mean(label_tensor_std)
 
         for key, value in true_trafo_model.items():
-            if '_mean' in key or '_std' in key:
-                self.assertTrue(np.allclose(value,
-                                            data_trafo.data[key]))
+            if "_mean" in key or "_std" in key:
+                self.assertTrue(np.allclose(value, data_trafo.data[key]))
             else:
                 self.assertEqual(value, data_trafo.data[key])
 
         # check if trafo model has expected keys
-        self.assertListEqual(sorted(data_trafo.data.keys()),
-                             sorted(['creation_time']
-                                    + list(true_trafo_model.keys())))
+        self.assertListEqual(
+            sorted(data_trafo.data.keys()),
+            sorted(["creation_time"] + list(true_trafo_model.keys())),
+        )
 
         # check settings
         true_trafo_settings = {
-            'float_precision': 'float64',
-            'norm_constant': 1e-6,
-            'num_batches': data_handler.n_batches,
-            'data_iterator_settings': {},
+            "float_precision": "float64",
+            "norm_constant": 1e-6,
+            "num_batches": data_handler.n_batches,
+            "data_iterator_settings": {},
         }
-        self.assertDictEqual(data_trafo.configuration.settings,
-                             true_trafo_settings)
-        self.assertDictEqual(data_trafo.configuration.mutable_settings,
-                             {})
+        self.assertDictEqual(
+            data_trafo.configuration.settings, true_trafo_settings
+        )
+        self.assertDictEqual(data_trafo.configuration.mutable_settings, {})
 
         # check hash values
         for key, value in true_check_values.items():
-            self.assertAlmostEqual(value,
-                                   data_trafo.configuration.check_values[key])
+            self.assertAlmostEqual(
+                value, data_trafo.configuration.check_values[key]
+            )
 
     def check_correct_trafo(self, data_trafo, data_handler):
         """Helper function to check if data is transformed correctly
@@ -255,16 +268,16 @@ class TestDataTransformer(unittest.TestCase):
         data_handler : DummyDataHandler object
             The data handler
         """
-        data_values = data_handler._untracked_data['data']
-        label_values = data_handler._untracked_data['labels']
-        if data_handler.configuration.settings['config']['trafo_log'][0]:
+        data_values = data_handler._untracked_data["data"]
+        label_values = data_handler._untracked_data["labels"]
+        if data_handler.configuration.settings["config"]["trafo_log"][0]:
             data_tensor_mean = np.mean(np.log(data_values + 1), (0, 1))
             data_tensor_std = np.std(np.log(data_values + 1), (0, 1))
 
         else:
             data_tensor_mean = np.mean(data_values, (0, 1))
             data_tensor_std = np.std(data_values, (0, 1))
-        if data_handler.configuration.settings['config']['trafo_log'][1]:
+        if data_handler.configuration.settings["config"]["trafo_log"][1]:
             label_tensor_mean = np.mean(np.log(label_values + 1), (0, 1))
             label_tensor_std = np.std(np.log(label_values + 1), (0, 1))
         else:
@@ -274,30 +287,32 @@ class TestDataTransformer(unittest.TestCase):
         # check if transformations are correct
         data = data_values[0]
         labels = label_values[0]
-        data_traf = data_trafo.transform(data, 'data_tensor')
-        label_trafo = data_trafo.transform(labels, 'label_tensor')
-        data_traf_bias = data_trafo.transform(data, 'data_tensor', False)
-        label_trafo_bias = data_trafo.transform(labels, 'label_tensor', False)
+        data_traf = data_trafo.transform(data, "data_tensor")
+        label_trafo = data_trafo.transform(labels, "label_tensor")
+        data_traf_bias = data_trafo.transform(data, "data_tensor", False)
+        label_trafo_bias = data_trafo.transform(labels, "label_tensor", False)
 
-        if data_handler.configuration.settings['config']['trafo_log'][0]:
+        if data_handler.configuration.settings["config"]["trafo_log"][0]:
             data_trafo_true_bias = data / (1e-6 + data_tensor_std)
-            data_trafo_true = \
-                (np.log(data + 1) - data_tensor_mean) / \
-                (1e-6 + data_tensor_std)
+            data_trafo_true = (np.log(data + 1) - data_tensor_mean) / (
+                1e-6 + data_tensor_std
+            )
         else:
             data_trafo_true_bias = data / (1e-6 + data_tensor_std)
-            data_trafo_true = (data - data_tensor_mean) / \
-                (1e-6 + data_tensor_std)
+            data_trafo_true = (data - data_tensor_mean) / (
+                1e-6 + data_tensor_std
+            )
 
-        if data_handler.configuration.settings['config']['trafo_log'][1]:
+        if data_handler.configuration.settings["config"]["trafo_log"][1]:
             label_trafo_true_bias = labels / (1e-6 + label_tensor_std)
-            label_trafo_true = \
-                (np.log(labels + 1) - label_tensor_mean) / \
-                (1e-6 + label_tensor_std)
+            label_trafo_true = (np.log(labels + 1) - label_tensor_mean) / (
+                1e-6 + label_tensor_std
+            )
         else:
             label_trafo_true_bias = labels / (1e-6 + label_tensor_std)
-            label_trafo_true = (labels - label_tensor_mean) / \
-                (1e-6 + label_tensor_std)
+            label_trafo_true = (labels - label_tensor_mean) / (
+                1e-6 + label_tensor_std
+            )
 
         self.assertTrue(np.allclose(label_trafo_true, label_trafo))
         self.assertTrue(np.allclose(data_trafo_true, data_traf))
@@ -305,13 +320,16 @@ class TestDataTransformer(unittest.TestCase):
         self.assertTrue(np.allclose(data_trafo_true_bias, data_traf_bias))
 
         # now transform back
-        data_traf_inv = data_trafo.inverse_transform(data_traf, 'data_tensor')
-        label_trafo_inv = data_trafo.inverse_transform(label_trafo,
-                                                       'label_tensor')
+        data_traf_inv = data_trafo.inverse_transform(data_traf, "data_tensor")
+        label_trafo_inv = data_trafo.inverse_transform(
+            label_trafo, "label_tensor"
+        )
         data_traf_inv_bias = data_trafo.inverse_transform(
-            data_traf_bias, 'data_tensor', False)
+            data_traf_bias, "data_tensor", False
+        )
         label_trafo_inv_bias = data_trafo.inverse_transform(
-            label_trafo_bias, 'label_tensor', False)
+            label_trafo_bias, "label_tensor", False
+        )
 
         self.assertTrue(np.allclose(label_trafo_inv, labels))
         self.assertTrue(np.allclose(data_traf_inv, data))
@@ -326,11 +344,15 @@ class TestDataTransformer(unittest.TestCase):
         data_trafo = DataTransformer()
         data_handler = BaseDataHandler()
         with self.assertRaises(ValueError) as context:
-            data_trafo.configure(data_handler=data_handler,
-                                 data_iterator_settings=None,
-                                 num_batches=None)
-        self.assertTrue('Component' in str(context.exception) and
-                        'is not configured!' in str(context.exception))
+            data_trafo.configure(
+                data_handler=data_handler,
+                data_iterator_settings=None,
+                num_batches=None,
+            )
+        self.assertTrue(
+            "Component" in str(context.exception)
+            and "is not configured!" in str(context.exception)
+        )
 
     def test_correct_initialization(self):
         """Check if member variables are correctly set when instantiating
@@ -352,7 +374,8 @@ class TestDataTransformer(unittest.TestCase):
         data_trafo = DataTransformer(DummyDataHandler())
 
         n, mean, m2 = data_trafo._update_online_variance_vars(
-                                x, 0., np.zeros_like(x), np.zeros_like(x))
+            x, 0.0, np.zeros_like(x), np.zeros_like(x)
+        )
 
         self.assertEqual(n, num_values)
         self.assertTrue(np.allclose(np.mean(x, axis=0), mean))
@@ -363,131 +386,144 @@ class TestDataTransformer(unittest.TestCase):
         """Test the creation of the trafo model in the case that no
         transformation is created for any of the defined tensors.
         """
-        data_trafo, data_handler = \
-            self.get_data_trafo_and_handler(trafo=[False, False])
+        data_trafo, data_handler = self.get_data_trafo_and_handler(
+            trafo=[False, False]
+        )
 
         # check member variables and trafo model
         true_trafo_model = {
-            'tensors': data_handler.tensors,
-            'norm_constant': 1e-6,
-            'np_float_dtype': np.float64,
-            'tf_float_dtype': tf.float64,
+            "tensors": data_handler.tensors,
+            "norm_constant": 1e-6,
+            "np_float_dtype": np.float64,
+            "tf_float_dtype": tf.float64,
         }
         for key, value in true_trafo_model.items():
             self.assertEqual(value, data_trafo.data[key])
 
-        self.assertEqual(data_trafo.configuration.settings['float_precision'],
-                         'float64')
+        self.assertEqual(
+            data_trafo.configuration.settings["float_precision"], "float64"
+        )
 
         # check if trafo model has expected keys
-        self.assertListEqual(sorted(data_trafo.data.keys()),
-                             sorted(['creation_time']
-                                    + list(true_trafo_model.keys())))
+        self.assertListEqual(
+            sorted(data_trafo.data.keys()),
+            sorted(["creation_time"] + list(true_trafo_model.keys())),
+        )
 
         # check that trafo model can not be setup twice
         with self.assertRaises(ValueError) as context:
             data_trafo.configure(
-                data_handler=data_handler, data_iterator_settings={},
-                num_batches=data_handler.n_batches)
-        self.assertTrue('Component is already configured!'
-                        in str(context.exception))
+                data_handler=data_handler,
+                data_iterator_settings={},
+                num_batches=data_handler.n_batches,
+            )
+        self.assertTrue(
+            "Component is already configured!" in str(context.exception)
+        )
 
         # test correctness of data trafo model
         self.check_correct_configuration(data_trafo, data_handler)
 
     def test_trafo_model_creation_without_log(self):
-        """Test the creation of the trafo model without logarithm
-        """
+        """Test the creation of the trafo model without logarithm"""
         for trafo_log in [False, None]:
-            data_trafo, data_handler = \
-                self.get_data_trafo_and_handler(trafo_log=[trafo_log] * 2)
+            data_trafo, data_handler = self.get_data_trafo_and_handler(
+                trafo_log=[trafo_log] * 2
+            )
 
             self.check_correct_configuration(data_trafo, data_handler)
             self.check_correct_trafo(data_trafo, data_handler)
 
     def test_trafo_model_creation_with_log(self):
-        """Test the creation of the trafo model with logarithm.
-        """
-        data_trafo, data_handler = \
-            self.get_data_trafo_and_handler(trafo_log=[True, True])
+        """Test the creation of the trafo model with logarithm."""
+        data_trafo, data_handler = self.get_data_trafo_and_handler(
+            trafo_log=[True, True]
+        )
 
         self.check_correct_configuration(data_trafo, data_handler)
         self.check_correct_trafo(data_trafo, data_handler)
 
     def test_trafo_model_creation_with_and_without_log(self):
-        """Test the creation of the trafo model with and without logarithm
-        """
-        data_trafo, data_handler = \
-            self.get_data_trafo_and_handler(trafo_log=[True, False])
+        """Test the creation of the trafo model with and without logarithm"""
+        data_trafo, data_handler = self.get_data_trafo_and_handler(
+            trafo_log=[True, False]
+        )
 
         self.check_correct_configuration(data_trafo, data_handler)
         self.check_correct_trafo(data_trafo, data_handler)
 
     def test_trafo_model_transformation_without_setup(self):
-        """Test the creation of the trafo model without logarithm
-        """
+        """Test the creation of the trafo model without logarithm"""
         config = self.config
-        config['trafo_log'] = [True, False]
+        config["trafo_log"] = [True, False]
         data_handler = self.get_data_handler(config)
         data_trafo = DataTransformer()
 
         with self.assertRaises(ValueError) as context:
-            data_trafo.transform(data_handler._untracked_data['data'][0],
-                                 'data_tensor')
-        self.assertTrue('DataTransformer needs to create or load a trafo' in
-                        str(context.exception))
+            data_trafo.transform(
+                data_handler._untracked_data["data"][0], "data_tensor"
+            )
+        self.assertTrue(
+            "DataTransformer needs to create or load a trafo"
+            in str(context.exception)
+        )
 
     def test_trafo_model_transformation_with_wrong_tensor_name(self):
         """The trafo model should raise an error if a transformation is
         attempted with a non-existing tensor name
         """
-        data_trafo, data_handler = \
-            self.get_data_trafo_and_handler(trafo_log=[True, False])
+        data_trafo, data_handler = self.get_data_trafo_and_handler(
+            trafo_log=[True, False]
+        )
 
         with self.assertRaises(ValueError) as context:
-            data_trafo.transform(data_handler._untracked_data['data'][0],
-                                 'unknown tensor')
-        self.assertTrue('is unknown!' in str(context.exception))
+            data_trafo.transform(
+                data_handler._untracked_data["data"][0], "unknown tensor"
+            )
+        self.assertTrue("is unknown!" in str(context.exception))
 
     def test_trafo_model_transformation_with_wrong_tensor_shape(self):
         """The trafo model should raise an error if a transformation is
         attempted with a wrong tensor shape.
         """
-        data_trafo, data_handler = \
-            self.get_data_trafo_and_handler(trafo_log=[True, False])
+        data_trafo, data_handler = self.get_data_trafo_and_handler(
+            trafo_log=[True, False]
+        )
 
         with self.assertRaises(ValueError) as context:
-            data_trafo.transform(data_handler._untracked_data['data'][0][0],
-                                 'data_tensor')
-        self.assertTrue('Shape of data' in str(context.exception))
+            data_trafo.transform(
+                data_handler._untracked_data["data"][0][0], "data_tensor"
+            )
+        self.assertTrue("Shape of data" in str(context.exception))
 
     def test_trafo_model_transformation_with_unimplemented_trafo_axis(self):
         """Log transformations along a different axis than -1 are currently
         not supported and should raise a NotImplementedError
         """
-        data_trafo, data_handler = \
-            self.get_data_trafo_and_handler(trafo_log=[True, False],
-                                            trafo_log_axis=[1, 1])
+        data_trafo, data_handler = self.get_data_trafo_and_handler(
+            trafo_log=[True, False], trafo_log_axis=[1, 1]
+        )
 
         with self.assertRaises(NotImplementedError) as context:
-            data_trafo.transform(data_handler._untracked_data['data'][0],
-                                 'data_tensor')
+            data_trafo.transform(
+                data_handler._untracked_data["data"][0], "data_tensor"
+            )
 
         with self.assertRaises(NotImplementedError) as context:
             data_trafo.inverse_transform(
-                data_handler._untracked_data['data'][0],  'data_tensor')
+                data_handler._untracked_data["data"][0], "data_tensor"
+            )
 
     def test_loading_and_saving_of_trafo_model(self):
-        """Test the saving and loading of a previously created trafo model.
-        """
-        data_trafo, data_handler = \
-            self.get_data_trafo_and_handler(trafo=[True, True],
-                                            trafo_log=[True, True])
+        """Test the saving and loading of a previously created trafo model."""
+        data_trafo, data_handler = self.get_data_trafo_and_handler(
+            trafo=[True, True], trafo_log=[True, True]
+        )
 
         # save data handler
         directory = os.path.join(
-            os.path.dirname(__file__),
-            '../../data/temp_test_files/trafo_model')
+            os.path.dirname(__file__), "../../data/temp_test_files/trafo_model"
+        )
 
         # remove it if it already exists
         if os.path.exists(directory):
@@ -500,8 +536,10 @@ class TestDataTransformer(unittest.TestCase):
         # check error message when attempting to overwrite file
         with self.assertRaises(IOError) as context:
             data_trafo.save(directory, overwrite=False)
-        self.assertTrue('File ' in str(context.exception) and
-                        'already exists!' in str(context.exception))
+        self.assertTrue(
+            "File " in str(context.exception)
+            and "already exists!" in str(context.exception)
+        )
 
         # load trafo model
         loaded_data_trafo = DataTransformer()
@@ -519,8 +557,9 @@ class TestDataTransformer(unittest.TestCase):
         # check that trafo model can not be setup twice
         with self.assertRaises(ValueError) as context:
             loaded_data_trafo.load(directory)
-        self.assertTrue('Component is already configured!'
-                        in str(context.exception))
+        self.assertTrue(
+            "Component is already configured!" in str(context.exception)
+        )
 
     # def test_check_loading_of_mismatched_trafo_model(self):
     #     """Trying
@@ -621,5 +660,5 @@ class TestDataTransformer(unittest.TestCase):
     #     data_trafo_mod.load(file_path)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

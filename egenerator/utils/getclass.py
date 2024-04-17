@@ -2,6 +2,7 @@
 
 All credit goes to the authors of the getclass package
 """
+
 import copy
 import inspect
 import sys
