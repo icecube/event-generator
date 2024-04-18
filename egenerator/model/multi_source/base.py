@@ -1157,7 +1157,10 @@ class MultiSource(Source):
 
             # rebuild graph
             config_dict = self.configuration.config
-            data_trafo = self._sub_components["data_trafo"]
+            if "data_trafo" in self._sub_components:
+                data_trafo = self._sub_components["data_trafo"]
+            else:
+                data_trafo = None
             base_sources = {}
             for key, sub_component in self._sub_components.items():
                 if key != "data_trafo":
