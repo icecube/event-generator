@@ -962,7 +962,7 @@ class BaseComponent(object):
 
         # load files
         with open(config_file_path, "r") as stream:
-            config_dict = yaml.YAML(typ="safe", pure=True).load(stream)
+            config_dict = yaml.YAML().load(stream)
 
         with open(data_file_path, "rb") as handle:
             data = pickle.load(handle)
