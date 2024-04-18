@@ -264,7 +264,7 @@ class VisualizePulseLikelihood:
                 param_red = param
             textstr += "    {}: {:3.3f}\n".format(param_red, reco_result[0, i])
         if len(self.manager.models[0].parameter_names) > max_params:
-            textstr += "    ...\n".format(param, reco_result[0, i])
+            textstr += "    ...\n"
 
         red_key = self.reco_key.replace("EventGenerator_", "")
         reco_len = len(red_key)

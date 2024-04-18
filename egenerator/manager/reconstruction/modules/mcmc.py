@@ -365,7 +365,7 @@ class MarkovChainMonteCarlo:
             print(
                 "\tAcceptance Ratio: {:2.1f}%".format(100.0 * acceptance_ratio)
             )
-            if len(info) > 2 and mcmc_method.lower() != "emcee":
+            if len(info) > 2 and self.mcmc_method.lower() != "emcee":
                 msg = ""
                 for s in step_size:
                     msg += "{:1.4f} "

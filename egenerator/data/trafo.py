@@ -1,8 +1,5 @@
-import os
 import numpy as np
 import logging
-import pickle
-from copy import deepcopy
 from tqdm import tqdm
 from datetime import datetime
 import tensorflow as tf

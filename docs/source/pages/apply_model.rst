@@ -27,7 +27,7 @@ via the provided ``I3TraySegments``. And example code snippet could look like th
         model_base_dir="/data/ana/PointSource/DNNCascade/utils/exported_models/version-0.0/egenerator",
     )
 
-This snipped will apply the exported model named `cascade_7param_noise_tw_BFRv1Spice321_01`,
+This snipped will apply the exported model named ``cascade_7param_noise_tw_BFRv1Spice321_01``,
 which is located in the directory ``/data/ana/PointSource/DNNCascade/utils/exported_models/version-0.0/egenerator``.
 The exported model is a model trained on a cascade event hypothesis.
 The seed keys to use must be defined in the parameter ``seed_keys``.

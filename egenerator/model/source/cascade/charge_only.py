@@ -7,7 +7,7 @@ from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector, basis_functions, angles
+from egenerator.utils import detector, angles
 
 
 class ChargeOnlyCascadeModel(Source):
@@ -181,9 +181,6 @@ class ChargeOnlyCascadeModel(Source):
 
         config = self.configuration.config["config"]
         parameters = data_batch_dict[parameter_tensor_name]
-
-        # shape: [n_batch, 86, 60, 1]
-        dom_charges_true = data_batch_dict["x_dom_charge"]
 
         # get transformed parameters
         parameters_trafo = self.data_trafo.transform(

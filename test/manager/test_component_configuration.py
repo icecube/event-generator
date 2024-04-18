@@ -1,8 +1,4 @@
-#!/usr/local/bin/python3
-
 import unittest
-import os
-import numpy as np
 from copy import deepcopy
 
 import egenerator
@@ -78,7 +74,7 @@ class TestConfiguration(unittest.TestCase):
     def test_object_intialization_duplicates(self):
 
         with self.assertRaises(ValueError) as context:
-            configuration = Configuration(
+            Configuration(
                 "dummy_class_string", {"setting1": 1337}, {"setting1": 1337}
             )
         self.assertTrue(

@@ -19,10 +19,8 @@ def _is_src_staticmethod(obj):
         pass
 
 
-"""
-python 2: <function staticmethod at ...>
-python 3: <function CLS.staticmethod at ...>
-"""
+# python 2: <function staticmethod at ...>
+# python 3: <function CLS.staticmethod at ...>
 
 
 def _is_py2_staticmethod(obj):
@@ -53,11 +51,9 @@ def isproperty(obj):
     return isinstance(obj, property)
 
 
-"""
-python2.6 inspect.getmembers raise error
-abc.ABCMeta
-AttributeError: __abstractmethods__
-"""
+# python2.6 inspect.getmembers raise error
+# abc.ABCMeta
+# AttributeError: __abstractmethods__
 
 
 def _getmembers(obj, predicate):

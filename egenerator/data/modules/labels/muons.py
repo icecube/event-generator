@@ -99,12 +99,6 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
             Description
         """
 
-        # sanity checks:
-        if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError(
-                "{!r} is not a boolean value!".format(shift_cascade_vertex)
-            )
-
         data = {}
         data["label_tensors"] = DataTensorList(
             [
@@ -129,7 +123,6 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(
                 config_data=config_data,
-                shift_cascade_vertex=shift_cascade_vertex,
                 trafo_log=trafo_log,
                 float_precision=float_precision,
                 num_cascades=num_cascades,
@@ -168,7 +161,7 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
-            for l in [
+            for label in [
                 "cascade_x",
                 "cascade_y",
                 "cascade_z",
@@ -176,7 +169,7 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
                 "cascade_azimuth",
                 "cascade_t",
             ]:
-                cascade_parameters.append(_labels[l])
+                cascade_parameters.append(_labels[label])
 
             # add dummy energy loss values
             cascade_energy = _labels["cascade_energy"]
@@ -229,7 +222,7 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
-            for l in [
+            for label in [
                 "cascade_x",
                 "cascade_y",
                 "cascade_z",
@@ -237,7 +230,7 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
                 "cascade_azimuth",
                 "cascade_t",
             ]:
-                cascade_parameters.append(np.atleast_1d(_labels[l]))
+                cascade_parameters.append(np.atleast_1d(_labels[label]))
 
             # add dummy energy loss values
             cascade_energy = np.atleast_1d(_labels["cascade_energy"])

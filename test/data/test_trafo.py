@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
 import shutil
@@ -8,7 +6,7 @@ import tensorflow as tf
 from copy import deepcopy
 
 from egenerator import misc
-from egenerator.manager.component import BaseComponent, Configuration
+from egenerator.manager.component import Configuration
 from egenerator.data.trafo import DataTransformer
 from egenerator.data.handler.base import BaseDataHandler
 from egenerator.data.tensor import DataTensor, DataTensorList
@@ -122,7 +120,6 @@ class DummyDataHandler(BaseDataHandler):
         """Create a python iterator object"""
 
         def iterator():
-            batch_counter = 0
             for i in range(self.configuration.config["num_batches"]):
                 yield (
                     self._untracked_data["data"][i],
@@ -504,12 +501,12 @@ class TestDataTransformer(unittest.TestCase):
             trafo_log=[True, False], trafo_log_axis=[1, 1]
         )
 
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             data_trafo.transform(
                 data_handler._untracked_data["data"][0], "data_tensor"
             )
 
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             data_trafo.inverse_transform(
                 data_handler._untracked_data["data"][0], "data_tensor"
             )

@@ -1,6 +1,3 @@
-from icecube import dataclasses
-
-
 from ic3_data.ext_boost import combine_exclusions
 from ic3_data.ext_boost import merge_pulses
 from ic3_data.ext_boost import get_valid_pulse_map as get_valid_pulse_map_cpp

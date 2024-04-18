@@ -7,10 +7,7 @@ import pandas as pd
 import timeit
 from scipy import optimize
 
-from egenerator import misc
-from egenerator.utils import angles, basis_functions
 from egenerator.utils.spherical_opt import spherical_opt
-from egenerator.manager.component import Configuration
 from egenerator.manager.base import BaseModelManager
 from egenerator.manager.reconstruction.tray import ReconstructionTray
 
@@ -605,16 +602,12 @@ class SourceManager(BaseModelManager):
         model = self.models[model_index]
 
         pulse_dtype = self.data_trafo.data["tensors"]["x_pulses"].dtype_tf
-        id_dtype = self.data_trafo.data["tensors"]["x_pulses_ids"].dtype_tf
         param_dtype = self.data_trafo.data["tensors"]["x_parameters"].dtype_tf
         tw_dtype = self.data_trafo.data["tensors"]["x_time_window"].dtype_tf
         t_exclusions_dtype = self.data_trafo.data["tensors"][
             "x_time_exclusions"
         ].dtype_tf
 
-        param_signature = tf.TensorSpec(
-            shape=[None, model.num_parameters], dtype=param_dtype
-        )
         x_pulses_shape = self.data_trafo.data["tensors"]["x_pulses"].shape
         assert len(x_pulses_shape) == 2
 
@@ -1003,7 +996,7 @@ class SourceManager(BaseModelManager):
 
         # get spherical indices
         if minimize_in_trafo_space or not np.all(fit_parameter_list):
-            spherical_indices = tuple()
+            spherical_indices = ()
         else:
             print("Using spherical indices for CRS2 Optimization!")
             mapping = self.configuration.config["config"]["I3ParticleMapping"]
@@ -1250,11 +1243,7 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
-        num_fit_params = np.sum(fit_parameter_list, dtype=int)
         param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
-        parameter_dtype = param_tensor.dtype_tf
-        param_shape = [-1, num_fit_params]
-        param_shape_full = [-1, len(fit_parameter_list)]
 
         if len(fit_parameter_list) != param_tensor.shape[1]:
             raise ValueError(
@@ -1601,8 +1590,6 @@ class SourceManager(BaseModelManager):
 
         # parameter input signature
         parameter_tensor_name = reco_config["parameter_tensor_name"]
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
-        param_dtype = param_tensor.dtype_tf
         param_index = self.data_handler.tensors.get_index(
             parameter_tensor_name
         )
@@ -1910,11 +1897,11 @@ class SourceManager(BaseModelManager):
                 std_devs.append(np.sqrt(np.diag(cov)))
                 std_devs_fit.append(np.sqrt(np.diag(cov_fit)))
 
-                # Write to file
-                cov_file = "{}_cov_{:08d}.npy".format(
-                    os.path.splitext(reco_config["reco_output_file"])[0],
-                    event_counter,
-                )
+                # # Write to file
+                # cov_file = "{}_cov_{:08d}.npy".format(
+                #     os.path.splitext(reco_config["reco_output_file"])[0],
+                #     event_counter,
+                # )
                 # np.save(cov_file, np.stack([cov, cov_fit]))
 
             # ---------------
@@ -1942,42 +1929,14 @@ class SourceManager(BaseModelManager):
                     results["CircularizedAngularUncertainty"]["circular_unc"]
                 )
 
-                # ---------------------
-                # write samples to file
-                # ---------------------
-                if False:
-                    df = pd.DataFrame()
-                    # df['loss'] = unc_losses
-                    df["delta_loss"] = delta_loss
-                    df["delta_psi"] = delta_psi
-
-                    param_counter = 0
-                    for name in self.models[0].parameter_names:
-                        if name == mapping["azimuth"]:
-                            values = azi
-                        elif name == mapping["zenith"]:
-                            values = zen
-                        else:
-                            values = unc_results[:, param_counter]
-                            param_counter += 1
-                        df[name] = values
-
-                    unc_file = "{}_unc_{:08d}.hdf5".format(
-                        os.path.splitext(reco_config["reco_output_file"])[0],
-                        event_counter,
-                    )
-                    df.to_hdf(
-                        unc_file,
-                        key="Variables",
-                        mode="w",
-                        format="t",
-                        data_columns=True,
-                    )
-
             # -------------
             # run mcmc test
             # -------------
             if run_mcmc:
+
+                assert len(cascade_reco_batch) == 1
+                assert len(cascade_true_batch) == 1
+                cascade_true = cascade_true_batch[0]
 
                 # extract results
                 samples = results["mcmc"]["samples"]

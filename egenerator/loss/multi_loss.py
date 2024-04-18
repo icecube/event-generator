@@ -1,6 +1,5 @@
 from __future__ import division, print_function
 import logging
-import tensorflow as tf
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration

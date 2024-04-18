@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
-import numpy as np
 
 from egenerator.model.multi_source.base import MultiSource
 

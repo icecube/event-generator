@@ -86,7 +86,6 @@ class ChargeQuantileCascadeModel(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_features = 7 + num_snowstorm_params
         num_inputs = 11 + num_snowstorm_params
 
         if config["add_opening_angle"]:
@@ -611,7 +610,6 @@ class ChargeQuantileCascadeModel(Source):
 
         # scale time range down to avoid big numbers:
         t_scale = 1.0 / self.time_unit_in_ns  # [1./ns]
-        average_t_dist = 1000.0 * t_scale
         t_pdf = t_pdf * t_scale
         pulse_light_propagation_time *= t_scale
 
@@ -645,7 +643,6 @@ class ChargeQuantileCascadeModel(Source):
         factor_scale = 1.0
 
         # create correct offset and scaling
-        # latent_mu = average_t_dist + factor_mu * latent_mu
         latent_mu = (
             pulse_light_propagation_time
             + factor_mu

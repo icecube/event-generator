@@ -1,8 +1,5 @@
-#!/usr/local/bin/python3
-
 import unittest
 import numpy as np
-from copy import deepcopy
 import os
 
 from egenerator.data.modules.labels.cascades import CascadeGeneratorLabelModule
@@ -94,7 +91,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
         config["config_data"] = data_tensor_list
         module.configure(**config)
 
-    def test_configuration_check(self):
+    def test_configuration_check_boolean(self):
         """Shift cascade vertex must be a bool. A TypeError should be raised
         if the label component is being attempted to set up with a wrong type.
         """

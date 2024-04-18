@@ -176,18 +176,18 @@ class SeedLoaderMiscModule(BaseComponent):
             seed_parameters = []
             try:
                 _labels = f[seed_name]
-                for ls in self.configuration.config["seed_parameter_names"]:
-                    if isinstance(ls, str):
-                        ls = [ls]
+                for names in self.configuration.config["seed_parameter_names"]:
+                    if isinstance(names, str):
+                        names = [names]
                     else:
-                        ls = [ls[0]] * ls[1]
-                    for l in ls:
-                        if l in _labels:
-                            seed_parameters.append(_labels[l].values)
-                        elif l in missing_value_dict:
+                        names = [names[0]] * names[1]
+                    for name in names:
+                        if name in _labels:
+                            seed_parameters.append(_labels[name].values)
+                        elif name in missing_value_dict:
                             num_events = len(seed_parameters[-1])
                             seed_parameters.append(
-                                [missing_value_dict[l]] * num_events
+                                [missing_value_dict[name]] * num_events
                             )
                         elif missing_value is not None:
                             num_events = len(seed_parameters[-1])
@@ -195,7 +195,9 @@ class SeedLoaderMiscModule(BaseComponent):
                                 [missing_value] * num_events
                             )
                         else:
-                            raise KeyError("Could not find key {!r}".format(l))
+                            raise KeyError(
+                                "Could not find key {!r}".format(name)
+                            )
 
             except Exception as e:
                 self._logger.warning(e)
@@ -257,36 +259,38 @@ class SeedLoaderMiscModule(BaseComponent):
             seed_parameters = []
             try:
                 _labels = frame[seed_name]
-                for ls in self.configuration.config["seed_parameter_names"]:
-                    if isinstance(ls, str):
-                        ls = [ls]
+                for names in self.configuration.config["seed_parameter_names"]:
+                    if isinstance(names, str):
+                        names = [names]
                     else:
-                        ls = [ls[0]] * ls[1]
-                    for l in ls:
+                        names = [names[0]] * names[1]
+                    for name in names:
                         if isinstance(_labels, dataclasses.I3Particle):
-                            if hasattr(_labels, l):
-                                value = getattr(_labels, l)
-                            elif l in ["x", "y", "z"]:
-                                value = getattr(_labels.pos, l)
-                            elif l in ["zenith", "azimuth"]:
-                                value = getattr(_labels.dir, l)
-                            elif l in missing_value_dict:
-                                value = missing_value_dict[l]
+                            if hasattr(_labels, name):
+                                value = getattr(_labels, name)
+                            elif name in ["x", "y", "z"]:
+                                value = getattr(_labels.pos, name)
+                            elif name in ["zenith", "azimuth"]:
+                                value = getattr(_labels.dir, name)
+                            elif name in missing_value_dict:
+                                value = missing_value_dict[name]
                             elif missing_value is not None:
                                 value = missing_value
                             else:
                                 raise KeyError(
-                                    "Could not find key {!r}".format(l)
+                                    "Could not find key {!r}".format(name)
                                 )
                             seed_parameters.append([value])
-                        elif l in _labels:
-                            seed_parameters.append([_labels[l]])
-                        elif l in missing_value_dict:
-                            seed_parameters.append([missing_value_dict[l]])
+                        elif name in _labels:
+                            seed_parameters.append([_labels[name]])
+                        elif name in missing_value_dict:
+                            seed_parameters.append([missing_value_dict[name]])
                         elif missing_value is not None:
                             seed_parameters.append([missing_value])
                         else:
-                            raise KeyError("Could not find key {!r}".format(l))
+                            raise KeyError(
+                                "Could not find key {!r}".format(name)
+                            )
 
             except KeyError as e:
                 self._logger.warning(e)

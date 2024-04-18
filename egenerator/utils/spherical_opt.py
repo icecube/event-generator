@@ -1,6 +1,5 @@
-# -*- coding: utf-8 -*-
+# ruff: noqa
 # pylint: disable=line-too-long, bad-continuation
-
 """
 Module for optimization of functions with spherical parameters
 
@@ -10,6 +9,7 @@ Note:
     and pasted here to reduce the number of dependencies.
     All credit goes to P. Eller and contributors to spherical_opt.
 """
+
 
 from __future__ import absolute_import, division, print_function
 
@@ -29,6 +29,7 @@ You may obtain a copy of the License at
 import copy
 import numpy as np
 
+# Define a type to store spherical coordinates and handy quantities
 SPHER_T = np.dtype(
     [
         ("zen", np.float32),
@@ -42,7 +43,6 @@ SPHER_T = np.dtype(
         ("cosaz", np.float32),
     ]
 )
-"""type to store spherical coordinates and handy quantities"""
 
 
 def fill_from_spher(s):
@@ -227,7 +227,7 @@ def spherical_opt(
     func,
     method,
     initial_points,
-    spherical_indices=tuple(),
+    spherical_indices=(),
     batch_size=1,
     max_iter=10000,
     max_calls=None,

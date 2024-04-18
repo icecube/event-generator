@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 
 from egenerator.data.modules.weights.dummy import DummyWeightModule
@@ -51,7 +49,7 @@ class TestDummyWeightModule(unittest.TestCase):
     def test_dummy_data_method(self):
         """Test the dummy weight data loading method"""
         dummy_module = DummyWeightModule()
-        data_tensors = dummy_module.configure(config_data=None)
+        dummy_module.configure(config_data=None)
         num_events, values = dummy_module.get_data_from_hdf(None)
         self.assertEqual(num_events, None)
         self.assertEqual(values, (None,))

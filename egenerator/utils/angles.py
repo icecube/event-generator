@@ -811,7 +811,7 @@ class FB8Distribution(DistributionOnSphere):
                     seed=self.seed,
                     n_samples=self.n_samples,
                 )
-            except TypeError as e:
+            except TypeError:
                 self.neg_log_p_levels[i] = self.fb8.level(
                     percentile=level * 100, n_samples=self.n_samples
                 )

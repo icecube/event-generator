@@ -1,4 +1,3 @@
-import tensorflow as tf
 import timeit
 from egenerator import misc
 

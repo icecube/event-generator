@@ -10,8 +10,6 @@ from tfscripts.weights import new_weights
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles
 
-# from egenerator.manager.component import Configuration, BaseComponent
-
 
 class StochasticTrackSegmentModel(Source):
 
@@ -259,7 +257,6 @@ class StochasticTrackSegmentModel(Source):
         dom_charges_true = data_batch_dict["x_dom_charge"]
 
         pulse_times = pulses[:, 1]
-        pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
 
         print("pulses", pulses)
@@ -317,7 +314,6 @@ class StochasticTrackSegmentModel(Source):
                 track_length = parameter_list[7] + 1.0
         else:
             track_length = parameter_list[7] + 1.0
-        track_lstochasticity = parameter_list[8]
 
         # calculate direction vector of track
         dir_x = -tf.sin(zenith) * tf.cos(azimuth)

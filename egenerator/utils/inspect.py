@@ -1,5 +1,4 @@
 import os
-import tensorflow as tf
 import ruamel.yaml as yaml
 
 from egenerator import misc

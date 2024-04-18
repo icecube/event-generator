@@ -4,7 +4,6 @@ from __future__ import division, print_function
 import os
 import logging
 import click
-import ruamel.yaml as yaml
 
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager

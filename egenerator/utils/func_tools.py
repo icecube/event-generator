@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 
 
 def weighted_quantile(x, weights, quantile=0.68):

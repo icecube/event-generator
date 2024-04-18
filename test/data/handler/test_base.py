@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
 import numpy as np
@@ -94,15 +92,15 @@ class TestBaseDataHandler(unittest.TestCase):
         data_handler = BaseDataHandler()
 
         # with no config data
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             data_handler.configure(**self.config)
 
         # with a file path string
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             data_handler.configure(config=None, config_data="dummy_file_path")
 
         # with a list of file path strings
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             data_handler.configure(
                 config=None,
                 config_data=["dummy_file_path1", "dummy_file_path2"],
@@ -148,7 +146,7 @@ class TestBaseDataHandler(unittest.TestCase):
     def test_method_check_data_structure(self):
 
         # create data
-        correct_data = np.ones([2, 86, 1])
+        # correct_data = np.ones([2, 86, 1])
         wrong_rank_data = np.ones([2, 1])
         wrong_shape_data = np.ones([2, 34, 1])
 
@@ -169,23 +167,23 @@ class TestBaseDataHandler(unittest.TestCase):
 
         # check not implemented error message when trying to check
         # vector data tensors (tensor.vector_info is not None)
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             self.data_handler._check_data_structure([wrong_shape_data], True)
 
     def test_not_implemented_method_get_data_from_hdf(self):
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             self.data_handler.get_data_from_hdf("file_name_path")
 
     def test_not_implemented_method_get_data_from_frame(self):
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             self.data_handler.get_data_from_frame(None)
 
     def test_not_implemented_method_create_data_from_frame(self):
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             self.data_handler.create_data_from_frame(None)
 
     def test_not_implemented_method_write_data_to_frame(self):
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             self.data_handler.write_data_to_frame(None, None)
 
     def test_method_batch_to_event_structure(self):

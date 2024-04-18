@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
-import numpy as np
 
 from egenerator.model.multi_source.base import MultiSource
 
@@ -111,7 +110,6 @@ class StochasticTrackModel(MultiSource):
 
         """
         c = 0.299792458  # meter / ns
-        d_thresh = 700  # meter
         distance = 500  # meter
 
         anchor_x = parameters.params["track_anchor_x"]

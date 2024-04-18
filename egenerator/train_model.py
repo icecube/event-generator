@@ -11,7 +11,6 @@ from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
 from egenerator.utils.build_components import build_loss_module
-from egenerator.data.trafo import DataTransformer
 
 
 @click.command()

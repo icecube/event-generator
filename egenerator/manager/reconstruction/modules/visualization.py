@@ -1,6 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
+from egenerator.utils import basis_functions
+
 
 class Visualize1DLikelihoodScan:
 
@@ -108,8 +110,6 @@ class Visualize1DLikelihoodScan:
             Description
         """
         result_trafo = results[self.reco_key]["result_trafo"]
-        if self.covariance_key is not None:
-            covariances = results[self.covariance_key]
 
         self.make_1d_llh_scans(
             data_batch=data_batch,

@@ -1,8 +1,6 @@
 from __future__ import division, print_function
-import os
 import logging
 import numpy as np
-import pandas as pd
 
 from egenerator import misc
 from egenerator.manager.component import Configuration
@@ -207,7 +205,6 @@ class ModuleDataHandler(BaseDataHandler):
 
         # read test file and collect meta data
         data = {}
-        configuration_dict = {}
         for name in ["data", "label", "weight", "misc", "filter"]:
             sub_components[name + "_module"].configure(
                 config_data=config_data, **config[name + "_settings"]

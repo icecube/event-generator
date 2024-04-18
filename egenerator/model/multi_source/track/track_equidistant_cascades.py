@@ -146,10 +146,6 @@ class TrackEquidistantCascadeModel(MultiSource):
         # distance between track vertex and closest approach of infinite track
         dist_closest = dx * h_x + dy * h_y + dz * h_z
 
-        x_closest = x + dist_closest * dx
-        y_closest = y + dist_closest * dy
-        r2_closest = x_closest**2 + y_closest**2
-
         # distances to points with sqrt(x**2 + y**2) == r**2
         # solution for |dz| != 1:
         # t = -x**2*dy**2 + 2*x*y*dx*dy - y**2*dx**2 + (dx**2 + dy**2)*r**2

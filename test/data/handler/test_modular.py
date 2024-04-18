@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
 import shutil
@@ -7,7 +5,6 @@ import numpy as np
 from copy import deepcopy
 
 from egenerator.data.handler.modular import ModuleDataHandler
-from egenerator.data.tensor import DataTensor, DataTensorList
 from egenerator.data.modules.data.pulse_data import PulseDataModule
 from egenerator.data.modules.labels.cascades import CascadeGeneratorLabelModule
 from egenerator.data.modules.weights.dummy import DummyWeightModule

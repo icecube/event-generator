@@ -1,15 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from I3Tray import *
-from icecube.tableio import I3TableWriter
-from icecube import hdfwriter, dataclasses
-from icecube import icetray, dataio
-from icecube.phys_services import I3Calculator
+from I3Tray import I3Tray
+from icecube import icetray
 
 import click
 import glob
-import numpy as np
 
 from egenerator.addons.multi_cascade_seed import CascadeClusterSearchModule
 

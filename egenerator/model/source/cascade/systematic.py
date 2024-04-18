@@ -222,7 +222,6 @@ class SystematicsCascadeModel(Source):
         dom_charges_true = data_batch_dict["x_dom_charge"]
 
         pulse_times = pulses[:, 1]
-        pulse_charges = pulses[:, 0]
         pulse_batch_id = pulses_ids[:, 0]
 
         print("pulses", pulses)

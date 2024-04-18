@@ -277,13 +277,12 @@ class Reconstruction:
         # Hack to modify seed
         # -------------------
         if self.randomize_seed:
-            shape = seed_tensor.shape
             x0 = np.array(seed_tensor)
-            x_true = data_batch[
-                self.manager.data_handler.tensors.get_index(
-                    self.parameter_tensor_name
-                )
-            ].numpy()
+            # x_true = data_batch[
+            #     self.manager.data_handler.tensors.get_index(
+            #         self.parameter_tensor_name
+            #     )
+            # ].numpy()
 
             x0[:, :3] = np.random.normal(loc=x0[:, :3], scale=5)
             x0[:, 3] = np.random.uniform(low=0.0, high=np.pi)

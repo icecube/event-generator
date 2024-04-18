@@ -4,13 +4,10 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
 
-from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector, basis_functions, angles
-
-# from egenerator.manager.component import Configuration, BaseComponent
+from egenerator.utils import detector
 
 
 class DefaultNoiseModel(Source):
@@ -131,9 +128,6 @@ class DefaultNoiseModel(Source):
 
         tensor_dict = {}
 
-        config = self.configuration.config["config"]
-        parameters = data_batch_dict[parameter_tensor_name]
-
         # get time exclusions
         tensors = self.data_trafo.data["tensors"]
         if (
@@ -154,9 +148,6 @@ class DefaultNoiseModel(Source):
 
         # get parameters tensor dtype
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
-
-        # shape: [n_pulses, 2]
-        pulses = data_batch_dict["x_pulses"]
 
         # shape: [n_pulses, 3]
         pulses_ids = data_batch_dict["x_pulses_ids"]

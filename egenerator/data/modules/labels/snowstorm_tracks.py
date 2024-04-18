@@ -238,8 +238,8 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
-            for l in self.data["parameter_names"]:
-                track_parameters.append(_labels[l])
+            for label in self.data["parameter_names"]:
+                track_parameters.append(_labels[label])
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
             num_params = self.configuration.config["num_snowstorm_params"]
@@ -309,8 +309,8 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
-            for l in self.data["parameter_names"]:
-                track_parameters.append(np.atleast_1d(_labels[l]))
+            for label in self.data["parameter_names"]:
+                track_parameters.append(np.atleast_1d(_labels[label]))
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
             num_params = self.configuration.config["num_snowstorm_params"]

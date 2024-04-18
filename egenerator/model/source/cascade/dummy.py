@@ -4,8 +4,6 @@ import tensorflow as tf
 
 from egenerator.model.source.base import Source
 
-# from egenerator.manager.component import Configuration, BaseComponent
-
 
 class DummyCascadeModel(Source):
 
@@ -109,9 +107,7 @@ class DummyCascadeModel(Source):
 
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict["x_pulses"]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
 
-        temp_var = parameters * self._untracked_data["dummy_var"]
         temp_var_reshaped = tf.reshape(
             tf.reduce_sum(parameters, axis=1), [-1, 1, 1, 1]
         )

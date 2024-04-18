@@ -1,15 +1,11 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Helper Functions to build components.
 
 Functions:
     - buildManager(config)
 
 """
+
 from __future__ import division, print_function
-import os
-import shutil
-import logging
 
 from egenerator import misc
 from egenerator.data.trafo import DataTransformer

@@ -424,9 +424,6 @@ class DefaultLossModule(BaseComponent):
         NotImplementedError
             Description
         """
-        dtype = getattr(
-            tf, self.configuration.config["config"]["float_precision"]
-        )
 
         # shape: [n_pulses]
         pulse_charges = data_batch_dict["x_pulses"][:, 0]
@@ -664,12 +661,8 @@ class DefaultLossModule(BaseComponent):
             Quantile PDF Likelihood.
             List of tensors defining the terms of the log likelihood
         """
-        dtype = getattr(
-            tf, self.configuration.config["config"]["float_precision"]
-        )
 
         # shape: [n_pulses]
-        pulse_charges = data_batch_dict["x_pulses"][:, 0]
         pulse_quantiles = data_batch_dict["x_pulses"][:, 2]
         pulse_pdf_values = result_tensors["pulse_quantile_pdf"]
 
@@ -804,7 +797,6 @@ class DefaultLossModule(BaseComponent):
             Charge PDF Likelihood.
             List of tensors defining the terms of the log likelihood
         """
-        eps = 1e-7
         dtype = getattr(
             tf, self.configuration.config["config"]["float_precision"]
         )
@@ -1230,9 +1222,6 @@ class DefaultLossModule(BaseComponent):
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
         hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
-        dom_charges_variance = tf.squeeze(
-            result_tensors["dom_charges_variance"], axis=-1
-        )
 
         # shape: [n_batch, 1, 1]
         event_total = tf.reduce_sum(hits_pred, axis=[1, 2], keepdims=True)

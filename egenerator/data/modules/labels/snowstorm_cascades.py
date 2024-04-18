@@ -208,8 +208,8 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
-            for l in self.data["label_names"]:
-                cascade_parameters.append(_labels[l])
+            for label in self.data["label_names"]:
+                cascade_parameters.append(_labels[label])
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
             num_params = self.configuration.config["num_snowstorm_params"]
@@ -283,8 +283,8 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
-            for l in self.data["label_names"]:
-                cascade_parameters.append(np.atleast_1d(_labels[l]))
+            for label in self.data["label_names"]:
+                cascade_parameters.append(np.atleast_1d(_labels[label]))
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
             num_params = self.configuration.config["num_snowstorm_params"]

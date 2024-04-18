@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
 
@@ -14,19 +12,19 @@ class TestSetupManagerInitializer(unittest.TestCase):
     def test_wrong_config_files_data_type(self):
 
         with self.assertRaises(ValueError) as context:
-            setup_manager = SetupManager(None)
+            SetupManager(None)
 
         self.assertTrue("Wrong data type:" in str(context.exception))
 
         with self.assertRaises(ValueError) as context:
-            setup_manager = SetupManager("a")
+            SetupManager("a")
 
         self.assertTrue("Wrong data type:" in str(context.exception))
 
     def test_empty_setup_manager(self):
 
         with self.assertRaises(ValueError) as context:
-            setup_manager = SetupManager(())
+            SetupManager(())
 
         self.assertTrue(
             "You must specify at least one config file!"
@@ -44,7 +42,7 @@ class TestSetupManagerInitializer(unittest.TestCase):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         config_files = [os.path.join(script_dir, "../../configs/test.yaml")]
         with self.assertRaises(ValueError) as context:
-            setup_manager = SetupManager(config_files * 2)
+            SetupManager(config_files * 2)
 
         self.assertTrue(
             "Keys are defined multiple times" in str(context.exception)

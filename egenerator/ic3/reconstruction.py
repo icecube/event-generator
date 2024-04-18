@@ -1,9 +1,8 @@
 import os
-import tensorflow as tf
 import numpy as np
 
 from icecube import dataclasses, icetray
-from icecube.icetray.i3logging import log_info, log_warn
+from icecube.icetray.i3logging import log_info
 
 from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.manager.reconstruction.tray import ReconstructionTray

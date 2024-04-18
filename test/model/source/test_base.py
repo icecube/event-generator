@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
 import tensorflow as tf
@@ -8,11 +6,9 @@ from copy import deepcopy
 import numpy as np
 import ruamel.yaml as yaml
 import time
-import glob
 from datetime import datetime
 
 from egenerator import misc
-from egenerator.data.trafo import DataTransformer
 from egenerator.manager.component import Configuration, BaseComponent
 from egenerator.model.source.base import Source, InputTensorIndexer
 
@@ -49,7 +45,6 @@ class DummySourceModel(Source):
     def get_tensors(self, parameters, pulses, pulses_ids):
         self.assert_configured(True)
 
-        temp_var = parameters * self._untracked_data["dummy_var"]
         temp_var_reshaped = tf.reshape(
             tf.reduce_sum(parameters, axis=1), [-1, 1, 1, 1]
         )
@@ -80,14 +75,15 @@ class DummySourceModelWrong(Source):
         ]
 
         self._untracked_data["dummy_var"] = tf.Variable(1.0, name="dummy_var")
-        new_untracked_var = tf.Variable(42, name="this_should_raise_error")
+        new_untracked_var = tf.Variable(  # noqa: F841
+            42, name="this_should_raise_error"
+        )
 
         return parameter_names
 
     def get_tensors(self, parameters, pulses, pulses_ids):
         self.assert_configured(True)
 
-        temp_var = parameters * self._untracked_data["dummy_var"]
         temp_var_reshaped = tf.reshape(
             tf.reduce_sum(parameters, axis=1), [-1, 1, 1, 1]
         )
@@ -228,7 +224,7 @@ class TestSourceBase(unittest.TestCase):
         """
         model = Source()
 
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             model.configure(config={}, data_trafo=self.data_trafo)
 
     def test_correct_configuration_name(self):
@@ -270,7 +266,6 @@ class TestSourceBase(unittest.TestCase):
             {
                 "name": "egenerator.model.source.base",
                 "checkpoint": self.source.checkpoint,
-                "variables": self.source.variables,
                 "step": self.source._untracked_data["step"],
                 "dummy_var": self.source._untracked_data["dummy_var"],
                 "variables": self.source._untracked_data["variables"],

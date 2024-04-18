@@ -1,9 +1,5 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
-import numpy as np
-from copy import deepcopy
 
 from egenerator.manager.component import Configuration, BaseComponent
 
@@ -113,7 +109,7 @@ class TestBaseComponent(unittest.TestCase):
     def test_configuration_errors_not_implemented_error(self):
         component = BaseComponent()
 
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             component.configure()
 
     def test_configuration_errors_wrong_data_type(self):
@@ -125,7 +121,7 @@ class TestBaseComponent(unittest.TestCase):
             and "Expected dict." in str(context.exception)
         )
 
-    def test_configuration_errors_wrong_data(self):
+    def test_configuration_errors_wrong_data1(self):
         component = WrongComponent()
         with self.assertRaises(ValueError) as context:
             component.configure(data={"12": 2}, param=42)
@@ -134,7 +130,7 @@ class TestBaseComponent(unittest.TestCase):
             and "do not match:" in str(context.exception)
         )
 
-    def test_configuration_errors_wrong_data(self):
+    def test_configuration_errors_wrong_data2(self):
         component = MissingKeyComponent()
         with self.assertRaises(ValueError) as context:
             component.configure(data={"12": 2}, param=42)

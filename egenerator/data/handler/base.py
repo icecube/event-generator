@@ -4,11 +4,10 @@ import multiprocessing
 import numpy as np
 import glob
 import resource
-from copy import deepcopy
 import logging
 import tensorflow as tf
 
-from egenerator.manager.component import BaseComponent, Configuration
+from egenerator.manager.component import BaseComponent
 from egenerator.data.tensor import DataTensorList
 
 

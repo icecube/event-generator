@@ -293,7 +293,9 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
         layer_distances = self.get_muon_layer_distances(muon)
 
         # get cascade input parameter tensor for Event-Generator cascade model
-        parameter_tensors = self.get_parameter_tensors(layer_distances, track)
+        parameter_tensors = self.get_parameter_tensors(
+            layer_distances, track, frame
+        )
 
         # timer after source collection
         t_1 = timeit.default_timer()
@@ -613,7 +615,7 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
 
         return layer_distances
 
-    def get_parameter_tensors(self, layer_distances, track):
+    def get_parameter_tensors(self, layer_distances, track, frame):
         """Get Input Parameters for Event-Generator Model
 
         Parameters
@@ -622,6 +624,8 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
             The layer distances from `get_muon_layer_distances`.
         track : I3MMTrack
             The MuonGun track.
+        frame : I3Frame
+            The current I3Frame.
 
         Returns
         -------

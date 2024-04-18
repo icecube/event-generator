@@ -2,16 +2,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import os
-from copy import deepcopy
 import shutil
 import click
 import tensorflow as tf
 
-from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
-from egenerator.utils.build_components import build_loss_module
-from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
 @click.command()
@@ -75,11 +71,6 @@ def main(config_files, output_dir, reco_config_file=None):
     setup_manager = SetupManager(reco_config_file)
     config = setup_manager.get_config()
     manager_config = config["model_manager_settings"]
-
-    # ------------------
-    # Create loss module
-    # ------------------
-    loss_module = build_loss_module(config["loss_module_settings"])
 
     # --------------
     # Create manager

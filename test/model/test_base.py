@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
 import tensorflow as tf
@@ -145,7 +143,7 @@ class TestModel(unittest.TestCase):
         """
         model = Model()
 
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             model.configure()
 
     def test_correct_configuration(self):
@@ -350,9 +348,6 @@ class TestModel(unittest.TestCase):
         self.model.save_weights(directory)
         self.model.save_weights(directory)
 
-        num_models = len(
-            glob.glob(os.path.join(directory, "model_checkpoint_00*.index"))
-        )
         self.assertEqual(
             3,
             len(

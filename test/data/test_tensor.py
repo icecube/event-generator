@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 
 from egenerator.data.tensor import DataTensor, DataTensorList
@@ -234,7 +232,7 @@ class TestDataTensorList(unittest.TestCase):
         with self.assertRaises(ValueError) as context:
             names = ["t3", "t2", "arbitray_name", "t6", "t6", "weights", "s"]
             tensors = create_tensors(names)
-            tensor_list = DataTensorList(tensors)
+            DataTensorList(tensors)
 
         self.assertTrue("Found duplicate names:" in str(context.exception))
 

@@ -1,7 +1,6 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
+import importlib
 import numpy as np
 from copy import deepcopy
 
@@ -370,10 +369,8 @@ class TestPulseDataModule(unittest.TestCase):
         """Check if error is raised when not configured"""
 
         # This test requires IceCube metaproject to be loaded
-        try:
-            from icecube import dataclasses
-        except ImportError:
-            return
+        if not importlib.util.find_spec("dataclasses"):
+            raise unittest.SkipTest("IceCube metaproject not loaded")
 
         module = PulseDataModule()
 
@@ -393,10 +390,8 @@ class TestPulseDataModule(unittest.TestCase):
         """Check if error is raised when not configured"""
 
         # This test requires IceCube metaproject to be loaded
-        try:
-            from icecube import dataclasses
-        except ImportError:
-            return
+        if not importlib.util.find_spec("dataclasses"):
+            raise unittest.SkipTest("IceCube metaproject not loaded")
 
         module = PulseDataModule()
 
@@ -610,8 +605,8 @@ class TestPulseDataModule(unittest.TestCase):
         module = PulseDataModule()
         module.configure(**config)
 
-        with self.assertRaises(NotImplementedError) as context:
-            num_events, data = module.get_data_from_hdf(self.file_path)
+        with self.assertRaises(NotImplementedError):
+            module.get_data_from_hdf(self.file_path)
 
 
 if __name__ == "__main__":

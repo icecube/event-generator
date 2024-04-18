@@ -186,7 +186,7 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
-            for l in [
+            for label in [
                 "track_anchor_x",
                 "track_anchor_y",
                 "track_anchor_z",
@@ -197,7 +197,7 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
                 "track_distance_end",
                 "track_stochasticity",
             ]:
-                track_parameters.append(_labels[l])
+                track_parameters.append(_labels[label])
 
             # assert that track anchor is at track vertex
             assert (_labels["track_distance_start"] == 0).all()
@@ -266,7 +266,7 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
         track_parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
-            for l in [
+            for label in [
                 "track_anchor_x",
                 "track_anchor_y",
                 "track_anchor_z",
@@ -277,7 +277,7 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
                 "track_distance_end",
                 "track_stochasticity",
             ]:
-                track_parameters.append(np.atleast_1d(_labels[l]))
+                track_parameters.append(np.atleast_1d(_labels[label]))
 
             # assert that track anchor is at track vertex
             assert (np.atleast_1d(_labels["track_distance_start"]) == 0).all()

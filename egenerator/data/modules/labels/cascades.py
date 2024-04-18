@@ -163,7 +163,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
-            for l in [
+            for label in [
                 "cascade_x",
                 "cascade_y",
                 "cascade_z",
@@ -172,7 +172,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
                 "cascade_energy",
                 "cascade_t",
             ]:
-                cascade_parameters.append(_labels[l])
+                cascade_parameters.append(_labels[label])
 
         except Exception as e:
             self._logger.warning(e)
@@ -223,7 +223,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
-            for l in [
+            for label in [
                 "cascade_x",
                 "cascade_y",
                 "cascade_z",
@@ -232,7 +232,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
                 "cascade_energy",
                 "cascade_t",
             ]:
-                cascade_parameters.append(np.atleast_1d(_labels[l]))
+                cascade_parameters.append(np.atleast_1d(_labels[label]))
 
         except Exception as e:
             self._logger.warning(e)

@@ -1,12 +1,9 @@
 from __future__ import division, print_function
 import os
 import logging
-import numpy as np
 from copy import deepcopy
-import tensorflow as tf
 import ruamel.yaml as yaml
 
-from egenerator import misc
 from egenerator.settings import version_control
 
 

@@ -1,8 +1,7 @@
 import os
-import tensorflow as tf
 
-from icecube import dataclasses, icetray
-from icecube.icetray.i3logging import log_info, log_warn
+from icecube import icetray
+from icecube.icetray.i3logging import log_info
 
 from egenerator.utils import inspect
 from egenerator.utils.configurator import ManagerConfigurator
@@ -194,7 +193,7 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
             event_header = None
 
         # run tray and make plots
-        results = self.reco_tray.execute(data_batch, event_header=event_header)
+        self.reco_tray.execute(data_batch, event_header=event_header)
 
         # push frame to next modules
         self.PushFrame(frame)

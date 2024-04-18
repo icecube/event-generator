@@ -304,7 +304,6 @@ class MultiSource(Source):
         self.assert_configured(True)
 
         parameters = data_batch_dict[parameter_tensor_name]
-        pulses = data_batch_dict["x_pulses"]
         pulses_ids = data_batch_dict["x_pulses_ids"]
 
         parameters = self.add_parameter_indexing(parameters)
@@ -571,7 +570,7 @@ class MultiSource(Source):
         dom_charges_variance = None
         dom_cdf_exclusion_sum = None
         pulse_pdf = None
-        for base in set(self._untracked_data["sources"].values()):
+        for name, base in set(self._untracked_data["sources"].items()):
 
             # get the base source
             n_sources = base_parameter_count[base]
@@ -1266,7 +1265,7 @@ class MultiSource(Source):
                                     input_tensor.name,
                                 ),
                             )
-            except AttributeError as e:
+            except AttributeError:
                 self._logger.warning(
                     "Can not check inputs since Tensorflow is in eager mode."
                 )

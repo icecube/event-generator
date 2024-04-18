@@ -1,5 +1,3 @@
-#!/usr/local/bin/python3
-
 import unittest
 import os
 import tensorflow as tf
@@ -8,11 +6,9 @@ from copy import deepcopy
 import numpy as np
 import ruamel.yaml as yaml
 import time
-import glob
 from datetime import datetime
 
 from egenerator import misc
-from egenerator.data.trafo import DataTransformer
 from egenerator.manager.component import Configuration, BaseComponent
 from egenerator.model.multi_source.base import MultiSource
 from egenerator.model.multi_source.independent import IndependentMultiSource
@@ -161,7 +157,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         """
         model = MultiSource()
 
-        with self.assertRaises(NotImplementedError) as context:
+        with self.assertRaises(NotImplementedError):
             model.configure(config=self.config, base_sources=self.base_sources)
 
     def test_correct_configuration_name(self):
@@ -208,7 +204,6 @@ class TestIndependentMultiSource(unittest.TestCase):
                 "name": "egenerator.model.multi_source.base",
                 "num_parameters": 14,
                 "checkpoint": self.source.checkpoint,
-                "variables": self.source.variables,
                 "step": self.source._untracked_data["step"],
                 "variables": self.source._untracked_data["variables"],
                 "parameter_index_dict": self.source._untracked_data[
@@ -365,27 +360,31 @@ class TestIndependentMultiSource(unittest.TestCase):
         # Save model for the first time
         self.source.save(directory)
 
-        # # load and check meta data of cascade sub component
-        # self.maxDiff = None
-        # self.check_model_checkpoint_meta_data(
-        #     true_meta_data, os.path.join(directory, 'cascade'))
+        # load and check meta data of cascade sub component
+        self.maxDiff = None
+        self.check_model_checkpoint_meta_data(
+            true_meta_data, os.path.join(directory, "cascade")
+        )
 
-        # new_checkpoint_meta_data = {
-        #     'creation_date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        #     'time_stamp': time.time(),
-        #     'file_basename': 'model_checkpoint_{:08d}'.format(2),
-        #     'description': None,
-        # }
-        # true_meta_data = {
-        #     'latest_checkpoint': 2,
-        #     'unprotected_checkpoints': {1: checkpoint_meta_data,
-        #                                 2: new_checkpoint_meta_data},
-        #     'protected_checkpoints': {},
-        # }
+        new_checkpoint_meta_data = {
+            "creation_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "time_stamp": time.time(),
+            "file_basename": "model_checkpoint_{:08d}".format(2),
+            "description": None,
+        }
+        true_meta_data = {
+            "latest_checkpoint": 2,
+            "unprotected_checkpoints": {
+                1: checkpoint_meta_data,
+                2: new_checkpoint_meta_data,
+            },
+            "protected_checkpoints": {},
+        }
 
-        # self.source.save(directory, overwrite=True)
-        # self.check_model_checkpoint_meta_data(
-        #     true_meta_data, os.path.join(directory, 'cascade'))
+        self.source.save(directory, overwrite=True)
+        self.check_model_checkpoint_meta_data(
+            true_meta_data, os.path.join(directory, "cascade")
+        )
 
     def test_method_load_weights(self):
         """Test the load weights method and make sure the loaded weights are
