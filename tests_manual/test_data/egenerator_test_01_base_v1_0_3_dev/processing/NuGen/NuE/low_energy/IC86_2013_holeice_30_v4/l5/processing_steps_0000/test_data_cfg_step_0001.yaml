@@ -137,7 +137,7 @@ processing_steps:
           pulse_key: SplitPulses
           scipy_optimizer_settings:
             options:
-              gtol: 10.0
+              gtol: 0.001
           seed_keys:
           - L5MonopodFit4
     ModuleTimer: true
@@ -152,7 +152,8 @@ resources:
 runs_range: *id002
 script_folder: /mnt/ceph1-npx/user/mhuennefeld/software/repositories/ic3-processing/ic3_processing/cli
 script_name: general_i3_processing.py
-set_env_vars_from_python: {}
+set_env_vars_from_python:
+  TF_DETERMINISTIC_OPS: '1'
 sub_process_dir: /data/user/mhuennefeld/software/repositories/event-generator/tests_manual/test_data/egenerator_test_01_base_v1_0_3_dev/processing/NuGen/NuE/low_energy/IC86_2013_holeice_30_v4/l5/processing_steps_0000
 systematic_addition: _holeice_30_v4
 tray_segments: *id003
