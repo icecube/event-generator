@@ -401,7 +401,7 @@ class Model(tf.Module, BaseComponent):
 
         # save new meta data
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="unsafe", pure=True).dump(meta_data, stream)
+            yaml.YAML(typ="full").dump(meta_data, stream)
 
     def update_num_training_steps(self, dir_path, num_training_steps):
         """Update the number of training iterations for current training step.
@@ -435,7 +435,7 @@ class Model(tf.Module, BaseComponent):
 
         # save new meta data
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="unsafe", pure=True).dump(meta_data, stream)
+            yaml.YAML(typ="full").dump(meta_data, stream)
 
     def save_training_settings(self, dir_path, new_training_settings):
         """Save a new training step with its components and settings.
@@ -512,9 +512,7 @@ class Model(tf.Module, BaseComponent):
             training_step_dir, "training_config.yaml"
         )
         with open(training_step_config_file, "w") as stream:
-            yaml.YAML(typ="unsafe", pure=True).dump(
-                new_training_settings["config"], stream
-            )
+            yaml.YAML(typ="full").dump(new_training_settings["config"], stream)
 
         # save components
         for name, component in new_training_settings["components"].items():
@@ -523,7 +521,7 @@ class Model(tf.Module, BaseComponent):
 
         # save new meta data
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="unsafe", pure=True).dump(meta_data, stream)
+            yaml.YAML(typ="full").dump(meta_data, stream)
 
     def _save(
         self,

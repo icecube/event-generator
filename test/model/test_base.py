@@ -327,7 +327,7 @@ class TestModel(unittest.TestCase):
         os.makedirs(directory)
         yaml_file = os.path.join(directory, "model_checkpoint.yaml")
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="unsafe", pure=True).dump(true_meta_data, stream)
+            yaml.YAML(typ="full").dump(true_meta_data, stream)
 
         # Saving now will load the existing meta data and attempt to save to
         # index 1, but this index already exists, so it should raise an error

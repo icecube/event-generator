@@ -896,9 +896,7 @@ class BaseComponent(object):
 
         # save configuration settings
         with open(config_file_path, "w") as yaml_file:
-            yaml.YAML(typ="unsafe", pure=True).dump(
-                self.configuration.dict, yaml_file
-            )
+            yaml.YAML(typ="full").dump(self.configuration.dict, yaml_file)
 
         # write data
         with open(data_file_path, "wb") as handle:
