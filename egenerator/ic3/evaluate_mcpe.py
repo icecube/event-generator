@@ -107,6 +107,7 @@ class CalculateLikelihood(EventGeneratorSimulation):
                           'high energy cascades.',
                           False)
         self.AddParameter('AddDarkDOMs', '', True)
+        self.AddParameter('ValidateTimePDF', '', True)
 
         self.AddParameter('CascadeService',
                           '',
@@ -128,7 +129,7 @@ class CalculateLikelihood(EventGeneratorSimulation):
         self.random_service = self.GetParameter('random_service')
         self.simulate_electron_daughters = self.GetParameter('SimulateElectronDaughterParticles')
         self.add_dark_doms = self.GetParameter("AddDarkDOMs")
-
+        self.validate_time_pdf = self.GetParameter("ValidateTimePDF")
         if isinstance(self.random_service, int):
             self.random_service = np.random.RandomState(self.random_service)
 
@@ -274,8 +275,8 @@ class CalculateLikelihood(EventGeneratorSimulation):
 
         self._counter += 1
 
-        # if self._counter >= 5:
-        #     return
+        if not self._counter % 100:
+            print(self._counter)
 
         # start timer
         t_0 = timeit.default_timer()
@@ -299,11 +300,12 @@ class CalculateLikelihood(EventGeneratorSimulation):
         t_2 = timeit.default_timer()
 
         # sample pdf
-        self.sample_from_pdf(frame, result_tensors, validate_photonics=self.cascade_service is not None)
-
-        if self._counter % 10 == 0:
-            self.plot_pdfs(frame, result_tensors, validate_photonics=self.cascade_service is not None)
-
+        if self.validate_time_pdf:
+            self.sample_from_pdf(frame, result_tensors, validate_photonics=self.cascade_service is not None)
+            if self._counter % 10 == 0:
+                self.plot_pdfs(frame, result_tensors, validate_photonics=self.cascade_service is not None)
+        else:
+            self.store_total_charge(frame, result_tensors, validate_photonics=self.cascade_service is not None)
 
         # timer after Sampling
         t_3 = timeit.default_timer()
@@ -315,6 +317,43 @@ class CalculateLikelihood(EventGeneratorSimulation):
 
         # push frame to next modules
         self.PushFrame(frame)
+
+    def store_total_charge(self, frame, result_tensors, validate_photonics=False):
+        """ This function stores the predicted charge by EG, MC, Photonics """
+        total_charge = result_tensors['dom_charges'].numpy()
+        mcpe_series_map = frame["I3MCPESeriesMap"]
+
+        event_generator_total_dom_charge = dataclasses.I3MapKeyDouble()
+        mc_total_dom_charge = dataclasses.I3MapKeyDouble()
+
+        if validate_photonics:
+            geo = frame["I3Geometry"]
+            particle = frame["I3MCTree"].get_head()
+            photonics_total_dom_charge = dataclasses.I3MapKeyDouble()
+
+
+        for string in range(86):
+            for om in range(60):
+                omkey = icetray.OMKey(string + 1, om + 1)
+
+                event_generator_total_dom_charge[omkey] = float(total_charge[0, string, om, 0])
+
+                if validate_photonics:
+                    position = geo.omgeo[omkey].position
+                    self.photonics.cascade_pxs.SelectModuleCoordinates(*position)
+                    charge, _, t0 = self.photonics.cascade_pxs.SelectSource(photonics_service.PhotonicsSource(particle))
+                    photonics_total_dom_charge[omkey] = float(charge)
+
+                if omkey in mcpe_series_map:
+                    mc_total_dom_charge[omkey] = np.sum([pulse.npe for pulse in mcpe_series_map[omkey]], dtype="float")
+                else:
+                    mc_total_dom_charge[omkey] = 0
+
+        frame.Put("MCTotalChargePerDOM", mc_total_dom_charge)
+        frame.Put("EventGeneratorTotalChargePerDOM", event_generator_total_dom_charge)
+
+        if validate_photonics:
+            frame.Put("PhotonicsTotalChargePerDOM", photonics_total_dom_charge)
 
 
     def sample_from_pdf(self, frame, result_tensors, validate_photonics=False):
