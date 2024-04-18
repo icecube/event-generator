@@ -85,9 +85,9 @@ class SetupManager:
 
             # config_update = yaml.round_trip_load(open(config_file),
             #                                      preserve_quotes=True)
-            yaml_loader = yaml.YAML(typ="safe")
-            config_update = yaml_loader.load(open(config_file))
-            # config_update = yaml.load(open(config_file), loader=yaml.Loader())
+            with open(config_file, "r") as stream:
+                yaml_loader = yaml.YAML(typ="safe")
+                config_update = yaml_loader.load(stream)
             duplicates = set(new_config.keys()).intersection(
                 set(config_update.keys())
             )

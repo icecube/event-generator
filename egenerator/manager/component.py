@@ -896,7 +896,9 @@ class BaseComponent(object):
 
         # save configuration settings
         with open(config_file_path, "w") as yaml_file:
-            yaml.dump(self.configuration.dict, yaml_file)
+            yaml.YAML(typ="unsafe", pure=True).dump(
+                self.configuration.dict, yaml_file
+            )
 
         # write data
         with open(data_file_path, "wb") as handle:
@@ -962,7 +964,7 @@ class BaseComponent(object):
 
         # load files
         with open(config_file_path, "r") as stream:
-            config_dict = yaml.load(stream, Loader=yaml.Loader)
+            config_dict = yaml.YAML(typ="safe", pure=True).load(stream)
 
         with open(data_file_path, "rb") as handle:
             data = pickle.load(handle)

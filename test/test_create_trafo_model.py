@@ -148,7 +148,7 @@ class TestCreateTrafoModel(unittest.TestCase):
         )
 
         with open(self.yaml_file_path, "w") as yaml_file:
-            yaml.dump(self.config, yaml_file)
+            yaml.YAML(typ="unsafe", pure=True).dump(self.config, yaml_file)
 
     def test_create_trafo_model(self):
         """Call create trafo model script"""

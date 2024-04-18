@@ -184,7 +184,7 @@ class TestSourceBase(unittest.TestCase):
         # load  meta data
         yaml_file = os.path.join(directory, "model_checkpoint.yaml")
         with open(yaml_file, "r") as stream:
-            meta_data = yaml.safe_load(stream)
+            meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
 
         # check approximate values of time stamps (these will naturally differ)
         for key in ["unprotected_checkpoints", "protected_checkpoints"]:

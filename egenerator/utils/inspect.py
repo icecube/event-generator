@@ -24,7 +24,7 @@ def extract_model_class(manager_dir):
     )
 
     with open(model_config_file, "r") as stream:
-        config_dict = yaml.load(stream, Loader=yaml.Loader)
+        config_dict = yaml.YAML(typ="safe", pure=True).load(stream)
     return config_dict["class_string"]
 
 
