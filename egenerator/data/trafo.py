@@ -180,7 +180,7 @@ class DataTransformer(BaseComponent):
                         np.mean(data[tensor.name + suffix])
                     )
 
-        # create an identifer for the trafo model
+        # create an identifier for the trafo model
         now = datetime.now()
         dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
         data["creation_time"] = dt_string
@@ -240,7 +240,7 @@ class DataTransformer(BaseComponent):
         Parameters
         ----------
         trafo_log : tuple of bool
-            Defines whether the natural logarithm is appllied to bins along
+            Defines whether the natural logarithm is applied to bins along
             last axis. Must have same length as data_batch.shape[-1].
         data_batch : numpy ndarray
             A batch of data for which to update the variance variables of the
@@ -300,7 +300,7 @@ class DataTransformer(BaseComponent):
         ------
         ValueError
             If DataTransformer object has not created or loaded a trafo model.
-            If provided data_type is unkown.
+            If provided data_type is unknown.
         """
         dtype = data.dtype
 
@@ -439,7 +439,7 @@ class DataTransformer(BaseComponent):
         Returns
         -------
         type(data)
-            Returns the inverse transformed DOM respones and
+            Returns the inverse transformed DOM response and
             cascade_parameters.
         """
         data, log_func, exp_func, is_tf, dtype, tensor = self._check_settings(
@@ -493,7 +493,7 @@ class DataTransformer(BaseComponent):
     def inverse_transform_cov(self, cov_trafo, tensor_name):
         """Applies inverse transformation of covariance matrix.
 
-        Note: this only corrects for scaling vie the standard deviation.
+        Note: this only corrects for scaling via the standard deviation.
         If a logarithm was applied, this does not undo that transformation.
         E.g. in that case the return covariance matrix is provided in log-space
         for that parameter.

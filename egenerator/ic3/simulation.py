@@ -175,9 +175,9 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         else:
             self.model_dir = self.model_name
 
-        # --------------------------------------------------
-        # Build and configure SourceManager and extrac Model
-        # --------------------------------------------------
+        # ---------------------------------------------------
+        # Build and configure SourceManager and extract Model
+        # ---------------------------------------------------
         self.manager_configurator = ManagerConfigurator(
             manager_dirs=[self.model_dir],
             num_threads=self.num_threads,
@@ -392,7 +392,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         result_tensors : dict
             A dictionary with the result tensors.
         cascade_sources : tf.Tensor
-            The source hypothesis paramter tensor.
+            The source hypothesis parameter tensor.
 
         Returns
         -------
@@ -458,7 +458,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
                     # we will uniformly choose the charge and then (optionally)
                     # correct again to obtain correct total charge
-                    # ToDo: figure out actual chage distribution of pulses!
+                    # ToDo: figure out actual charge distribution of pulses!
                     pulse_charges = self.random_service.uniform(
                         0.25, 1.75, size=num_pe
                     )
@@ -478,7 +478,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                     pulse_sigma = latent_var_sigma[i, string, om, idx]
                     pulse_r = latent_var_r[i, string, om, idx]
 
-                    # caclulate time of pulse
+                    # calculate time of pulse
                     pulse_times = basis_functions.asymmetric_gauss_ppf(
                         rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r
                     )
@@ -546,7 +546,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         Returns
         -------
         tf.Tensor
-            The source hypothesis paramter tensor.
+            The source hypothesis parameter tensor.
         """
         # create parameter array
         parameters = np.empty([len(cascades), self.model.num_parameters])

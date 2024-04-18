@@ -73,7 +73,7 @@ class SourceManager(BaseModelManager):
             If True, the individual terms of the log likelihood loss will be
             reduced (aggregated) to a scalar loss.
             If False, a list of tensors will be returned that contain the terms
-            of the log likelihood. Note that each of the returend tensors may
+            of the log likelihood. Note that each of the returned tensors may
             have a different shape.
         **kwargs
             Arbitrary keyword arguments. These will be passed on to
@@ -123,7 +123,7 @@ class SourceManager(BaseModelManager):
 
             parameters_trafo = tf.stack(all_params, axis=1)
 
-        # unnormalize if minimization is perfomed in trafo space
+        # unnormalize if minimization is performed in trafo space
         if minimize_in_trafo_space:
             parameters = self.data_trafo.inverse_transform(
                 data=parameters_trafo, tensor_name=parameter_tensor_name
@@ -202,7 +202,7 @@ class SourceManager(BaseModelManager):
             If True, the individual terms of the log likelihood loss will be
             reduced (aggregated) to a scalar loss.
             If False, a list of tensors will be returned that contain the terms
-            of the log likelihood. Note that each of the returend tensors may
+            of the log likelihood. Note that each of the returned tensors may
             have a different shape.
         **kwargs
             Arbitrary keyword arguments. These will be passed on to
@@ -316,16 +316,16 @@ class SourceManager(BaseModelManager):
         seed=None,
         parameter_tensor_name="x_parameters",
     ):
-        """Get a fucntion that returns the outer products of gradients (OPG).
+        """Get a function that returns the outer products of gradients (OPG).
 
         The outer product of gradients (OPG) estimate can be used in connection
         with the inverse Hessian matrix in order to obtain a robust estimate
         for the covariance matrix.
         It is also relevant for extended maximum likelhoods for which the
-        inverse covariance matrix (in the asymptotic limit) of the orginal
+        inverse covariance matrix (in the asymptotic limit) of the original
         (unextended) likelihood is not given by the
         Hessian (second order derivatives) as in standard MLE, but by a product
-        of first oder derivates (OPG estimate).
+        of first order derivates (OPG estimate).
 
         Parameters
         ----------
@@ -377,7 +377,7 @@ class SourceManager(BaseModelManager):
         @tf.function(input_signature=input_signature)
         def opg_estimate_function(parameters_trafo, data_batch, seed=seed):
             """
-            We need to accumulate the Jacobian over colums (xs) in
+            We need to accumulate the Jacobian over columns (xs) in
             the forward accumulator.
             If we did this via back propagation we would need to compute
             the Jacobian over rows (ys) and therefore perform a loop over
@@ -477,7 +477,7 @@ class SourceManager(BaseModelManager):
         """
 
         # -----------------------------
-        # Try memory efficent version
+        # Try memory efficient version
         # -----------------------------
         # loss_function = self.get_parameter_loss_function(
         #     loss_module=loss_module,
@@ -1743,7 +1743,7 @@ class SourceManager(BaseModelManager):
                 tf_optimizer_settings=reco_config["tf_optimizer_settings"],
             )
 
-        # chosse best reconstruction
+        # choose best reconstruction
         reco_tray.add_module(
             "SelectBestReconstruction",
             name="reco",

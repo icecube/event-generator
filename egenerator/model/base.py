@@ -25,7 +25,7 @@ class Model(tf.Module, BaseComponent):
     all be created. Only the variables created at this point, will be saved
     to file in later calls to save() or save_weights().
 
-    A derived class of the asbtract Model class must at least implement the
+    A derived class of the abstract Model class must at least implement the
     virtual _configure_derived_class method.
     """
 
@@ -479,7 +479,7 @@ class Model(tf.Module, BaseComponent):
         # check if file already exists
         if os.path.exists(training_step_dir):
             raise IOError(
-                "Training dicrectory {!r} already exists!".format(
+                "Training directory {!r} already exists!".format(
                     training_step_dir
                 )
             )

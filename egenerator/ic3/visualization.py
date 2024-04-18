@@ -37,7 +37,7 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         )
         self.AddParameter(
             "output_dir",
-            "The output directoy to which the plots will be written to.",
+            "The output directory to which the plots will be written to.",
         )
 
         # Optional settings

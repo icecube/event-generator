@@ -424,7 +424,7 @@ class Source(Model):
         Raises
         ------
         NotImplementedError
-            If assymetric Gaussian latent variables are not present in
+            If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
 
@@ -607,7 +607,7 @@ class Source(Model):
         Raises
         ------
         NotImplementedError
-            If assymetric Gaussian latent variables are not present in
+            If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
 

@@ -671,7 +671,7 @@ def von_mises_pdf(x, sigma, kent_min=np.deg2rad(7)):
     Parameters
     ----------
     x : array_like
-        The opening angle (approximation in cartesian coordiantes
+        The opening angle (approximation in cartesian coordinates
         around the best-fit position).
     sigma : array_like
         The estimated uncertainty.

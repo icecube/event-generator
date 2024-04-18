@@ -230,7 +230,7 @@ class BaseModelManager(Model):
         for name, model in sub_components.items():
 
             # skip data handler sub component, since that is what we are
-            # checking compatiblity against
+            # checking compatibility against
             if name == "data_handler":
                 continue
 
@@ -528,7 +528,7 @@ class BaseModelManager(Model):
             True: in training mode
             False: inference mode.
         summary_writer : tf.summary.SummaryWriter, optional
-            If provied, tensorflow summaries will be calculated and written
+            If provided, tensorflow summaries will be calculated and written
             to the specified summary writer.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
@@ -753,7 +753,7 @@ class BaseModelManager(Model):
         """
         self.assert_configured(True)
 
-        # deine directories
+        # define directories
         save_dir = self.configuration.config["config"]["manager_dir"]
         train_log_dir = os.path.join(save_dir, "logs/training")
         val_log_dir = os.path.join(save_dir, "logs/validation")

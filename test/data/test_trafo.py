@@ -13,7 +13,7 @@ from egenerator.data.tensor import DataTensor, DataTensorList
 
 
 class DummyDataHandler(BaseDataHandler):
-    """Create a dummy data hanlder for testing purposes"""
+    """Create a dummy data handler for testing purposes"""
 
     @property
     def n_batches(self):

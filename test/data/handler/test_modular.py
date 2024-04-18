@@ -121,7 +121,7 @@ class TestModuleDataHandler(unittest.TestCase):
             "Data handler needs to be set up first!" in str(context.exception)
         )
 
-        # if we setup the data handler this shoudl run without any errors
+        # if we setup the data handler this should run without any errors
         data_handler._is_configured = True
         data_handler.check_if_configured()
 

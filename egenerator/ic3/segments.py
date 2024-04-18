@@ -39,7 +39,7 @@ def ApplyEventGeneratorReconstruction(
         The pulses to run the event-generator on. If specified, these pulses
         will be masked to comply with the DOM and time window exclusions.
     dom_and_tw_exclusions : str or list of str, optional
-        A list of frame keys that specifiy DOM and time window exclusions.
+        A list of frame keys that specify DOM and time window exclusions.
         If no exclusions are to be applied, pass an empty list or None.
     partial_exclusion : bool, optional
         If True, partially exclude DOMS, e.g. only omit pulses from excluded
@@ -134,7 +134,7 @@ def ApplyEventGeneratorVisualizeBestFit(
         The pulses to run the event-generator on. If specified, these pulses
         will be masked to comply with the DOM and time window exclusions.
     dom_and_tw_exclusions : str or list of str, optional
-        A list of frame keys that specifiy DOM and time window exclusions.
+        A list of frame keys that specify DOM and time window exclusions.
         If no exclusions are to be applied, pass an empty list or None.
     partial_exclusion : bool, optional
         If True, partially exclude DOMS, e.g. only omit pulses from excluded
@@ -223,7 +223,7 @@ def CombineAndApplyExclusions(
         The pulses to run the event-generator on. If specified, these pulses
         will be masked to comply with the DOM and time window exclusions.
     dom_and_tw_exclusions : str or list of str, optional
-        A list of frame keys that specifiy DOM and time window exclusions.
+        A list of frame keys that specify DOM and time window exclusions.
         If no exclusions are to be applied, pass an empty list or None.
     partial_exclusion : bool, optional
         If True, partially exclude DOMS, e.g. only omit pulses from excluded

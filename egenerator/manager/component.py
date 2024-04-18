@@ -45,7 +45,7 @@ class Configuration(object):
     and the name of the component class:
 
         - class_string:
-            The name of the component class. This is necessar in order to
+            The name of the component class. This is necessary in order to
             load the component from file.
 
     as well as:
@@ -161,7 +161,7 @@ class Configuration(object):
             mutable sub components are *not* checked for compatibility.
         sub_component_configurations : dict, optional
             A dictionary of sub component configurations.
-            Additional sub components may be added after instatiation via
+            Additional sub components may be added after instantiation via
             the 'add_sub_components' method.
         event_generator_version : str, optional
             The version string of the Event-Generator package.
@@ -172,7 +172,7 @@ class Configuration(object):
         event_generator_origin : str, optional
             Event-Generator GitHub repository origin.
         event_generator_uncommitted_changes : bool, optional
-            If true, there are uncomitted changes in the repository.
+            If true, there are uncommitted changes in the repository.
         logger : logging.logger, optional
             The logger to use.
         """
@@ -339,7 +339,7 @@ class Configuration(object):
 
         Parameters
         ----------
-        other : Configuartion object
+        other : Configuration object
             Another Configuration instance.
 
         Returns
@@ -422,7 +422,7 @@ class BaseComponent(object):
     Again, defined dependent sub components are saved recursively to file.
 
     The BaseComponent class is an abstract class with a pure virtual method
-    self._configure(). A derived class must at least implement and overrride
+    self._configure(). A derived class must at least implement and override
     this method. A call to self._configure() must return the following:
 
         Configuration object
@@ -809,7 +809,7 @@ class BaseComponent(object):
         raise NotImplementedError()
 
     def is_compatible(self, other):
-        """Check the compatibilty of this component with another.
+        """Check the compatibility of this component with another.
 
         Parameters
         ----------

@@ -236,7 +236,7 @@ class MarkovChainMonteCarlo:
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 
@@ -483,7 +483,7 @@ class FitDistributionsOnSphere:
         data_batch : tuple of tf.Tensors
             A data batch which consists of a tuple of tf.Tensors.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 

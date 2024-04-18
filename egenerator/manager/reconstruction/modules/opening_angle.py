@@ -54,7 +54,7 @@ class CircularizedAngularUncertainty:
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
         scipy_optimizer_settings : dict, optional
-            Settings that will be passed on to the scipy.optmize.minimize
+            Settings that will be passed on to the scipy.optimize.minimize
             function.
         num_fit_points : int, optional
             This defines the number of delta psi (opening angles) to randomly
@@ -201,7 +201,7 @@ class CircularizedAngularUncertainty:
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 

@@ -59,7 +59,7 @@ class GoodnessOfFit:
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
         scipy_optimizer_settings : dict, optional
-            Settings that will be passed on to the scipy.optmize.minimize
+            Settings that will be passed on to the scipy.optimize.minimize
             function.
         num_samples : int, optional
             This defines the number of points to sample from the estimated
@@ -239,7 +239,7 @@ class GoodnessOfFit:
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 
@@ -643,7 +643,7 @@ class GoodnessOfFit:
 
                 # we will uniformly choose the charge and then correct
                 # again to obtain correct total charge
-                # ToDo: figure out actual chage distribution of pulses!
+                # ToDo: figure out actual charge distribution of pulses!
                 pulse_charges = rng.uniform(0.25, 1.75, size=num_pe)
                 pulse_charges *= num_pe / np.sum(pulse_charges)
 
@@ -659,7 +659,7 @@ class GoodnessOfFit:
                 pulse_sigma = latent_sigma[string, om, idx]
                 pulse_r = latent_r[string, om, idx]
 
-                # caclulate time of pulse
+                # calculate time of pulse
                 pulse_times = basis_functions.asymmetric_gauss_ppf(
                     rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r
                 )

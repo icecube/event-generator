@@ -28,7 +28,7 @@ class DataTensor(object):
         name : str
             The name of the data tensor.
         shape : tuple of int or None
-            The shape of the tensor. Unkown shapes can be specified with None.
+            The shape of the tensor. Unknown shapes can be specified with None.
         tensor_type : str
             The type of tensor: 'data', 'label', 'weight', 'misc'
         dtype : str
@@ -242,7 +242,7 @@ class DataTensorList(object):
         """
         if isinstance(data_tensors, DataTensorList):
 
-            # enable copy constructor: intialize from existing DataTensorList
+            # enable copy constructor: initialize from existing DataTensorList
             data_tensors = data_tensors.list
 
         elif len(data_tensors) > 0 and isinstance(data_tensors[0], dict):
@@ -334,8 +334,8 @@ class DataTensorList(object):
         return self.list[self.get_index(name)]
 
     def serialize(self):
-        """Serialize DataTensorList object to pyton built-in types such as
-        dicts, strings and lists, so that the obect can be easily written
+        """Serialize DataTensorList object to python built-in types such as
+        dicts, strings and lists, so that the object can be easily written
         to yaml data files.
         """
         serialized_tensor_list = []
@@ -344,7 +344,7 @@ class DataTensorList(object):
         return serialized_tensor_list
 
     def deserialize(self, serialized_tensor_list):
-        """Deserialize serialized DataTensorList object from pyton built-in
+        """Deserialize serialized DataTensorList object from python built-in
         types such as dicts, strings and lists, to DataTensorList object.
         This is the inverse transformation from serialize.
 

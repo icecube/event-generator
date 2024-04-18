@@ -20,9 +20,9 @@ class PulseDataModule(BaseComponent):
     Attributes
     ----------
     dom_exclusions_exist : bool
-        Indicates wheter a DOM exclusions key was provided.
+        Indicates whether a DOM exclusions key was provided.
     time_exclusions_exist : bool
-        Indicates wheter a time exclusions key was provided.
+        Indicates whether a time exclusions key was provided.
     """
 
     def __init__(self, logger=None):

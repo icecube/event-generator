@@ -118,7 +118,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
                 "{!r} is not a boolean value!".format(shift_cascade_vertex)
             )
 
-        # extend trafo log for snowstorm parameters: fill with Flase
+        # extend trafo log for snowstorm parameters: fill with False
         if isinstance(trafo_log, bool):
             trafo_log_ext = [trafo_log] * 7
         else:

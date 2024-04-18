@@ -155,8 +155,8 @@ class StochasticTrackSegmentModel(Source):
 
         Distance before track start or after end of the track will be shifted
         to track start and end, respectively.
-        Note: this is done approximatively by the use of a softmax function
-        in order to maintain continous gradients.
+        Note: this is done approximately by the use of a softmax function
+        in order to maintain continuous gradients.
 
         Parameters
         ----------
@@ -179,7 +179,7 @@ class StochasticTrackSegmentModel(Source):
         # Using Softplus instead of RELU: this will smear out position, but
         # it will provide smooth gradients. This should be more important,
         # especially since actual track start/end uncertainty of +-1m should
-        # be irrelevant. High-energy cascades should be handled seperately.
+        # be irrelevant. High-energy cascades should be handled separately.
 
         distance = (
             distance
@@ -582,7 +582,7 @@ class StochasticTrackSegmentModel(Source):
             scale_factor = tf.expand_dims(parameter_list[5], axis=-1) / 10000.0
             dom_charges *= scale_factor
 
-        # scale charges by realtive DOM efficiency
+        # scale charges by relative DOM efficiency
         if config["scale_charge_by_relative_dom_efficiency"]:
             dom_charges *= tf.expand_dims(
                 detector.rel_dom_eff.astype(param_dtype_np), axis=-1
@@ -619,7 +619,7 @@ class StochasticTrackSegmentModel(Source):
             # However, we are approximating the distribution with an
             # asymmetric Gaussian which might result in slightly different
             # sigmas at low values.
-            # We will limit Gaussian sigma to a minimum value of 90% ofthe
+            # We will limit Gaussian sigma to a minimum value of 90% of the
             # Poisson expectation.
             # The Gaussian approximation will not hold for low charge DOMs.
             # We will use a standard poisson likelihood for DOMs with a true

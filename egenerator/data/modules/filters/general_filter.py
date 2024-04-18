@@ -112,7 +112,7 @@ class GeneralFilterModule(BaseComponent):
         -------
         array_like
             An array of bool indicating whether an event passed the filter
-            (True) or wheter it is filtered out (False).
+            (True) or whether it is filtered out (False).
             Shape: [num_events]
         """
         filter_mask = np.ones(num_events, dtype=bool)
@@ -172,7 +172,7 @@ class GeneralFilterModule(BaseComponent):
         -------
         array_like
             An array of bool indicating whether an event passed the filter
-            (True) or wheter it is filtered out (False).
+            (True) or whether it is filtered out (False).
             Shape: [num_events]
         """
         filter_mask = np.ones(num_events, dtype=bool)

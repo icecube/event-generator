@@ -19,7 +19,7 @@ class TestDummyWeightModule(unittest.TestCase):
     def test_configuration_data_type_check(self):
         dummy_module = DummyWeightModule()
 
-        # check if error is correctly rasied when wrong data type is passed
+        # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(ValueError) as context:
             dummy_module.configure(config_data=4)
         self.assertTrue("Unknown type:" in str(context.exception))

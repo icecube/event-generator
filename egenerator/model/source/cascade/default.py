@@ -620,7 +620,7 @@ class DefaultCascadeModel(Source):
             scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
             dom_charges *= scale_factor
 
-        # scale charges by realtive DOM efficiency
+        # scale charges by relative DOM efficiency
         if config["scale_charge_by_relative_dom_efficiency"]:
             dom_charges *= tf.expand_dims(
                 detector.rel_dom_eff.astype(param_dtype_np), axis=-1
@@ -661,7 +661,7 @@ class DefaultCascadeModel(Source):
             # However, we are approximating the distribution with an
             # asymmetric Gaussian which might result in slightly different
             # sigmas at low values.
-            # We will limit Gaussian sigma to a minimum value of 90% ofthe
+            # We will limit Gaussian sigma to a minimum value of 90% of the
             # Poisson expectation.
             # The Gaussian approximation will not hold for low charge DOMs.
             # We will use a standard poisson likelihood for DOMs with a true

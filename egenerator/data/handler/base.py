@@ -604,7 +604,7 @@ class BaseDataHandler(BaseComponent):
 
             2) Another worker aggregates the events of several files
                (number of files defined by 'num_add_files') together
-               by dequeing elements from the 'data_batch_queue'.
+               by dequeuing elements from the 'data_batch_queue'.
                It then creates batches from these events
                (randomly if sample_randomly == True ).
                These batches are then put onto the 'final_batch_queue'.
@@ -642,9 +642,9 @@ class BaseDataHandler(BaseComponent):
             of size 'batch_size'. This queue is what is used to obtain the
             final batches, which the generator yields.
         num_jobs : int, optional
-            Number of jobs to run in parrallel to load and process input files.
+            Number of jobs to run in parallel to load and process input files.
         num_add_files : int, optional
-            Defines how many files are additionaly loaded at once.
+            Defines how many files are additionally loaded at once.
             Batches will be generated among events of these
             (1 + num_add_files) files
         num_repetitions : int, optional
@@ -1114,11 +1114,11 @@ class BaseDataHandler(BaseComponent):
             final batches, which the generator yields.
         dataset_capacity : int, optional
             Defines the tensorflow prefetch argument for the tf.Dataset.
-            This controlls how many batches are prefetched.
+            This controls how many batches are prefetched.
         num_jobs : int, optional
-            Number of jobs to run in parrallel to load and process input files.
+            Number of jobs to run in parallel to load and process input files.
         num_add_files : int, optional
-            Defines how many files are additionaly loaded at once.
+            Defines how many files are additionally loaded at once.
             Batches will be generated among events of these
             (1 + num_add_files) files
         num_repetitions : int, optional

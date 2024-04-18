@@ -145,7 +145,7 @@ class DefaultLossModule(BaseComponent):
             If True, the individual terms of the log likelihood loss will be
             reduced (aggregated) to a scalar loss.
             If False, a list of tensors will be returned that contain the terms
-            of the log likelihood. Note that each of the returend tensors may
+            of the log likelihood. Note that each of the returned tensors may
             have a different shape.
         normalize_by_total_charge : bool, optional
             If True, the loss will be normalized (divided) by the total charge.
@@ -176,7 +176,7 @@ class DefaultLossModule(BaseComponent):
         if reduce_to_scalar and sort_loss_terms:
             raise ValueError(
                 "Both sort_loss_terms and reduce_to_scalar are set to True. "
-                "Sorting of loss terms is unecessary when reducing to scalar"
+                "Sorting of loss terms is unnecessary when reducing to scalar"
             )
 
         loss_terms = self.loss_function(
@@ -222,7 +222,7 @@ class DefaultLossModule(BaseComponent):
             return loss_terms
 
     def log_faculty(self, x):
-        """Get continous log faculty approximation via gamma distribution
+        """Get continuous log faculty approximation via gamma distribution
 
         Parameters
         ----------

@@ -264,7 +264,7 @@ class ChargeQuantileCascadeModel(Source):
         # shape: [-1, 86, 60, 1]
         distance = tf.sqrt(dx**2 + dy**2 + dz**2)
 
-        # calculte time it takes for unscattered light to propagate to DOM
+        # calculate time it takes for unscattered light to propagate to DOM
         c_ice = 0.22103046286329384  # meter / ns
         light_propagation_time = distance / c_ice
 
@@ -386,7 +386,7 @@ class ChargeQuantileCascadeModel(Source):
             scale_factor = tf.expand_dims(parameter_list[5], axis=-1) / 10000.0
             dom_charges *= scale_factor
 
-        # scale charges by realtive DOM efficiency
+        # scale charges by relative DOM efficiency
         if config["scale_charge_by_relative_dom_efficiency"]:
             dom_charges *= tf.expand_dims(
                 detector.rel_dom_eff.astype(param_dtype_np), axis=-1
@@ -423,7 +423,7 @@ class ChargeQuantileCascadeModel(Source):
             # However, we are approximating the distribution with an
             # asymmetric Gaussian which might result in slightly different
             # sigmas at low values.
-            # We will limit Gaussian sigma to a minimum value of 90% ofthe
+            # We will limit Gaussian sigma to a minimum value of 90% of the
             # Poisson expectation.
             # The Gaussian approximation will not hold for low charge DOMs.
             # We will use a standard poisson likelihood for DOMs with a true
@@ -533,11 +533,11 @@ class ChargeQuantileCascadeModel(Source):
             tensor_dict["dom_charges_unc"] = tf.sqrt(dom_charges)
             tensor_dict["dom_charges_variance"] = dom_charges
 
-        # ----------------------------------------------------------
-        # Fully Connected Layers to for p(t_i | q_i, D_i) calulation
-        # ----------------------------------------------------------
+        # -----------------------------------------------------------
+        # Fully Connected Layers to for p(t_i | q_i, D_i) calculation
+        # -----------------------------------------------------------
 
-        # get latent dimension prior to p(t_i | q_i, D_i) calulation
+        # get latent dimension prior to p(t_i | q_i, D_i) calculation
         # shape: [-1, 86, 60, n_latent]
         latend_vars = conv_hex3d_layers[-1][..., n_charge:]
 

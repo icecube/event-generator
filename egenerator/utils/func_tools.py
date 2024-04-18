@@ -86,7 +86,7 @@ def weighted_cov(x, y, w):
     Returns
     -------
     float
-        The weighted covariance betwee x and y.
+        The weighted covariance between x and y.
     """
     w_mean_x = np.average(x, weights=w)
     w_mean_y = np.average(y, weights=w)

@@ -208,7 +208,7 @@ class TestPulseDataModule(unittest.TestCase):
         self.assertEqual(module.configuration.config, config)
 
     def test_configuration_check(self):
-        """Check whether passed tensor list in confguration is checked and
+        """Check whether passed tensor list in configuration is checked and
         found to be wrong.
         """
         config = {
@@ -220,12 +220,12 @@ class TestPulseDataModule(unittest.TestCase):
         }
         module = PulseDataModule()
 
-        # check if error is correctly rasied when wrong data type is passed
+        # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(ValueError) as context:
             module.configure(config_data=DataTensorList([]), **config)
         self.assertTrue(" != " in str(context.exception))
 
-        # pasing a file path should be fine
+        # passing a file path should be fine
         module.configure(config_data="file_path_string", **config)
 
     def test_correct_configuration(self):
@@ -593,7 +593,7 @@ class TestPulseDataModule(unittest.TestCase):
         self.assertTrue((data[1] == self.dom_exclusions_key).all())
 
     def test_get_data_from_hdf_not_implemented_time_exlcusions(self):
-        """Test if not implemented error is thrown if time exlcusions are used"""
+        """Test if not implemented error is thrown if time exclusions are used"""
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",

@@ -32,7 +32,7 @@ def get_scan_pixels(
         provided in `focus_zeniths` and `focus_azimuths`. This parameter
         defines the nsides for each of these rings. See also `focus_bounds`,
         which defines the distance of these rings.
-    focus_zeniths : list, optiona
+    focus_zeniths : list, optional
         A list of zenith values in radians for each of the focus regions.
         Must have same order as `focus_azimuths`.
     focus_azimuths : list, optional
@@ -176,7 +176,7 @@ class SkymapSampler:
         seed : int, optional
             Random number generator seed.
         replace_nan : None, optional
-            If provided, non-finite vlaues in the `log_pdf_map` will
+            If provided, non-finite values in the `log_pdf_map` will
             be replaced with this value.
         """
         self.offset = np.nanmax(log_pdf_map)
@@ -234,7 +234,7 @@ class SkymapSampler:
         Returns
         -------
         array_like
-            The log pdf values for each provied direction vector.
+            The log pdf values for each provided direction vector.
         """
         return np.array(
             self.log_pdf_map[

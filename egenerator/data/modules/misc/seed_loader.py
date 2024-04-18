@@ -214,7 +214,7 @@ class SeedLoaderMiscModule(BaseComponent):
             num_events = len(seed_parameters)
             num_events_list.append(num_events)
 
-        # check if number of events matches accross all events
+        # check if number of events matches across all events
         if not np.all([n == num_events for n in num_events_list]):
             msg = "Not all event numbers match: {!r} for seeds: {!r}."
             raise ValueError(
@@ -305,7 +305,7 @@ class SeedLoaderMiscModule(BaseComponent):
             num_events = len(seed_parameters)
             num_events_list.append(num_events)
 
-        # check if number of events matches accross all events
+        # check if number of events matches across all events
         if not np.all([n == num_events for n in num_events_list]):
             msg = "Not all event numbers match: {!r} for seeds: {!r}."
             raise ValueError(

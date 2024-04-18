@@ -73,7 +73,7 @@ class Reconstruction:
             The reconstruction interface to use. Options are 'scipy' and 'tfp'
             for the scipy minimizer and tensorflow probability minimizers.
         scipy_optimizer_settings : dict, optional
-            Settings that will be passed on to the scipy.optmize.minimize
+            Settings that will be passed on to the scipy.optimize.minimize
             function.
         tf_optimizer_settings : dict, optional
             Settings that will be passed on to the tensorflow probability
@@ -257,7 +257,7 @@ class Reconstruction:
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 
@@ -491,7 +491,7 @@ class SkyScanner:
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 
@@ -682,7 +682,7 @@ class SelectBestReconstruction:
         data_batch : tuple of tf.Tensors
             A data batch which consists of a tuple of tf.Tensors.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 
@@ -714,7 +714,7 @@ class SelectBestReconstruction:
             # something went wrong, did the fit return NaN or inf loss?
             # For now: just choose last reco_results
             print(
-                "Did not find a minimium, choosing last reco: {}!".format(
+                "Did not find a minimum, choosing last reco: {}!".format(
                     reco_name
                 )
             )

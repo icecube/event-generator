@@ -139,7 +139,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
         for i, parameter_name in enumerate(parameter_names):
             parameter_dict[parameter_name] = i
 
-        # extend trafo log for snowstorm parameters: fill with Flase
+        # extend trafo log for snowstorm parameters: fill with False
         if isinstance(trafo_log, bool):
             trafo_log_ext = [trafo_log] * num_params
         else:

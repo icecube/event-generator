@@ -485,7 +485,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         self.assertTrue(result_tensors["pulse_pdf"].shape == [7])
 
     # def test_chaining_of_multi_source_objects(self):
-    #     """MultiSource objects shoud behave like normal Source objects.
+    #     """MultiSource objects should behave like normal Source objects.
     #     Therefore, it should be possible to create a MultiSource object
     #     of multiple MultSource objects
     #     """

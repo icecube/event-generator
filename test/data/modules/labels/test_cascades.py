@@ -58,7 +58,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
         self.assertEqual(settings["float_precision"], "float64")
 
     def test_configuration_check(self):
-        """Check whether passed tensor list in confguration is checked and
+        """Check whether passed tensor list in configuration is checked and
         found to be wrong.
         """
         config = {
@@ -75,7 +75,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
             module.configure(**config)
         self.assertTrue("Tensors are wrong:" in str(context.exception))
 
-        # pasing the correct data tensors should work
+        # passing the correct data tensors should work
         data_tensor_list = DataTensorList(
             [
                 DataTensor(

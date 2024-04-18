@@ -45,7 +45,7 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
         )
         self.AddParameter(
             "initial_clusters_particles",
-            "A list of I3Particles keys. The vertices of thes particles will "
+            "A list of I3Particles keys. The vertices of these particles will "
             "be used as initial clusters.",
             None,
         )
@@ -248,7 +248,7 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
             cval=0.0,
         )
 
-        # Convolve to compute nubmer of hit DOMs per cluster
+        # Convolve to compute number of hit DOMs per cluster
         hits_conv = ndimage.convolve(
             input=hits,
             weights=conv_kernel,

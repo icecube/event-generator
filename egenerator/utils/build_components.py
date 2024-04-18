@@ -41,9 +41,9 @@ def build_loss_module(loss_module_settings):
     Parameters
     ----------
     loss_module_settings : dict or list of dict
-        A dictionary containg the settings for the loss module.
+        A dictionary containing the settings for the loss module.
         This may also be a list of dictionaries, where each dictionary
-        defines the settings for one loss module. Thes are then all combined
+        defines the settings for one loss module. These are then all combined
         to a MultiLossModule which simply accumulates the losses of all
         sub modules.
 
@@ -83,7 +83,7 @@ def build_model(
     Parameters
     ----------
     model_settings : dict
-        A dictionary containg the model settings. Must at least contain
+        A dictionary containing the model settings. Must at least contain
         `model_class`, `config` and if this is a multi-source:
         `multi_source_bases`.
     data_transformer : DataTransformer object

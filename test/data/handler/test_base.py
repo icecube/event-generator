@@ -67,7 +67,7 @@ class TestBaseDataHandler(unittest.TestCase):
             "Data handler needs to be set up first!" in str(context.exception)
         )
 
-        # if we setup the data handler this shoudl run without any errors
+        # if we setup the data handler this should run without any errors
         data_handler._is_configured = True
         data_handler.check_if_configured()
 
@@ -129,7 +129,7 @@ class TestBaseDataHandler(unittest.TestCase):
             self.data_handler.save(directory, overwrite=False)
         self.assertTrue(" already exists!" in str(context.exception))
 
-        # check error message when attempting to load component with wron class
+        # check error message when attempting to load component with wrong class
         data_handler_new = BaseDataHandler()
         with self.assertRaises(TypeError) as context:
             data_handler_new.load(directory)

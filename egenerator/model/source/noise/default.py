@@ -399,7 +399,7 @@ class DefaultNoiseModel(Source):
         No Longer Raises
         ----------------
         NotImplementedError
-            If assymetric Gaussian latent variables are not present in
+            If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
 
@@ -557,7 +557,7 @@ class DefaultNoiseModel(Source):
         No Longer Raises
         ----------------
         NotImplementedError
-            If assymetric Gaussian latent variables are not present in
+            If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
 

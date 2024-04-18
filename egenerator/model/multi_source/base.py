@@ -446,7 +446,7 @@ class MultiSource(Source):
 
         Note: this calculates the same as `get_tensors`, but models are first
         lumped to together and then run through the base models as a batch.
-        In the curent implementation, this requires the duplication of the
+        In the current implementation, this requires the duplication of the
         input data which might lead to significantly higher memory usage.
 
         Note: this implementation does not support output of nested result
@@ -825,7 +825,7 @@ class MultiSource(Source):
         Returns
         -------
         dict of tf.tensor
-            A dictionary of the flattend results and models:
+            A dictionary of the flattened results and models:
             {
                 model_name: (base_source, result_tensors_i),
             }

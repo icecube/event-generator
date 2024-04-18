@@ -256,7 +256,7 @@ class SnowstormPriorLossModule(BaseComponent):
             If True, the individual terms of the log likelihood loss will be
             reduced (aggregated) to a scalar loss.
             If False, a list of tensors will be returned that contain the terms
-            of the log likelihood. Note that each of the returend tensors may
+            of the log likelihood. Note that each of the returned tensors may
             have a different shape.
         sort_loss_terms : bool, optional
             If true, the loss terms will be sorted and aggregated in three
