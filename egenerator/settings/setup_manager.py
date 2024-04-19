@@ -2,9 +2,9 @@ from __future__ import division, print_function
 import os
 import logging
 from copy import deepcopy
-import ruamel.yaml as yaml
 
 from egenerator.settings import version_control
+from egenerator.settings.yaml import yaml_loader
 
 
 class SetupManager:
@@ -83,10 +83,7 @@ class SetupManager:
             else:
                 config_name += "__" + file_base_name
 
-            # config_update = yaml.round_trip_load(open(config_file),
-            #                                      preserve_quotes=True)
             with open(config_file, "r") as stream:
-                yaml_loader = yaml.YAML(typ="safe")
                 config_update = yaml_loader.load(stream)
             duplicates = set(new_config.keys()).intersection(
                 set(config_update.keys())

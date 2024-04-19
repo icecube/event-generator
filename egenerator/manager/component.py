@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 
 import os
-import ruamel.yaml as yaml
 import pickle
 import logging
 import inspect
@@ -12,6 +11,7 @@ import egenerator
 from egenerator import misc
 from egenerator.utils.getclass import getclass
 from egenerator.settings import version_control
+from egenerator.settings.yaml import yaml_loader, yaml_dumper
 
 
 class Configuration(object):
@@ -896,7 +896,7 @@ class BaseComponent(object):
 
         # save configuration settings
         with open(config_file_path, "w") as yaml_file:
-            yaml.YAML(typ="full").dump(self.configuration.dict, yaml_file)
+            yaml_dumper.dump(self.configuration.dict, yaml_file)
 
         # write data
         with open(data_file_path, "wb") as handle:
@@ -962,7 +962,7 @@ class BaseComponent(object):
 
         # load files
         with open(config_file_path, "r") as stream:
-            config_dict = yaml.YAML().load(stream)
+            config_dict = yaml_loader.load(stream)
 
         with open(data_file_path, "rb") as handle:
             data = pickle.load(handle)

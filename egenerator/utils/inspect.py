@@ -1,7 +1,7 @@
 import os
-import ruamel.yaml as yaml
 
 from egenerator import misc
+from egenerator.settings.yaml import yaml_loader
 
 
 def extract_model_class(manager_dir):
@@ -24,7 +24,7 @@ def extract_model_class(manager_dir):
     )
 
     with open(model_config_file, "r") as stream:
-        config_dict = yaml.YAML().load(stream)
+        config_dict = yaml_loader.load(stream)
     return config_dict["class_string"]
 
 

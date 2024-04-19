@@ -3,11 +3,11 @@ import os
 import logging
 import tensorflow as tf
 import numpy as np
-import ruamel.yaml as yaml
 import glob
 from datetime import datetime
 import time
 
+from egenerator.settings.yaml import yaml_loader, yaml_dumper
 from egenerator.manager.component import BaseComponent, Configuration
 
 
@@ -321,7 +321,7 @@ class Model(tf.Module, BaseComponent):
 
             # load checkpoint meta data
             with open(yaml_file, "r") as stream:
-                meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
+                meta_data = yaml_loader.load(stream)
         else:
             # create new checkpoint meta data
             meta_data = {
@@ -401,7 +401,7 @@ class Model(tf.Module, BaseComponent):
 
         # save new meta data
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="full").dump(meta_data, stream)
+            yaml_dumper.dump(meta_data, stream)
 
     def update_num_training_steps(self, dir_path, num_training_steps):
         """Update the number of training iterations for current training step.
@@ -422,7 +422,7 @@ class Model(tf.Module, BaseComponent):
 
             # load training meta data
             with open(yaml_file, "r") as stream:
-                meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
+                meta_data = yaml_loader.load(stream)
         else:
             msg = "Could not find the training steps meta file: {!r}"
             raise IOError(msg.format(yaml_file))
@@ -435,7 +435,7 @@ class Model(tf.Module, BaseComponent):
 
         # save new meta data
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="full").dump(meta_data, stream)
+            yaml_dumper.dump(meta_data, stream)
 
     def save_training_settings(self, dir_path, new_training_settings):
         """Save a new training step with its components and settings.
@@ -463,7 +463,7 @@ class Model(tf.Module, BaseComponent):
 
             # load training meta data
             with open(yaml_file, "r") as stream:
-                meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
+                meta_data = yaml_loader.load(stream)
         else:
             # create new training meta data
             meta_data = {
@@ -512,7 +512,7 @@ class Model(tf.Module, BaseComponent):
             training_step_dir, "training_config.yaml"
         )
         with open(training_step_config_file, "w") as stream:
-            yaml.YAML(typ="full").dump(new_training_settings["config"], stream)
+            yaml_dumper.dump(new_training_settings["config"], stream)
 
         # save components
         for name, component in new_training_settings["components"].items():
@@ -521,7 +521,7 @@ class Model(tf.Module, BaseComponent):
 
         # save new meta data
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="full").dump(meta_data, stream)
+            yaml_dumper.dump(meta_data, stream)
 
     def _save(
         self,
@@ -629,7 +629,7 @@ class Model(tf.Module, BaseComponent):
 
             # load checkpoint meta data
             with open(yaml_file, "r") as stream:
-                meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
+                meta_data = yaml_loader.load(stream)
         else:
             msg = "Could not find checkpoints meta data {!r}"
             raise IOError(msg.format(yaml_file))
