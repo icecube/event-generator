@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 from egenerator import misc
-from egenerator.utils import detector
 from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
@@ -304,10 +303,7 @@ class PulseDataModule(BaseComponent):
         )
 
         if self.data["dom_exclusions_exist"]:
-            bad_doms = np.reshape(detector.bad_doms_mask, [1, 86, 60, 1])
-            x_dom_exclusions = (np.ones_like(x_dom_charge) * bad_doms).astype(
-                bool
-            )
+            x_dom_exclusions = (np.ones_like(x_dom_charge)).astype(bool)
         else:
             x_dom_exclusions = None
 
@@ -540,10 +536,7 @@ class PulseDataModule(BaseComponent):
         )
 
         if self.data["dom_exclusions_exist"]:
-            bad_doms = np.reshape(detector.bad_doms_mask, [1, 86, 60, 1])
-            x_dom_exclusions = (np.ones_like(x_dom_charge) * bad_doms).astype(
-                bool
-            )
+            x_dom_exclusions = (np.ones_like(x_dom_charge)).astype(bool)
         else:
             x_dom_exclusions = None
 
