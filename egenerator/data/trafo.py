@@ -264,7 +264,7 @@ class DataTransformer(BaseComponent):
 
         # perform logarithm on bins
         if trafo_log is not None:
-            if np.alltrue(trafo_log):
+            if np.all(trafo_log):
                 data_batch = np.log(1.0 + data_batch)
             else:
                 for bin_i, log_bin in enumerate(trafo_log):
