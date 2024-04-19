@@ -2,6 +2,7 @@ import unittest
 import os
 import numpy as np
 
+from egenerator import misc
 from egenerator.manager.component import Configuration
 from egenerator.data.handler.base import BaseDataHandler
 from egenerator.data.tensor import DataTensor, DataTensorList
@@ -9,14 +10,23 @@ from egenerator.data.tensor import DataTensor, DataTensorList
 
 class DummyDataHandler(BaseDataHandler):
 
-    def _configure(self, data, new_subcomponent=None, **kwargs):
-        kwargs["data"] = data
-        class_string = (
-            os.path.splitext(__file__.split("event-generator/")[-1])[
-                0
-            ].replace("/", ".")
-            + ".DummyDataHandler"
-        )
+    def _configure(self, new_subcomponent=None, **kwargs):
+
+        # create "data" component of the data handler
+        data = {
+            "tensors": DataTensorList(
+                [
+                    DataTensor(
+                        name="data_tensor",
+                        shape=[None, 86, 1],
+                        tensor_type="data",
+                        dtype="float32",
+                    )
+                ]
+            )
+        }
+
+        class_string = misc.get_full_class_string_of_object(self)
         configuration = Configuration(class_string, kwargs)
         if new_subcomponent is None:
             dependent_components = None
@@ -33,17 +43,7 @@ class TestBaseDataHandler(unittest.TestCase):
         data_handler = DummyDataHandler()
 
         # fake setup
-        tensors = DataTensorList(
-            [
-                DataTensor(
-                    name="data_tensor",
-                    shape=[None, 86, 1],
-                    tensor_type="data",
-                    dtype="float32",
-                )
-            ]
-        )
-        settings = dict(data={"tensors": tensors}, param=42)
+        settings = dict(param=42)
         data_handler.configure(**settings)
 
         self.data_handler = data_handler

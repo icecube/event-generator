@@ -28,6 +28,7 @@ class TestModuleDataHandler(unittest.TestCase):
                     "time_exclusions_key": None,
                     "float_precision": "float32",
                     "add_charge_quantiles": False,
+                    "discard_pulses_from_excluded_doms": False,
                 },
                 # settings for the label module
                 "label_module": "cascades.CascadeGeneratorLabelModule",
@@ -231,6 +232,7 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
                 "time_exclusions_key": None,
                 "float_precision": "float32",
                 "add_charge_quantiles": False,
+                "discard_pulses_from_excluded_doms": False,
             },
             # settings for the label module
             "label_module": "cascades.CascadeGeneratorLabelModule",
@@ -270,6 +272,21 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
             os.path.dirname(__file__),
             "../../test_data/cascade_mesc_l5_nue_low.hdf5",
         )
+
+        # Assumed content of the data tensor
+        self.assumed_tensor_order = [
+            "x_dom_charge",
+            "x_dom_exclusions",
+            "x_parameters",
+            "x_pulses",
+            "x_pulses_ids",
+            "x_time_exclusions",
+            "x_time_exclusions_ids",
+            "x_time_window",
+        ]
+
+        # time window is defined by time of first and last pulse
+        self.time_windows = [[4481.0, 23764.0], [4080.0, 25258.0]]
 
         self.times_618_to_627 = [
             11737.0,
@@ -333,8 +350,16 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
         """Test if loaded data is correct"""
 
         num_events, data = self.data_handler.get_data_from_hdf(self.file_path)
+
+        # check if assumed order of data is correct
+        self.assertEqual(
+            len(self.data_handler.tensors.list), len(self.assumed_tensor_order)
+        )
+        for i, tensor in enumerate(self.data_handler.tensors.list):
+            self.assertEqual(tensor.name, self.assumed_tensor_order[i])
+
         self.assertEqual(num_events, 2)
-        self.assertEqual(len(data), 7)
+        self.assertEqual(len(data), 8)
         self.assertEqual(
             data[self.data_handler.tensors.get_index("x_time_exclusions")],
             None,
@@ -342,6 +367,14 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
         self.assertEqual(
             data[self.data_handler.tensors.get_index("x_time_exclusions_ids")],
             None,
+        )
+
+        # check the time windows
+        self.assertTrue(
+            (
+                data[self.data_handler.tensors.get_index("x_time_window")]
+                == self.time_windows
+            ).all()
         )
 
         # check specific values for pulse times

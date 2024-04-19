@@ -4,24 +4,20 @@ import tensorflow as tf
 import shutil
 from copy import deepcopy
 import numpy as np
-import ruamel.yaml as yaml
 import time
 import glob
 from datetime import datetime
 
+from egenerator import misc
 from egenerator.manager.component import Configuration
 from egenerator.model.base import Model
+from egenerator.settings.yaml import yaml_loader, yaml_dumper
 
 
 class DummyModel(Model):
 
     def _configure_derived_class(self, **kwargs):
-        class_string = (
-            os.path.splitext(__file__.split("event-generator/")[-1])[
-                0
-            ].replace("/", ".")
-            + ".DummyModel"
-        )
+        class_string = misc.get_full_class_string_of_object(self)
         configuration = Configuration(class_string, kwargs)
         data = {}
         dependent_components = {}
@@ -42,12 +38,7 @@ class WrongDummyModel(Model):
 
     def _configure_derived_class(self, **kwargs):
         global WrongDummyModel_COUNTER
-        class_string = (
-            os.path.splitext(__file__.split("event-generator/")[-1])[
-                0
-            ].replace("/", ".")
-            + ".WrongDummyModel"
-        )
+        class_string = misc.get_full_class_string_of_object(self)
         configuration = Configuration(class_string, kwargs)
         data = {}
         dependent_components = {}
@@ -66,12 +57,7 @@ class TestModel(unittest.TestCase):
     def setUp(self):
         self.model = self.get_dummy_model()
 
-        class_string = (
-            os.path.splitext(__file__.split("event-generator/")[-1])[
-                0
-            ].replace("/", ".")
-            + ".DummyModel"
-        )
+        class_string = misc.get_full_class_string_of_object(self.model)
         self.configuration = Configuration(class_string, {})
 
     def get_dummy_model(self, **kwargs):
@@ -106,7 +92,7 @@ class TestModel(unittest.TestCase):
         # load  meta data
         yaml_file = os.path.join(directory, "model_checkpoint.yaml")
         with open(yaml_file, "r") as stream:
-            meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
+            meta_data = yaml_loader.load(stream)
 
         # check approximate values of time stamps (these will naturally differ)
         for key in ["unprotected_checkpoints", "protected_checkpoints"]:
@@ -327,7 +313,7 @@ class TestModel(unittest.TestCase):
         os.makedirs(directory)
         yaml_file = os.path.join(directory, "model_checkpoint.yaml")
         with open(yaml_file, "w") as stream:
-            yaml.YAML(typ="full").dump(true_meta_data, stream)
+            yaml_dumper.dump(true_meta_data, stream)
 
         # Saving now will load the existing meta data and attempt to save to
         # index 1, but this index already exists, so it should raise an error

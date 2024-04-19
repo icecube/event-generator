@@ -62,21 +62,12 @@ class TestCascadeLabelsModule(unittest.TestCase):
         found to be wrong.
         """
         config = {
-            "config_data": DataTensorList([]),
             "shift_cascade_vertex": True,
             "trafo_log": False,
             "float_precision": "float64",
             "label_key": "labels",
         }
-        module = CascadeGeneratorLabelModule()
-
-        # check if error is correctly raised when wrong data type is passed
-        with self.assertRaises(ValueError) as context:
-            module.configure(**config)
-        self.assertTrue("Tensors are wrong:" in str(context.exception))
-
-        # passing the correct data tensors should work
-        data_tensor_list = DataTensorList(
+        data_tensor_list_incorrect = DataTensorList(
             [
                 DataTensor(
                     name="x_parameters",
@@ -88,7 +79,28 @@ class TestCascadeLabelsModule(unittest.TestCase):
                 )
             ]
         )
-        config["config_data"] = data_tensor_list
+        data_tensor_list_correct = DataTensorList(
+            [
+                DataTensor(
+                    name="x_parameters",
+                    shape=[None, 7],
+                    tensor_type="label",
+                    dtype="float64",
+                    trafo=True,
+                    trafo_log=False,
+                )
+            ]
+        )
+        module = CascadeGeneratorLabelModule()
+
+        # check if error is correctly raised when wrong data type is passed
+        with self.assertRaises(ValueError) as context:
+            config["config_data"] = data_tensor_list_incorrect
+            module.configure(**config)
+        self.assertTrue("Tensors are wrong:" in str(context.exception))
+
+        # passing the correct data tensors should work
+        config["config_data"] = data_tensor_list_correct
         module.configure(**config)
 
     def test_configuration_check_boolean(self):

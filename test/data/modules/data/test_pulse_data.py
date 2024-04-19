@@ -17,6 +17,20 @@ class TestPulseDataModule(unittest.TestCase):
             "../../../test_data/cascade_mesc_l5_nue_low.hdf5",
         )
 
+        # Assumed content of the data tensor
+        self.assumed_tensor_order = [
+            "x_dom_charge",
+            "x_dom_exclusions",
+            "x_pulses",
+            "x_pulses_ids",
+            "x_time_exclusions",
+            "x_time_exclusions_ids",
+            "x_time_window",
+        ]
+
+        # time window is defined by time of first and last pulse
+        self.time_windows = [[4481.0, 23764.0], [4080.0, 25258.0]]
+
         self.times_0_to_9 = [
             6697.0,
             6722.0,
@@ -163,6 +177,7 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float64",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
 
     def test_class_initialization_parameters(self):
@@ -174,6 +189,7 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float32",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
 
         with self.assertRaises(TypeError) as context:
@@ -182,12 +198,14 @@ class TestPulseDataModule(unittest.TestCase):
             mod_config["pulse_key"] = 4
             module.configure(**mod_config)
 
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AttributeError) as context:
             module = PulseDataModule()
             mod_config = dict(deepcopy(config))
             mod_config["float_precision"] = "float31"
             module.configure(**mod_config)
-        self.assertTrue("Invalid dtype str" in str(context.exception))
+        self.assertTrue(
+            "'tensorflow' has no attribute" in str(context.exception)
+        )
 
         module = PulseDataModule()
         module.configure(**config)
@@ -201,6 +219,7 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float32",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -217,6 +236,7 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float32",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
 
@@ -239,6 +259,7 @@ class TestPulseDataModule(unittest.TestCase):
                     "time_exclusions_key": None,
                     "float_precision": float_precision,
                     "add_charge_quantiles": False,
+                    "discard_pulses_from_excluded_doms": False,
                 }
                 module = PulseDataModule()
                 module.configure(**config)
@@ -283,6 +304,12 @@ class TestPulseDataModule(unittest.TestCase):
                             dtype="int32",
                         ),
                         DataTensor(
+                            name="x_time_window",
+                            shape=[None, 2],
+                            tensor_type="data",
+                            dtype=float_precision,
+                        ),
+                        DataTensor(
                             name="x_time_exclusions",
                             shape=[None, 2],
                             tensor_type="data",
@@ -316,6 +343,7 @@ class TestPulseDataModule(unittest.TestCase):
                     "time_exclusions_key": None,
                     "float_precision": float_precision,
                     "add_charge_quantiles": False,
+                    "discard_pulses_from_excluded_doms": False,
                 }
                 module = PulseDataModule()
                 module.configure(**config)
@@ -329,6 +357,7 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float32",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -349,6 +378,7 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float32",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -369,7 +399,7 @@ class TestPulseDataModule(unittest.TestCase):
         """Check if error is raised when not configured"""
 
         # This test requires IceCube metaproject to be loaded
-        if not importlib.util.find_spec("dataclasses"):
+        if not importlib.util.find_spec("icecube"):
             raise unittest.SkipTest("IceCube metaproject not loaded")
 
         module = PulseDataModule()
@@ -390,7 +420,7 @@ class TestPulseDataModule(unittest.TestCase):
         """Check if error is raised when not configured"""
 
         # This test requires IceCube metaproject to be loaded
-        if not importlib.util.find_spec("dataclasses"):
+        if not importlib.util.find_spec("icecube"):
             raise unittest.SkipTest("IceCube metaproject not loaded")
 
         module = PulseDataModule()
@@ -408,6 +438,7 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float32",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -425,16 +456,28 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float64",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
 
+        # check if assumed order of data is correct
+        self.assertEqual(
+            len(module.data["data_tensors"].list),
+            len(self.assumed_tensor_order),
+        )
+        for i, tensor in enumerate(module.data["data_tensors"].list):
+            self.assertEqual(tensor.name, self.assumed_tensor_order[i])
+
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
-        self.assertEqual(len(data), 6)
+        self.assertEqual(len(data), 7)
         self.assertEqual(data[1], None)
         self.assertEqual(data[4], None)
         self.assertEqual(data[5], None)
+
+        # check the time windows
+        self.assertTrue((data[6] == self.time_windows).all())
 
         # check specific values for pulse times
         self.assertListEqual(list(data[2][0:10, 1]), self.times_0_to_9)
@@ -501,16 +544,28 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float64",
             "add_charge_quantiles": True,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
 
+        # check if assumed order of data is correct
+        self.assertEqual(
+            len(module.data["data_tensors"].list),
+            len(self.assumed_tensor_order),
+        )
+        for i, tensor in enumerate(module.data["data_tensors"].list):
+            self.assertEqual(tensor.name, self.assumed_tensor_order[i])
+
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
-        self.assertEqual(len(data), 6)
+        self.assertEqual(len(data), 7)
         self.assertEqual(data[1], None)
         self.assertEqual(data[4], None)
         self.assertEqual(data[5], None)
+
+        # check the time windows
+        self.assertTrue((data[6] == self.time_windows).all())
 
         # check specific values for pulse times
         self.assertListEqual(list(data[2][0:10, 1]), self.times_0_to_9)
@@ -554,15 +609,27 @@ class TestPulseDataModule(unittest.TestCase):
             "time_exclusions_key": None,
             "float_precision": "float64",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
 
+        # check if assumed order of data is correct
+        self.assertEqual(
+            len(module.data["data_tensors"].list),
+            len(self.assumed_tensor_order),
+        )
+        for i, tensor in enumerate(module.data["data_tensors"].list):
+            self.assertEqual(tensor.name, self.assumed_tensor_order[i])
+
         num_events, data = module.get_data_from_hdf(self.file_path)
         self.assertEqual(num_events, 2)
-        self.assertEqual(len(data), 6)
+        self.assertEqual(len(data), 7)
         self.assertEqual(data[4], None)
         self.assertEqual(data[5], None)
+
+        # check the time windows
+        self.assertTrue((data[6] == self.time_windows).all())
 
         # check specific values for pulse times
         self.assertListEqual(list(data[2][0:10, 1]), self.times_0_to_9)
@@ -592,21 +659,25 @@ class TestPulseDataModule(unittest.TestCase):
         # check dom exclusions
         self.assertTrue((data[1] == self.dom_exclusions_key).all())
 
-    def test_get_data_from_hdf_not_implemented_time_exlcusions(self):
-        """Test if not implemented error is thrown if time exclusions are used"""
+    def test_get_data_from_hdf_missing_time_exlcusions(self):
+        """Test if an error is thrown if exclusions key does not exist"""
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
             "dom_exclusions_key": "BrightDOMs",
-            "time_exclusions_key": "BrightDOMs",
+            "time_exclusions_key": "key_does_not_exist",
             "float_precision": "float64",
             "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
         }
         module = PulseDataModule()
         module.configure(**config)
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(TypeError) as context:
             module.get_data_from_hdf(self.file_path)
+        self.assertTrue(
+            "'NoneType' object is not subscriptable" in str(context.exception)
+        )
 
 
 if __name__ == "__main__":

@@ -2,11 +2,11 @@ import unittest
 import os
 import shutil
 import numpy as np
-import ruamel.yaml as yaml
 
 from egenerator.data.trafo import DataTransformer
 from egenerator.data.handler.modular import ModuleDataHandler
 from egenerator import create_trafo_model
+from egenerator.settings.yaml import yaml_dumper
 
 
 class TestCreateTrafoModel(unittest.TestCase):
@@ -89,6 +89,7 @@ class TestCreateTrafoModel(unittest.TestCase):
                 "time_exclusions_key": None,
                 "float_precision": "float32",
                 "add_charge_quantiles": False,
+                "discard_pulses_from_excluded_doms": False,
             },
             # settings for the label module
             "label_module": "cascades.CascadeGeneratorLabelModule",
@@ -148,7 +149,7 @@ class TestCreateTrafoModel(unittest.TestCase):
         )
 
         with open(self.yaml_file_path, "w") as yaml_file:
-            yaml.YAML(typ="full").dump(self.config, yaml_file)
+            yaml_dumper.dump(self.config, yaml_file)
 
     def test_create_trafo_model(self):
         """Call create trafo model script"""

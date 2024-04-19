@@ -34,13 +34,13 @@ class TestSetupManagerInitializer(unittest.TestCase):
     def test_create_setup_manager(self):
         config_files = []
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        config_files = [os.path.join(script_dir, "../../configs/test.yaml")]
+        config_files = [os.path.join(script_dir, "../test_data/test.yaml")]
         setup_manager = SetupManager(config_files)
         self.assertTrue(hasattr(setup_manager, "config"))
 
     def test_create_duplicate_check(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        config_files = [os.path.join(script_dir, "../../configs/test.yaml")]
+        config_files = [os.path.join(script_dir, "../test_data/test.yaml")]
         with self.assertRaises(ValueError) as context:
             SetupManager(config_files * 2)
 
@@ -53,7 +53,7 @@ class TestSetupManager(unittest.TestCase):
 
     def setUp(self):
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        config_files = [os.path.join(script_dir, "../../configs/test.yaml")]
+        config_files = [os.path.join(script_dir, "../test_data/test.yaml")]
         self.setup_manager = SetupManager(config_files)
 
     def test_get_config(self):
@@ -71,8 +71,6 @@ class TestSetupManager(unittest.TestCase):
 
         keys = list(config_true.keys()) + [
             "float_precision",
-            "tf_float_precision",
-            "np_float_precision",
             "git_short_sha",
             "git_sha",
             "git_origin",

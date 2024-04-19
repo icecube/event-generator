@@ -4,25 +4,53 @@ import tensorflow as tf
 import shutil
 from copy import deepcopy
 import numpy as np
-import ruamel.yaml as yaml
 import time
 from datetime import datetime
 
 from egenerator import misc
 from egenerator.manager.component import Configuration, BaseComponent
+from egenerator.data.tensor import DataTensor, DataTensorList
 from egenerator.model.multi_source.base import MultiSource
 from egenerator.model.multi_source.independent import IndependentMultiSource
 from egenerator.model.source.cascade.dummy import DummyCascadeModel
+from egenerator.settings.yaml import yaml_loader
 
 
 class DummyDataTrafo(BaseComponent):
 
     def _configure(self, config_data):
+
+        # create "data" component of the data trafo
+        data = {
+            "tensors": DataTensorList(
+                [
+                    DataTensor(
+                        name="x_parameters",
+                        shape=[1, 7],
+                        tensor_type="data",
+                        dtype="float32",
+                    ),
+                    DataTensor(
+                        name="x_pulses",
+                        shape=[7, 2],
+                        tensor_type="data",
+                        dtype="float32",
+                    ),
+                    DataTensor(
+                        name="x_pulses_ids",
+                        shape=[7, 3],
+                        tensor_type="data",
+                        dtype="int32",
+                    ),
+                ]
+            )
+        }
+
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings={"config_data": config_data},
         )
-        return configuration, {}, {}
+        return configuration, data, {}
 
 
 class TestIndependentMultiSource(unittest.TestCase):
@@ -33,22 +61,21 @@ class TestIndependentMultiSource(unittest.TestCase):
         self.data_trafo.configure(config_data={"trafo_setting": 42})
 
         self.parameter_names = [
-            "cascade_00001_azimuth",
-            "cascade_00001_energy",
-            "cascade_00001_time",
             "cascade_00001_x",
             "cascade_00001_y",
             "cascade_00001_z",
             "cascade_00001_zenith",
-            "cascade_00002_azimuth",
-            "cascade_00002_energy",
-            "cascade_00002_time",
+            "cascade_00001_azimuth",
+            "cascade_00001_energy",
+            "cascade_00001_time",
             "cascade_00002_x",
             "cascade_00002_y",
             "cascade_00002_z",
             "cascade_00002_zenith",
+            "cascade_00002_azimuth",
+            "cascade_00002_energy",
+            "cascade_00002_time",
         ]
-        self.config = {"num_cascades": 2}
         self.config_cascade = {"cascade_setting": 1337}
         self.base_sources = {
             "cascade": self.get_cascade_source(
@@ -59,10 +86,13 @@ class TestIndependentMultiSource(unittest.TestCase):
             "cascade_00001": "cascade",
             "cascade_00002": "cascade",
         }
-        self.config["sources"] = self.sources
+        self.config = {
+            "sources": self.sources,
+        }
         self.sub_components = {"cascade": self.base_sources["cascade"]}
         self.source = self.get_muon(
-            config=self.config, base_sources=self.base_sources
+            config=self.config,
+            base_sources=self.base_sources,
         )
 
         class_string = "egenerator.model.multi_source.independent."
@@ -117,7 +147,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         # load  meta data
         yaml_file = os.path.join(directory, "model_checkpoint.yaml")
         with open(yaml_file, "r") as stream:
-            meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
+            meta_data = yaml_loader.load(stream)
 
         # check approximate values of time stamps (these will naturally differ)
         for key in ["unprotected_checkpoints", "protected_checkpoints"]:
@@ -475,8 +505,14 @@ class TestIndependentMultiSource(unittest.TestCase):
         This is only a very simple check for correct output shapes.
         More extensive tests are necessary
         """
+        source = self.get_muon(
+            config=self.config,
+            base_sources=self.base_sources,
+            data_trafo=self.data_trafo,
+        )
+
         data_batch_dict = {
-            "x_parameters": tf.ones([1, self.source.num_parameters]),
+            "x_parameters": tf.ones([1, source.num_parameters]),
             "x_pulses": tf.ones([7, 2]),
             "x_pulses_ids": tf.zeros([7, 3], dtype=tf.int32),
         }
@@ -491,11 +527,9 @@ class TestIndependentMultiSource(unittest.TestCase):
     #     """
     #     multi_source1 = self.get_muon(config=self.config,
     #                                   base_sources=self.base_sources,
-    #                                   sources=self.sources,
     #                                   name='Muon1')
     #     multi_source2 = self.get_muon(config=self.config,
     #                                   base_sources=self.base_sources,
-    #                                   sources=self.sources,
     #                                   name='Muon2')
 
     #     model = MultiSource()

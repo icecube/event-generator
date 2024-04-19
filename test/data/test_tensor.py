@@ -160,14 +160,17 @@ class TestDataTensor(unittest.TestCase):
         self.assertTrue(" != " in str(context.exception))
 
     def test_dtype_not_part_of_numpy(self):
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AttributeError) as context:
             DataTensor(
                 name="test_tensor",
                 shape=[None],
                 tensor_type="data",
                 dtype="fa",
             )
-        self.assertTrue("Invalid dtype str:" in str(context.exception))
+        self.assertTrue(
+            "module 'tensorflow' has no attribute 'fa'"
+            in str(context.exception)
+        )
 
     def test_wrong_vector_info(self):
         with self.assertRaises(ValueError) as context:

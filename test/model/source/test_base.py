@@ -4,13 +4,13 @@ import tensorflow as tf
 import shutil
 from copy import deepcopy
 import numpy as np
-import ruamel.yaml as yaml
 import time
 from datetime import datetime
 
 from egenerator import misc
 from egenerator.manager.component import Configuration, BaseComponent
 from egenerator.model.source.base import Source, InputTensorIndexer
+from egenerator.settings.yaml import yaml_loader
 
 
 class DummyDataTrafo(BaseComponent):
@@ -139,12 +139,7 @@ class TestSourceBase(unittest.TestCase):
             config=config, data_trafo=self.data_trafo
         )
 
-        class_string = (
-            os.path.splitext(__file__.split("event-generator/")[-1])[
-                0
-            ].replace("/", ".")
-            + ".DummySourceModel"
-        )
+        class_string = misc.get_full_class_string_of_object(self.source)
         self.configuration = Configuration(
             class_string=class_string,
             settings=dict(config=config),
@@ -184,7 +179,7 @@ class TestSourceBase(unittest.TestCase):
         # load  meta data
         yaml_file = os.path.join(directory, "model_checkpoint.yaml")
         with open(yaml_file, "r") as stream:
-            meta_data = yaml.YAML(typ="safe", pure=True).load(stream)
+            meta_data = yaml_loader.load(stream)
 
         # check approximate values of time stamps (these will naturally differ)
         for key in ["unprotected_checkpoints", "protected_checkpoints"]:

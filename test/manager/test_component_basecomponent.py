@@ -1,6 +1,7 @@
 import unittest
 import os
 
+from egenerator import misc
 from egenerator.manager.component import Configuration, BaseComponent
 
 
@@ -8,12 +9,7 @@ class DummyComponent(BaseComponent):
 
     def _configure(self, data, new_subcomponent=None, **kwargs):
         kwargs["data"] = data
-        class_string = (
-            os.path.splitext(__file__.split("event-generator/")[-1])[
-                0
-            ].replace("/", ".")
-            + ".DummyComponent"
-        )
+        class_string = misc.get_full_class_string_of_object(self)
         configuration = Configuration(class_string, kwargs)
         if new_subcomponent is None:
             dependent_components = None
@@ -26,7 +22,7 @@ class WrongComponent(BaseComponent):
 
     def _configure(self, data, **kwargs):
         kwargs["data"] = data
-        kwargs[kwargs.keys()[0]] = 3
+        kwargs[list(kwargs.keys())[0]] = 3
         configuration = Configuration("WrongComponent", kwargs)
         return configuration, data, None
 
