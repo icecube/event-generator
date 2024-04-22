@@ -1,0 +1,145 @@
+check_values: {}
+class_string: egenerator.model.source.noise.default.DefaultNoiseModel
+dependent_sub_components: [data_trafo]
+event_generator_git_sha: b64b3b66339345e3ba623bb681603817e1e120dd
+event_generator_origin: https://github.com/mhuen/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 0.0.0
+mutable_settings: {name: egenerator.model.source.base}
+mutable_sub_components: []
+settings:
+  config: {}
+sub_component_configurations:
+  data_trafo:
+    check_values: {x_dom_charge_mean: 0.02329603571415276, x_dom_charge_std: 0.22671200157582932,
+      x_parameters_mean: 1386.803981309988, x_parameters_std: 200.32536880516247}
+    class_string: egenerator.data.trafo.DataTransformer
+    dependent_sub_components: []
+    event_generator_git_sha: 74fb70ddaa4c4b84fa12e02744738dc17a4f0819
+    event_generator_origin: https://github.com/mhuen/event-generator.git
+    event_generator_uncommitted_changes: true
+    event_generator_version: 0.0.0
+    mutable_settings: {}
+    mutable_sub_components: []
+    settings:
+      data_iterator_settings:
+        batch_capacity: 2
+        batch_size: 32
+        file_capacity: 1
+        input_data: [/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5,
+          /net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5,
+          /net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5]
+        num_add_files: 1
+        num_jobs: 20
+        num_repetitions: 1
+        num_splits: null
+        pick_random_files_forever: false
+      float_precision: float64
+      norm_constant: 1e-06
+      num_batches: 5000
+    sub_component_configurations:
+      data_handler:
+        check_values: {}
+        class_string: egenerator.data.handler.modular.ModuleDataHandler
+        dependent_sub_components: [data_module, label_module, weight_module, misc_module,
+          filter_module]
+        event_generator_git_sha: 74fb70ddaa4c4b84fa12e02744738dc17a4f0819
+        event_generator_origin: https://github.com/mhuen/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 0.0.0
+        mutable_settings:
+          config:
+            data_handler: modular.ModuleDataHandler
+            data_module: pulse_data.PulseDataModule
+            data_settings: {add_charge_quantiles: false, discard_pulses_from_excluded_doms: false,
+              dom_exclusions_key: combined_exclusions_DOMs, float_precision: float32,
+              pulse_key: InIceDSTPulses_masked, time_exclusions_key: combined_exclusions_TimeWindowsHDF5}
+            filter_module: general_filter.GeneralFilterModule
+            filter_settings:
+              constraints: []
+            label_module: snowstorm_cascades.SnowstormCascadeGeneratorLabelModule
+            label_settings:
+              float_precision: float32
+              label_key: LabelsDeepLearning
+              num_snowstorm_params: 0
+              shift_cascade_vertex: true
+              snowstorm_key: SnowstormParameters
+              trafo_log: [false, false, false, false, false, true, false]
+            misc_module: dummy.DummyMiscModule
+            misc_settings: {}
+            weight_module: dummy.DummyWeightModule
+            weight_settings: {}
+        mutable_sub_components: [weight_module, misc_module, filter_module, label_module]
+        settings: {}
+        sub_component_configurations:
+          data_module:
+            check_values: {}
+            class_string: egenerator.data.modules.data.pulse_data.PulseDataModule
+            dependent_sub_components: []
+            event_generator_git_sha: 74fb70ddaa4c4b84fa12e02744738dc17a4f0819
+            event_generator_origin: https://github.com/mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 0.0.0
+            mutable_settings: {discard_pulses_from_excluded_doms: false, dom_exclusions_key: combined_exclusions_DOMs,
+              pulse_key: InIceDSTPulses_masked, time_exclusions_key: combined_exclusions_TimeWindowsHDF5}
+            mutable_sub_components: []
+            settings: {add_charge_quantiles: false, config_data: null, float_precision: float32}
+            sub_component_configurations: {}
+          filter_module:
+            check_values: {}
+            class_string: egenerator.data.modules.filters.general_filter.GeneralFilterModule
+            dependent_sub_components: []
+            event_generator_git_sha: 74fb70ddaa4c4b84fa12e02744738dc17a4f0819
+            event_generator_origin: https://github.com/mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 0.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings:
+              config_data: null
+              constraints: []
+            sub_component_configurations: {}
+          label_module:
+            check_values: {}
+            class_string: egenerator.data.modules.labels.snowstorm_cascades.SnowstormCascadeGeneratorLabelModule
+            dependent_sub_components: []
+            event_generator_git_sha: 74fb70ddaa4c4b84fa12e02744738dc17a4f0819
+            event_generator_origin: https://github.com/mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 0.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings:
+              additional_labels: []
+              config_data: null
+              float_precision: float32
+              label_key: LabelsDeepLearning
+              num_snowstorm_params: 0
+              shift_cascade_vertex: true
+              snowstorm_key: SnowstormParameters
+              trafo_log: [false, false, false, false, false, true, false]
+            sub_component_configurations: {}
+          misc_module:
+            check_values: {}
+            class_string: egenerator.data.modules.misc.dummy.DummyMiscModule
+            dependent_sub_components: []
+            event_generator_git_sha: 74fb70ddaa4c4b84fa12e02744738dc17a4f0819
+            event_generator_origin: https://github.com/mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 0.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings: {config_data: null}
+            sub_component_configurations: {}
+          weight_module:
+            check_values: {}
+            class_string: egenerator.data.modules.weights.dummy.DummyWeightModule
+            dependent_sub_components: []
+            event_generator_git_sha: 74fb70ddaa4c4b84fa12e02744738dc17a4f0819
+            event_generator_origin: https://github.com/mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 0.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings: {config_data: null}
+            sub_component_configurations: {}

@@ -1,12 +1,14 @@
 import numpy as np
 
 
-def get_reco_result_batch(result_trafo,
-                          seed_tensor,
-                          fit_parameter_list,
-                          minimize_in_trafo_space,
-                          data_trafo,
-                          parameter_tensor_name='x_parameters'):
+def get_reco_result_batch(
+    result_trafo,
+    seed_tensor,
+    fit_parameter_list,
+    minimize_in_trafo_space,
+    data_trafo,
+    parameter_tensor_name="x_parameters",
+):
     """Get the reco result batch.
 
     This inverts a possible transformation if minimize_in_trafo_space is
@@ -41,8 +43,8 @@ def get_reco_result_batch(result_trafo,
     """
     if minimize_in_trafo_space:
         cascade_seed_batch_trafo = data_trafo.transform(
-            data=seed_tensor,
-            tensor_name=parameter_tensor_name)
+            data=seed_tensor, tensor_name=parameter_tensor_name
+        )
         try:
             cascade_seed_batch_trafo = cascade_seed_batch_trafo.numpy()
         except AttributeError:
@@ -67,6 +69,6 @@ def get_reco_result_batch(result_trafo,
     # transform back if minimization was performed in trafo space
     if minimize_in_trafo_space:
         cascade_reco_batch = data_trafo.inverse_transform(
-            data=cascade_reco_batch,
-            tensor_name=parameter_tensor_name)
+            data=cascade_reco_batch, tensor_name=parameter_tensor_name
+        )
     return cascade_reco_batch

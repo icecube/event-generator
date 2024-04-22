@@ -8,9 +8,7 @@ from egenerator.manager.component import BaseComponent, Configuration
 
 
 class DummyFilterModule(BaseComponent):
-
-    """This is a dummy filter module that does not filter any events.
-    """
+    """This is a dummy filter module that does not filter any events."""
 
     def __init__(self, logger=None):
         """Initialize filter module
@@ -68,11 +66,13 @@ class DummyFilterModule(BaseComponent):
         """
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=kwargs)
+            settings=kwargs,
+        )
         return configuration, {}, {}
 
-    def get_event_filter_mask_from_hdf(self, file, tensors, num_events, batch,
-                                       *args, **kwargs):
+    def get_event_filter_mask_from_hdf(
+        self, file, tensors, num_events, batch, *args, **kwargs
+    ):
         """Calculate event filter mask from hdf file.
 
         Parameters
@@ -94,13 +94,14 @@ class DummyFilterModule(BaseComponent):
         -------
         array_like
             An array of bool indicating whether an event passed the filter
-            (True) or wheter it is filtered out (False).
+            (True) or whether it is filtered out (False).
             Shape: [num_events]
         """
         return np.ones(num_events, dtype=bool)
 
-    def get_event_filter_mask_from_frame(self, frame, tensors, num_events,
-                                         batch, *args, **kwargs):
+    def get_event_filter_mask_from_frame(
+        self, frame, tensors, num_events, batch, *args, **kwargs
+    ):
         """Calculate event filter mask from frame.
 
         Parameters
@@ -122,7 +123,7 @@ class DummyFilterModule(BaseComponent):
         -------
         array_like
             An array of bool indicating whether an event passed the filter
-            (True) or wheter it is filtered out (False).
+            (True) or whether it is filtered out (False).
             Shape: [num_events]
         """
         return np.ones(num_events, dtype=bool)

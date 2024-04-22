@@ -11,18 +11,21 @@ from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 class ManagerConfigurator:
 
-    def __init__(self, manager_dirs,
-                 reco_config_dir=None,
-                 load_labels=False,
-                 misc_setting_updates={},
-                 label_setting_updates={},
-                 data_setting_updates={},
-                 additional_loss_modules=None,
-                 replace_existing_loss_modules=False,
-                 configure_tensorflow=True,
-                 num_threads=0,
-                 tf_random_seed=1337,
-                 logger=None):
+    def __init__(
+        self,
+        manager_dirs,
+        reco_config_dir=None,
+        load_labels=False,
+        misc_setting_updates={},
+        label_setting_updates={},
+        data_setting_updates={},
+        additional_loss_modules=None,
+        replace_existing_loss_modules=False,
+        configure_tensorflow=True,
+        num_threads=0,
+        tf_random_seed=1337,
+        logger=None,
+    ):
         """Set up and configure the SourceManager object.
 
         Parameters
@@ -79,22 +82,24 @@ class ManagerConfigurator:
         else:
             reco_config_dir = [reco_config_dir]
 
-        reco_config_file = os.path.join(reco_config_dir[0], 'reco_config.yaml')
+        reco_config_file = os.path.join(reco_config_dir[0], "reco_config.yaml")
 
         if configure_tensorflow:
             try:
                 self.confifgure_tf(
-                    num_threads=num_threads, tf_random_seed=tf_random_seed)
+                    num_threads=num_threads, tf_random_seed=tf_random_seed
+                )
             except RuntimeError as e:
                 self._logger.warning(e)
                 self._logger.warning(
-                    'Could not configure tensorflow.'
-                    ' Perhaps it is already configured?')
+                    "Could not configure tensorflow."
+                    " Perhaps it is already configured?"
+                )
 
         # read in reconstruction config file
         setup_manager = SetupManager([reco_config_file])
         self.config = setup_manager.get_config()
-        data_handler_settings = self.config['data_handler_settings']
+        data_handler_settings = self.config["data_handler_settings"]
 
         # ------------------
         # Create loss module
@@ -106,41 +111,45 @@ class ManagerConfigurator:
                 additional_loss_modules = [additional_loss_modules]
 
             if replace_existing_loss_modules:
-                self.config['loss_module_settings'] = additional_loss_modules
+                self.config["loss_module_settings"] = additional_loss_modules
             else:
-                if isinstance(self.config['loss_module_settings'], dict):
-                    loss_modules = [self.config['loss_module_settings']]
+                if isinstance(self.config["loss_module_settings"], dict):
+                    loss_modules = [self.config["loss_module_settings"]]
                 else:
-                    loss_modules = self.config['loss_module_settings']
-                self.config['loss_module_settings'] = (
+                    loss_modules = self.config["loss_module_settings"]
+                self.config["loss_module_settings"] = (
                     loss_modules + additional_loss_modules
                 )
 
         self.loss_module = build_loss_module(
-            self.config['loss_module_settings'])
+            self.config["loss_module_settings"]
+        )
 
         # ------------------
         # Create misc module
         # ------------------
-        reco_config = self.config['reconstruction_settings']
-        if ('seed_names' in misc_setting_updates and
-                misc_setting_updates['seed_names'] != ['x_parameters']):
+        reco_config = self.config["reconstruction_settings"]
+        if "seed_names" in misc_setting_updates and misc_setting_updates[
+            "seed_names"
+        ] != ["x_parameters"]:
             misc_module = SeedLoaderMiscModule()
             misc_settings = dict(
-                seed_names=[reco_config['seed']],
-                seed_parameter_names=reco_config['seed_parameter_names'],
-                float_precision=reco_config['seed_float_precision'],
-                missing_value=reco_config['seed_missing_value'],
-                missing_value_dict=reco_config['seed_missing_value_dict'],
+                seed_names=[reco_config["seed"]],
+                seed_parameter_names=reco_config["seed_parameter_names"],
+                float_precision=reco_config["seed_float_precision"],
+                missing_value=reco_config["seed_missing_value"],
+                missing_value_dict=reco_config["seed_missing_value_dict"],
             )
             misc_settings.update(misc_setting_updates)
             misc_module.configure(config_data=None, **misc_settings)
 
             # create nested dictionary of modified sub components in order to
             # swap out the loaded misc_module of the data_handler sub component
-            modified_sub_components = {'data_handler': {
-                'misc_module': misc_module,
-            }}
+            modified_sub_components = {
+                "data_handler": {
+                    "misc_module": misc_module,
+                }
+            }
         else:
             # The parameter labels are being used as a seed, so we do not need
             # to create a modified misc module
@@ -149,45 +158,53 @@ class ManagerConfigurator:
         if not load_labels or label_setting_updates:
             if not load_labels:
                 label_config = {
-                    'label_module': 'dummy.DummyLabelModule',
-                    'label_settings': {},
+                    "label_module": "dummy.DummyLabelModule",
+                    "label_settings": {},
                 }
             else:
                 label_config = dict(data_handler_settings)
-                label_config['label_settings'].update(label_setting_updates)
+                label_config["label_settings"].update(label_setting_updates)
 
             LabelModuleClass = misc.load_class(
-                'egenerator.data.modules.labels.{}'.format(
-                            label_config['label_module']))
+                "egenerator.data.modules.labels.{}".format(
+                    label_config["label_module"]
+                )
+            )
             label_module = LabelModuleClass()
-            label_module.configure(config_data=None,
-                                   **label_config['label_settings'])
+            label_module.configure(
+                config_data=None, **label_config["label_settings"]
+            )
 
-            if 'data_handler' in modified_sub_components:
-                modified_sub_components['data_handler']['label_module'] = \
-                    label_module
+            if "data_handler" in modified_sub_components:
+                modified_sub_components["data_handler"][
+                    "label_module"
+                ] = label_module
             else:
-                modified_sub_components['data_handler'] = {
-                    'label_module': label_module
+                modified_sub_components["data_handler"] = {
+                    "label_module": label_module
                 }
 
         if data_setting_updates:
             data_config = dict(data_handler_settings)
 
             DataModuleClass = misc.load_class(
-                'egenerator.data.modules.data.{}'.format(
-                            data_config['data_module']))
+                "egenerator.data.modules.data.{}".format(
+                    data_config["data_module"]
+                )
+            )
             data_module = DataModuleClass()
-            data_config['data_settings'].update(data_setting_updates)
-            data_module.configure(config_data=None,
-                                  **data_config['data_settings'])
+            data_config["data_settings"].update(data_setting_updates)
+            data_module.configure(
+                config_data=None, **data_config["data_settings"]
+            )
 
-            if 'data_handler' in modified_sub_components:
-                modified_sub_components['data_handler']['data_module'] = \
-                    data_module
+            if "data_handler" in modified_sub_components:
+                modified_sub_components["data_handler"][
+                    "data_module"
+                ] = data_module
             else:
-                modified_sub_components['data_handler'] = {
-                    'data_module': data_module
+                modified_sub_components["data_handler"] = {
+                    "data_module": data_module
                 }
 
         # -----------------------------
@@ -200,12 +217,14 @@ class ManagerConfigurator:
 
             # adjust manager_dir
             config_i = SetupManager(
-                [os.path.join(manager_dir, 'reco_config.yaml')]).get_config()
-            config_i['model_manager_settings']['config']['manager_dir'] = \
-                manager_dir
+                [os.path.join(manager_dir, "reco_config.yaml")]
+            ).get_config()
+            config_i["model_manager_settings"]["config"][
+                "manager_dir"
+            ] = manager_dir
 
             # load manager objects and extract models and a data_handler
-            model_manger,  _, data_handler, data_transformer = build_manager(
+            model_manger, _, data_handler, data_transformer = build_manager(
                 config_i,
                 restore=True,
                 modified_sub_components=modified_sub_components,
@@ -215,12 +234,13 @@ class ManagerConfigurator:
 
         # build manager object
         manager, models, data_handler, data_transformer = build_manager(
-                                self.config,
-                                restore=False,
-                                models=models,
-                                data_handler=data_handler,
-                                data_transformer=data_transformer,
-                                allow_rebuild_base_sources=False)
+            self.config,
+            restore=False,
+            models=models,
+            data_handler=data_handler,
+            data_transformer=data_transformer,
+            allow_rebuild_base_sources=False,
+        )
 
         # save manager
         self.manager = manager
@@ -244,7 +264,7 @@ class ManagerConfigurator:
         tf.random.set_seed(tf_random_seed)
 
         # limit GPU usage
-        gpu_devices = tf.config.list_physical_devices('GPU')
+        gpu_devices = tf.config.list_physical_devices("GPU")
         for device in gpu_devices:
             tf.config.experimental.set_memory_growth(device, True)
 

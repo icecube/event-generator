@@ -16,17 +16,18 @@ via the provided ``I3TraySegments``. And example code snippet could look like th
     from egenerator.ic3.segments import ApplyEventGeneratorReconstruction
 
     tray.AddSegment(
-        ApplyEventGeneratorReconstruction, 'ApplyEventGeneratorReconstruction',
-        pulse_key='SplitInIceDSTPulses',
-        dom_and_tw_exclusions=['BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
+        ApplyEventGeneratorReconstruction,
+        "ApplyEventGeneratorReconstruction",
+        pulse_key="SplitInIceDSTPulses",
+        dom_and_tw_exclusions=["BadDomsList", "CalibrationErrata", "SaturationWindows"],
         partial_exclusion=True,
         exclude_bright_doms=True,
-        model_names=['cascade_7param_noise_tw_BFRv1Spice321_01'],
-        seed_keys=['MyAwesomeSeed'],
-        model_base_dir='/data/ana/PointSource/DNNCascade/utils/exported_models/version-0.0/egenerator',
+        model_names=["cascade_7param_noise_tw_BFRv1Spice321_01"],
+        seed_keys=["MyAwesomeSeed"],
+        model_base_dir="/data/ana/PointSource/DNNCascade/utils/exported_models/version-0.0/egenerator",
     )
 
-This snipped will apply the exported model named `cascade_7param_noise_tw_BFRv1Spice321_01`,
+This snipped will apply the exported model named ``cascade_7param_noise_tw_BFRv1Spice321_01``,
 which is located in the directory ``/data/ana/PointSource/DNNCascade/utils/exported_models/version-0.0/egenerator``.
 The exported model is a model trained on a cascade event hypothesis.
 The seed keys to use must be defined in the parameter ``seed_keys``.
@@ -44,14 +45,15 @@ for debugging or illustration purposes. This can be done via:
     from egenerator.ic3.segments import ApplyEventGeneratorVisualizeBestFit
 
     tray.AddSegment(
-        ApplyEventGeneratorVisualizeBestFit, 'ApplyEventGeneratorVisualizeBestFit',
-        pulse_key='SplitInIceDSTPulses',
-        dom_and_tw_exclusions=['BadDomsList', 'CalibrationErrata', 'SaturationWindows'],
+        ApplyEventGeneratorVisualizeBestFit,
+        "ApplyEventGeneratorVisualizeBestFit",
+        pulse_key="SplitInIceDSTPulses",
+        dom_and_tw_exclusions=["BadDomsList", "CalibrationErrata", "SaturationWindows"],
         partial_exclusion=True,
         exclude_bright_doms=True,
-        model_names=['cascade_7param_noise_tw_BFRv1Spice321_01'],
-        reco_key='MyEgeneratorOutputFrameKey',
-        output_dir='Path/To/Plot/Output/Directory',
+        model_names=["cascade_7param_noise_tw_BFRv1Spice321_01"],
+        reco_key="MyEgeneratorOutputFrameKey",
+        output_dir="Path/To/Plot/Output/Directory",
     )
 
 
@@ -75,8 +77,8 @@ the trained model.
     # model_dir: path to an exported event-generator model
     # example: 1-cascade model
     model_dir = (
-        '/data/ana/PointSource/DNNCascade/utils/exported_models/version-0.0/'
-        'egenerator/cascade_7param_noise_tw_BFRv1Spice321_01'
+        "/data/ana/PointSource/DNNCascade/utils/exported_models/version-0.0/"
+        "egenerator/cascade_7param_noise_tw_BFRv1Spice321_01"
     )
     configurator = ManagerConfigurator(model_dir)
     manager = configurator.manager
@@ -93,7 +95,7 @@ the trained model.
     # The names and order of these are available via `model.parameter_names`
     # In this case it is: [x, y, z, zenith, azimuth, energy, time]
     # Well inject one cascade at (0, 0, 0) with energy of 10 TeV
-    params = [[0., 0., 0, np.deg2rad(42), np.deg2rad(330), 10000, 0]]
+    params = [[0.0, 0.0, 0, np.deg2rad(42), np.deg2rad(330), 10000, 0]]
 
     # run TF and get model expectation
     # Note: running this the first time will trace the model.
@@ -102,7 +104,7 @@ the trained model.
 
     # get PDF and CDF values for some given times x
     # these have shape: [n_batch, 86, 60, len(x)]
-    x = np.linspace(0., 3500, 1000)
+    x = np.linspace(0.0, 3500, 1000)
     pdf_values = model.pdf(x, result_tensors=result_tensors)
     cdf_values = model.cdf(x, result_tensors=result_tensors)
 
@@ -112,12 +114,13 @@ the trained model.
     string = 36
     for om in range(25, 35):
         ax.plot(
-            x, pdf_values[batch_id, string - 1, om - 1],
-            label='DOM: {:02d} | String {:02d}'.format(om, string),
+            x,
+            pdf_values[batch_id, string - 1, om - 1],
+            label="DOM: {:02d} | String {:02d}".format(om, string),
         )
     ax.legend()
-    ax.set_xlabel('Time / ns')
-    ax.set_ylabel('Density')
+    ax.set_xlabel("Time / ns")
+    ax.set_ylabel("Density")
 
 
     # ---------------------
@@ -130,12 +133,22 @@ the trained model.
         for azi in np.linspace(0, 360, 5):
             for energy in [1, 10, 100, 1000, 10000]:
                 params = [
-                    [-256.1400146484375, -521.0800170898438, 480.,
-                     np.radians(180-dzen), np.radians(azi), energy, 0]]
+                    [
+                        -256.1400146484375,
+                        -521.0800170898438,
+                        480.0,
+                        np.radians(180 - dzen),
+                        np.radians(azi),
+                        energy,
+                        0,
+                    ]
+                ]
                 result_tensors = get_dom_expectation(params)
-                print('E: {} | PE: {}'.format(
-                    energy,
-                    result_tensors['dom_charges'][0, string - 1, om - 1, 0]))
+                print(
+                    "E: {} | PE: {}".format(
+                        energy, result_tensors["dom_charges"][0, string - 1, om - 1, 0]
+                    )
+                )
 
 
     # # cascade only
@@ -147,11 +160,11 @@ the trained model.
 
 
     # cascade only
-    result_tensors_cscd = result_tensors['nested_results']['cascade']
-    model_cscd = model.sub_components['cascade']
+    result_tensors_cscd = result_tensors["nested_results"]["cascade"]
+    model_cscd = model.sub_components["cascade"]
     pdf_values_cscd = model_cscd.pdf(x, result_tensors=result_tensors_cscd)
 
-    charges_cscd = result_tensors_cscd['dom_charges']
+    charges_cscd = result_tensors_cscd["dom_charges"]
 
-    result_tensors_noise = result_tensors['nested_results']['noise']
-    charges_noise = result_tensors_noise['dom_charges']
+    result_tensors_noise = result_tensors["nested_results"]["noise"]
+    charges_noise = result_tensors_noise["dom_charges"]

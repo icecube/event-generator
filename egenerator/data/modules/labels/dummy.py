@@ -6,9 +6,7 @@ from egenerator.data.tensor import DataTensorList
 
 
 class DummyLabelModule(BaseComponent):
-
-    """This is a dummy label module that does not load any label data.
-    """
+    """This is a dummy label module that does not load any label data."""
 
     def _configure(self, config_data):
         """Configure Module Class
@@ -55,15 +53,14 @@ class DummyLabelModule(BaseComponent):
         """
 
         if not isinstance(config_data, (type(None), str, DataTensorList)):
-            raise ValueError('Unknown type: {!r}'.format(type(config_data)))
+            raise ValueError("Unknown type: {!r}".format(type(config_data)))
 
-        data = {
-            'label_tensors': DataTensorList([])
-        }
+        data = {"label_tensors": DataTensorList([])}
 
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings={'config_data': config_data})
+            settings={"config_data": config_data},
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -151,4 +148,3 @@ class DummyLabelModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         pass
-

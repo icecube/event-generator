@@ -1,0 +1,13 @@
+check_values: {}
+class_string: egenerator.data.modules.filters.general_filter.GeneralFilterModule
+dependent_sub_components: []
+event_generator_git_sha: b64b3b66339345e3ba623bb681603817e1e120dd
+event_generator_origin: https://github.com/mhuen/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 0.0.0
+mutable_settings: {}
+mutable_sub_components: []
+settings:
+  config_data: null
+  constraints: []
+sub_component_configurations: {}

@@ -1,7 +1,7 @@
 from egenerator.model.source.track.stochastic_segment import (
-    StochasticTrackSegmentModel
+    StochasticTrackSegmentModel,
 )
 
 __all__ = [
-    'StochasticTrackSegmentModel',
+    "StochasticTrackSegmentModel",
 ]

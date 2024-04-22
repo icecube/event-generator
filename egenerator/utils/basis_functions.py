@@ -22,7 +22,9 @@ def tf_gauss(x, mu, sigma):
     tf.Tensor
         The Gaussian PDF evaluated at x
     """
-    return tf.exp(-0.5*((x - mu) / sigma)**2) / (2*np.pi*sigma**2)**0.5
+    return (
+        tf.exp(-0.5 * ((x - mu) / sigma) ** 2) / (2 * np.pi * sigma**2) ** 0.5
+    )
 
 
 def gauss(x, mu, sigma):
@@ -42,7 +44,9 @@ def gauss(x, mu, sigma):
     array_like
         The Gaussian PDF evaluated at x
     """
-    return np.exp(-0.5*((x - mu) / sigma)**2) / (2*np.pi*sigma**2)**0.5
+    return (
+        np.exp(-0.5 * ((x - mu) / sigma) ** 2) / (2 * np.pi * sigma**2) ** 0.5
+    )
 
 
 def tf_log_gauss(x, mu, sigma):
@@ -62,8 +66,8 @@ def tf_log_gauss(x, mu, sigma):
     tf.Tensor
         The Gaussian PDF evaluated at x
     """
-    norm = np.log(np.sqrt(2*np.pi))
-    return -0.5*((x - mu) / sigma)**2 - tf.math.log(sigma) - norm
+    norm = np.log(np.sqrt(2 * np.pi))
+    return -0.5 * ((x - mu) / sigma) ** 2 - tf.math.log(sigma) - norm
 
 
 def log_gauss(x, mu, sigma):
@@ -83,8 +87,8 @@ def log_gauss(x, mu, sigma):
     array_like
         The Gaussian PDF evaluated at x
     """
-    norm = np.log(np.sqrt(2*np.pi))
-    return -0.5*((x - mu) / sigma)**2 - np.log(sigma) - norm
+    norm = np.log(np.sqrt(2 * np.pi))
+    return -0.5 * ((x - mu) / sigma) ** 2 - np.log(sigma) - norm
 
 
 def tf_log_asymmetric_gauss(x, mu, sigma, r):
@@ -106,11 +110,11 @@ def tf_log_asymmetric_gauss(x, mu, sigma, r):
     tf.Tensor
         The asymmetric Gaussian PDF evaluated at x
     """
-    norm = tf.math.log(2. / (tf.sqrt(2*np.pi*sigma**2) * (r+1)))
+    norm = tf.math.log(2.0 / (tf.sqrt(2 * np.pi * sigma**2) * (r + 1)))
     exp = tf.where(
         x < mu,
-       -0.5*((x - mu) / sigma)**2,
-       -0.5*((x - mu) / (sigma*r))**2,
+        -0.5 * ((x - mu) / sigma) ** 2,
+        -0.5 * ((x - mu) / (sigma * r)) ** 2,
     )
     return norm + exp
 
@@ -134,11 +138,11 @@ def log_asymmetric_gauss(x, mu, sigma, r):
     array_like
         The asymmetric Gaussian PDF evaluated at x
     """
-    norm = np.log(2. / (np.sqrt(2*np.pi*sigma**2) * (r+1)))
+    norm = np.log(2.0 / (np.sqrt(2 * np.pi * sigma**2) * (r + 1)))
     exp = np.where(
         x < mu,
-       -0.5*((x - mu) / sigma)**2,
-       -0.5*((x - mu) / (sigma*r))**2,
+        -0.5 * ((x - mu) / sigma) ** 2,
+        -0.5 * ((x - mu) / (sigma * r)) ** 2,
     )
     return norm + exp
 
@@ -162,11 +166,12 @@ def tf_asymmetric_gauss(x, mu, sigma, r):
     tf.Tensor
         The asymmetric Gaussian PDF evaluated at x
     """
-    norm = 2. / (tf.sqrt(2*np.pi*sigma**2) * (r+1))
-    exp = tf.where(x < mu,
-                   tf.exp(-0.5*((x - mu) / sigma)**2),
-                   tf.exp(-0.5*((x - mu) / (sigma*r))**2),
-                   )
+    norm = 2.0 / (tf.sqrt(2 * np.pi * sigma**2) * (r + 1))
+    exp = tf.where(
+        x < mu,
+        tf.exp(-0.5 * ((x - mu) / sigma) ** 2),
+        tf.exp(-0.5 * ((x - mu) / (sigma * r)) ** 2),
+    )
     return norm * exp
 
 
@@ -189,11 +194,12 @@ def asymmetric_gauss(x, mu, sigma, r):
     array_like
         The asymmetric Gaussian PDF evaluated at x
     """
-    norm = 2. / (np.sqrt(2*np.pi*sigma**2) * (r+1))
-    exp = np.where(x < mu,
-                   np.exp(-0.5*((x - mu) / sigma)**2),
-                   np.exp(-0.5*((x - mu) / (sigma*r))**2),
-                   )
+    norm = 2.0 / (np.sqrt(2 * np.pi * sigma**2) * (r + 1))
+    exp = np.where(
+        x < mu,
+        np.exp(-0.5 * ((x - mu) / sigma) ** 2),
+        np.exp(-0.5 * ((x - mu) / (sigma * r)) ** 2),
+    )
     return norm * exp
 
 
@@ -216,11 +222,12 @@ def tf_asymmetric_gauss_cdf(x, mu, sigma, r):
     tf.Tensor
         The asymmetric Gaussian CDF evaluated at x
     """
-    norm = 1. / (r + 1)
-    exp = tf.where(x < mu,
-                   1. + tf.math.erf((x - mu) / (np.sqrt(2) * sigma)),
-                   1. + r * tf.math.erf((x - mu) / (np.sqrt(2) * r * sigma)),
-                   )
+    norm = 1.0 / (r + 1)
+    exp = tf.where(
+        x < mu,
+        1.0 + tf.math.erf((x - mu) / (np.sqrt(2) * sigma)),
+        1.0 + r * tf.math.erf((x - mu) / (np.sqrt(2) * r * sigma)),
+    )
     return norm * exp
 
 
@@ -243,11 +250,12 @@ def asymmetric_gauss_cdf(x, mu, sigma, r):
     array_like
         The asymmetric Gaussian CDF evaluated at x
     """
-    norm = 1. / (r + 1)
-    exp = np.where(x < mu,
-                   1. + special.erf((x - mu) / (np.sqrt(2) * sigma)),
-                   1. + r * special.erf((x - mu) / (np.sqrt(2) * r * sigma)),
-                   )
+    norm = 1.0 / (r + 1)
+    exp = np.where(
+        x < mu,
+        1.0 + special.erf((x - mu) / (np.sqrt(2) * sigma)),
+        1.0 + r * special.erf((x - mu) / (np.sqrt(2) * r * sigma)),
+    )
     return norm * exp
 
 
@@ -270,10 +278,11 @@ def tf_asymmetric_gauss_ppf(q, mu, sigma, r):
     tf.Tensor
         The asymmetric Gaussian PPF evaluated at q
     """
-    return tf.where(q < 1. / (r + 1),
-                    mu + np.sqrt(2) * sigma * tf.math.erfinv(q*(r+1) - 1),
-                    mu + r*np.sqrt(2)*sigma * tf.math.erfinv((q*(r+1) - 1)/r),
-                    )
+    return tf.where(
+        q < 1.0 / (r + 1),
+        mu + np.sqrt(2) * sigma * tf.math.erfinv(q * (r + 1) - 1),
+        mu + r * np.sqrt(2) * sigma * tf.math.erfinv((q * (r + 1) - 1) / r),
+    )
 
 
 def asymmetric_gauss_ppf(q, mu, sigma, r):
@@ -295,10 +304,11 @@ def asymmetric_gauss_ppf(q, mu, sigma, r):
     array_like
         The asymmetric Gaussian PPF evaluated at q
     """
-    return np.where(q < 1. / (r + 1),
-                    mu + np.sqrt(2) * sigma * special.erfinv(q*(r+1) - 1),
-                    mu + r*np.sqrt(2)*sigma * special.erfinv((q*(r+1) - 1)/r),
-                    )
+    return np.where(
+        q < 1.0 / (r + 1),
+        mu + np.sqrt(2) * sigma * special.erfinv(q * (r + 1) - 1),
+        mu + r * np.sqrt(2) * sigma * special.erfinv((q * (r + 1) - 1) / r),
+    )
 
 
 def tf_log_negative_binomial(x, mu, alpha, add_normalization_term=False):
@@ -335,17 +345,17 @@ def tf_log_negative_binomial(x, mu, alpha, add_normalization_term=False):
     tf.Tensor
         Logarithm of the negative binomal PDF evaluated at x.
     """
-    inv_alpha = 1./alpha
-    alpha_mu = alpha*mu
+    inv_alpha = 1.0 / alpha
+    alpha_mu = alpha * mu
 
     # compute gamma terms
     gamma_terms = tf.math.lgamma(x + inv_alpha) - tf.math.lgamma(inv_alpha)
 
     if add_normalization_term:
-        gamma_terms -= tf.math.lgamma(x + 1.)
+        gamma_terms -= tf.math.lgamma(x + 1.0)
 
-    term1 = -inv_alpha * tf.math.log(1. + alpha_mu)
-    term2 = x * tf.math.log(alpha_mu / (1. + alpha_mu))
+    term1 = -inv_alpha * tf.math.log(1.0 + alpha_mu)
+    term2 = x * tf.math.log(alpha_mu / (1.0 + alpha_mu))
 
     return gamma_terms + term1 + term2
 
@@ -391,17 +401,17 @@ def log_negative_binomial(x, mu, alpha, add_normalization_term=False):
     array_like
         Logarithm of the negative binomal PDF evaluated at x.
     """
-    inv_alpha = 1./alpha
-    alpha_mu = alpha*mu
+    inv_alpha = 1.0 / alpha
+    alpha_mu = alpha * mu
 
     # compute gamma terms
     gamma_terms = special.gammaln(x + inv_alpha) - special.gammaln(inv_alpha)
 
     if add_normalization_term:
-        gamma_terms -= special.gammaln(x + 1.)
+        gamma_terms -= special.gammaln(x + 1.0)
 
-    term1 = -inv_alpha * np.log(1. + alpha_mu)
-    term2 = x * np.log(alpha_mu / (1. + alpha_mu))
+    term1 = -inv_alpha * np.log(1.0 + alpha_mu)
+    term2 = x * np.log(alpha_mu / (1.0 + alpha_mu))
 
     return gamma_terms + term1 + term2
 
@@ -445,7 +455,7 @@ def convert_neg_binomial_params(mu, alpha_or_var, param_is_alpha):
     """
     eps = 1e-6
     if param_is_alpha:
-        var = mu + alpha_or_var*mu**2
+        var = mu + alpha_or_var * mu**2
     else:
         var = alpha_or_var
     p = 1 - (var - mu) / var
@@ -453,8 +463,9 @@ def convert_neg_binomial_params(mu, alpha_or_var, param_is_alpha):
     return p, r
 
 
-def sample_from_negative_binomial(rng, mu, alpha_or_var, param_is_alpha,
-                                  size=None):
+def sample_from_negative_binomial(
+    rng, mu, alpha_or_var, param_is_alpha, size=None
+):
     """Sample points from the negative binomial distribution.
 
     The parameterization chosen here is defined by the mean mu and
@@ -492,7 +503,8 @@ def sample_from_negative_binomial(rng, mu, alpha_or_var, param_is_alpha,
         The sampled points from the negative binomial distribution.
     """
     p, r = convert_neg_binomial_params(
-        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha)
+        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha
+    )
     return rng.negative_binomial(r, p, size=size)
 
 
@@ -532,7 +544,8 @@ def negative_binomial_cdf(x, mu, alpha_or_var, param_is_alpha):
         CDF of the negative binomal PDF evaluated at x.
     """
     p, r = convert_neg_binomial_params(
-        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha)
+        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha
+    )
     return stats.nbinom(r, p).cdf(x)
 
 
@@ -572,7 +585,8 @@ def negative_binomial_ppf(q, mu, alpha_or_var, param_is_alpha):
         PPF of the negative binomal PDF evaluated at x.
     """
     p, r = convert_neg_binomial_params(
-        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha)
+        mu=mu, alpha_or_var=alpha_or_var, param_is_alpha=param_is_alpha
+    )
     return stats.nbinom(r, p).ppf(q)
 
 
@@ -591,7 +605,7 @@ def tf_rayleigh(x, sigma):
     tf.Tensor
         The PDF of the Rayleigh distribution evaluated at x.
     """
-    return x/(sigma**2) * tf.exp(-0.5*(x/sigma)**2)
+    return x / (sigma**2) * tf.exp(-0.5 * (x / sigma) ** 2)
 
 
 def rayleigh(x, sigma):
@@ -609,7 +623,7 @@ def rayleigh(x, sigma):
     array_like
         The PDF of the Rayleigh distribution evaluated at x.
     """
-    return x/(sigma**2) * np.exp(-0.5*(x/sigma)**2)
+    return x / (sigma**2) * np.exp(-0.5 * (x / sigma) ** 2)
 
 
 def tf_rayleigh_cdf(x, sigma):
@@ -627,7 +641,7 @@ def tf_rayleigh_cdf(x, sigma):
     tf.Tensor
         The CDF of the Rayleigh distribution evaluated at x.
     """
-    return 1 - tf.exp(-0.5*(x/sigma)**2)
+    return 1 - tf.exp(-0.5 * (x / sigma) ** 2)
 
 
 def rayleigh_cdf(x, sigma):
@@ -645,7 +659,7 @@ def rayleigh_cdf(x, sigma):
     array_like
         The CDF of the Rayleigh distribution evaluated at x.
     """
-    return 1 - np.exp(-0.5*(x/sigma)**2)
+    return 1 - np.exp(-0.5 * (x / sigma) ** 2)
 
 
 def von_mises_pdf(x, sigma, kent_min=np.deg2rad(7)):
@@ -657,7 +671,7 @@ def von_mises_pdf(x, sigma, kent_min=np.deg2rad(7)):
     Parameters
     ----------
     x : array_like
-        The opening angle (approximation in cartesian coordiantes
+        The opening angle (approximation in cartesian coordinates
         around the best-fit position).
     sigma : array_like
         The estimated uncertainty.
@@ -675,19 +689,21 @@ def von_mises_pdf(x, sigma, kent_min=np.deg2rad(7)):
     sigma = np.atleast_1d(sigma)
 
     cos_dpsi = np.cos(x)
-    kappa = 1. / sigma**2
+    kappa = 1.0 / sigma**2
     result = np.where(
         kent_min < sigma,
         (
             # kappa / (4 * np.pi * np.sinh(kappa)) *
             # np.exp(kappa * cos_dpsi)
-
             # stabilized version:
-            kappa / (4 * np.pi)
-            * 2 * np.exp(kappa * (cos_dpsi - 1.)) / (1. - np.exp(-2.*kappa))
+            kappa
+            / (4 * np.pi)
+            * 2
+            * np.exp(kappa * (cos_dpsi - 1.0))
+            / (1.0 - np.exp(-2.0 * kappa))
         ),
         # 1./(2*np.pi*sigma**2) * np.exp(-x**2 / (2*sigma**2)),
-        1./(2*np.pi*sigma**2) * np.exp(-0.5 * (x / sigma)**2),
+        1.0 / (2 * np.pi * sigma**2) * np.exp(-0.5 * (x / sigma) ** 2),
     )
     return result
 
@@ -718,8 +734,11 @@ def von_mises_in_dPsi_pdf(x, sigma, kent_min=np.deg2rad(7)):
     # the jakobi determinant sin dPsi
     jakobi_det = np.sin(x)  # sin(dPsi)
     phi_integration = 2 * np.pi
-    return phi_integration*jakobi_det * von_mises_pdf(
-        x, sigma, kent_min=kent_min)
+    return (
+        phi_integration
+        * jakobi_det
+        * von_mises_pdf(x, sigma, kent_min=kent_min)
+    )
 
 
 def von_mises_in_dPsi_cdf(x, sigma, kent_min=np.deg2rad(7)):
@@ -745,12 +764,13 @@ def von_mises_in_dPsi_cdf(x, sigma, kent_min=np.deg2rad(7)):
     array_like
         The CDF evaluated at the provided opening angles x.
     """
-    assert len(x) == len(sigma), ('Unequal lengths:', len(x), len(sigma))
+    assert len(x) == len(sigma), ("Unequal lengths:", len(x), len(sigma))
     x = np.atleast_1d(x)
     sigma = np.atleast_1d(sigma)
     result = []
     for x_i, sigma_i in zip(x, sigma):
         integration = quad(
-            von_mises_in_dPsi_pdf, a=0, b=x_i, args=(sigma_i, kent_min))
+            von_mises_in_dPsi_pdf, a=0, b=x_i, args=(sigma_i, kent_min)
+        )
         result.append(integration[0])
     return np.array(result)

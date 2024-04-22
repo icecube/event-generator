@@ -57,4 +57,4 @@ def get_full_class_string_of_object(object_instance):
         # Avoid reporting __builtin__
         return object_instance.__class__.__name__
     else:
-        return module + '.' + object_instance.__class__.__name__
+        return module + "." + object_instance.__class__.__name__

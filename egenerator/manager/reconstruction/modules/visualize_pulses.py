@@ -7,15 +7,19 @@ from egenerator.utils import func_tools
 
 class VisualizePulseLikelihood:
 
-    def __init__(self, manager, loss_module, function_cache,
-                 reco_key,
-                 output_dir,
-                 pdf_file_template='dom_pdf_{event_counter:06d}.png',
-                 cdf_file_template='dom_cdf_{event_counter:06d}.png',
-                 n_doms_x=5,
-                 n_doms_y=5,
-                 parameter_tensor_name='x_parameters',
-                 ):
+    def __init__(
+        self,
+        manager,
+        loss_module,
+        function_cache,
+        reco_key,
+        output_dir,
+        pdf_file_template="dom_pdf_{event_counter:06d}.png",
+        cdf_file_template="dom_cdf_{event_counter:06d}.png",
+        n_doms_x=5,
+        n_doms_y=5,
+        parameter_tensor_name="x_parameters",
+    ):
         """Initialize module and setup tensorflow functions.
 
         Parameters
@@ -62,17 +66,18 @@ class VisualizePulseLikelihood:
         self.parameter_tensor_name = parameter_tensor_name
 
         if not os.path.exists(output_dir):
-            print('Creating output directory: {}'.format(output_dir))
+            print("Creating output directory: {}".format(output_dir))
             os.makedirs(output_dir)
 
         self.reco_index = manager.data_handler.tensors.get_index(self.reco_key)
 
-        param_tensor = manager.data_trafo.data['tensors'][
-            parameter_tensor_name]
+        param_tensor = manager.data_trafo.data["tensors"][
+            parameter_tensor_name
+        ]
         param_dtype = param_tensor.dtype_tf
         param_signature = tf.TensorSpec(
-            shape=param_tensor.shape,
-            dtype=param_dtype)
+            shape=param_tensor.shape, dtype=param_dtype
+        )
 
         # define data batch tensor specification
         data_batch_signature = manager.data_handler.get_data_set_signature()
@@ -84,15 +89,18 @@ class VisualizePulseLikelihood:
         # -------------------------
         # get model tensor function
         # -------------------------
-        model_tensor_settings = {'model_index': 0}
+        model_tensor_settings = {"model_index": 0}
         self.model_tensor_function = function_cache.get(
-            'model_tensors_function', model_tensor_settings)
+            "model_tensors_function", model_tensor_settings
+        )
 
         if self.model_tensor_function is None:
             self.model_tensor_function = manager.get_model_tensors_function(
-                **model_tensor_settings)
+                **model_tensor_settings
+            )
             function_cache.add(
-                self.model_tensor_function, model_tensor_settings)
+                self.model_tensor_function, model_tensor_settings
+            )
 
         # ---------------------------
         # Get parameter loss function
@@ -109,11 +117,13 @@ class VisualizePulseLikelihood:
             parameter_tensor_name=parameter_tensor_name,
         )
         self.parameter_loss_function = function_cache.get(
-            'parameter_loss_function', loss_settings)
+            "parameter_loss_function", loss_settings
+        )
 
         if self.parameter_loss_function is None:
             self.parameter_loss_function = manager.get_parameter_loss_function(
-                **loss_settings)
+                **loss_settings
+            )
             function_cache.add(self.parameter_loss_function, loss_settings)
 
     def execute(self, data_batch, results, event_header=None, **kwargs):
@@ -124,7 +134,7 @@ class VisualizePulseLikelihood:
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         event_header : dict, optional
             A dictionary with event meta information on:
             {
@@ -146,7 +156,8 @@ class VisualizePulseLikelihood:
         """
         reco_result = data_batch[self.reco_index]
         loss_scalar, loss_event, loss_dom = self.parameter_loss_function(
-            reco_result, data_batch)
+            reco_result, data_batch
+        )
 
         data_batch_dict = {}
         for i, tensor in enumerate(self.manager.data_handler.tensors.list):
@@ -156,13 +167,13 @@ class VisualizePulseLikelihood:
         # compute model expectation
         # -------------------------
         tensor_names = [
-            'x_pulses',
-            'x_pulses_ids',
-            'x_dom_exclusions',
-            'x_dom_charge',
-            'x_time_window',
-            'x_time_exclusions',
-            'x_time_exclusions_ids',
+            "x_pulses",
+            "x_pulses_ids",
+            "x_dom_exclusions",
+            "x_dom_charge",
+            "x_time_window",
+            "x_time_exclusions",
+            "x_time_exclusions_ids",
         ]
         model_kwargs = {}
         for tensor_name in tensor_names:
@@ -173,13 +184,15 @@ class VisualizePulseLikelihood:
             parameters=reco_result, **model_kwargs
         )
 
-        format_cfg = {'event_counter': self.event_counter}
+        format_cfg = {"event_counter": self.event_counter}
         format_cfg.update(dict(event_header))
 
         pdf_file_name = os.path.join(
-            self.output_dir, self.pdf_file_template.format(**format_cfg))
+            self.output_dir, self.pdf_file_template.format(**format_cfg)
+        )
         cdf_file_name = os.path.join(
-            self.output_dir, self.cdf_file_template.format(**format_cfg))
+            self.output_dir, self.cdf_file_template.format(**format_cfg)
+        )
 
         self.plot_dom_pdf(
             reco_result=reco_result,
@@ -207,8 +220,8 @@ class VisualizePulseLikelihood:
         return {}
 
     def plot_meta_data(
-            self, ax, event_header, reco_result,
-            event_charge=None, max_params=9):
+        self, ax, event_header, reco_result, event_charge=None, max_params=9
+    ):
         """Plot Event Meta Data
 
         Parameters
@@ -225,66 +238,72 @@ class VisualizePulseLikelihood:
         max_params : int, optional
             Maximum number of best fit parameters to display.
         """
-        ax.axis('off')
+        ax.axis("off")
 
         assert len(reco_result) == 1, reco_result
 
-        textstr = 'Run ID: {}\n'.format(event_header['run_id'])
-        textstr += 'SubRun ID: {}\n'.format(event_header['sub_run_id'])
-        textstr += 'Event ID: {}\n'.format(event_header['event_id'])
-        textstr += 'Sub Event ID: {}\n'.format(event_header['sub_event_id'])
-        textstr += 'Date: {}\n'.format(event_header['date_string'])
-        textstr += 'Time: {}\n'.format(event_header['time_string'])
+        textstr = "Run ID: {}\n".format(event_header["run_id"])
+        textstr += "SubRun ID: {}\n".format(event_header["sub_run_id"])
+        textstr += "Event ID: {}\n".format(event_header["event_id"])
+        textstr += "Sub Event ID: {}\n".format(event_header["sub_event_id"])
+        textstr += "Date: {}\n".format(event_header["date_string"])
+        textstr += "Time: {}\n".format(event_header["time_string"])
 
         if event_charge is not None:
-            textstr += 'Event Charge: {:3.1f} PE\n'.format(event_charge)
+            textstr += "Event Charge: {:3.1f} PE\n".format(event_charge)
 
-        textstr += 'Best Fit Parameters:\n'
+        textstr += "Best Fit Parameters:\n"
         max_width = 15
         for i, param in enumerate(
-                self.manager.models[0].parameter_names[:max_params]):
+            self.manager.models[0].parameter_names[:max_params]
+        ):
 
             if len(param) > max_width:
-                param_red = param[:3] + '...' + param[-max_width + 3:]
+                param_red = param[:3] + "..." + param[-max_width + 3 :]
             else:
                 param_red = param
-            textstr += '    {}: {:3.3f}\n'.format(param_red, reco_result[0, i])
+            textstr += "    {}: {:3.3f}\n".format(param_red, reco_result[0, i])
         if len(self.manager.models[0].parameter_names) > max_params:
-            textstr += '    ...\n'.format(param, reco_result[0, i])
+            textstr += "    ...\n"
 
-        red_key = self.reco_key.replace('EventGenerator_', '')
+        red_key = self.reco_key.replace("EventGenerator_", "")
         reco_len = len(red_key)
         index = 0
         step_size = 30
         while index < reco_len:
-            textstr += '{}\n'.format(red_key[index:index+step_size])
+            textstr += "{}\n".format(red_key[index : index + step_size])
             index += step_size
 
         props = dict(
-            boxstyle='round', edgecolor='0.8', facecolor='white', alpha=0.5)
+            boxstyle="round", edgecolor="0.8", facecolor="white", alpha=0.5
+        )
         ax.text(
-            0.0, 1.0, textstr,
-            transform=ax.transAxes, fontsize=8,
-            verticalalignment='top',
-            horizontalalignment='left',
-            bbox=props)
+            0.0,
+            1.0,
+            textstr,
+            transform=ax.transAxes,
+            fontsize=8,
+            verticalalignment="top",
+            horizontalalignment="left",
+            bbox=props,
+        )
 
     def plot_dom_pdf(
-            self,
-            reco_result,
-            data_batch_dict,
-            result_tensors,
-            losses,
-            file_name,
-            n_doms_x=2,
-            n_doms_y=2,
-            n_components=5,
-            limit_charge_fraction=0.9,
-            limit_y_range=True,
-            scale_by_charge=False,
-            event_header=None,
-            ):
-        """Crate DOM PDF plots
+        self,
+        reco_result,
+        data_batch_dict,
+        result_tensors,
+        losses,
+        file_name,
+        n_doms_x=2,
+        n_doms_y=2,
+        n_components=5,
+        limit_charge_fraction=0.9,
+        limit_y_range=True,
+        scale_by_charge=False,
+        event_header=None,
+    ):
+        """Create DOM PDF plots
 
         Parameters
         ----------
@@ -334,10 +353,10 @@ class VisualizePulseLikelihood:
             n_doms -= 1
 
         loss_scalar, loss_event, loss_dom = losses
-        charge_values = result_tensors['dom_charges']
+        charge_values = result_tensors["dom_charges"]
 
-        assert len(loss_event) == 1, 'Expects one event at a time'
-        assert len(reco_result) == 1, 'Expects one event at a time'
+        assert len(loss_event) == 1, "Expects one event at a time"
+        assert len(reco_result) == 1, "Expects one event at a time"
         assert loss_dom.shape == (1, 86, 60), loss_dom.shape
         assert charge_values.shape == (1, 86, 60, 1), charge_values.shape
 
@@ -348,7 +367,7 @@ class VisualizePulseLikelihood:
         # --------------------------------------
         # Select DOMs with highest impact to LLh
         # --------------------------------------
-        loss_dom_flat = np.reshape(loss_dom, [86*60])
+        loss_dom_flat = np.reshape(loss_dom, [86 * 60])
         max_doms = np.argsort(np.abs(loss_dom_flat))[-n_doms:]
 
         # convert to list of (zero-based) strings and DOM numbers
@@ -359,7 +378,8 @@ class VisualizePulseLikelihood:
             doms_zb.append(flat_index % 60)
 
         fig, axes = plt.subplots(
-            n_doms_y, n_doms_x, figsize=(3*n_doms_x, 3*n_doms_y))
+            n_doms_y, n_doms_x, figsize=(3 * n_doms_x, 3 * n_doms_y)
+        )
 
         if event_header is None:
             dom_axes = axes.ravel()
@@ -368,14 +388,15 @@ class VisualizePulseLikelihood:
                 ax=axes.ravel()[0],
                 event_header=event_header,
                 reco_result=reco_result,
-                event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
+                event_charge=np.sum(data_batch_dict["x_pulses"][:, 0]),
             )
             dom_axes = axes.ravel()[1:]
 
         for ax, string, dom in zip(dom_axes, strings_zb, doms_zb):
 
             color_cycler = itertools.cycle(
-                plt.rcParams['axes.prop_cycle'].by_key()['color'])
+                plt.rcParams["axes.prop_cycle"].by_key()["color"]
+            )
 
             color = next(color_cycler)
 
@@ -389,13 +410,15 @@ class VisualizePulseLikelihood:
 
             # define time range for plot
             min_time, max_time = self.compute_time_range(
-                pulses, limit_charge_fraction=limit_charge_fraction)
+                pulses, limit_charge_fraction=limit_charge_fraction
+            )
 
             pulse_bins = np.linspace(min_time, max_time, 30)
             _pulse_bin_width = np.unique(np.diff(pulse_bins))
             pulse_bin_width = _pulse_bin_width[0]
             assert np.allclose(
-                pulse_bin_width, _pulse_bin_width), pulse_bin_width
+                pulse_bin_width, _pulse_bin_width
+            ), pulse_bin_width
             x = np.linspace(min_time, max_time, 100)
 
             # plot pulses
@@ -405,19 +428,19 @@ class VisualizePulseLikelihood:
                     bins=pulse_bins,
                     weights=pulses[:, 0],
                     density=not scale_by_charge,
-                    color='0.2',
-                    label='Pulses: {:3.2f} PE'.format(
-                        np.sum(pulses[:, 0])),
-                    histtype='step',
+                    color="0.2",
+                    label="Pulses: {:3.2f} PE".format(np.sum(pulses[:, 0])),
+                    histtype="step",
                 )
 
             # -----------
             # compute pdf
             # -----------
             pdf_results = self.manager.models[0].pdf(
-                x, result_tensors=result_tensors,
-                tw_exclusions=data_batch_dict['x_time_exclusions'],
-                tw_exclusions_ids=data_batch_dict['x_time_exclusions_ids'],
+                x,
+                result_tensors=result_tensors,
+                tw_exclusions=data_batch_dict["x_time_exclusions"],
+                tw_exclusions_ids=data_batch_dict["x_time_exclusions_ids"],
                 output_nested_pdfs=True,
             )
             if len(pdf_results) == 2 and isinstance(pdf_results[1], dict):
@@ -439,8 +462,8 @@ class VisualizePulseLikelihood:
                     pdf_values_list.append(pdf_values[event, string, dom])
 
                 sorted_indices = np.argsort(fractions)[::-1]
-                alpha = 1.
-                ls_cycler = itertools.cycle(['--', ':', '-.'])
+                alpha = 1.0
+                ls_cycler = itertools.cycle(["--", ":", "-."])
                 for index in sorted_indices[-n_components:]:
                     pdf_i_comp = pdf_values_list[index] * fractions[index]
                     if scale_by_charge:
@@ -450,26 +473,27 @@ class VisualizePulseLikelihood:
                     else:
                         plot_values = pdf_i_comp
                     ax.plot(
-                        x, plot_values,
-                        label='{}'.format(names[index]),
+                        x,
+                        plot_values,
+                        label="{}".format(names[index]),
                         ls=next(ls_cycler),
                         color=color,
                         alpha=alpha,
                     )
-                    alpha -= 0.8/n_components
+                    alpha -= 0.8 / n_components
 
             # plot pdf
             pdf_i = pdf[event, string, dom]
             if scale_by_charge:
-                plot_values = (
-                    pdf_i * charge_values[event, string, dom]
-                )
+                plot_values = pdf_i * charge_values[event, string, dom]
             else:
                 plot_values = pdf_i
             ax.plot(
-                x, plot_values,
-                label='Expectation: {:3.2f} PE'.format(
-                    charge_values[event, string, dom]),
+                x,
+                plot_values,
+                label="Expectation: {:3.2f} PE".format(
+                    charge_values[event, string, dom]
+                ),
                 color=color,
             )
 
@@ -484,24 +508,29 @@ class VisualizePulseLikelihood:
             )
             for tw_exclusion in tw_exclusions:
                 ax.axvspan(
-                    tw_exclusion[0], tw_exclusion[1], alpha=0.2, color='red')
+                    tw_exclusion[0], tw_exclusion[1], alpha=0.2, color="red"
+                )
 
-            if not data_batch_dict['x_dom_exclusions'][event, string, dom]:
-                ax.axvspan(min_time, max_time, alpha=0.2, color='red')
+            if not data_batch_dict["x_dom_exclusions"][event, string, dom]:
+                ax.axvspan(min_time, max_time, alpha=0.2, color="red")
 
             # -----------
             # Axis labels
             # -----------
             loss = loss_dom[string, dom]
-            ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
-                string+1, dom+1, loss))
-            ax.set_yscale('log')
-            ax.set_xlabel('Time [ns]')
+            ax.set_title(
+                "[{:02d}, {:02d}] LLH: {:3.3f}".format(
+                    string + 1, dom + 1, loss
+                )
+            )
+            ax.set_yscale("log")
+            ax.set_xlabel("Time [ns]")
             if scale_by_charge:
-                ax.set_ylabel('Charge per bin [PE/{:3.0f}ns]'.format(
-                    pulse_bin_width))
+                ax.set_ylabel(
+                    "Charge per bin [PE/{:3.0f}ns]".format(pulse_bin_width)
+                )
             else:
-                ax.set_ylabel('PDF')
+                ax.set_ylabel("PDF")
 
             ax.set_xlim(min_time, max_time)
             if limit_y_range:
@@ -513,21 +542,21 @@ class VisualizePulseLikelihood:
         plt.close(fig)
 
     def plot_dom_cdf(
-            self,
-            reco_result,
-            data_batch_dict,
-            result_tensors,
-            losses,
-            file_name,
-            n_doms_x=2,
-            n_doms_y=2,
-            n_components=5,
-            limit_charge_fraction=0.9,
-            limit_y_range=True,
-            scale_by_charge=False,
-            event_header=None,
-            ):
-        """Crate DOM CDF plots
+        self,
+        reco_result,
+        data_batch_dict,
+        result_tensors,
+        losses,
+        file_name,
+        n_doms_x=2,
+        n_doms_y=2,
+        n_components=5,
+        limit_charge_fraction=0.9,
+        limit_y_range=True,
+        scale_by_charge=False,
+        event_header=None,
+    ):
+        """Create DOM CDF plots
 
         Parameters
         ----------
@@ -577,10 +606,10 @@ class VisualizePulseLikelihood:
             n_doms -= 1
 
         loss_scalar, loss_event, loss_dom = losses
-        charge_values = result_tensors['dom_charges']
+        charge_values = result_tensors["dom_charges"]
 
-        assert len(loss_event) == 1, 'Expects one event at a time'
-        assert len(reco_result) == 1, 'Expects one event at a time'
+        assert len(loss_event) == 1, "Expects one event at a time"
+        assert len(reco_result) == 1, "Expects one event at a time"
         assert loss_dom.shape == (1, 86, 60), loss_dom.shape
         assert charge_values.shape == (1, 86, 60, 1), charge_values.shape
 
@@ -591,7 +620,7 @@ class VisualizePulseLikelihood:
         # --------------------------------------
         # Select DOMs with highest impact to LLh
         # --------------------------------------
-        loss_dom_flat = np.reshape(loss_dom, [86*60])
+        loss_dom_flat = np.reshape(loss_dom, [86 * 60])
         max_doms = np.argsort(np.abs(loss_dom_flat))[-n_doms:]
 
         # convert to list of (zero-based) strings and DOM numbers
@@ -602,7 +631,8 @@ class VisualizePulseLikelihood:
             doms_zb.append(flat_index % 60)
 
         fig, axes = plt.subplots(
-            n_doms_y, n_doms_x, figsize=(3*n_doms_x, 3*n_doms_y))
+            n_doms_y, n_doms_x, figsize=(3 * n_doms_x, 3 * n_doms_y)
+        )
 
         if event_header is None:
             dom_axes = axes.ravel()
@@ -611,14 +641,15 @@ class VisualizePulseLikelihood:
                 ax=axes.ravel()[0],
                 event_header=event_header,
                 reco_result=reco_result,
-                event_charge=np.sum(data_batch_dict['x_pulses'][:, 0]),
+                event_charge=np.sum(data_batch_dict["x_pulses"][:, 0]),
             )
             dom_axes = axes.ravel()[1:]
 
         for ax, string, dom in zip(dom_axes, strings_zb, doms_zb):
 
             color_cycler = itertools.cycle(
-                plt.rcParams['axes.prop_cycle'].by_key()['color'])
+                plt.rcParams["axes.prop_cycle"].by_key()["color"]
+            )
 
             color = next(color_cycler)
 
@@ -632,7 +663,8 @@ class VisualizePulseLikelihood:
 
             # define time range for plot
             min_time, max_time = self.compute_time_range(
-                pulses, limit_charge_fraction=limit_charge_fraction)
+                pulses, limit_charge_fraction=limit_charge_fraction
+            )
 
             x = np.linspace(min_time, max_time, 100)
 
@@ -645,18 +677,20 @@ class VisualizePulseLikelihood:
                 else:
                     plot_values = cum_sum / charge_sum
                 ax.plot(
-                    pulses[:, 1], plot_values,
-                    color='0.2',
-                    label='Pulses: {:3.2f} PE'.format(charge_sum),
+                    pulses[:, 1],
+                    plot_values,
+                    color="0.2",
+                    label="Pulses: {:3.2f} PE".format(charge_sum),
                 )
 
             # -----------
             # compute cdf
             # -----------
             cdf_results = self.manager.models[0].cdf(
-                x, result_tensors=result_tensors,
-                tw_exclusions=data_batch_dict['x_time_exclusions'],
-                tw_exclusions_ids=data_batch_dict['x_time_exclusions_ids'],
+                x,
+                result_tensors=result_tensors,
+                tw_exclusions=data_batch_dict["x_time_exclusions"],
+                tw_exclusions_ids=data_batch_dict["x_time_exclusions_ids"],
                 output_nested_pdfs=True,
             )
             if len(cdf_results) == 2 and isinstance(cdf_results[1], dict):
@@ -678,8 +712,8 @@ class VisualizePulseLikelihood:
                     cdf_values_list.append(cdf_values[event, string, dom])
 
                 sorted_indices = np.argsort(fractions)[::-1]
-                alpha = 1.
-                ls_cycler = itertools.cycle(['--', ':', '-.'])
+                alpha = 1.0
+                ls_cycler = itertools.cycle(["--", ":", "-."])
                 for index in sorted_indices[-n_components:]:
                     cdf_i_comp = cdf_values_list[index] * fractions[index]
                     if scale_by_charge:
@@ -689,13 +723,14 @@ class VisualizePulseLikelihood:
                     else:
                         plot_values = cdf_i_comp
                     ax.plot(
-                        x, plot_values,
-                        label='{}'.format(names[index]),
+                        x,
+                        plot_values,
+                        label="{}".format(names[index]),
                         ls=next(ls_cycler),
                         color=color,
                         alpha=alpha,
                     )
-                    alpha -= 0.8/n_components
+                    alpha -= 0.8 / n_components
 
             # plot cdf
             cdf_i = cdf[event, string, dom]
@@ -705,9 +740,11 @@ class VisualizePulseLikelihood:
             else:
                 plot_values = cdf_i
             ax.plot(
-                x, plot_values,
-                label='Expectation: {:3.2f} PE'.format(
-                    charge_values[event, string, dom]),
+                x,
+                plot_values,
+                label="Expectation: {:3.2f} PE".format(
+                    charge_values[event, string, dom]
+                ),
                 color=color,
             )
 
@@ -722,23 +759,27 @@ class VisualizePulseLikelihood:
             )
             for tw_exclusion in tw_exclusions:
                 ax.axvspan(
-                    tw_exclusion[0], tw_exclusion[1], alpha=0.2, color='red')
+                    tw_exclusion[0], tw_exclusion[1], alpha=0.2, color="red"
+                )
 
-            if not data_batch_dict['x_dom_exclusions'][event, string, dom]:
-                ax.axvspan(min_time, max_time, alpha=0.2, color='red')
+            if not data_batch_dict["x_dom_exclusions"][event, string, dom]:
+                ax.axvspan(min_time, max_time, alpha=0.2, color="red")
 
             # -----------
             # Axis labels
             # -----------
             loss = loss_dom[string, dom]
-            ax.set_title('[{:02d}, {:02d}] LLH: {:3.3f}'.format(
-                string+1, dom+1, loss))
-            ax.set_yscale('log')
-            ax.set_xlabel('Time [ns]')
+            ax.set_title(
+                "[{:02d}, {:02d}] LLH: {:3.3f}".format(
+                    string + 1, dom + 1, loss
+                )
+            )
+            ax.set_yscale("log")
+            ax.set_xlabel("Time [ns]")
             if scale_by_charge:
-                ax.set_ylabel('Cumulative Charge')
+                ax.set_ylabel("Cumulative Charge")
             else:
-                ax.set_ylabel('CDF')
+                ax.set_ylabel("CDF")
             ax.set_xlim(min_time, max_time)
 
             if limit_y_range and len(pulses) > 0:
@@ -754,7 +795,8 @@ class VisualizePulseLikelihood:
         plt.close(fig)
 
     def compute_time_range(
-            self, pulses, limit_charge_fraction=None, min_length=1000.):
+        self, pulses, limit_charge_fraction=None, min_length=1000.0
+    ):
         """Compute the time range for the visible area
 
         Parameters
@@ -792,14 +834,14 @@ class VisualizePulseLikelihood:
             )
 
         length_diff = min_length - (max_time - min_time)
-        if length_diff > 0.:
+        if length_diff > 0.0:
             if limit_charge_fraction is not None:
                 # cut off less at the end
                 max_time += length_diff
             else:
                 # expand equally in both directions
-                min_time -= length_diff / 2.
-                max_time += length_diff / 2.
+                min_time -= length_diff / 2.0
+                max_time += length_diff / 2.0
 
         return min_time, max_time
 
@@ -825,11 +867,12 @@ class VisualizePulseLikelihood:
             Each pulse is defined by [charge, time (, quantile)]
             Shape: [n_pulses, 2(3)]
         """
-        pulses = data_batch_dict['x_pulses']
-        pulses_ids = data_batch_dict['x_pulses_ids']
+        pulses = data_batch_dict["x_pulses"]
+        pulses_ids = data_batch_dict["x_pulses_ids"]
 
         mask = np.logical_and(
-            pulses_ids[:, 0] == event, pulses_ids[:, 1] == string)
+            pulses_ids[:, 0] == event, pulses_ids[:, 1] == string
+        )
         mask = np.logical_and(mask, pulses_ids[:, 2] == dom)
 
         return pulses[mask]
@@ -856,8 +899,8 @@ class VisualizePulseLikelihood:
             Each time window exclusions is defined by [t_start, t_stop]
             Shape: [n_pulses, 2(3)]
         """
-        tw_exclusions = data_batch_dict['x_time_exclusions']
-        tw_ids = data_batch_dict['x_time_exclusions_ids']
+        tw_exclusions = data_batch_dict["x_time_exclusions"]
+        tw_ids = data_batch_dict["x_time_exclusions_ids"]
 
         mask = np.logical_and(tw_ids[:, 0] == event, tw_ids[:, 1] == string)
         mask = np.logical_and(mask, tw_ids[:, 2] == dom)

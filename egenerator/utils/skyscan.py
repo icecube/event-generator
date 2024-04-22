@@ -4,12 +4,12 @@ import math
 
 
 def get_scan_pixels(
-            default_nside=2,
-            focus_bounds=[5, 15, 30],
-            focus_nsides=[32, 16, 8],
-            focus_zeniths=[],
-            focus_azimuths=[],
-        ):
+    default_nside=2,
+    focus_bounds=[5, 15, 30],
+    focus_nsides=[32, 16, 8],
+    focus_zeniths=[],
+    focus_azimuths=[],
+):
     """Create a dictionary of pixels for a skyscan
 
     This will create a dictionary of healpix pixels with focus regions
@@ -32,7 +32,7 @@ def get_scan_pixels(
         provided in `focus_zeniths` and `focus_azimuths`. This parameter
         defines the nsides for each of these rings. See also `focus_bounds`,
         which defines the distance of these rings.
-    focus_zeniths : list, optiona
+    focus_zeniths : list, optional
         A list of zenith values in radians for each of the focus regions.
         Must have same order as `focus_azimuths`.
     focus_azimuths : list, optional
@@ -65,19 +65,23 @@ def get_scan_pixels(
         ipix = set()
 
         for zenith, azimuth in zip(focus_zeniths, focus_azimuths):
-            ipix.update(hp.query_disc(
-                nside=nside,
-                vec=hp.ang2vec(theta=zenith, phi=azimuth),
-                radius=np.deg2rad(bound),
-            ))
+            ipix.update(
+                hp.query_disc(
+                    nside=nside,
+                    vec=hp.ang2vec(theta=zenith, phi=azimuth),
+                    radius=np.deg2rad(bound),
+                )
+            )
 
             if i != 0:
                 # remove pixels from inner ring that utilizes higher nside
-                ipix.difference_update(hp.query_disc(
-                    nside=nside,
-                    vec=hp.ang2vec(theta=zenith, phi=azimuth),
-                    radius=np.deg2rad(focus_bounds[i - 1]),
-                ))
+                ipix.difference_update(
+                    hp.query_disc(
+                        nside=nside,
+                        vec=hp.ang2vec(theta=zenith, phi=azimuth),
+                        radius=np.deg2rad(focus_bounds[i - 1]),
+                    )
+                )
 
         scan_pixels[nside] = list(ipix)
 
@@ -109,7 +113,7 @@ def sparse_to_dense_skymap(nside, indices, values):
     values = np.asarray(values)
 
     skymap = np.empty(hp.nside2npix(nside))
-    skymap[:] = float('nan')
+    skymap[:] = float("nan")
 
     skymap[indices] = values
     return skymap
@@ -160,7 +164,7 @@ def combine_skymaps(*skymaps):
     return combined_map
 
 
-class SkymapSampler():
+class SkymapSampler:
 
     def __init__(self, log_pdf_map, seed=42, replace_nan=None):
         """Class for sampling from skymap PDF
@@ -172,7 +176,7 @@ class SkymapSampler():
         seed : int, optional
             Random number generator seed.
         replace_nan : None, optional
-            If provided, non-finite vlaues in the `log_pdf_map` will
+            If provided, non-finite values in the `log_pdf_map` will
             be replaced with this value.
         """
         self.offset = np.nanmax(log_pdf_map)
@@ -189,11 +193,13 @@ class SkymapSampler():
         # compute pdf for each pixel
         self._n_order = self._nside2norder()
         self.npix = hp.nside2npix(self.nside)
-        self.dir_x_s, self.dir_y_s, self.dir_z_s = \
-            hp.pix2vec(self.nside, range(self.npix))
+        self.dir_x_s, self.dir_y_s, self.dir_z_s = hp.pix2vec(
+            self.nside, range(self.npix)
+        )
 
         self.neg_llh_values = -self.log_pdf_dir(
-            self.dir_x_s, self.dir_y_s, self.dir_z_s)
+            self.dir_x_s, self.dir_y_s, self.dir_z_s
+        )
 
         # sort directions according to neg llh
         sorted_indices = np.argsort(self.neg_llh_values)
@@ -228,10 +234,13 @@ class SkymapSampler():
         Returns
         -------
         array_like
-            The log pdf values for each provied direction vector.
+            The log pdf values for each provided direction vector.
         """
-        return np.array(self.log_pdf_map[hp.vec2pix(
-            nside=self.nside, x=dir_x, y=dir_y, z=dir_z)])
+        return np.array(
+            self.log_pdf_map[
+                hp.vec2pix(nside=self.nside, x=dir_x, y=dir_y, z=dir_z)
+            ]
+        )
 
     def cdf(self, zenith, azimuth, *args, **kwargs):
         """Computes the CDF.
@@ -254,8 +263,9 @@ class SkymapSampler():
         """
 
         # get ipix corresponding to specified directions
-        ipix = np.atleast_1d(hp.ang2pix(
-            nside=self.nside, theta=zenith, phi=azimuth))
+        ipix = np.atleast_1d(
+            hp.ang2pix(nside=self.nside, theta=zenith, phi=azimuth)
+        )
 
         # figure out where these ipix were sorted to
         sorted_indices = [self.ipix_list_list.index(v) for v in ipix]
@@ -283,11 +293,12 @@ class SkymapSampler():
         """
         norder = np.log2(self.nside)
         if not (norder.is_integer()):
-            raise ValueError('Wrong nside number (it is not 2**norder)')
+            raise ValueError("Wrong nside number (it is not 2**norder)")
         return int(norder)
 
     def _sample_from_ipix(
-                self, ipix, nest=False, rng=None,  pix_converter=hp.pix2vec):
+        self, ipix, nest=False, rng=None, pix_converter=hp.pix2vec
+    ):
         """
         Sample vectors from a uniform distribution within a HEALpixel.
 
@@ -327,9 +338,9 @@ class SkymapSampler():
             ipix = hp.ring2nest(self.nside, ipix=ipix)
 
         n_up = 29 - self._n_order
-        i_up = ipix * 4 ** n_up
-        i_up += rng.randint(0, 4 ** n_up, size=np.size(ipix))
-        return pix_converter(nside=2 ** 29, ipix=i_up, nest=True)
+        i_up = ipix * 4**n_up
+        i_up += rng.randint(0, 4**n_up, size=np.size(ipix))
+        return pix_converter(nside=2**29, ipix=i_up, nest=True)
 
     def sample_angles(self, n, rng=None):
         """Sample angles from the distribution
@@ -398,4 +409,5 @@ class SkymapSampler():
 
         # sample points within these pixels
         return self._sample_from_ipix(
-            ipix, pix_converter=pix_converter, rng=rng)
+            ipix, pix_converter=pix_converter, rng=rng
+        )

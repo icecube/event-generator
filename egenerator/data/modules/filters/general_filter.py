@@ -9,9 +9,7 @@ from egenerator.manager.component import BaseComponent, Configuration
 
 
 class GeneralFilterModule(BaseComponent):
-
-    """Filter module that enables filtering events based on their labels.
-    """
+    """Filter module that enables filtering events based on their labels."""
 
     def __init__(self, logger=None):
         """Initialize filter module
@@ -82,16 +80,17 @@ class GeneralFilterModule(BaseComponent):
             Return None if no dependent sub components exist.
         """
         settings = dict(kwargs)
-        settings['constraints'] = constraints
+        settings["constraints"] = constraints
 
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=settings,
-            )
+        )
         return configuration, {}, {}
 
-    def get_event_filter_mask_from_hdf(self, file, tensors, num_events, batch,
-                                       *args, **kwargs):
+    def get_event_filter_mask_from_hdf(
+        self, file, tensors, num_events, batch, *args, **kwargs
+    ):
         """Calculate event filter mask from hdf file.
 
         Parameters
@@ -113,44 +112,45 @@ class GeneralFilterModule(BaseComponent):
         -------
         array_like
             An array of bool indicating whether an event passed the filter
-            (True) or wheter it is filtered out (False).
+            (True) or whether it is filtered out (False).
             Shape: [num_events]
         """
         filter_mask = np.ones(num_events, dtype=bool)
 
-        constraints = self.configuration.config['constraints']
+        constraints = self.configuration.config["constraints"]
         for key, column, op, threshold in constraints:
 
             if isinstance(column, int):
                 # Assume this is an I3VectorDouble
-                with pd.HDFStore(file, 'r') as f:
-                    values = f[key]['item'].values
-                    indices = f[key]['vector_index'].values
+                with pd.HDFStore(file, "r") as f:
+                    values = f[key]["item"].values
+                    indices = f[key]["vector_index"].values
                     values = values[indices == column]
             else:
                 # Assume this is an I3MapStringDouble
-                with pd.HDFStore(file, 'r') as f:
+                with pd.HDFStore(file, "r") as f:
                     values = f[key][column]
 
-            if op == '>':
+            if op == ">":
                 constraint_mask = values > threshold
-            elif op == '>=':
+            elif op == ">=":
                 constraint_mask = values >= threshold
-            elif op == '<=':
+            elif op == "<=":
                 constraint_mask = values <= threshold
-            elif op == '<':
+            elif op == "<":
                 constraint_mask = values < threshold
-            elif op == '==':
+            elif op == "==":
                 constraint_mask = values == threshold
             else:
-                raise ValueError('Unknown operation: {}'.format(op))
+                raise ValueError("Unknown operation: {}".format(op))
 
             filter_mask = np.logical_and(filter_mask, constraint_mask)
 
         return filter_mask
 
-    def get_event_filter_mask_from_frame(self, frame, tensors, num_events,
-                                         batch, *args, **kwargs):
+    def get_event_filter_mask_from_frame(
+        self, frame, tensors, num_events, batch, *args, **kwargs
+    ):
         """Calculate event filter mask from frame.
 
         Parameters
@@ -172,12 +172,12 @@ class GeneralFilterModule(BaseComponent):
         -------
         array_like
             An array of bool indicating whether an event passed the filter
-            (True) or wheter it is filtered out (False).
+            (True) or whether it is filtered out (False).
             Shape: [num_events]
         """
         filter_mask = np.ones(num_events, dtype=bool)
 
-        constraints = self.configuration.config['constraints']
+        constraints = self.configuration.config["constraints"]
         for key, column, op, threshold in constraints:
             if isinstance(column, int):
                 # Assume `column` is an index in to a vector
@@ -189,18 +189,18 @@ class GeneralFilterModule(BaseComponent):
                 else:
                     values = np.atleast_1d(getattr(value_table, key))
 
-            if op == '>':
+            if op == ">":
                 constraint_mask = values > threshold
-            elif op == '>=':
+            elif op == ">=":
                 constraint_mask = values >= threshold
-            elif op == '<=':
+            elif op == "<=":
                 constraint_mask = values <= threshold
-            elif op == '<':
+            elif op == "<":
                 constraint_mask = values < threshold
-            elif op == '==':
+            elif op == "==":
                 constraint_mask = values == threshold
             else:
-                raise ValueError('Unknown operation: {}'.format(op))
+                raise ValueError("Unknown operation: {}".format(op))
 
             filter_mask = np.logical_and(filter_mask, constraint_mask)
 

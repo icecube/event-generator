@@ -6,6 +6,6 @@ from egenerator.model.multi_source.track.track_equidistant_cascades import (
 )
 
 __all__ = [
-    'StochasticTrackModel',
-    'TrackEquidistantCascadeModel',
+    "StochasticTrackModel",
+    "TrackEquidistantCascadeModel",
 ]
