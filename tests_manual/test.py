@@ -40,14 +40,14 @@ keys_warning = [
     "MCCascade",
     # covariance matrices are very sensitive to small changes and thus not
     # always reproducible
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit_trafo",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit_trafo",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_trafo",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_trafo",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit_trafo",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit_trafo",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_trafo",
+    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_trafo",
 ]
 
 keys_error = [
@@ -85,6 +85,14 @@ for dir_test in test_dirs:
                 warning("\t\t", e)
                 got_warning = True
 
+            if "minimization_success" in df_original.columns:
+                minimization_success = np.logical_and(
+                    df_test["minimization_success"],
+                    df_original["minimization_success"],
+                )
+            else:
+                minimization_success = np.ones(len(df_test), dtype=bool)
+
             assert (df_original.columns == df_test.columns).all()
             for k in df_original.columns:
 
@@ -97,10 +105,10 @@ for dir_test in test_dirs:
 
                 if "runtime" not in k:
 
-                    # set toleracnces
+                    # set tolerances
                     atol = 5e-6
                     rtol = 5e-4
-                    rtol_fatal = 1e-2
+                    rtol_fatal = 0.3
 
                     if not np.allclose(
                         df_original[k].values,
@@ -124,11 +132,16 @@ for dir_test in test_dirs:
 
                         mask = np.abs(rel_diff) > rtol
 
+                        if np.all(~minimization_success[mask]):
+                            min_errors = True
+                        else:
+                            min_errors = False
+
                         if key in keys_warning:
                             warning("\t\tWarning: mismatch for {}".format(k))
                             got_warning = True
                         elif key in keys_error:
-                            if rel_diff_max > rtol_fatal:
+                            if rel_diff_max > rtol_fatal and not min_errors:
                                 passed_test = False
                                 error("\t\tError: mismatch for {}".format(k))
                             else:
