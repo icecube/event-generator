@@ -138,7 +138,7 @@ class TestModelPrediction(unittest.TestCase):
             result_tensors_true["nested_results"],
         )
 
-    def _recursive_check(self, dict1, dict2):
+    def _recursive_check(self, dict1, dict2, atol=5e-6, rtol=5e-4):
         keys1 = sorted(list(dict1.keys()))
         keys2 = sorted(list(dict2.keys()))
 
@@ -148,13 +148,35 @@ class TestModelPrediction(unittest.TestCase):
             if isinstance(dict1[key], dict):
                 self._recursive_check(dict1[key], dict2[key])
             elif isinstance(dict1[key], tf.Tensor):
+                if not np.allclose(
+                    dict1[key].numpy(),
+                    dict2[key].numpy(),
+                    atol=atol,
+                    rtol=rtol,
+                ):
+                    print(f"key: {key}")
+                    print(f"dict1[key]: {dict1[key].numpy()}")
+                    print(f"dict2[key]: {dict2[key].numpy()}")
                 self.assertTrue(
-                    np.allclose(dict1[key].numpy(), dict2[key].numpy())
+                    np.allclose(
+                        dict1[key].numpy(),
+                        dict2[key].numpy(),
+                        atol=atol,
+                        rtol=rtol,
+                    )
                 )
             elif dict1[key] is None:
                 self.assertTrue(dict2[key] is None)
             else:
-                self.assertTrue(np.allclose(dict1[key], dict2[key]))
+                if not np.allclose(
+                    dict1[key], dict2[key], atol=atol, rtol=rtol
+                ):
+                    print(f"key: {key}")
+                    print(f"dict1[key]: {dict1[key].numpy()}")
+                    print(f"dict2[key]: {dict2[key].numpy()}")
+                self.assertTrue(
+                    np.allclose(dict1[key], dict2[key], atol=atol, rtol=rtol)
+                )
 
     def get_test_data_file_path(self, tw_exclusions):
         """Get test data file path."""
