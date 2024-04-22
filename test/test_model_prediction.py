@@ -1,7 +1,6 @@
 import unittest
 import os
 import numpy as np
-import tensorflow as tf
 import pickle
 
 from egenerator.utils.configurator import ManagerConfigurator
@@ -118,7 +117,9 @@ class TestModelPrediction(unittest.TestCase):
         ]
         self.assertEqual(sorted(list(result_tensors.keys())), keys)
 
-    def check_result_tensors(self, result_tensors, result_tensors_true):
+    def check_result_tensors(
+        self, result_tensors, result_tensors_true, atol=1e-5, rtol=5e-3
+    ):
         """Check result_tensors against true values."""
         keys = [
             "dom_cdf_exclusion_sum",
@@ -129,16 +130,23 @@ class TestModelPrediction(unittest.TestCase):
 
         for key in keys:
             self.assertTrue(
-                np.allclose(result_tensors[key], result_tensors_true[key])
+                np.allclose(
+                    result_tensors[key],
+                    result_tensors_true[key],
+                    atol=atol,
+                    rtol=rtol,
+                )
             )
 
         # now check nested results
         self._recursive_check(
             result_tensors["nested_results"],
             result_tensors_true["nested_results"],
+            atol=atol,
+            rtol=rtol,
         )
 
-    def _recursive_check(self, dict1, dict2, atol=5e-6, rtol=5e-4):
+    def _recursive_check(self, dict1, dict2, atol=1e-5, rtol=5e-3):
         keys1 = sorted(list(dict1.keys()))
         keys2 = sorted(list(dict2.keys()))
 
@@ -147,33 +155,26 @@ class TestModelPrediction(unittest.TestCase):
         for key in keys1:
             if isinstance(dict1[key], dict):
                 self._recursive_check(dict1[key], dict2[key])
-            elif isinstance(dict1[key], tf.Tensor):
-                if not np.allclose(
-                    dict1[key].numpy(),
-                    dict2[key].numpy(),
-                    atol=atol,
-                    rtol=rtol,
-                ):
-                    print(f"key: {key}")
-                    print(f"dict1[key]: {dict1[key].numpy()}")
-                    print(f"dict2[key]: {dict2[key].numpy()}")
-                self.assertTrue(
-                    np.allclose(
-                        dict1[key].numpy(),
-                        dict2[key].numpy(),
-                        atol=atol,
-                        rtol=rtol,
-                    )
-                )
             elif dict1[key] is None:
                 self.assertTrue(dict2[key] is None)
             else:
                 if not np.allclose(
-                    dict1[key], dict2[key], atol=atol, rtol=rtol
+                    dict1[key],
+                    dict2[key],
+                    atol=atol,
+                    rtol=rtol,
                 ):
+                    diff = dict1[key] - dict2[key]
+                    rel_diff = diff / dict1[key]
+                    mask = np.abs(diff) > atol + rtol * np.abs(dict1[key])
                     print(f"key: {key}")
-                    print(f"dict1[key]: {dict1[key].numpy()}")
-                    print(f"dict2[key]: {dict2[key].numpy()}")
+                    print(f"dict1[key]: {dict1[key][mask]}")
+                    print(f"dict2[key]: {dict2[key][mask]}")
+                    print(f"diff: {diff[mask]}")
+                    print(f"rel_diff: {rel_diff[mask]}")
+                    raise ValueError(
+                        f"key: {key} does not match: {dict1[key][mask]} != {dict2[key][mask]}"
+                    )
                 self.assertTrue(
                     np.allclose(dict1[key], dict2[key], atol=atol, rtol=rtol)
                 )

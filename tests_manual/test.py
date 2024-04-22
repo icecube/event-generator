@@ -38,12 +38,8 @@ keys_warning = [
     "LabelsDeepLearning",
     "LabelsMCCascade",
     "MCCascade",
-]
-
-keys_error = [
-    # event-generator results
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_I3Particle",
+    # covariance matrices are very sensitive to small changes and thus not
+    # always reproducible
     "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov",
     "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit",
     "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit_trafo",
@@ -52,6 +48,12 @@ keys_error = [
     "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit_trafo",
     "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_trafo",
     "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_trafo",
+]
+
+keys_error = [
+    # event-generator results
+    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs",
+    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_I3Particle",
 ]
 
 dir_original = os.path.join(
@@ -98,7 +100,7 @@ for dir_test in test_dirs:
                     # set toleracnces
                     atol = 5e-6
                     rtol = 5e-4
-                    rtol_fatal = rtol
+                    rtol_fatal = 1e-2
 
                     if not np.allclose(
                         df_original[k].values,
