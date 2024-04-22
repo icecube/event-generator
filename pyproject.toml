@@ -19,7 +19,7 @@ dependencies = [
     'numpy', 'pandas', 'click', 'ruamel.yaml',
     'gitpython', 'tfscripts', 'tqdm',
     'scipy', 'healpy', 'pandas', 'tables',
-    'tensorflow', 'tensorflow_probability', 'keras',
+    'tensorflow', 'tensorflow_probability', 'tf-keras',
 ]
 
 classifiers = [
