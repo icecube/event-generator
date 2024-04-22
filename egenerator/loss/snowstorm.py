@@ -339,7 +339,7 @@ class SnowstormPriorLossModule(BaseComponent):
             ]
 
         if reduce_to_scalar:
-            return tf.math.accumulate_n(
+            return tf.math.add_n(
                 [tf.reduce_sum(loss_term) for loss_term in loss_terms]
             )
         else:
