@@ -79,7 +79,10 @@ class CascadeClusterSearchModule(icetray.I3ConditionalModule):
         """
 
         # get pulses
-        pulse_series = frame["InIceDSTPulses"].apply(frame)
+        pulse_series = dataclasses.I3RecoPulseSeriesMap.from_frame(
+            frame,
+            "InIceDSTPulses",
+        )
 
         # get initial clusters
         if self._initial_clusters_particles is None:

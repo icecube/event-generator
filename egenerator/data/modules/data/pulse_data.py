@@ -489,12 +489,10 @@ class PulseDataModule(BaseComponent):
             raise ValueError("Module not configured yet!")
 
         # get pulses
-        pulses = frame[self.configuration.config["pulse_key"]]
-
-        if isinstance(
-            pulses, dataclasses.I3RecoPulseSeriesMapMask
-        ) or isinstance(pulses, dataclasses.I3RecoPulseSeriesMapUnion):
-            pulses = pulses.apply(frame)
+        pulses = dataclasses.I3RecoPulseSeriesMap.from_frame(
+            frame,
+            self.configuration.config["pulse_key"],
+        )
 
         # get DOM exclusions
         if self.data["dom_exclusions_exist"]:

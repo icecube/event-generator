@@ -60,11 +60,10 @@ class AddBrightDOMs(icetray.I3ConditionalModule):
         """
 
         # get pulses
-        pulse_series = frame[self._pulse_key]
-        if isinstance(
-            pulse_series, dataclasses.I3RecoPulseSeriesMapMask
-        ) or isinstance(pulse_series, dataclasses.I3RecoPulseSeriesMapUnion):
-            pulse_series = pulse_series.apply(frame)
+        pulse_series = dataclasses.I3RecoPulseSeriesMap.from_frame(
+            frame,
+            self._pulse_key,
+        )
 
         dom_charges = {}
         dom_charges_list = []

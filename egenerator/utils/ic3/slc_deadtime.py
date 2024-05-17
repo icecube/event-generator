@@ -86,11 +86,10 @@ class FlagSLCDeadTimeWindows(icetray.I3ConditionalModule):
     def _add_slc_deadtime_windows(self, frame):
 
         # get pulses
-        pulse_series = frame[self._pulse_key]
-        if isinstance(
-            pulse_series, dataclasses.I3RecoPulseSeriesMapMask
-        ) or isinstance(pulse_series, dataclasses.I3RecoPulseSeriesMapUnion):
-            pulse_series = pulse_series.apply(frame)
+        pulse_series = dataclasses.I3RecoPulseSeriesMap.from_frame(
+            frame,
+            self._pulse_key,
+        )
 
         deadtime_map = dataclasses.I3TimeWindowSeriesMap()
 
