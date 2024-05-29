@@ -235,7 +235,7 @@ class Model(tf.Module, BaseComponent):
         in the output directory. If it does not exist yet, a new one will be
         created. Otherwise, its values will be updated
         The file contains meta data on the checkpoints and keeps track
-        of the most recents files. The structure  and content of meta data:
+        of the most recents files. The structure and content of meta data:
 
             latest_checkpoint: int
                 The number of the latest checkpoint.
