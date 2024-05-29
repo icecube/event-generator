@@ -1,6 +1,9 @@
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
+from scipy import stats
+from scipy.optimize import minimize
+
+from egenerator.utils import basis_functions
 
 
 def get_angle(vec1, vec2):
@@ -25,10 +28,12 @@ def get_angle(vec1, vec2):
         Same shape as input vectors.
     """
     # transform into numpy array with dtype
-    assert vec1.get_shape().as_list()[-1] == 3, \
-        "Expect shape [?,3] or [3], but got {}".format(vec1.get_shape())
-    assert vec2.get_shape().as_list()[-1] == 3, \
-        "Expect shape [?,3] or [3], but got {}".format(vec2.get_shape())
+    assert (
+        vec1.get_shape().as_list()[-1] == 3
+    ), "Expect shape [?,3] or [3], but got {}".format(vec1.get_shape())
+    assert (
+        vec2.get_shape().as_list()[-1] == 3
+    ), "Expect shape [?,3] or [3], but got {}".format(vec2.get_shape())
 
     norm1 = tf.linalg.norm(vec1, axis=-1, keepdims=True)
     norm2 = tf.linalg.norm(vec2, axis=-1, keepdims=True)
@@ -38,7 +43,7 @@ def get_angle(vec1, vec2):
     tmp3 = tf.linalg.norm(tmp1 - tmp2, axis=-1)
     tmp4 = tf.linalg.norm(tmp1 + tmp2, axis=-1)
 
-    theta = 2*tf.atan2(tmp3, tmp4)
+    theta = 2 * tf.atan2(tmp3, tmp4)
 
     return theta
 
@@ -63,28 +68,59 @@ def get_angle_deviation(azimuth1, zenith1, azimuth2, zenith2):
         The opening angle in rad between the vector 1 and 2.
         Same shape as input vectors.
     """
-    cos_dist = (tf.cos(azimuth1 - azimuth2) *
-                tf.sin(zenith1) * tf.sin(zenith2) +
-                tf.cos(zenith1) * tf.cos(zenith2))
-    cos_dist = tfp.math.clip_by_value_preserve_gradient(cos_dist, -1., 1.)
+    cos_dist = tf.cos(azimuth1 - azimuth2) * tf.sin(zenith1) * tf.sin(
+        zenith2
+    ) + tf.cos(zenith1) * tf.cos(zenith2)
+    cos_dist = tf.clip_by_value(cos_dist, -1.0, 1.0)
     return tf.acos(cos_dist)
 
 
-def get_delta_psi_vector(zenith, azimuth, delta_psi,
-                         random_service=None,
-                         randomize_for_each_delta_psi=True,
-                         is_degree=True,
-                         return_angles=True):
+def get_angle_deviation_np(azimuth1, zenith1, azimuth2, zenith2):
+    """Get opening angle of two vectors defined by (azimuth, zenith)
+
+    Parameters
+    ----------
+    azimuth1 : array_like
+        Azimuth of vector 1 in rad.
+    zenith1 : array_like
+        Zenith of vector 1 in rad.
+    azimuth2 : array_like
+        Azimuth of vector 2 in rad.
+    zenith2 : array_like
+        Zenith of vector 2 in rad.
+
+    Returns
+    -------
+    array_like
+        The opening angle in rad between the vector 1 and 2.
+        Same shape as input vectors.
+    """
+    cos_dist = np.cos(azimuth1 - azimuth2) * np.sin(zenith1) * np.sin(
+        zenith2
+    ) + np.cos(zenith1) * np.cos(zenith2)
+    cos_dist = np.clip(cos_dist, -1.0, 1.0)
+    return np.arccos(cos_dist)
+
+
+def get_delta_psi_vector(
+    zenith,
+    azimuth,
+    delta_psi,
+    random_service=None,
+    randomize_for_each_delta_psi=True,
+    is_degree=True,
+    return_angles=True,
+):
     """Get new angles with an opening angle of delta_psi.
 
     Parameters
     ----------
     zenith : array_like
-        The zenith angle of the input vector for which to compute a random
-        new vector with an opening angle of delta_psi.
+        The zenith angle [rad] of the input vector for which to compute a
+        random new vector with an opening angle of delta_psi.
     azimuth : TYPE
-        The azimuth angle of the input vector for which to compute a random
-        new vector with an opening angle of delta_psi.
+        The azimuth angle [rad] of the input vector for which to compute a
+        random new vector with an opening angle of delta_psi.
     delta_psi : float or array_like
         The opening angle. If 'is_degree' is True, then the unit is in degree,
         otherwise it is in radians.
@@ -116,32 +152,41 @@ def get_delta_psi_vector(zenith, azimuth, delta_psi,
             coordinates.
             Shape: [..., 3]
     """
-    vec = np.array([np.sin(zenith) * np.cos(azimuth),
-                    np.sin(zenith) * np.sin(azimuth),
-                    np.cos(zenith)]).T
+    vec = np.array(
+        [
+            np.sin(zenith) * np.cos(azimuth),
+            np.sin(zenith) * np.sin(azimuth),
+            np.cos(zenith),
+        ]
+    ).T
     vec = np.atleast_2d(vec)
     delta_vec = get_delta_psi_vector_dir(
         vec,
         delta_psi=delta_psi,
         random_service=random_service,
         randomize_for_each_delta_psi=randomize_for_each_delta_psi,
-        is_degree=is_degree)
+        is_degree=is_degree,
+    )
     if return_angles:
         # calculate zenith
         d_zenith = np.arccos(np.clip(delta_vec[..., 2], -1, 1))
 
         # calculate azimuth
-        d_azimuth = (np.arctan2(delta_vec[..., 1], delta_vec[..., 0])
-                     + 2 * np.pi) % (2 * np.pi)
+        d_azimuth = (
+            np.arctan2(delta_vec[..., 1], delta_vec[..., 0]) + 2 * np.pi
+        ) % (2 * np.pi)
         return d_zenith, d_azimuth
     else:
         return delta_vec
 
 
-def get_delta_psi_vector_dir(vec, delta_psi,
-                             randomize_for_each_delta_psi=True,
-                             random_service=None,
-                             is_degree=True):
+def get_delta_psi_vector_dir(
+    vec,
+    delta_psi,
+    randomize_for_each_delta_psi=True,
+    random_service=None,
+    is_degree=True,
+):
     """Get a new direction vector with an opening angle of delta_psi to vec.
 
     Parameters
@@ -189,7 +234,7 @@ def get_delta_psi_vector_dir(vec, delta_psi,
 
     # This calculation is only valid if delta_psi < 90 degree
     if np.any(delta_psi >= np.deg2rad(90)):
-        msg = 'Delta Psi angle must be smaller than 90 degrees, but it is {!r}'
+        msg = "Delta Psi angle must be smaller than 90 degrees, but it is {!r}"
         raise ValueError(msg.format(np.rad2deg(delta_psi)))
 
     # get a random orthogonal vector
@@ -207,3 +252,1228 @@ def get_delta_psi_vector_dir(vec, delta_psi,
     new_vec = vec + np.tan(delta_psi) * vec_orthogonal
     new_vec /= np.linalg.norm(new_vec, axis=-1, keepdims=True)
     return new_vec
+
+
+def convert_to_range(zenith, azimuth):
+    """Ensures that zenith and azimuth are in proper range
+
+    Converts zenith and azimuth such that they are in
+    [0, pi) and [0, 2pi).
+    Conversion is done by calculating the unit vector and then
+    re-computing the zenith and azimuth angles. Note that this
+    is susceptible to numerical issues and therefore this
+    function should not be used if precise sub-degree results
+    are required.
+
+    Parameters
+    ----------
+    zenith : array_like
+        The zenith angles in radians to convert.
+    azimuth : array_like
+        The azimuth angles in radians to convert.
+
+    Returns
+    -------
+    array_like
+        The converted zenith angles in radians.
+    array_like
+        The converted azimuth angles in radians.
+    """
+
+    # create copies to not edit in place
+    zenith = np.array(zenith)
+    azimuth = np.array(azimuth)
+
+    x = np.sin(zenith) * np.cos(azimuth)
+    y = np.sin(zenith) * np.sin(azimuth)
+    z = np.cos(zenith)
+
+    zenith = np.arccos(z)
+    azimuth = np.arctan2(y, x)
+
+    azimuth = np.mod(azimuth, 2 * np.pi)
+
+    return zenith, azimuth
+
+
+def normalize(dir_x, dir_y, dir_z):
+    """Normalizes a vector on the sphere to have length 1.
+
+    Parameters
+    ----------
+    dir_x : array_like
+        The x-coordinate of the vector.
+    dir_y : array_like
+        The y-coordinate of the vector.
+    dir_z : array_like
+        The z-coordinate of the vector.
+
+    Returns
+    -------
+    array_like
+        The x-coordinate of the normalized unit vector.
+    array_like
+        The y-coordinate of the normalized unit vector.
+    array_like
+        The z-coordinate of the normalized unit vector.
+    """
+    norm = np.sqrt(dir_x**2 + dir_y**2 + dir_z**2)
+    return dir_x / norm, dir_y / norm, dir_z / norm
+
+
+def angle2vec(zenith, azimuth, with_flip=False):
+    """Convert angle to unit direction vector
+
+    Converts a position on the sphere provided via two angles,
+    zenith and azimuth, to the components of the unit vector.
+
+    Parameters
+    ----------
+    zenith : array_like
+        The zenith angle in radians.
+    azimuth : array_like
+        The azimuth angle in radians.
+    with_flip : bool, optional
+        If True, the direction vector is flipped 180° degrees.
+        This may be useful when utilizing these functions in the context
+        of IceCube software, which has the convention that the direction
+        vector points in the direction of flight while the angles are used
+        to describe the origin of the particle (opposite direction).
+
+    Returns
+    -------
+    array_like
+        The x-coordinate of the unit vector on the sphere.
+    array_like
+        The y-coordinate of the unit vector on the sphere.
+    array_like
+        The z-coordinate of the unit vector on the sphere.
+    """
+    sin_zenith = np.sin(zenith)
+    dir_x = sin_zenith * np.cos(azimuth)
+    dir_y = sin_zenith * np.sin(azimuth)
+    dir_z = np.cos(zenith)
+    if with_flip:
+        dir_x = -dir_x
+        dir_y = -dir_y
+        dir_z = -dir_z
+
+    return dir_x, dir_y, dir_z
+
+
+def dir2angle(dir_x, dir_y, dir_z, with_flip=False):
+    """Convert unit direction vector to angle
+
+    Converts a position on the sphere provided via the components
+    of the unit direction vector into two angles, zenith and azimuth.
+
+    Parameters
+    ----------
+    dir_x : array_like
+        The x-coordinate of the unit vector on the sphere.
+    dir_y : array_like
+        The y-coordinate of the unit vector on the sphere.
+    dir_z : array_like
+        The y-coordinate of the unit vector on the sphere.
+    with_flip : bool, optional
+        If True, the direction vector is flipped 180° degrees.
+        This may be useful when utilizing these functions in the context
+        of IceCube software, which has the convention that the direction
+        vector points in the direction of flight while the angles are used
+        to describe the origin of the particle (opposite direction).
+
+    Returns
+    -------
+    array_like
+        The zenith angle in radians.
+    array_like
+        The azimuth angle in radians.
+    """
+    # normalize
+    dir_x_normed, dir_y_normed, dir_z_normed = normalize(dir_x, dir_y, dir_z)
+
+    if with_flip:
+        dir_x_normed = -dir_x_normed
+        dir_y_normed = -dir_y_normed
+        dir_z_normed = -dir_z_normed
+
+    zenith = np.arccos(np.clip(-dir_z_normed, -1, 1))
+    azimuth = np.mod(np.arctan2(dir_y_normed, dir_x_normed), 2 * np.pi)
+
+    return zenith, azimuth
+
+
+def compute_coverage(
+    cdf_values,
+    weights=None,
+    quantiles=np.linspace(0.001, 1, 100),
+    verbose=True,
+):
+    """Compute Coverage
+
+    Parameters
+    ----------
+    cdf_values : array_like
+        The cumulative distribution function evaluated
+        at each (dir, unc) pair.
+    weights : array_like, optional
+        The event weights
+    quantiles : array_like, optional
+        The quantile values for which to compute the coverage
+    verbose : bool, optional
+        If True, additional putput will be printed.
+
+    Returns
+    -------
+    array_like
+        The quantile values at which the coverage is computed.
+    array_like
+        The coverage values for each of the quantiles
+    """
+    if weights is None:
+        weights = np.ones_like(cdf_values)
+
+    num_events = np.sum(weights)
+
+    # sort values
+    sorted_indices = np.argsort(cdf_values)
+    sorted_cdf_values = cdf_values[sorted_indices]
+    sorted_weights = weights[sorted_indices]
+
+    cum_sum = np.cumsum(sorted_weights) / num_events
+    indices = np.searchsorted(sorted_cdf_values, quantiles)
+    mask_over = indices >= len(cum_sum)
+    if verbose and np.sum(mask_over) > 0:
+        print("Clipping {} events to max.".format(np.sum(mask_over)))
+        indices = np.clip(indices, 0, len(cum_sum) - 1)
+    coverage = cum_sum[indices]
+
+    return quantiles, coverage
+
+
+class DistributionOnSphere:
+
+    @property
+    def params(self):
+        return self._params
+
+    @params.setter
+    def params(self, params):
+        self._params = dict(params)
+
+    def set(self, params, *args, **kwargs):
+        """Set parameters of the distribution and initialize it
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+        """
+        self._params = dict(params)
+
+    def fit(self, samples, x0, *args, **kwargs):
+        """Fits the distribution parameters to the provided samples
+
+        Parameters
+        ----------
+        samples : array_like
+            The sample points on the sphere.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
+        x0 : array_like
+            The initial seed for the parameters.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
+        raise NotImplementedError
+
+    def log_pdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the logarithm of the PDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The log PDF evaluated at the provided positions on the sphere.
+        """
+        raise NotImplementedError
+
+    def cdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the CDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The CDF evaluated at the provided positions on the sphere.
+        """
+        raise NotImplementedError
+
+    def contour(self, level, *args, **kwargs):
+        """Return zenith/azimuth pairs belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like
+            The zenith/azimuth pairs in radians that correspond
+            to the specified contour.
+        """
+
+        raise NotImplementedError
+
+    def log_pdf_dir(self, dir_x, dir_y, dir_z, *args, **kwargs):
+        """Computes the log PDF for the provided unit direction vector.
+
+        Parameters
+        ----------
+        dir_x : array_like
+            The x-component of the unit-direction vector.
+        dir_y : array_like
+            The y-component of the unit-direction vector.
+        dir_z : array_like
+            The z-component of the unit-direction vector.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The log PDF evaluated at the provided positions on the sphere.
+        """
+        zenith, azimuth = dir2angle(dir_x, dir_y, dir_z)
+        return self.log_pdf(zenith, azimuth, *args, **kwargs)
+
+    def cdf_dir(self, dir_x, dir_y, dir_z, *args, **kwargs):
+        """Compute the CDF for the provided unit direction vector.
+
+        Parameters
+        ----------
+        dir_x : array_like
+            The x-component of the unit-direction vector.
+        dir_y : array_like
+            The y-component of the unit-direction vector.
+        dir_z : array_like
+            The z-component of the unit-direction vector.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The CDF evaluated at the provided positions on the sphere.
+        """
+        zenith, azimuth = dir2angle(dir_x, dir_y, dir_z)
+        return self.cdf(zenith, azimuth, *args, **kwargs)
+
+    def contour_dir(self, level, *args, **kwargs):
+        """Return (x, y, z) coordinates belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like, array_like
+            The x/y/z coordinates of the points corresponding to the
+            specified contour.
+        """
+        return angle2vec(self.contour(level=level, *args, **kwargs))
+
+    def _convert_samples(self, samples):
+        """Converts provided sample points to angles and unit vectors.
+
+        Parameters
+        ----------
+        samples : array_like
+            The sample points on the sphere.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
+
+        Returns
+        -------
+        array_like
+            A tuple of the zenith and azimuth angle in radians.
+        array_like
+            A tuple of the x, y, and z-components of the unit direction vector.
+        """
+        samples = np.asarray(samples)
+
+        if samples.shape[-1] == 3:
+            dir_x, dir_y, dir_z = (samples[..., i] for i in range(3))
+            zenith, azimuth = dir2angle(dir_x, dir_y, dir_z)
+
+        elif samples.shape[-1] == 2:
+            zenith, azimuth = (samples[..., i] for i in range(2))
+            dir_x, dir_y, dir_z = angle2vec(zenith, azimuth)
+        else:
+            raise ValueError("Shape not understood:", samples.shape)
+
+        zenith, azimuth = convert_to_range(zenith, azimuth)
+
+        return (zenith, azimuth), (dir_x, dir_y, dir_z)
+
+    def goodness_of_fit(self, samples, *args, **kwargs):
+        """Compute a goodness of fit by checking uniformity of CDF values
+
+        Parameters
+        ----------
+        samples : array_like
+            The sample points on the sphere.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
+        *args
+            Additional arguments passed on to the CDF function.
+        **kwargs
+            Additional keyword arguments passed on to the CDF function.
+
+        Returns
+        -------
+        float
+            The p-value of the KS-test that tests the null-hypothesis that
+            the CDF values are distributed uniformly.
+        """
+        # get zenith and azimuth angles
+        zenith, azimuth = self._convert_samples(samples)[0]
+
+        # compute CDF values of provided samples
+        cdf_values = self.cdf(zenith, azimuth, *args, **kwargs)
+
+        # the cdf values should be distributed uniformly
+        # We will check for uniformity via a  KS-test
+        res, pval = stats.kstest(cdf_values, stats.uniform.cdf)
+        return pval
+
+
+class FB8Distribution(DistributionOnSphere):
+
+    def set(
+        self,
+        params,
+        cdf_levels=np.linspace(0.0, 0.999, 1000),
+        seed=42,
+        *args,
+        **kwargs
+    ):
+        """Set parameters of the distribution and initialize it
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        cdf_levels : array_like, optional
+            The quantile values at which to cache the -llh values for
+            contour and cdf calculations.
+        seed : int, optional
+            A random seed.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+        """
+
+        # python package fb8
+        from sphere import distribution
+
+        fb8 = distribution.fb8(**params)
+        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed, *args, **kwargs)
+
+    def fit(
+        self,
+        samples,
+        cdf_levels=np.linspace(0.0, 0.999, 1000),
+        fb5_only=True,
+        warning=None,
+        seed=42,
+        *args,
+        **kwargs
+    ):
+        """Fits the distribution parameters to the provided samples
+
+        Parameters
+        ----------
+        samples : array_like
+            The sample points on the sphere.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
+        cdf_levels : array_like, optional
+            The quantile values at which to cache the -llh values for
+            contour and cdf calculations.
+        fb5_only : bool, optional
+            If True, only fit for the FB5 (Kent) distribution.
+        warning : None, optional
+            Define logging level for warnings.
+        seed : int, optional
+            A random seed.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+        """
+
+        # python package fb8
+        from sphere import distribution
+
+        dir_x, dir_y, dir_z = self._convert_samples(samples)[1]
+
+        # xs has format [z, x, y] and NOT [x, y, z]!!
+        xs = np.array([dir_z, dir_x, dir_y]).T
+        fb8 = distribution.fb8_mle(xs, fb5_only=fb5_only, warning=None)
+
+        self._setup(fb8=fb8, cdf_levels=cdf_levels, seed=seed, *args, **kwargs)
+
+    def _setup(self, fb8, cdf_levels, seed=42, n_samples=10000):
+        """Summary
+
+        Parameters
+        ----------
+        fb8 : sphere.distribution.fb8
+            The fb8 distrribution on the sphere.
+        cdf_levels : array_like, optional
+            The quantile values at which to cache the -llh values for
+            contour and cdf calculations.
+        seed : int, optional
+            A random seed.
+        n_samples : int, optional
+            The number of samples to generate from the fb8 distribution.
+            These samples will be used to compute CDF values.
+        """
+
+        self.fb8 = fb8
+
+        # compute levels needed for cdf calculation
+        self.seed = seed
+        self.n_samples = n_samples
+        self.cdf_levels = np.asarray(cdf_levels)
+        self.neg_log_p_levels = np.empty_like(self.cdf_levels)
+        for i, level in enumerate(self.cdf_levels):
+            # older fb8 package version did not have seed parameter
+            try:
+                self.neg_log_p_levels[i] = self.fb8.level(
+                    percentile=level * 100,
+                    seed=self.seed,
+                    n_samples=self.n_samples,
+                )
+            except TypeError:
+                self.neg_log_p_levels[i] = self.fb8.level(
+                    percentile=level * 100, n_samples=self.n_samples
+                )
+
+        # set parameters
+        self._params = {
+            "theta": self.fb8.theta,
+            "phi": self.fb8.phi,
+            "psi": self.fb8.psi,
+            "kappa": self.fb8.kappa,
+            "beta": self.fb8.beta,
+            "eta": self.fb8.eta,
+            "alpha": self.fb8.alpha,
+            "rho": self.fb8.rho,
+        }
+
+    def log_pdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the logarithm of the PDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The log PDF evaluated at the provided positions on the sphere.
+        """
+        dir_x, dir_y, dir_z = angle2vec(zenith, azimuth)
+
+        # xs has format [z, x, y] and NOT [x, y, z]!!
+        xs = np.array([dir_z, dir_x, dir_y]).T
+
+        return self.fb8.log_pdf(xs)
+
+    def cdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the CDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The CDF evaluated at the provided positions on the sphere.
+        """
+        neg_log = -self.log_pdf(zenith, azimuth, *args, **kwargs)
+
+        # find index of containment level
+        indices = np.searchsorted(self.neg_log_p_levels, neg_log)
+        indices = np.clip(indices, 0, len(self.cdf_levels) - 1)
+
+        return self.cdf_levels[indices]
+
+    def contour(self, level, *args, **kwargs):
+        """Return zenith/azimuth pairs belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like
+            The zenith/azimuth pairs in radians that correspond to the
+            specified contour.
+        """
+
+        theta, phi = self.fb8.contour(percentile=level * 100.0)
+        theta, phi = convert_to_range(theta, phi)
+        return theta, phi
+
+
+class VonMisesFisherDistribution(DistributionOnSphere):
+
+    def fit(self, samples, x0, fit_position=True, *args, **kwargs):
+        """Fits the distribution parameters to the provided samples
+
+        Parameters
+        ----------
+        samples : array_like
+            The sample points on the sphere.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
+        x0 : array_like
+            The initial best-fit/central position of the vMF distribution.
+            Must be given as a tuple of (zenith, azimuth, sigma) in radians.
+        fit_position : bool, optional
+            If True, the position will be fit.
+            If False, the position will be kept constant at the provided x0.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+        """
+
+        zenith, azimuth = self._convert_samples(samples)[0]
+        eps = 1e-4
+
+        if fit_position:
+
+            def loss(params):
+                zen, azi, sigma = params
+                zen, azi = convert_to_range(zen, azi)
+
+                if sigma < eps:
+                    return np.inf
+
+                # get opening angle to center of distribution
+                delta_psi = get_angle_deviation_np(
+                    azimuth1=azi,
+                    zenith1=zen,
+                    azimuth2=azimuth,
+                    zenith2=zenith,
+                )
+
+                return -np.sum(
+                    np.log(
+                        basis_functions.von_mises_in_dPsi_pdf(
+                            x=delta_psi,
+                            sigma=sigma,
+                        )
+                    )
+                )
+
+            res = minimize(loss, x0=x0)
+            zen, azi = convert_to_range(res.x[0], res.x[1])
+            self._params = {
+                "zenith": zen,
+                "azimuth": azi,
+                "sigma": res.x[2],
+            }
+        else:
+
+            def loss(sigma):
+
+                if sigma < eps:
+                    return np.inf
+
+                # get opening angle to center of distribution
+                delta_psi = get_angle_deviation_np(
+                    azimuth1=x0[1],
+                    zenith1=x0[0],
+                    azimuth2=azimuth,
+                    zenith2=zenith,
+                )
+
+                return -np.sum(
+                    np.log(
+                        basis_functions.von_mises_in_dPsi_pdf(
+                            x=delta_psi,
+                            sigma=sigma,
+                        )
+                    )
+                )
+
+            res = minimize(loss, x0=x0[2])
+
+            self._params = {
+                "zenith": x0[0],
+                "azimuth": x0[1],
+                "sigma": res.x[0],
+            }
+
+    def log_pdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the logarithm of the PDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The log PDF evaluated at the provided positions on the sphere.
+        """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
+
+        # get opening angle to center of distribution
+        delta_psi = get_angle_deviation_np(
+            azimuth1=self.params["azimuth"],
+            zenith1=self.params["zenith"],
+            azimuth2=azimuth,
+            zenith2=zenith,
+        )
+
+        return np.log(
+            basis_functions.von_mises_in_dPsi_pdf(
+                x=delta_psi,
+                sigma=self.params["sigma"],
+            )
+        )
+
+    def cdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the CDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF evaluated at the provided positions on the sphere.
+        """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
+
+        # get opening angle to center of distribution
+        delta_psi = get_angle_deviation_np(
+            azimuth1=self.params["azimuth"],
+            zenith1=self.params["zenith"],
+            azimuth2=azimuth,
+            zenith2=zenith,
+        )
+        sigma = np.zeros_like(delta_psi) + self.params["sigma"]
+
+        return basis_functions.von_mises_in_dPsi_cdf(
+            x=delta_psi, sigma=sigma, *args, **kwargs
+        )
+
+    def contour(
+        self, level, n_samples=1000, x0=None, seed=42, *args, **kwargs
+    ):
+        """Return zenith/azimuth pairs belonging to a certain contour line.
+
+        Parameters
+        ----------
+        level : float, optional
+            The contour level. Example: a level of 0.7 means that 70% of events
+            are within this contour.
+        n_samples : int, optional
+            The number of samples on the contour to compute.
+        x0 : None, optional
+            The initial seed for the minimization to find the correct
+            opening angle that corresponds to the specified level.
+        seed : int, optional
+            The random number seed for the sampling of samples on the contour.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like, array_like
+            The zenith/azimuth pairs in radians that correspond to the
+            specified contour.
+        """
+
+        # compute opening angle delta_psi that corresponds to given contour
+        sigma = np.atleast_1d(self.params["sigma"])
+
+        def loss(delta_psi):
+            cdf_value = basis_functions.von_mises_in_dPsi_cdf(
+                x=delta_psi,
+                sigma=sigma,
+            )
+            return (cdf_value - level) ** 2
+
+        if x0 is None:
+            x0 = self.params["sigma"]
+
+        res = minimize(loss, x0=x0)
+
+        # expand to generate n_samples
+        delta_psi = np.zeros(n_samples) + res.x[0]
+
+        # sample new opening vectors for this opening angle delta_psi
+        zenith, azimuth = get_delta_psi_vector(
+            zenith=self.params["zenith"],
+            azimuth=self.params["azimuth"],
+            delta_psi=delta_psi,
+            random_service=np.random.RandomState(seed),
+            randomize_for_each_delta_psi=True,
+            is_degree=False,
+            return_angles=True,
+        )
+
+        return zenith, azimuth
+
+
+class Gauss2D(DistributionOnSphere):
+    """Note this does not define a proper PDF on the sphere!
+
+    Only approximately valid in cartesian approximation of small angles
+    """
+
+    def get_azimuth_residuals(self, azimuth1, azimuth2):
+        """Get azimuth residuals while taking 2pi periodicity into account
+
+        Parameters
+        ----------
+        azimuth1 : array_like
+            The first azimuth values in radians.
+        azimuth2 : array_like
+            The second azimuth values in radians.
+
+        Returns
+        -------
+        array_like
+            The residuals between the two provided azimuth values.
+        """
+        azimuth1 = np.mod(azimuth1, 2 * np.pi)
+        azimuth2 = np.mod(azimuth2, 2 * np.pi)
+
+        residuals = azimuth1 - azimuth2
+        residuals[residuals < -np.pi] = (
+            residuals[residuals < -np.pi] + 2 * np.pi
+        )
+        residuals[residuals > +np.pi] = (
+            residuals[residuals > +np.pi] - 2 * np.pi
+        )
+        return residuals
+
+    def nearestPD(self, A):
+        """Find the nearest positive-definite matrix to input
+
+        A Python/Numpy port of John D'Errico's `nearestSPD` MATLAB code [1],
+        which credits [2].
+
+        [1] https://www.mathworks.com/matlabcentral/fileexchange/
+            42885-nearestspd
+
+        [2] N.J. Higham, "Computing a nearest symmetric positive semidefinite
+        matrix" (1988): https://doi.org/10.1016/0024-3795(88)90223-6
+
+        Credits to solution from Ahmed Fasih:
+            https://stackoverflow.com/questions/43238173/
+            python-convert-matrix-to-positive-semi-definite
+
+        Parameters
+        ----------
+        A : array_like
+            The input matrix.
+
+        Returns
+        -------
+        array_like
+            The output matrix
+        """
+
+        B = (A + A.T) / 2
+        _, s, V = np.linalg.svd(B)
+
+        H = np.dot(V.T, np.dot(np.diag(s), V))
+
+        A2 = (B + H) / 2
+
+        A3 = (A2 + A2.T) / 2
+
+        if self.isPD(A3):
+            return A3
+
+        spacing = np.spacing(np.linalg.norm(A))
+        # The above is different from [1]. It appears that MATLAB's
+        # `chol` Cholesky decomposition will accept matrixes with exactly
+        # 0-eigenvalue, whereas Numpy's will not. So where [1] uses
+        # `eps(mineig)` (where `eps` is Matlab for `np.spacing`), we use the
+        # above definition. CAVEAT: our `spacing` will be much larger than
+        # [1]'s `eps(mineig)`, since `mineig` is usually on the order of
+        # 1e-16, and `eps(1e-16)` is on the order of 1e-34, whereas `spacing`
+        # will, for Gaussian random matrixes of small dimension, be on
+        # on the order of 1e-16. In practice, both ways converge,
+        # as the unit test below suggests.
+        identity = np.eye(A.shape[0])
+        k = 1
+        while not self.isPD(A3):
+            mineig = np.min(np.real(np.linalg.eigvals(A3)))
+            A3 += identity * (-mineig * k**2 + spacing)
+            k += 1
+
+        return A3
+
+    def isPD(self, B):
+        """Returns true when input is positive-definite, via Cholesky"""
+        try:
+            _ = np.linalg.cholesky(B)
+            return True
+        except np.linalg.LinAlgError:
+            return False
+
+    def set(self, params, allow_singular=True, seed=42, *args, **kwargs):
+        """Set parameters of the distribution and initialize it
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        allow_singular : bool, optional
+            Allow singular covariance matrices.
+        seed : int, optional
+            Random number seed.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+        """
+        self._setup(params, allow_singular=allow_singular, seed=seed)
+
+    def fit(
+        self,
+        samples,
+        x0=None,
+        fit_position=True,
+        allow_singular=True,
+        seed=42,
+        *args,
+        **kwargs
+    ):
+        """Fits the distribution parameters to the provided samples
+
+        Parameters
+        ----------
+        samples : array_like
+            The sample points on the sphere.
+            Can either be zenith, azimuth [in radians] or
+            x, y, z of unit direction vector. The size of the last dimension
+            of `samples` defines which one will be used.
+        x0 : array_like
+            The initial best-fit/central position of the vMF distribution.
+            Must be given as a tuple of (zenith, azimuth, sigma).
+        fit_position : bool, optional
+            If True, the position will be fit.
+            If False, the position will be kept constant at the provided x0.
+        allow_singular : bool, optional
+            Allow singular covariance matrices.
+        seed : int, optional
+            Random number seed.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+        """
+
+        zenith, azimuth = self._convert_samples(samples)[0]
+        self.seed = seed
+
+        eps = 1e-4
+
+        if x0 is None:
+            cov = np.cov(zenith, azimuth)
+            x0 = [
+                np.median(zenith),
+                np.median(azimuth),
+                cov[0, 0],
+                cov[0, 1],
+                cov[1, 1],
+            ]
+
+        if fit_position:
+
+            def loss(params):
+                zen, azi, cov_00, cov_01, cov_11 = params
+                zen, azi = convert_to_range(zen, azi)
+
+                if cov_00 < eps or cov_11 < eps:
+                    return np.inf
+
+                if cov_01 >= 1 or cov_01 <= -1:
+                    return np.inf
+
+                # get delta values
+                d_zen = zen - zenith
+                d_azi = self.get_azimuth_residuals(azi, azimuth)
+
+                cov = np.array([[cov_00, cov_01], [cov_01, cov_11]])
+                cov = self.nearestPD(cov)
+
+                dist = stats.multivariate_normal(
+                    mean=[0, 0],
+                    cov=cov,
+                    seed=seed,
+                    allow_singular=allow_singular,
+                )
+
+                values = np.stack([d_zen, d_azi], axis=1)
+                # print('values', values)
+                # print('loss', -np.sum(dist.logpdf(values)))
+                return -np.sum(dist.logpdf(values))
+
+            res = minimize(loss, x0=x0)
+            zen, azi = convert_to_range(res.x[0], res.x[1])
+            params = {
+                "zenith": zen,
+                "azimuth": azi,
+                "cov_00": res.x[2],
+                "cov_01": res.x[3],
+                "cov_11": res.x[4],
+            }
+        else:
+
+            def loss(params):
+
+                cov_00, cov_01, cov_11 = params
+
+                if cov_00 < eps or cov_11 < eps:
+                    return np.inf
+
+                if cov_01 >= 1 or cov_01 <= -1:
+                    return np.inf
+
+                # get delta values
+                d_zen = x0[0] - zenith
+                d_azi = self.get_azimuth_residuals(x0[1], azimuth)
+                # d_azi = x0[1] - azimuth
+
+                cov = np.array([[cov_00, cov_01], [cov_01, cov_11]])
+                cov = self.nearestPD(cov)
+                # print('cov', cov, self.isPD(cov))
+
+                dist = stats.multivariate_normal(
+                    mean=[0, 0],
+                    cov=cov,
+                    seed=seed,
+                    allow_singular=allow_singular,
+                )
+
+                values = np.stack([d_zen, d_azi], axis=1)
+                return -np.sum(dist.logpdf(values))
+
+            res = minimize(loss, x0=x0[2:])
+
+            params = {
+                "zenith": x0[0],
+                "azimuth": x0[1],
+                "cov_00": res.x[0],
+                "cov_01": res.x[1],
+                "cov_11": res.x[2],
+            }
+
+        self._setup(params)
+
+    def _setup(self, params, allow_singular=True, seed=42):
+        """Set up distribution with a given set of parameters.
+
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters that define the parameter values
+            of the distribution.
+        allow_singular : bool, optional
+            Allow singular covariance matrices.
+        seed : int, optional
+            Random number seed.
+        """
+        self.seed = seed
+        self.allow_singular = allow_singular
+        self._params = dict(params)
+
+        self.cov = np.array(
+            [
+                [self.params["cov_00"], self.params["cov_01"]],
+                [self.params["cov_01"], self.params["cov_11"]],
+            ]
+        )
+
+        # update cov matrix
+        self.cov = self.nearestPD(self.cov)
+        self.params["cov_00"] = self.cov[0, 0]
+        self.params["cov_01"] = self.cov[0, 1]
+        self.params["cov_11"] = self.cov[1, 1]
+
+        self.dist = stats.multivariate_normal(
+            mean=[0, 0],
+            cov=self.cov,
+            seed=self.seed,
+            allow_singular=allow_singular,
+        )
+
+    def log_pdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the logarithm of the PDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments
+
+        Returns
+        -------
+        array_like
+            The log PDF evaluated at the provided positions on the sphere.
+        """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
+
+        # get delta values
+        d_zen = self.params["zenith"] - zenith
+        d_azi = self.get_azimuth_residuals(self.params["azimuth"], azimuth)
+
+        values = np.stack([d_zen, d_azi], axis=1)
+        return self.dist.logpdf(values)
+
+    def cdf(self, zenith, azimuth, *args, **kwargs):
+        """Computes the CDF.
+
+        Parameters
+        ----------
+        zenith : array_like
+            The zenith angle in radians.
+        azimuth : array_like
+            The azimuth angle in radians.
+        *args
+            Additional arguments.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        array_like
+            The CDF evaluated at the provided positions on the sphere.
+        """
+        zenith = np.atleast_1d(zenith)
+        azimuth = np.atleast_1d(azimuth)
+
+        # get delta values
+        d_zen = self.params["zenith"] - zenith
+        d_azi = self.get_azimuth_residuals(self.params["azimuth"], azimuth)
+
+        values = np.stack([d_zen, d_azi], axis=1)
+        return self.dist.cdf(values)

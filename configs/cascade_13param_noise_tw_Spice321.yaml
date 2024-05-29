@@ -105,7 +105,7 @@ reconstruction_settings: {
     },
     'seed_float_precision': 'float64',
 
-    # choose the otpimizer iterface:
+    # choose the optimizer interface:
     #   'scipy' or 'tfp' (tensorflow_probability)
     'reco_optimizer_interface': 'scipy',
 
@@ -506,7 +506,7 @@ model_settings: {
                 'additional_label_names' : [
                 ],
 
-                # This is a list of the orderd snowstorm parameters: (name, number)
+                # This is a list of the ordered snowstorm parameters: (name, number)
                 'snowstorm_parameter_names': [
                     ['Absorption', 1],
                     ['AnisotropyScale', 1],

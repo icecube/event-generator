@@ -23,8 +23,8 @@ However, there is no necessity for this decomposition. One could also directly
 train a model for a more complex event hypothesis.
 
 Internally, event hypotheses are defined via classes that inherit from the
-`Source <https://github.com/icecube/event-generator/blob/master/egenerator/model/source/base.py#L30>`_ base class. The ``Source`` class itself is a daughter class of
-the more general `Model <https://github.com/icecube/event-generator/blob/master/egenerator/model/base.py#L14>`_ and `BaseComponent <https://github.com/icecube/event-generator/blob/be1d3a403807ddfe845650f5f9abe0280804473a/egenerator/manager/component.py#L380>`_ classes.
+`Source <https://github.com/icecube/event-generator/blob/595c0c59b5d38d812eaef3faaf4be6681e4e9cee/egenerator/model/source/base.py#L30>`_ base class. The ``Source`` class itself is a daughter class of
+the more general `Model <https://github.com/icecube/event-generator/blob/595c0c59b5d38d812eaef3faaf4be6681e4e9cee/egenerator/model/base.py#L14>`_ and `BaseComponent <https://github.com/icecube/event-generator/blob/595c0c59b5d38d812eaef3faaf4be6681e4e9cee/egenerator/manager/component.py#L380>`_ classes.
 These are abstract classes defined in the |egenerator| framework that keep track
 of all configured settings.
 This enables complete reproducibility and serialization/deserialization of trained models

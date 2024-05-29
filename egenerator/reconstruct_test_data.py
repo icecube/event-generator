@@ -14,10 +14,15 @@ from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
 @click.command()
-@click.argument('config_files', type=click.Path(exists=True), nargs=-1)
-@click.option('-r', '--reco_config_file', default=None, type=str,
-              help='The reconstruction config file to use. If None, '
-                   'then the first provided config file will be used.')
+@click.argument("config_files", type=click.Path(exists=True), nargs=-1)
+@click.option(
+    "-r",
+    "--reco_config_file",
+    default=None,
+    type=str,
+    help="The reconstruction config file to use. If None, "
+    "then the first provided config file will be used.",
+)
 def main(config_files, reco_config_file=None):
     """Script to train model.
 
@@ -42,7 +47,7 @@ def main(config_files, reco_config_file=None):
         reco_config_file = [reco_config_file]
 
     # limit GPU usage
-    gpu_devices = tf.config.list_physical_devices('GPU')
+    gpu_devices = tf.config.list_physical_devices("GPU")
     for device in gpu_devices:
         tf.config.experimental.set_memory_growth(device, True)
 
@@ -53,19 +58,19 @@ def main(config_files, reco_config_file=None):
     # ------------------
     # Create loss module
     # ------------------
-    loss_module = build_loss_module(config['loss_module_settings'])
+    loss_module = build_loss_module(config["loss_module_settings"])
 
     # ------------------
     # Create misc module
     # ------------------
-    reco_config = config['reconstruction_settings']
-    if isinstance(reco_config['seed'], str):
-        seed_names = [reco_config['seed']]
+    reco_config = config["reconstruction_settings"]
+    if isinstance(reco_config["seed"], str):
+        seed_names = [reco_config["seed"]]
     else:
-        seed_names = reco_config['seed']
+        seed_names = reco_config["seed"]
 
     # remove x_parameters from seed names:
-    seed_names = [name for name in seed_names if name != 'x_parameters']
+    seed_names = [name for name in seed_names if name != "x_parameters"]
 
     if len(seed_names) == 0:
         # The parameter labels are being used as a seed, so we do not need
@@ -76,76 +81,86 @@ def main(config_files, reco_config_file=None):
         misc_module.configure(
             config_data=None,
             seed_names=seed_names,
-            seed_parameter_names=reco_config['seed_parameter_names'],
-            float_precision=reco_config['seed_float_precision'],
-            missing_value=reco_config['seed_missing_value'],
-            missing_value_dict=reco_config['seed_missing_value_dict'],
-            )
+            seed_parameter_names=reco_config["seed_parameter_names"],
+            float_precision=reco_config["seed_float_precision"],
+            missing_value=reco_config["seed_missing_value"],
+            missing_value_dict=reco_config["seed_missing_value_dict"],
+        )
 
         # create nested dictionary of modified sub components in order to
         # swap out the loaded misc_module of the data_handler sub component
-        modified_sub_components = {'data_handler': {
-            'misc_module': misc_module,
-        }}
+        modified_sub_components = {
+            "data_handler": {
+                "misc_module": misc_module,
+            }
+        }
 
-    if 'modified_label_module' in reco_config:
-        label_config = reco_config['modified_label_module']
+    if "modified_label_module" in reco_config:
+        label_config = reco_config["modified_label_module"]
         LabelModuleClass = misc.load_class(
-            'egenerator.data.modules.labels.{}'.format(
-                        label_config['label_module']))
+            "egenerator.data.modules.labels.{}".format(
+                label_config["label_module"]
+            )
+        )
         label_module = LabelModuleClass()
-        label_module.configure(config_data=None,
-                               **label_config['label_settings'])
+        label_module.configure(
+            config_data=None, **label_config["label_settings"]
+        )
 
-        if 'data_handler' in modified_sub_components:
-            modified_sub_components['data_handler']['label_module'] = \
-                label_module
+        if "data_handler" in modified_sub_components:
+            modified_sub_components["data_handler"][
+                "label_module"
+            ] = label_module
         else:
-            modified_sub_components['data_handler'] = {
-                'label_module': label_module
+            modified_sub_components["data_handler"] = {
+                "label_module": label_module
             }
 
-    if 'modified_data_module' in reco_config:
-        data_config = reco_config['modified_data_module']
+    if "modified_data_module" in reco_config:
+        data_config = reco_config["modified_data_module"]
         DataModuleClass = misc.load_class(
-            'egenerator.data.modules.data.{}'.format(
-                        data_config['data_module']))
+            "egenerator.data.modules.data.{}".format(
+                data_config["data_module"]
+            )
+        )
         data_module = DataModuleClass()
-        data_module.configure(config_data=None, **data_config['data_settings'])
+        data_module.configure(config_data=None, **data_config["data_settings"])
 
-        if 'data_handler' in modified_sub_components:
-            modified_sub_components['data_handler']['data_module'] = \
-                data_module
+        if "data_handler" in modified_sub_components:
+            modified_sub_components["data_handler"][
+                "data_module"
+            ] = data_module
         else:
-            modified_sub_components['data_handler'] = {
-                'data_module': data_module
+            modified_sub_components["data_handler"] = {
+                "data_module": data_module
             }
 
     # -----------------------------
     # Create and load Model Manager
     # -----------------------------
-    manager_config = config['model_manager_settings']
-    manager_dir = manager_config['config']['manager_dir']
+    manager_config = config["model_manager_settings"]
+    manager_dir = manager_config["config"]["manager_dir"]
 
-    if manager_config['restore_model']:
-        if not os.path.exists(os.path.join(manager_dir, 'configuration.yaml')):
-            msg = 'Could not find a saved model at {!r}!'
+    if manager_config["restore_model"]:
+        if not os.path.exists(os.path.join(manager_dir, "configuration.yaml")):
+            msg = "Could not find a saved model at {!r}!"
             raise ValueError(msg.format(manager_dir))
-        print('Restoring Manager from file')
+        print("Restoring Manager from file")
 
     else:
-        print('Rebuilding Manager from scratch (make sure to load models...)')
+        print("Rebuilding Manager from scratch (make sure to load models...)")
         if len(seed_names) > 0:
             # Model Manager is being built from scratch, so we need to pass
             # the data handler settings with the modified misc module
-            config['data_handler_settings']['misc_module'] = \
-                'seed_loader.SeedLoaderMiscModule'
+            config["data_handler_settings"][
+                "misc_module"
+            ] = "seed_loader.SeedLoaderMiscModule"
 
-            config['data_handler_settings']['misc_settings'] = {
-                'seed_names': seed_names,
-                'seed_parameter_names': reco_config['seed_parameter_names'],
-                'float_precision': reco_config['seed_float_precision'],
-                'missing_value': reco_config['seed_missing_value'],
+            config["data_handler_settings"]["misc_settings"] = {
+                "seed_names": seed_names,
+                "seed_parameter_names": reco_config["seed_parameter_names"],
+                "float_precision": reco_config["seed_float_precision"],
+                "missing_value": reco_config["seed_missing_value"],
             }
 
     # load models from config files
@@ -153,29 +168,29 @@ def main(config_files, reco_config_file=None):
     for config_file in config_files:
 
         # load manager objects and extract models and a data_handler
-        model_manger,  _, data_handler, data_transformer = build_manager(
+        model_manger, _, data_handler, data_transformer = build_manager(
             SetupManager([config_file]).get_config(),
-            restore=manager_config['restore_model'],
+            restore=manager_config["restore_model"],
             modified_sub_components=deepcopy(modified_sub_components),
-            allow_rebuild_base_sources=not manager_config['restore_model'],
+            allow_rebuild_base_sources=not manager_config["restore_model"],
         )
         models.extend(model_manger.models)
 
     # build manager object
     manager, models, data_handler, data_transformer = build_manager(
-                            config,
-                            restore=False,
-                            models=models,
-                            data_handler=data_handler,
-                            data_transformer=data_transformer,
-                            allow_rebuild_base_sources=False)
+        config,
+        restore=False,
+        models=models,
+        data_handler=data_handler,
+        data_transformer=data_transformer,
+        allow_rebuild_base_sources=False,
+    )
 
     # --------------------
     # start reconstruction
     # --------------------
-    manager.reconstruct_testdata(config=config,
-                                 loss_module=loss_module)
+    manager.reconstruct_testdata(config=config, loss_module=loss_module)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

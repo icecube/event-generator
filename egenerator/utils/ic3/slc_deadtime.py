@@ -2,7 +2,7 @@ from icecube import dataclasses, icetray
 
 
 class FlagSLCDeadTimeWindows(icetray.I3ConditionalModule):
-    '''Module to flag deadtime windows after SLC hits
+    """Module to flag deadtime windows after SLC hits
 
     Decision for hard local coincidence are performed 2450 ns after ATWD and
     FADC have launched. If no local coincidence is found in this time, readout
@@ -31,25 +31,28 @@ class FlagSLCDeadTimeWindows(icetray.I3ConditionalModule):
     The DOMs will be searched for SLC pulses. If found, deadtimes will be added
     after each corresponding to the times:
         [SLC hit time + 50 ns, min(SLC hit time + 2500ns, next pulse > 1875ns)]
-    '''
+    """
+
     def __init__(self, context):
         icetray.I3ConditionalModule.__init__(self, context)
         self.AddParameter(
             "PulseKey",
             "Name of the pulses for which to add SLC Deadtime windows.",
-            'InIceDSTPulses')
+            "InIceDSTPulses",
+        )
         self.AddParameter(
             "RunOnPFrames",
             "True: run on P-frames; False: run on Q-Frames.",
-            False)
+            False,
+        )
         self.AddParameter(
             "OutputKey",
             "The key to which to save the SLC deadtime windows.",
-            'SLCDeadTimeWindows')
+            "SLCDeadTimeWindows",
+        )
 
     def Configure(self):
-        """Configure module.
-        """
+        """Configure module."""
         self._pulse_key = self.GetParameter("PulseKey")
         self._run_on_pframe = self.GetParameter("RunOnPFrames")
         self._output_key = self.GetParameter("OutputKey")
@@ -83,10 +86,10 @@ class FlagSLCDeadTimeWindows(icetray.I3ConditionalModule):
     def _add_slc_deadtime_windows(self, frame):
 
         # get pulses
-        pulse_series = frame[self._pulse_key]
-        if isinstance(pulse_series, dataclasses.I3RecoPulseSeriesMapMask) or \
-           isinstance(pulse_series, dataclasses.I3RecoPulseSeriesMapUnion):
-            pulse_series = pulse_series.apply(frame)
+        pulse_series = dataclasses.I3RecoPulseSeriesMap.from_frame(
+            frame,
+            self._pulse_key,
+        )
 
         deadtime_map = dataclasses.I3TimeWindowSeriesMap()
 
@@ -107,23 +110,25 @@ class FlagSLCDeadTimeWindows(icetray.I3ConditionalModule):
                     # width. So deadtime can start earliest 25ns afterwards.
                     # We'll go with 50 here to account for pulses at edge of
                     # the bins.
-                    t_start = p.time + 50.
+                    t_start = p.time + 50.0
 
                     # find next pulse outside of ones that can be contributed
                     # to the same FADC readout. Note that wavedeform can add
                     # some uncertainties here. Thereforew we will start looking
                     # 200ns after the initial hit.
                     index = i
-                    while (len(pulses) > index + 1 and
-                            pulses[index+1].time < t_start + 200.):
+                    while (
+                        len(pulses) > index + 1
+                        and pulses[index + 1].time < t_start + 200.0
+                    ):
                         index += 1
 
                     if index > i and pulses[index].time - t_start >= 1875:
                         # found a pulse after the start of our deadtime
                         t_next_pulse = pulses[index].time
                     else:
-                        t_next_pulse = float('inf')
-                    t_stop = min(p.time + 2500., t_next_pulse)
+                        t_next_pulse = float("inf")
+                    t_stop = min(p.time + 2500.0, t_next_pulse)
                     tws.append(dataclasses.I3TimeWindow(t_start, t_stop))
 
             if len(tws) > 0:

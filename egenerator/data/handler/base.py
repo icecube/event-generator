@@ -4,16 +4,14 @@ import multiprocessing
 import numpy as np
 import glob
 import resource
-from copy import deepcopy
 import logging
 import tensorflow as tf
 
-from egenerator.manager.component import BaseComponent, Configuration
+from egenerator.manager.component import BaseComponent
 from egenerator.data.tensor import DataTensorList
 
 
 class BaseDataHandler(BaseComponent):
-
     """The basic data handler class.
     All data handlers must be derived from this class.
 
@@ -36,8 +34,8 @@ class BaseDataHandler(BaseComponent):
 
     @property
     def tensors(self):
-        if self.data is not None and 'tensors' in self.data:
-            return self.data['tensors']
+        if self.data is not None and "tensors" in self.data:
+            return self.data["tensors"]
         else:
             return None
 
@@ -53,8 +51,8 @@ class BaseDataHandler(BaseComponent):
         super(BaseDataHandler, self).__init__(logger=self._logger)
 
         # keep track of multiprocessing processes and managers
-        self._untracked_data['mp_processes'] = []
-        self._untracked_data['mp_managers'] = []
+        self._untracked_data["mp_processes"] = []
+        self._untracked_data["mp_managers"] = []
 
     def check_if_configured(self):
         """Checks if the data handler is setup.
@@ -65,7 +63,7 @@ class BaseDataHandler(BaseComponent):
             If the data handler is not set up yet.
         """
         if not self.is_configured:
-            raise ValueError('Data handler needs to be set up first!')
+            raise ValueError("Data handler needs to be set up first!")
 
     def _configure(self, config, config_data=None):
         """Configure the BaseDataHandler component instance.
@@ -129,7 +127,7 @@ class BaseDataHandler(BaseComponent):
 
         """
         if self.is_configured:
-            raise ValueError('The data handler is already set up!')
+            raise ValueError("The data handler is already set up!")
 
         if config_data is not None:
             if isinstance(config_data, list):
@@ -140,16 +138,22 @@ class BaseDataHandler(BaseComponent):
                 test_input_data = glob.glob(config_data)
             config_data = test_input_data
 
-        configuration, component_data, sub_components = \
+        configuration, component_data, sub_components = (
             self._configure_derived_class(config, config_data)
+        )
 
         # check if component data has at least the list of data tensors
-        if 'tensors' not in component_data:
-            raise KeyError('The component data must at least contain the data '
-                           'tensors list in the key "tensors"')
-        if not isinstance(component_data['tensors'], DataTensorList):
-            raise TypeError('Expected DataTensorList but got {!r}'.format(
-                type(component_data['tensors'])))
+        if "tensors" not in component_data:
+            raise KeyError(
+                "The component data must at least contain the data "
+                'tensors list in the key "tensors"'
+            )
+        if not isinstance(component_data["tensors"], DataTensorList):
+            raise TypeError(
+                "Expected DataTensorList but got {!r}".format(
+                    type(component_data["tensors"])
+                )
+            )
 
         return configuration, component_data, sub_components
 
@@ -225,27 +229,34 @@ class BaseDataHandler(BaseComponent):
 
         # check rank
         if len(data) != self.tensors.len:
-            raise ValueError('Length {!r} and {!r} do not match!'.format(
-                len(data), len(self.tensors.names)))
+            raise ValueError(
+                "Length {!r} and {!r} do not match!".format(
+                    len(data), len(self.tensors.names)
+                )
+            )
 
         # check shape
         for values, tensor in zip(data, self.tensors.list):
             if tensor.exists and tensor.vector_info is None:
                 if len(values.shape) != len(tensor.shape):
                     raise ValueError(
-                        'Rank {!r} and {!r} do not match for {}'.format(
-                                len(values.shape), len(tensor.shape),
-                                tensor.name))
+                        "Rank {!r} and {!r} do not match for {}".format(
+                            len(values.shape), len(tensor.shape), tensor.name
+                        )
+                    )
                 for s1, s2 in zip(values.shape, tensor.shape):
                     if s2 is not None and s1 != s2:
                         raise ValueError(
-                            'Shapes {!r} and {!r} do not match for {}!'.format(
-                                values.shape, tensor.shape, tensor.name))
+                            "Shapes {!r} and {!r} do not match for {}!".format(
+                                values.shape, tensor.shape, tensor.name
+                            )
+                        )
 
             if tensor.vector_info is not None:
                 # vector tensors: todo write check for this
-                self._logger.info('Not checking vector tensor {!r}'.format(
-                    tensor.name))
+                self._logger.info(
+                    "Not checking vector tensor {!r}".format(tensor.name)
+                )
 
     def get_data_from_hdf(self, file, *args, **kwargs):
         """Get data from hdf file.
@@ -336,7 +347,7 @@ class BaseDataHandler(BaseComponent):
             if tensor.exists:
                 data_tensors.append(data[i])
             else:
-                data_tensors.append(getattr(np, tensor.dtype)())
+                data_tensors.append(tensor.dtype_np())
 
         return num_events, tuple(data_tensors)
 
@@ -383,7 +394,7 @@ class BaseDataHandler(BaseComponent):
             if tensor.exists:
                 data_tensors.append(tf.convert_to_tensor(data[i]))
             else:
-                data_tensors.append(getattr(np, tensor.dtype)())
+                data_tensors.append(tensor.dtype_np())
         return tuple(data_tensors)
 
     def _get_data_from_frame(self, frame, *args, **kwargs):
@@ -562,18 +573,23 @@ class BaseDataHandler(BaseComponent):
 
         return values_list, indices_list
 
-    def get_batch_generator(self, input_data, batch_size,
-                            sample_randomly=True,
-                            pick_random_files_forever=True,
-                            file_capacity=1,
-                            batch_capacity=5,
-                            num_jobs=1,
-                            num_add_files=0,
-                            num_repetitions=1,
-                            num_splits=None,
-                            verbose=False,
-                            biased_selection_module=None,
-                            *args, **kwargs):
+    def get_batch_generator(
+        self,
+        input_data,
+        batch_size,
+        sample_randomly=True,
+        pick_random_files_forever=True,
+        file_capacity=1,
+        batch_capacity=5,
+        num_jobs=1,
+        num_add_files=0,
+        num_repetitions=1,
+        num_splits=None,
+        verbose=False,
+        biased_selection_module=None,
+        *args,
+        **kwargs
+    ):
         """Get a python generator object that creates data input batches.
 
         This is a multiprocessing data iterator.
@@ -588,7 +604,7 @@ class BaseDataHandler(BaseComponent):
 
             2) Another worker aggregates the events of several files
                (number of files defined by 'num_add_files') together
-               by dequeing elements from the 'data_batch_queue'.
+               by dequeuing elements from the 'data_batch_queue'.
                It then creates batches from these events
                (randomly if sample_randomly == True ).
                These batches are then put onto the 'final_batch_queue'.
@@ -626,9 +642,9 @@ class BaseDataHandler(BaseComponent):
             of size 'batch_size'. This queue is what is used to obtain the
             final batches, which the generator yields.
         num_jobs : int, optional
-            Number of jobs to run in parrallel to load and process input files.
+            Number of jobs to run in parallel to load and process input files.
         num_add_files : int, optional
-            Defines how many files are additionaly loaded at once.
+            Defines how many files are additionally loaded at once.
             Batches will be generated among events of these
             (1 + num_add_files) files
         num_repetitions : int, optional
@@ -675,9 +691,9 @@ class BaseDataHandler(BaseComponent):
             file_list = glob.glob(input_data)
 
         # define shared memory variables
-        num_files_processed = multiprocessing.Value('i')
-        processed_all_files = multiprocessing.Value('b')
-        data_left_in_queue = multiprocessing.Value('b')
+        num_files_processed = multiprocessing.Value("i")
+        processed_all_files = multiprocessing.Value("b")
+        data_left_in_queue = multiprocessing.Value("b")
 
         # initialize shared variables
         num_files_processed.value = 0
@@ -702,17 +718,19 @@ class BaseDataHandler(BaseComponent):
 
         # create data_batch_queue
         data_batch_queue = multiprocessing.Manager().Queue(
-                                                    maxsize=file_capacity)
+            maxsize=file_capacity
+        )
 
         # create final_batch_queue
         final_batch_queue = multiprocessing.Manager().Queue(
-                                                    maxsize=batch_capacity)
+            maxsize=batch_capacity
+        )
 
         # keep references to managers alive, such that these do not shut
         # down until the BaseDataHandler object gets garbage collected
-        self._untracked_data['mp_managers'].append(file_list_queue)
-        self._untracked_data['mp_managers'].append(data_batch_queue)
-        self._untracked_data['mp_managers'].append(final_batch_queue)
+        self._untracked_data["mp_managers"].append(file_list_queue)
+        self._untracked_data["mp_managers"].append(data_batch_queue)
+        self._untracked_data["mp_managers"].append(final_batch_queue)
 
         def file_loader(seed):
             """Helper Method to load files.
@@ -747,13 +765,21 @@ class BaseDataHandler(BaseComponent):
 
                     if verbose:
                         usage = resource.getrusage(resource.RUSAGE_SELF)
-                        msg = "{} {:02.1f} GB. file_list_queue:" \
-                              " {}. data_batch_queue: {}"
-                        self._logger.debug(msg.format(
-                            file, usage.ru_maxrss / 1024.0 / 1024.0,
-                            file_list_queue.qsize(), data_batch_queue.qsize()))
-                    num_events, data = \
-                        self.get_data_from_hdf(file, *args, **kwargs)
+                        msg = (
+                            "{} {:02.1f} GB. file_list_queue:"
+                            " {}. data_batch_queue: {}"
+                        )
+                        self._logger.debug(
+                            msg.format(
+                                file,
+                                usage.ru_maxrss / 1024.0 / 1024.0,
+                                file_list_queue.qsize(),
+                                data_batch_queue.qsize(),
+                            )
+                        )
+                    num_events, data = self.get_data_from_hdf(
+                        file, *args, **kwargs
+                    )
 
                     # biased selection
                     if biased_selection_module is not None:
@@ -777,13 +803,15 @@ class BaseDataHandler(BaseComponent):
                             event
                             """
                             raise NotImplementedError(
-                                'num_splits currently not supported')
+                                "num_splits currently not supported"
+                            )
 
                             # split data into several smaller chunks
                             # (Multiprocessing queue can only handle
                             #  a certain size)
                             split_indices_list = np.array_split(
-                                    np.arange(num_events),  num_splits)
+                                np.arange(num_events), num_splits
+                            )
 
                             for split_indices in split_indices_list:
 
@@ -795,11 +823,13 @@ class BaseDataHandler(BaseComponent):
                                         batch.append(tensor[split_indices])
 
                                 # put batch in queue
-                                data_batch_queue.put((len(split_indices),
-                                                      batch))
+                                data_batch_queue.put(
+                                    (len(split_indices), batch)
+                                )
                 else:
                     self._logger.warning(
-                        'File {!r} does not exist.'.format(file))
+                        "File {!r} does not exist.".format(file)
+                    )
 
                 if not pick_random_files_forever:
                     with file_counter_lock:
@@ -808,8 +838,7 @@ class BaseDataHandler(BaseComponent):
                             processed_all_files.value = True
 
         def fill_event_list(data_batch, event_list, exists, num_events):
-            """Fills an event_list with a given data_batch.
-            """
+            """Fills an event_list with a given data_batch."""
             for i, tensor in enumerate(self.tensors.list):
 
                 # check if data exists
@@ -817,27 +846,30 @@ class BaseDataHandler(BaseComponent):
                     exists[i] = False
 
                 if tensor.vector_info is not None:
-                    if tensor.vector_info['type'] == 'value':
+                    if tensor.vector_info["type"] == "value":
                         # we are collecting value tensors together with
                         # the indices tensors, so skip for now
                         continue
-                    elif tensor.vector_info['type'] == 'index':
+                    elif tensor.vector_info["type"] == "index":
                         # get value tensor
                         value_index = self.tensors.get_index(
-                            tensor.vector_info['reference'])
+                            tensor.vector_info["reference"]
+                        )
                         values = data_batch[value_index]
                         indices = data_batch[i]
 
                         if values is None or indices is None:
-                            assert values == indices, '{!r} != {!r}'.format(
-                                values, indices)
+                            assert values == indices, "{!r} != {!r}".format(
+                                values, indices
+                            )
                             event_list[value_index].append(None)
                             event_list[i].append(None)
                         else:
                             # This data input is a vector type and must be
                             # restructured to event shape
                             values, indices = self.batch_to_event_structure(
-                                                values, indices, num_events)
+                                values, indices, num_events
+                            )
 
                             event_list[value_index].extend(values)
                             event_list[i].extend(indices)
@@ -881,20 +913,25 @@ class BaseDataHandler(BaseComponent):
                 fill_event_list(data_batch, event_list, exists, num_events)
 
                 n_files = 0
-                while ((n_files < num_add_files or current_queue_size <
-                        np.sqrt(max(0, num_repetitions - 1)) * batch_size) and
-                       data_left_in_queue.value):
+                while (
+                    n_files < num_add_files
+                    or current_queue_size
+                    < np.sqrt(max(0, num_repetitions - 1)) * batch_size
+                ) and data_left_in_queue.value:
 
                     # avoid dead lock and delay for a bit
                     time.sleep(0.1)
 
-                    if (data_batch_queue.qsize() > 1 or
-                            not data_batch_queue.empty()):
+                    if (
+                        data_batch_queue.qsize() > 1
+                        or not data_batch_queue.empty()
+                    ):
                         num_events, data_batch = data_batch_queue.get()
                         n_files += 1
                         current_queue_size += num_events
-                        fill_event_list(data_batch, event_list, exists,
-                                        num_events)
+                        fill_event_list(
+                            data_batch, event_list, exists, num_events
+                        )
 
                 # concatenate into one numpy array:
                 for i, tensor in enumerate(self.tensors.list):
@@ -903,7 +940,7 @@ class BaseDataHandler(BaseComponent):
 
                 queue_size = current_queue_size
                 if verbose:
-                    self._logger.debug('queue_size:', queue_size)
+                    self._logger.debug("queue_size:", queue_size)
 
                 # num_repetitions:
                 #   potentially dangerous for batch_size approx file_size
@@ -921,7 +958,7 @@ class BaseDataHandler(BaseComponent):
                             if exists[i]:
                                 if tensor.vector_info is None:
                                     batch[i].append(event_list[i][index])
-                                elif tensor.vector_info['type'] != 'index':
+                                elif tensor.vector_info["type"] != "index":
                                     batch[i].append(event_list[i][index])
                                 else:
                                     # correct batch index for vector indices
@@ -929,7 +966,7 @@ class BaseDataHandler(BaseComponent):
                                     indices[:, 0] = size
                                     batch[i].append(indices)
                             else:
-                                batch[i].append(getattr(np, tensor.dtype)())
+                                batch[i].append(tensor.dtype_np())
                                 # batch[i].append(None)
                         size += 1
 
@@ -942,28 +979,36 @@ class BaseDataHandler(BaseComponent):
                                     if tensor.vector_info is None:
                                         batch[i] = np.asarray(
                                             batch[i],
-                                            dtype=getattr(np, tensor.dtype))
+                                            dtype=tensor.dtype_np,
+                                        )
 
                                     else:
                                         batch[i] = np.concatenate(
-                                                batch[i], axis=0).astype(
-                                                    getattr(np, tensor.dtype))
+                                            batch[i], axis=0
+                                        ).astype(tensor.dtype_np)
                                 else:
                                     batch[i] = np.asarray(
-                                            batch[i],
-                                            dtype=getattr(np, tensor.dtype))
+                                        batch[i],
+                                        dtype=tensor.dtype_np,
+                                    )
 
                             if verbose:
                                 usage = resource.getrusage(
-                                            resource.RUSAGE_SELF).ru_maxrss
-                                msg = "{:02.1f} GB. file_list_queue: {}." \
-                                      " data_batch_queue: {}. " \
-                                      "final_batch_queue: {}"
-                                self._logger.debug(msg.format(
-                                    usage / 1024.0 / 1024.0,
-                                    file_list_queue.qsize(),
-                                    data_batch_queue.qsize(),
-                                    final_batch_queue.qsize()))
+                                    resource.RUSAGE_SELF
+                                ).ru_maxrss
+                                msg = (
+                                    "{:02.1f} GB. file_list_queue: {}."
+                                    " data_batch_queue: {}. "
+                                    "final_batch_queue: {}"
+                                )
+                                self._logger.debug(
+                                    msg.format(
+                                        usage / 1024.0 / 1024.0,
+                                        file_list_queue.qsize(),
+                                        data_batch_queue.qsize(),
+                                        final_batch_queue.qsize(),
+                                    )
+                                )
                             final_batch_queue.put(tuple(batch))
 
                             # reset event batch
@@ -972,8 +1017,10 @@ class BaseDataHandler(BaseComponent):
 
                 if not pick_random_files_forever:
                     with file_counter_lock:
-                        if (processed_all_files.value and
-                                data_batch_queue.empty()):
+                        if (
+                            processed_all_files.value
+                            and data_batch_queue.empty()
+                        ):
                             data_left_in_queue.value = False
 
             # collect leftovers and put them in an (incomplete) batch
@@ -1009,29 +1056,35 @@ class BaseDataHandler(BaseComponent):
             process = multiprocessing.Process(target=file_loader, args=(i,))
             process.daemon = True
             process.start()
-            self._untracked_data['mp_processes'].append(process)
+            self._untracked_data["mp_processes"].append(process)
 
-        process = multiprocessing.Process(target=data_queue_iterator,
-                                          args=(sample_randomly,))
+        process = multiprocessing.Process(
+            target=data_queue_iterator, args=(sample_randomly,)
+        )
         process.daemon = True
         process.start()
-        self._untracked_data['mp_processes'].append(process)
+        self._untracked_data["mp_processes"].append(process)
 
         return batch_iterator()
 
-    def get_tf_dataset(self, input_data, batch_size,
-                       sample_randomly=True,
-                       pick_random_files_forever=True,
-                       file_capacity=1,
-                       batch_capacity=5,
-                       dataset_capacity=2,
-                       num_jobs=1,
-                       num_add_files=0,
-                       num_repetitions=1,
-                       num_splits=None,
-                       verbose=False,
-                       biased_selection_module=None,
-                       *args, **kwargs):
+    def get_tf_dataset(
+        self,
+        input_data,
+        batch_size,
+        sample_randomly=True,
+        pick_random_files_forever=True,
+        file_capacity=1,
+        batch_capacity=5,
+        dataset_capacity=2,
+        num_jobs=1,
+        num_add_files=0,
+        num_repetitions=1,
+        num_splits=None,
+        verbose=False,
+        biased_selection_module=None,
+        *args,
+        **kwargs
+    ):
         """Wrapper around get_batch_generator to obtain a tf.Dataset
 
         Parameters
@@ -1061,11 +1114,11 @@ class BaseDataHandler(BaseComponent):
             final batches, which the generator yields.
         dataset_capacity : int, optional
             Defines the tensorflow prefetch argument for the tf.Dataset.
-            This controlls how many batches are prefetched.
+            This controls how many batches are prefetched.
         num_jobs : int, optional
-            Number of jobs to run in parrallel to load and process input files.
+            Number of jobs to run in parallel to load and process input files.
         num_add_files : int, optional
-            Defines how many files are additionaly loaded at once.
+            Defines how many files are additionally loaded at once.
             Batches will be generated among events of these
             (1 + num_add_files) files
         num_repetitions : int, optional
@@ -1094,27 +1147,30 @@ class BaseDataHandler(BaseComponent):
         tf.Dataset
             A tensorflow dataset.
         """
+
         def get_generator():
             return self.get_batch_generator(
-                    input_data=input_data,
-                    batch_size=batch_size,
-                    sample_randomly=sample_randomly,
-                    pick_random_files_forever=pick_random_files_forever,
-                    file_capacity=file_capacity,
-                    batch_capacity=batch_capacity,
-                    num_jobs=num_jobs,
-                    num_add_files=num_add_files,
-                    num_repetitions=num_repetitions,
-                    num_splits=num_splits,
-                    verbose=verbose,
-                    biased_selection_module=biased_selection_module,
-                    *args, **kwargs)
+                input_data=input_data,
+                batch_size=batch_size,
+                sample_randomly=sample_randomly,
+                pick_random_files_forever=pick_random_files_forever,
+                file_capacity=file_capacity,
+                batch_capacity=batch_capacity,
+                num_jobs=num_jobs,
+                num_add_files=num_add_files,
+                num_repetitions=num_repetitions,
+                num_splits=num_splits,
+                verbose=verbose,
+                biased_selection_module=biased_selection_module,
+                *args,
+                **kwargs
+            )
 
         # collect output types and shapes
         output_types = []
         output_shapes = []
         for tensor in self.tensors.list:
-            output_types.append(getattr(tf, tensor.dtype))
+            output_types.append(tensor.dtype_tf)
             if tensor.exists:
                 output_shapes.append(tf.TensorShape(tensor.shape))
             else:
@@ -1124,10 +1180,10 @@ class BaseDataHandler(BaseComponent):
         output_shapes = tuple(output_shapes)
 
         return tf.data.Dataset.from_generator(
-                        generator=get_generator,
-                        output_types=output_types,
-                        output_shapes=output_shapes
-                        ).prefetch(dataset_capacity)
+            generator=get_generator,
+            output_types=output_types,
+            output_shapes=output_shapes,
+        ).prefetch(dataset_capacity)
 
     def get_data_set_signature(self):
         """Get tensorflow specification of dataset batch
@@ -1143,21 +1199,19 @@ class BaseDataHandler(BaseComponent):
                 shape = tf.TensorShape(tensor.shape)
             else:
                 shape = tf.TensorShape(None)
-            spec.append(
-                tf.TensorSpec(shape=shape, dtype=getattr(tf, tensor.dtype)))
+            spec.append(tf.TensorSpec(shape=shape, dtype=tensor.dtype_tf))
         return tuple(spec)
 
     def kill(self):
-        """Kill Multiprocessing queues and workers
-        """
-        for process in self._untracked_data['mp_processes']:
+        """Kill Multiprocessing queues and workers"""
+        for process in self._untracked_data["mp_processes"]:
             process.terminate()
 
         time.sleep(0.1)
-        for process in self._untracked_data['mp_processes']:
+        for process in self._untracked_data["mp_processes"]:
             process.join(timeout=1.0)
 
-        self._untracked_data['mp_managers'] = []
+        self._untracked_data["mp_managers"] = []
 
     def __del__(self):
         self.kill()

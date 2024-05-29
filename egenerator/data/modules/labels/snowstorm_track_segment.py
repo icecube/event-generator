@@ -10,9 +10,7 @@ from egenerator.data.tensor import DataTensorList, DataTensor
 
 
 class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
-
-    """This is a label module that loads the snowstorm track labels.
-    """
+    """This is a label module that loads the snowstorm track labels."""
 
     def __init__(self, logger=None):
         """Initialize track module
@@ -25,12 +23,18 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
 
         logger = logger or logging.getLogger(__name__)
         super(SnowstormTrackSegmentGeneratorLabelModule, self).__init__(
-                                                                logger=logger)
+            logger=logger
+        )
 
-    def _configure(self, config_data, trafo_log, float_precision,
-                   label_key='EventGeneratorMuonTrackLabels_c0000',
-                   snowstorm_key='SnowstormParameters',
-                   num_snowstorm_params=30):
+    def _configure(
+        self,
+        config_data,
+        trafo_log,
+        float_precision,
+        label_key="EventGeneratorMuonTrackLabels_c0000",
+        snowstorm_key="SnowstormParameters",
+        num_snowstorm_params=30,
+    ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -112,30 +116,39 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
             trafo_log_ext = [trafo_log] * num_params
         else:
             trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False]*num_snowstorm_params)
+        trafo_log_ext.extend([False] * num_snowstorm_params)
 
         data = {}
-        data['label_tensors'] = DataTensorList([DataTensor(
-            name='x_parameters',
-            shape=[None, num_params + num_snowstorm_params],
-            tensor_type='label',
-            dtype=float_precision,
-            trafo=True,
-            trafo_log=trafo_log_ext)])
+        data["label_tensors"] = DataTensorList(
+            [
+                DataTensor(
+                    name="x_parameters",
+                    shape=[None, num_params + num_snowstorm_params],
+                    tensor_type="label",
+                    dtype=float_precision,
+                    trafo=True,
+                    trafo_log=trafo_log_ext,
+                )
+            ]
+        )
 
         if isinstance(config_data, DataTensorList):
-            if config_data != data['label_tensors']:
-                msg = 'Tensors are wrong: {!r} != {!r}'
-                raise ValueError(msg.format(config_data,
-                                            data['label_tensors']))
+            if config_data != data["label_tensors"]:
+                msg = "Tensors are wrong: {!r} != {!r}"
+                raise ValueError(
+                    msg.format(config_data, data["label_tensors"])
+                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config_data=config_data,
-                          trafo_log=trafo_log,
-                          float_precision=float_precision,
-                          label_key=label_key,
-                          snowstorm_key=snowstorm_key,
-                          num_snowstorm_params=num_snowstorm_params))
+            settings=dict(
+                config_data=config_data,
+                trafo_log=trafo_log,
+                float_precision=float_precision,
+                label_key=label_key,
+                snowstorm_key=snowstorm_key,
+                num_snowstorm_params=num_snowstorm_params,
+            ),
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -165,32 +178,39 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
             Description
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         # open file
-        f = pd.HDFStore(file, 'r')
+        f = pd.HDFStore(file, "r")
 
         track_parameters = []
         try:
-            _labels = f[self.configuration.config['label_key']]
-            for l in ['track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-                      'zenith', 'azimuth', 'track_energy',
-                      'track_anchor_time', 'track_distance_end',
-                      'track_stochasticity']:
-                track_parameters.append(_labels[l])
+            _labels = f[self.configuration.config["label_key"]]
+            for label in [
+                "track_anchor_x",
+                "track_anchor_y",
+                "track_anchor_z",
+                "zenith",
+                "azimuth",
+                "track_energy",
+                "track_anchor_time",
+                "track_distance_end",
+                "track_stochasticity",
+            ]:
+                track_parameters.append(_labels[label])
 
             # assert that track anchor is at track vertex
-            assert (_labels['track_distance_start'] == 0).all()
+            assert (_labels["track_distance_start"] == 0).all()
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(track_parameters[0])
 
             if num_params > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = f[snowstorm_key]
-                    params = _snowstorm_params['item']
-                    index = _snowstorm_params['vector_index']
+                    params = _snowstorm_params["item"]
+                    index = _snowstorm_params["vector_index"]
                     assert max(index) == num_params - 1
                     assert min(index) == 0
 
@@ -207,13 +227,13 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping file: {}'.format(file))
+            self._logger.warning("Skipping file: {}".format(file))
             return None, None
         finally:
             f.close()
 
         # format track parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
+        dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
         num_events = len(track_parameters)
 
@@ -241,22 +261,29 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
             Returns None if no label data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         track_parameters = []
         try:
-            _labels = frame[self.configuration.config['label_key']]
-            for l in ['track_anchor_x', 'track_anchor_y', 'track_anchor_z',
-                      'zenith', 'azimuth', 'track_energy',
-                      'track_anchor_time', 'track_distance_end',
-                      'track_stochasticity']:
-                track_parameters.append(np.atleast_1d(_labels[l]))
+            _labels = frame[self.configuration.config["label_key"]]
+            for label in [
+                "track_anchor_x",
+                "track_anchor_y",
+                "track_anchor_z",
+                "zenith",
+                "azimuth",
+                "track_energy",
+                "track_anchor_time",
+                "track_distance_end",
+                "track_stochasticity",
+            ]:
+                track_parameters.append(np.atleast_1d(_labels[label]))
 
             # assert that track anchor is at track vertex
-            assert (np.atleast_1d(_labels['track_distance_start']) == 0).all()
+            assert (np.atleast_1d(_labels["track_distance_start"]) == 0).all()
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(track_parameters[0])
 
             if num_params > 0:
@@ -277,11 +304,11 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping frame: {}'.format(frame))
+            self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
         # format track parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
+        dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
         num_events = len(track_parameters)
 
@@ -309,7 +336,7 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
             Returns None if no label data is created.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         return self.get_data_from_frame(frame, *args, **kwargs)
 
@@ -329,6 +356,6 @@ class SnowstormTrackSegmentGeneratorLabelModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         pass

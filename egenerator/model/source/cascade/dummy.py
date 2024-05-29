@@ -3,7 +3,6 @@ import logging
 import tensorflow as tf
 
 from egenerator.model.source.base import Source
-# from egenerator.manager.component import Configuration, BaseComponent
 
 
 class DummyCascadeModel(Source):
@@ -42,16 +41,27 @@ class DummyCascadeModel(Source):
         """
         self.assert_configured(False)
 
-        parameter_names = ['x', 'y', 'z', 'zenith', 'azimuth',
-                           'energy', 'time']
+        parameter_names = [
+            "x",
+            "y",
+            "z",
+            "zenith",
+            "azimuth",
+            "energy",
+            "time",
+        ]
 
-        self._untracked_data['dummy_var'] = tf.Variable(1., name='dummy_var')
+        self._untracked_data["dummy_var"] = tf.Variable(1.0, name="dummy_var")
 
         return parameter_names
 
     @tf.function
-    def get_tensors(self, data_batch_dict, is_training,
-                    parameter_tensor_name='x_parameters'):
+    def get_tensors(
+        self,
+        data_batch_dict,
+        is_training,
+        parameter_tensor_name="x_parameters",
+    ):
         """Get tensors computed from input parameters and pulses.
 
         Parameters are the hypothesis tensor of the source with
@@ -96,21 +106,21 @@ class DummyCascadeModel(Source):
         self.assert_configured(True)
 
         parameters = data_batch_dict[parameter_tensor_name]
-        pulses = data_batch_dict['x_pulses']
-        pulses_ids = data_batch_dict['x_pulses_ids']
+        pulses = data_batch_dict["x_pulses"]
 
-        temp_var = parameters * self._untracked_data['dummy_var']
-        temp_var_reshaped = tf.reshape(tf.reduce_sum(parameters, axis=1),
-                                       [-1, 1, 1, 1])
+        temp_var_reshaped = tf.reshape(
+            tf.reduce_sum(parameters, axis=1), [-1, 1, 1, 1]
+        )
         dom_charges = tf.ones([1, 86, 60, 1]) * temp_var_reshaped
-        pulse_pdf = (tf.reduce_sum(pulses, axis=1)
-                     * self._untracked_data['dummy_var'])
+        pulse_pdf = (
+            tf.reduce_sum(pulses, axis=1) * self._untracked_data["dummy_var"]
+        )
 
         tensor_dict = {
-            'dom_charges': dom_charges,
-            'dom_charges_variance': dom_charges,
-            'pulse_pdf': pulse_pdf,
-            'time_offsets': None,
+            "dom_charges": dom_charges,
+            "dom_charges_variance": dom_charges,
+            "pulse_pdf": pulse_pdf,
+            "time_offsets": None,
         }
 
         return tensor_dict

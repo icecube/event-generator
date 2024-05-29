@@ -18,7 +18,7 @@ def get_dist_to_shower_max(ref_energy, eps=1e-6):
     """
 
     # Radiation length in meters, assuming an ice density of 0.9216 g/cm^3
-    l_rad = (0.358/0.9216)  # in meter
+    l_rad = 0.358 / 0.9216  # in meter
 
     """
     Parameters taken from I3SimConstants (for particle e-):
@@ -27,15 +27,16 @@ def get_dist_to_shower_max(ref_energy, eps=1e-6):
     sim-services/I3SimConstants.cxx
     """
     a = 2.01849 + 0.63176 * np.log(ref_energy + eps)
-    b = l_rad/0.63207
+    b = l_rad / 0.63207
 
     # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
-    length_to_maximum = np.clip(((a-1.)/b)*l_rad, 0., float('inf'))
+    length_to_maximum = np.clip(((a - 1.0) / b) * l_rad, 0.0, float("inf"))
     return length_to_maximum
 
 
 def shift_to_maximum(
-        x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6, reverse=False):
+    x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6, reverse=False
+):
     """Shift cascade to/from shower maximum
 
     PPC does its own cascade extension, leaving the showers at the
@@ -72,8 +73,7 @@ def shift_to_maximum(
         Shifted vertex position (position of shower maximum) in meter and
         shifted vertex time in nano seconds.
     """
-    length_to_maximum = get_dist_to_shower_max(
-        ref_energy=ref_energy, eps=eps)
+    length_to_maximum = get_dist_to_shower_max(ref_energy=ref_energy, eps=eps)
     if reverse:
         length_to_maximum *= -1
 

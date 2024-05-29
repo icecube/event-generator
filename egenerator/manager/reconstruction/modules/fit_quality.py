@@ -8,21 +8,26 @@ from egenerator.manager.reconstruction.modules.utils import trafo
 
 class GoodnessOfFit:
 
-    def __init__(self, manager, loss_module, function_cache,
-                 fit_parameter_list,
-                 reco_key,
-                 covariance_key=None,
-                 minimize_in_trafo_space=True,
-                 parameter_tensor_name='x_parameters',
-                 scipy_optimizer_settings={
-                    'method': 'L-BFGS-B',
-                    'options': {'ftol': 1e-6},
-                 },
-                 num_samples=50,
-                 reconstruct_samples=True,
-                 add_per_dom_calculation=True,
-                 normalize_by_total_charge=True,
-                 random_seed=42):
+    def __init__(
+        self,
+        manager,
+        loss_module,
+        function_cache,
+        fit_parameter_list,
+        reco_key,
+        covariance_key=None,
+        minimize_in_trafo_space=True,
+        parameter_tensor_name="x_parameters",
+        scipy_optimizer_settings={
+            "method": "L-BFGS-B",
+            "options": {"ftol": 1e-6},
+        },
+        num_samples=50,
+        reconstruct_samples=True,
+        add_per_dom_calculation=True,
+        normalize_by_total_charge=True,
+        random_seed=42,
+    ):
         """Initialize module and setup tensorflow functions.
 
         Parameters
@@ -54,7 +59,7 @@ class GoodnessOfFit:
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'.
         scipy_optimizer_settings : dict, optional
-            Settings that will be passed on to the scipy.optmize.minimize
+            Settings that will be passed on to the scipy.optimize.minimize
             function.
         num_samples : int, optional
             This defines the number of points to sample from the estimated
@@ -101,7 +106,7 @@ class GoodnessOfFit:
         self.normalize_by_total_charge = normalize_by_total_charge
 
         # get a list of parameters which are transformed in log-space
-        param_tensor = self.manager.data_trafo.data['tensors']['x_parameters']
+        param_tensor = self.manager.data_trafo.data["tensors"]["x_parameters"]
         self.log_params = np.array(param_tensor.trafo_log)
 
         # specify a random number generator for reproducibility
@@ -109,24 +114,29 @@ class GoodnessOfFit:
 
         # get indices of data tensors
         self.x_pulses_index = self.manager.data_handler.tensors.get_index(
-            'x_pulses')
+            "x_pulses"
+        )
         self.x_pulses_ids_index = self.manager.data_handler.tensors.get_index(
-            'x_pulses_ids')
+            "x_pulses_ids"
+        )
         self.x_dom_charge_index = self.manager.data_handler.tensors.get_index(
-            'x_dom_charge')
+            "x_dom_charge"
+        )
 
         # get indices of parameters
-        self.param_time_index = self.manager.models[0].get_index('time')
+        self.param_time_index = self.manager.models[0].get_index("time")
 
         # parameter input signature
-        self.param_dtype = getattr(tf, self.manager.data_trafo.data['tensors'][
-            parameter_tensor_name].dtype)
+        self.param_dtype = self.manager.data_trafo.data["tensors"][
+            parameter_tensor_name
+        ].dtype_tf
         param_signature = tf.TensorSpec(
             shape=[None, np.sum(fit_parameter_list, dtype=int)],
-            dtype=self.param_dtype)
+            dtype=self.param_dtype,
+        )
         param_signature_full = tf.TensorSpec(
-            shape=[None, len(fit_parameter_list)],
-            dtype=self.param_dtype)
+            shape=[None, len(fit_parameter_list)], dtype=self.param_dtype
+        )
 
         data_batch_signature = manager.data_handler.get_data_set_signature()
 
@@ -137,22 +147,28 @@ class GoodnessOfFit:
         # -------------------------
         # get model tensor function
         # -------------------------
-        model_tensor_settings = {'model_index': 0}
+        model_tensor_settings = {"model_index": 0}
         self.model_tensor_function = function_cache.get(
-            'model_tensors_function', model_tensor_settings)
+            "model_tensors_function", model_tensor_settings
+        )
 
         if self.model_tensor_function is None:
             self.model_tensor_function = manager.get_model_tensors_function(
-                **model_tensor_settings)
+                **model_tensor_settings
+            )
             function_cache.add(
-                self.model_tensor_function, model_tensor_settings)
+                self.model_tensor_function, model_tensor_settings
+            )
 
         # ---------------------------
         # Get parameter loss function
         # ---------------------------
         loss_settings = dict(
             input_signature=(
-                param_signature, data_batch_signature, param_signature_full),
+                param_signature,
+                data_batch_signature,
+                param_signature_full,
+            ),
             loss_module=loss_module,
             fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
@@ -164,11 +180,13 @@ class GoodnessOfFit:
         )
 
         self.loss_function = function_cache.get(
-            'parameter_loss_function', loss_settings)
+            "parameter_loss_function", loss_settings
+        )
 
         if self.loss_function is None:
             self.loss_function = manager.get_parameter_loss_function(
-                **loss_settings)
+                **loss_settings
+            )
             function_cache.add(self.loss_function, loss_settings)
 
         # -------------------------------
@@ -176,7 +194,10 @@ class GoodnessOfFit:
         # -------------------------------
         function_settings = dict(
             input_signature=(
-                param_signature, data_batch_signature, param_signature_full),
+                param_signature,
+                data_batch_signature,
+                param_signature_full,
+            ),
             loss_module=loss_module,
             fit_parameter_list=fit_parameter_list,
             minimize_in_trafo_space=minimize_in_trafo_space,
@@ -185,24 +206,28 @@ class GoodnessOfFit:
         )
 
         loss_and_gradients_function = function_cache.get(
-            'loss_and_gradients_function', function_settings)
+            "loss_and_gradients_function", function_settings
+        )
 
         if loss_and_gradients_function is None:
-            loss_and_gradients_function = \
+            loss_and_gradients_function = (
                 manager.get_loss_and_gradients_function(**function_settings)
+            )
             function_cache.add(loss_and_gradients_function, function_settings)
         # -------------------------------
 
         # choose reconstruction method depending on the optimizer interface
         def reconstruction_method(data_batch, seed_tensor):
             return manager.reconstruct_events(
-                data_batch, loss_module,
+                data_batch,
+                loss_module,
                 loss_and_gradients_function=loss_and_gradients_function,
                 fit_parameter_list=fit_parameter_list,
                 minimize_in_trafo_space=minimize_in_trafo_space,
                 seed=seed_tensor,
                 parameter_tensor_name=parameter_tensor_name,
-                **scipy_optimizer_settings)
+                **scipy_optimizer_settings
+            )
 
         self.reconstruction_method = reconstruction_method
 
@@ -214,7 +239,7 @@ class GoodnessOfFit:
         data_batch : tuple of array_like
             A batch of data consisting of a tuple of data arrays.
         results : dict
-            A dictrionary with the results of previous modules.
+            A dictionary with the results of previous modules.
         **kwargs
             Additional keyword arguments.
 
@@ -227,8 +252,8 @@ class GoodnessOfFit:
         # start time
         t_0 = timeit.default_timer()
 
-        result_trafo = results[self.reco_key]['result_trafo']
-        result_inv = results[self.reco_key]['result']
+        result_trafo = results[self.reco_key]["result_trafo"]
+        result_inv = results[self.reco_key]["result"]
 
         # The following assumes that there is only one event at a time
         assert len(result_inv) == 1
@@ -238,12 +263,13 @@ class GoodnessOfFit:
         # sample event hypotheses from posterior
         # --------------------------------------
         if self.covariance_key is not None:
-            cov = results[self.covariance_key]['cov_sand']
+            cov = results[self.covariance_key]["cov_sand"]
 
             # transform log-parameters to log space
             result_inv_log = np.array(result_inv)
             result_inv_log[self.log_params] = np.log(
-                1.0 + result_inv_log[self.log_params])
+                1.0 + result_inv_log[self.log_params]
+            )
 
             sampled_hypotheses = self.rng.multivariate_normal(
                 mean=result_inv_log,
@@ -252,11 +278,13 @@ class GoodnessOfFit:
             )
 
             # revert log-trafo
-            sampled_hypotheses[:, self.log_params] = np.exp(
-                sampled_hypotheses[:, self.log_params]) - 1.0
+            sampled_hypotheses[:, self.log_params] = (
+                np.exp(sampled_hypotheses[:, self.log_params]) - 1.0
+            )
         else:
             sampled_hypotheses = np.tile(
-                result_inv, reps=[self.num_samples, 1])
+                result_inv, reps=[self.num_samples, 1]
+            )
 
         # -----------------------------------------
         # compute expectation from egenerator model
@@ -272,11 +300,12 @@ class GoodnessOfFit:
 
         # get cumuluative sum of mixture model contributions
         cum_scale = np.cumsum(
-            result_tensors['latent_var_scale'].numpy(), axis=-1)
+            result_tensors["latent_var_scale"].numpy(), axis=-1
+        )
 
-        latent_var_mu = result_tensors['latent_var_mu'].numpy()
-        latent_var_sigma = result_tensors['latent_var_sigma'].numpy()
-        latent_var_r = result_tensors['latent_var_r'].numpy()
+        latent_var_mu = result_tensors["latent_var_mu"].numpy()
+        latent_var_sigma = result_tensors["latent_var_sigma"].numpy()
+        latent_var_r = result_tensors["latent_var_r"].numpy()
 
         # for numerical stability:
         cum_scale[..., -1] = 1.00000001
@@ -292,9 +321,9 @@ class GoodnessOfFit:
             sample_dom_llh = np.empty([self.num_samples, 86, 60])
 
         # calculate time needed for each step
-        t_sampling = 0.
-        t_reconstruction = 0.
-        t_loss = 0.
+        t_sampling = 0.0
+        t_reconstruction = 0.0
+        t_loss = 0.0
 
         # Now walk through events: simulate + reconstruct + compute loss
         for event_id in range(self.num_samples):
@@ -307,7 +336,8 @@ class GoodnessOfFit:
             # figure out if charge quantile also needs to be added
             data_module = self.manager.data_handler.data_module
             add_charge_quantiles = data_module.configuration.config[
-                'add_charge_quantiles']
+                "add_charge_quantiles"
+            ]
 
             x_pulses, x_pulses_ids = self.sample_event_pulses(
                 rng=self.rng,
@@ -317,7 +347,8 @@ class GoodnessOfFit:
                 latent_mu=latent_var_mu[event_id],
                 latent_sigma=latent_var_sigma[event_id],
                 latent_r=latent_var_r[event_id],
-                add_charge_quantiles=add_charge_quantiles)
+                add_charge_quantiles=add_charge_quantiles,
+            )
 
             # create data_batch_dict based on these new pulses
             data_batch_new = [t for t in data_batch]
@@ -326,7 +357,8 @@ class GoodnessOfFit:
             data_batch_new = tuple(data_batch_new)
             tf_seed_tensor = tf.convert_to_tensor(
                 np.expand_dims(sampled_hypotheses[event_id], axis=0),
-                self.param_dtype)
+                self.param_dtype,
+            )
 
             t_2 = timeit.default_timer()
 
@@ -335,12 +367,14 @@ class GoodnessOfFit:
             # -----------------------------------------------
             if self.reconstruct_samples:
                 sample_result_trafo, res_obj = self.reconstruction_method(
-                    data_batch_new, tf_seed_tensor)
+                    data_batch_new, tf_seed_tensor
+                )
             else:
                 if self.minimize_in_trafo_space:
                     sample_result_trafo = self.manager.data_trafo.transform(
                         data=tf_seed_tensor.numpy(),
-                        tensor_name=self.parameter_tensor_name)
+                        tensor_name=self.parameter_tensor_name,
+                    )
                 else:
                     sample_result_trafo = tf_seed_tensor.numpy()
 
@@ -354,14 +388,17 @@ class GoodnessOfFit:
             sample_loss = self.loss_function(
                 parameters_trafo=sample_result_trafo,
                 data_batch=data_batch_new,
-                seed=tf_seed_tensor)
+                seed=tf_seed_tensor,
+            )
 
             if self.add_per_dom_calculation:
                 # we need to sort through and compute loss for each DOM
                 sample_dom_llh[event_id] = sample_loss[2].numpy()[0]
                 sample_event_llh[event_id] = (
                     np.sum(sample_loss[2].numpy()[0])
-                    + sample_loss[1].numpy()[0] + sample_loss[0].numpy())
+                    + sample_loss[1].numpy()[0]
+                    + sample_loss[0].numpy()
+                )
             else:
                 # we just have the scalar loss for the whole event
                 sample_event_llh[event_id] = sample_loss.numpy()
@@ -384,7 +421,8 @@ class GoodnessOfFit:
             fit_parameter_list=self.fit_parameter_list,
             minimize_in_trafo_space=self.minimize_in_trafo_space,
             data_trafo=self.manager.data_trafo,
-            parameter_tensor_name=self.parameter_tensor_name)
+            parameter_tensor_name=self.parameter_tensor_name,
+        )
         sample_diff = sampled_hypotheses - sample_recos
         sample_reco_bias = np.mean(sample_diff, axis=0)
         sample_reco_cov = np.cov(sample_diff.T)
@@ -393,19 +431,22 @@ class GoodnessOfFit:
         data_loss = self.loss_function(
             parameters_trafo=result_trafo,
             data_batch=data_batch,
-            seed=tf_seed_tensor)
+            seed=tf_seed_tensor,
+        )
 
         if self.add_per_dom_calculation:
             data_dom_llh = data_loss[2].numpy()[0]
             data_event_llh = (
                 np.sum(data_loss[2].numpy()[0])
-                + data_loss[1].numpy()[0] + data_loss[0].numpy())
+                + data_loss[1].numpy()[0]
+                + data_loss[0].numpy()
+            )
         else:
             data_event_llh = data_loss
 
         # Normalize likelihood values by total event and DOM charge
         if self.normalize_by_total_charge:
-            eps = 1.
+            eps = 1.0
             data_x_dom_charge = data_batch[self.x_dom_charge_index]
             assert len(data_x_dom_charge) == 1
             data_event_charge = data_x_dom_charge[0]
@@ -418,14 +459,16 @@ class GoodnessOfFit:
                 # sample_dom_llh /= dom_charges[..., 0] + eps
                 # Normalize each DOM by total event charge
                 data_dom_llh /= np.sum(data_event_charge) + eps
-                sample_dom_llh /= np.reshape(
-                    event_charges, [self.num_samples, 1, 1]) + eps
+                sample_dom_llh /= (
+                    np.reshape(event_charges, [self.num_samples, 1, 1]) + eps
+                )
 
         # ---------------------------------------------------------
         # compare to test-statistic distribution to compute p-value
         # ---------------------------------------------------------
         event_p_value1, event_p_value2 = self.compute_p_value(
-            sample_event_llh, data_event_llh)
+            sample_event_llh, data_event_llh
+        )
 
         if self.add_per_dom_calculation:
             dom_p_value1 = np.empty_like(data_dom_llh)
@@ -444,46 +487,48 @@ class GoodnessOfFit:
         # Calculate elapsed time
         t_5 = timeit.default_timer()
         t_p_value = t_5 - t_4
-        print('GoodnessOfFit elapsed time: {:3.3f}s'.format(t_5 - t_0))
-        print('\t Pulse Sampling: {:3.3f}s'.format(t_sampling))
-        print('\t Reconstruction: {:3.3f}s'.format(t_reconstruction))
-        print('\t Loss Calculation: {:3.3f}s'.format(t_loss))
-        print('\t P-Value Calculation: {:3.3f}s'.format(t_p_value))
+        print("GoodnessOfFit elapsed time: {:3.3f}s".format(t_5 - t_0))
+        print("\t Pulse Sampling: {:3.3f}s".format(t_sampling))
+        print("\t Reconstruction: {:3.3f}s".format(t_reconstruction))
+        print("\t Loss Calculation: {:3.3f}s".format(t_loss))
+        print("\t P-Value Calculation: {:3.3f}s".format(t_p_value))
 
-        print('data_event_llh', data_event_llh)
+        print("data_event_llh", data_event_llh)
         print(
-            'sample_event_llh',
+            "sample_event_llh",
             np.min(sample_event_llh),
             np.mean(sample_event_llh),
             np.max(sample_event_llh),
         )
-        print('event_p_value one-sided', event_p_value1)
-        print('event_p_value two-sided', event_p_value2)
+        print("event_p_value one-sided", event_p_value1)
+        print("event_p_value two-sided", event_p_value2)
 
         # -----------------------------------------
         # write everything to the result dictionary
         # -----------------------------------------
         results = {
-            'event_p_value_1sided': event_p_value1,
-            'event_p_value_2sided': event_p_value2,
-            'num_samples': self.num_samples,
-            'sampled_hypotheses': sampled_hypotheses,
-            'loss_sample_min': np.min(sample_event_llh),
-            'loss_sample_max': np.max(sample_event_llh),
-            'loss_sample_mean': np.mean(sample_event_llh),
-            'loss_sample_median': np.median(sample_event_llh),
-            'loss_sample_std': np.std(sample_event_llh),
-            'loss_data_fit': data_event_llh,
+            "event_p_value_1sided": event_p_value1,
+            "event_p_value_2sided": event_p_value2,
+            "num_samples": self.num_samples,
+            "sampled_hypotheses": sampled_hypotheses,
+            "loss_sample_min": np.min(sample_event_llh),
+            "loss_sample_max": np.max(sample_event_llh),
+            "loss_sample_mean": np.mean(sample_event_llh),
+            "loss_sample_median": np.median(sample_event_llh),
+            "loss_sample_std": np.std(sample_event_llh),
+            "loss_data_fit": data_event_llh,
         }
         if self.add_per_dom_calculation:
-            results['dom_p_value1'] = dom_p_value1
-            results['dom_p_value2'] = dom_p_value2
+            results["dom_p_value1"] = dom_p_value1
+            results["dom_p_value2"] = dom_p_value2
         if self.reconstruct_samples:
-            results.update({
-                'sample_recos': sample_recos,
-                'sample_reco_bias': sample_reco_bias,
-                'sample_reco_cov': sample_reco_cov,
-            })
+            results.update(
+                {
+                    "sample_recos": sample_recos,
+                    "sample_reco_bias": sample_reco_bias,
+                    "sample_reco_cov": sample_reco_cov,
+                }
+            )
 
         return results
 
@@ -506,7 +551,7 @@ class GoodnessOfFit:
             2-sided p-value
         """
         num_samples = len(sample_llh)
-        half_num = num_samples/2.
+        half_num = num_samples / 2.0
         sample_llh_sorted = np.sort(sample_llh)
         idx = np.searchsorted(sample_llh_sorted, data_llh)
         p_value1 = float(num_samples - idx) / num_samples
@@ -529,15 +574,23 @@ class GoodnessOfFit:
         """
         dom_charges = basis_functions.sample_from_negative_binomial(
             rng=self.rng,
-            mu=result_tensors['dom_charges'].numpy(),
-            alpha_or_var=result_tensors['dom_charges_variance'].numpy(),
+            mu=result_tensors["dom_charges"].numpy(),
+            alpha_or_var=result_tensors["dom_charges_variance"].numpy(),
             param_is_alpha=False,
         )
         return dom_charges
 
-    def sample_event_pulses(self, rng, dom_charges, cum_scale, source_time,
-                            latent_mu, latent_sigma, latent_r,
-                            add_charge_quantiles=False):
+    def sample_event_pulses(
+        self,
+        rng,
+        dom_charges,
+        cum_scale,
+        source_time,
+        latent_mu,
+        latent_sigma,
+        latent_r,
+        add_charge_quantiles=False,
+    ):
         """Sample pulses from PDF and create a I3RecoPulseSeriesMap
 
         Parameters
@@ -590,7 +643,7 @@ class GoodnessOfFit:
 
                 # we will uniformly choose the charge and then correct
                 # again to obtain correct total charge
-                # ToDo: figure out actual chage distribution of pulses!
+                # ToDo: figure out actual charge distribution of pulses!
                 pulse_charges = rng.uniform(0.25, 1.75, size=num_pe)
                 pulse_charges *= num_pe / np.sum(pulse_charges)
 
@@ -606,12 +659,13 @@ class GoodnessOfFit:
                 pulse_sigma = latent_sigma[string, om, idx]
                 pulse_r = latent_r[string, om, idx]
 
-                # caclulate time of pulse
+                # calculate time of pulse
                 pulse_times = basis_functions.asymmetric_gauss_ppf(
-                    rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r)
+                    rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r
+                )
 
                 # fix scale
-                pulse_times *= 1000.
+                pulse_times *= 1000.0
 
                 # fix offset
                 pulse_times += source_time
@@ -625,7 +679,8 @@ class GoodnessOfFit:
                 pulse_elements = [pulse_charges, pulse_times]
                 if add_charge_quantiles:
                     pulse_elements.append(
-                        np.cumsum(pulse_charges) / np.sum(pulse_charges))
+                        np.cumsum(pulse_charges) / np.sum(pulse_charges)
+                    )
                 pulses = np.stack(pulse_elements, axis=1)
                 pulses_ids = np.tile((0, string, om), reps=[num_pe, 1])
 

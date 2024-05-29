@@ -1,14 +1,26 @@
 from __future__ import division, print_function
 import numpy as np
+import tensorflow as tf
 from copy import deepcopy
 
 
 class DataTensor(object):
 
-    def __init__(self, name, shape, tensor_type, dtype, exists=True,
-                 vector_info=None, trafo=False, trafo_reduce_axes=(),
-                 trafo_log=None, trafo_log_axis=-1, trafo_batch_axis=0,
-                 **specs):
+    def __init__(
+        self,
+        name,
+        shape,
+        tensor_type,
+        dtype,
+        exists=True,
+        vector_info=None,
+        trafo=False,
+        trafo_reduce_axes=(),
+        trafo_log=None,
+        trafo_log_axis=-1,
+        trafo_batch_axis=0,
+        **specs
+    ):
         """Class for specifying data input tensors.
 
         Parameters
@@ -16,12 +28,15 @@ class DataTensor(object):
         name : str
             The name of the data tensor.
         shape : tuple of int or None
-            The shape of the tensor. Unkown shapes can be specified with None.
+            The shape of the tensor. Unknown shapes can be specified with None.
         tensor_type : str
             The type of tensor: 'data', 'label', 'weight', 'misc'
         dtype : str
             The data type of the tensor as str.
-            getattr(np, dtype) and getattr(tf, dtype) must exist.
+            hasattr(tf, dtype) must be true and either
+            hasattr(np, dtype) or dtype is a builtin type.
+            Corresponding dtypes for numpy and tensorflow can be obtained
+            via the class properties `dtype_np` and `dtype_tf`.
         exists : bool, optional
             Indicates whether this data tensor is being loaded.
         vector_info : dict, optional
@@ -82,35 +97,83 @@ class DataTensor(object):
         # sanity checks
         if self.shape is None:
             raise ValueError(
-                'Shape must be defined but is {!r}'.format(self.shape))
+                "Shape must be defined but is {!r}".format(self.shape)
+            )
 
         if not isinstance(self.trafo_log_axis, int):
             raise ValueError(
-                'Trafo log axis must be an integer, but is {!r}'.format(
-                                                        self.trafo_log_axis))
+                "Trafo log axis must be an integer, but is {!r}".format(
+                    self.trafo_log_axis
+                )
+            )
 
-        if self.type not in ['data', 'label', 'weight', 'misc', 'prediction']:
-            raise ValueError('Unknown type: {!r}'.format(self.type))
+        if self.type not in ["data", "label", "weight", "misc", "prediction"]:
+            raise ValueError("Unknown type: {!r}".format(self.type))
 
         if not isinstance(self.dtype, str):
-            raise ValueError('{!r} != {!r}'.format(type(self.dtype), str))
+            raise ValueError("{!r} != {!r}".format(type(self.dtype), str))
 
-        if not hasattr(np, self.dtype):
-            raise ValueError('Invalid dtype str: {!r}'.format(self.type))
+        try:
+            self.dtype_tf
+            self.dtype_np
+        except AttributeError as e:
+            print("Invalid dtype str: {!r}".format(self.dtype))
+            raise e
 
         if self.vector_info is not None:
-            if self.vector_info['type'] not in ['index', 'value']:
-                raise ValueError('Unknown vector type: {!r}'.format(
-                    self.vector_info['type']))
+            if self.vector_info["type"] not in ["index", "value"]:
+                raise ValueError(
+                    "Unknown vector type: {!r}".format(
+                        self.vector_info["type"]
+                    )
+                )
 
         # expand trafo log to a list of boolean values if it is a single bool
         if isinstance(self.trafo_log, bool):
             if self.shape[self.trafo_log_axis] is None:
-                msg = 'When using logarithm trafo, the shape along the trafo '
-                msg += 'axis {!r} must be specified, but the shape is {!r}'
+                msg = "When using logarithm trafo, the shape along the trafo "
+                msg += "axis {!r} must be specified, but the shape is {!r}"
                 raise ValueError(msg.format(self.trafo_log_axis, self.shape))
-            self.trafo_log = [self.trafo_log for i in
-                              range(self.shape[self.trafo_log_axis])]
+            self.trafo_log = [
+                self.trafo_log for i in range(self.shape[self.trafo_log_axis])
+            ]
+
+    @property
+    def dtype_tf(self):
+        """Return the tensorflow dtype
+
+        Returns
+        -------
+        tf.dtypes.DType
+            The tensorlfow data type.
+        """
+        return getattr(tf, self.dtype)
+
+    @property
+    def dtype_np(self):
+        """Return the numpy dtype
+
+        Returns
+        -------
+        dtype
+            The numpy/builtin data type.
+        """
+        builtin_replacements = {
+            "bool": "bool_",
+            "int": "int_",
+            "float": "float_",
+            "complex": "complex_",
+            "object": "object_",
+            "str": "str_",
+            "long": "longlong",
+            "unicode": "_unicode",
+        }
+
+        if hasattr(np, self.dtype):
+            dtype = getattr(np, self.dtype)
+        else:
+            dtype = getattr(np, builtin_replacements[self.dtype])
+        return dtype
 
     def __eq__(self, other):
         """Check for equality of two data tensors.
@@ -155,7 +218,7 @@ class DataTensor(object):
         """
         tensor_dict = {}
         for key, value in self.__dict__.items():
-            if '__' != key[:2]:
+            if "__" != key[:2]:
                 tensor_dict[key] = deepcopy(value)
         return tensor_dict
 
@@ -179,7 +242,7 @@ class DataTensorList(object):
         """
         if isinstance(data_tensors, DataTensorList):
 
-            # enable copy constructor: intialize from existing DataTensorList
+            # enable copy constructor: initialize from existing DataTensorList
             data_tensors = data_tensors.list
 
         elif len(data_tensors) > 0 and isinstance(data_tensors[0], dict):
@@ -194,7 +257,7 @@ class DataTensorList(object):
 
         # check for duplicates
         if len(set(names)) != len(names):
-            raise ValueError('Found duplicate names: {!r}'.format(names))
+            raise ValueError("Found duplicate names: {!r}".format(names))
 
         sorted_indices = np.argsort(names)
         sorted_data_tensors = [data_tensors[index] for index in sorted_indices]
@@ -271,8 +334,8 @@ class DataTensorList(object):
         return self.list[self.get_index(name)]
 
     def serialize(self):
-        """Serialize DataTensorList object to pyton built-in types such as
-        dicts, strings and lists, so that the obect can be easily written
+        """Serialize DataTensorList object to python built-in types such as
+        dicts, strings and lists, so that the object can be easily written
         to yaml data files.
         """
         serialized_tensor_list = []
@@ -281,7 +344,7 @@ class DataTensorList(object):
         return serialized_tensor_list
 
     def deserialize(self, serialized_tensor_list):
-        """Deserialize serialized DataTensorList object from pyton built-in
+        """Deserialize serialized DataTensorList object from python built-in
         types such as dicts, strings and lists, to DataTensorList object.
         This is the inverse transformation from serialize.
 
@@ -300,12 +363,12 @@ class DataTensorList(object):
         for serialized_tensor in serialized_tensor_list:
 
             # rename type to tensor_type and expand specs
-            serialized_tensor['tensor_type'] = serialized_tensor['type']
-            for key, value in serialized_tensor['specs'].items():
+            serialized_tensor["tensor_type"] = serialized_tensor["type"]
+            for key, value in serialized_tensor["specs"].items():
                 serialized_tensor[key] = value
 
-            del serialized_tensor['type']
-            del serialized_tensor['specs']
+            del serialized_tensor["type"]
+            del serialized_tensor["specs"]
 
             # create data tensor object
             tensors.append(DataTensor(**serialized_tensor))

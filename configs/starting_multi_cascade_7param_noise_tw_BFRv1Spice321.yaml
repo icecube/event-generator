@@ -100,7 +100,7 @@ reconstruction_settings: {
     },
     'seed_float_precision': 'float32',
 
-    # choose the otpimizer iterface:
+    # choose the optimizer interface:
     #   'scipy' or 'tfp' (tensorflow_probability)
     'reco_optimizer_interface': 'scipy',
 

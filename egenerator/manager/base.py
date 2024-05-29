@@ -14,17 +14,21 @@ class BaseModelManager(Model):
 
     @property
     def optimizer(self):
-        if self.untracked_data is not None and \
-                'optimizer' in self.untracked_data:
-            return self.untracked_data['optimizer']
+        if (
+            self.untracked_data is not None
+            and "optimizer" in self.untracked_data
+        ):
+            return self.untracked_data["optimizer"]
         else:
             return None
 
     @property
     def data_handler(self):
-        if self.sub_components is not None and \
-                'data_handler' in self.sub_components:
-            return self.sub_components['data_handler']
+        if (
+            self.sub_components is not None
+            and "data_handler" in self.sub_components
+        ):
+            return self.sub_components["data_handler"]
         else:
             return None
 
@@ -38,18 +42,25 @@ class BaseModelManager(Model):
     @property
     def models(self):
 
-        if self.sub_components is not None and \
-                'models_0000' in self.sub_components:
+        if (
+            self.sub_components is not None
+            and "models_0000" in self.sub_components
+        ):
 
             # cache model list in untracked data
-            if 'models' not in self.untracked_data:
+            if "models" not in self.untracked_data:
                 model_list = []
-                for key in sorted([k for k in self.sub_components.keys()
-                                   if 'models_' == k[:7]]):
+                for key in sorted(
+                    [
+                        k
+                        for k in self.sub_components.keys()
+                        if "models_" == k[:7]
+                    ]
+                ):
                     model_list.append(self.sub_components[key])
-                self._untracked_data['models'] = model_list
+                self._untracked_data["models"] = model_list
 
-            return self.untracked_data['models']
+            return self.untracked_data["models"]
         else:
             return None
 
@@ -113,11 +124,11 @@ class BaseModelManager(Model):
         """
 
         sub_components = {
-            'data_handler': data_handler,
+            "data_handler": data_handler,
         }
 
         for i, m in enumerate(models):
-            sub_components['models_{:04d}'.format(i)] = m
+            sub_components["models_{:04d}".format(i)] = m
 
         # check for compatibilities of sub components
         self._check_sub_component_compatibility(sub_components)
@@ -129,7 +140,8 @@ class BaseModelManager(Model):
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config=config))
+            settings=dict(config=config),
+        )
 
         return configuration, {}, sub_components
 
@@ -156,31 +168,45 @@ class BaseModelManager(Model):
 
             # check parameter names
             if parameter_names != models[i].parameter_names:
-                msg = 'Parameter names of model {:04d} do not match: {} != {}'
-                raise ValueError(msg.format(
-                    i, models[i].parameter_names, parameter_names))
+                msg = "Parameter names of model {:04d} do not match: {} != {}"
+                raise ValueError(
+                    msg.format(i, models[i].parameter_names, parameter_names)
+                )
 
             # check data trafo object
             data_trafo_i = models[i].data_trafo
             if not data_trafo.configuration.is_compatible(
-                    data_trafo_i.configuration):
-                msg = 'Data Trafo of model {:04d} is not compatible: {}, {}'
-                raise ValueError(msg.format(
-                    i, data_trafo_i.configuration, data_trafo.configuration))
+                data_trafo_i.configuration
+            ):
+                msg = "Data Trafo of model {:04d} is not compatible: {}, {}"
+                raise ValueError(
+                    msg.format(
+                        i, data_trafo_i.configuration, data_trafo.configuration
+                    )
+                )
 
             # (The following are probably unnecessary, since it should already
             #  be checked in the compatibility check.)
             if set(data_trafo.data.keys()) != set(data_trafo_i.data.keys()):
-                msg = 'Data Trafo keys of model {:04d} do not match: {} != {}'
-                raise ValueError(msg.format(
-                    i, set(data_trafo_i.keys()), set(data_trafo.keys())))
+                msg = "Data Trafo keys of model {:04d} do not match: {} != {}"
+                raise ValueError(
+                    msg.format(
+                        i, set(data_trafo_i.keys()), set(data_trafo.keys())
+                    )
+                )
 
             for key in data_trafo.data.keys():
                 if np.any(data_trafo.data[key] != data_trafo_i.data[key]):
-                    msg = 'Data trafo key {} of model {:04d} does not match: '
-                    msg += '{} != {}'
-                    raise ValueError(msg.format(
-                        key, i, data_trafo.data[key], data_trafo_i.data[key]))
+                    msg = "Data trafo key {} of model {:04d} does not match: "
+                    msg += "{} != {}"
+                    raise ValueError(
+                        msg.format(
+                            key,
+                            i,
+                            data_trafo.data[key],
+                            data_trafo_i.data[key],
+                        )
+                    )
 
     def _check_sub_component_compatibility(self, sub_components):
         """Check compatibility of sub components.
@@ -204,25 +230,31 @@ class BaseModelManager(Model):
         for name, model in sub_components.items():
 
             # skip data handler sub component, since that is what we are
-            # checking compatiblity against
-            if name == 'data_handler':
+            # checking compatibility against
+            if name == "data_handler":
                 continue
 
             # check compatibility of data_handler configurations of
             # data_trafo (model) and the data_handler component
             model_config = model.configuration
             trafo_config = Configuration(
-                **model_config.sub_component_configurations['data_trafo'])
+                **model_config.sub_component_configurations["data_trafo"]
+            )
             data_handler_config = Configuration(
-                **trafo_config.sub_component_configurations['data_handler'])
+                **trafo_config.sub_component_configurations["data_handler"]
+            )
 
-            if not sub_components['data_handler'].configuration.is_compatible(
-                    data_handler_config):
-                msg = 'Model {} and data handler are not compatible: {}, {}'
-                raise ValueError(msg.format(
+            if not sub_components["data_handler"].configuration.is_compatible(
+                data_handler_config
+            ):
+                msg = "Model {} and data handler are not compatible: {}, {}"
+                raise ValueError(
+                    msg.format(
                         name,
-                        sub_components['data_handler'].configuration.dict,
-                        data_handler_config.dict))
+                        sub_components["data_handler"].configuration.dict,
+                        data_handler_config.dict,
+                    )
+                )
 
     def _update_sub_components(self, names):
         """Update settings which are based on the modified sub component.
@@ -251,14 +283,20 @@ class BaseModelManager(Model):
             The names of the sub components that were modified.
         """
         for name in names:
-            if name not in ['data_handler']:
-                msg = 'Can not update {!r}.'
+            if name not in ["data_handler"]:
+                msg = "Can not update {!r}."
                 raise ValueError(msg.format(name))
 
         self._check_sub_component_compatibility(self.sub_components)
 
-    def save_weights(self, dir_path, max_keep=3, protected=False,
-                     description=None, num_training_steps=None):
+    def save_weights(
+        self,
+        dir_path,
+        max_keep=3,
+        protected=False,
+        description=None,
+        num_training_steps=None,
+    ):
         """Save the model weights.
 
         Metadata on the checkpoints is stored in a model_checkpoints.yaml
@@ -323,9 +361,12 @@ class BaseModelManager(Model):
             if issubclass(type(sub_component), Model):
                 # save weights of Model sub component
                 sub_component.save_weights(
-                    dir_path=sub_dir_path, max_keep=max_keep,
-                    protected=protected, description=description,
-                    num_training_steps=num_training_steps)
+                    dir_path=sub_dir_path,
+                    max_keep=max_keep,
+                    protected=protected,
+                    description=description,
+                    num_training_steps=num_training_steps,
+                )
 
     def save_training_settings(self, dir_path, new_training_settings):
         """Save a new training step with its components and settings.
@@ -354,7 +395,8 @@ class BaseModelManager(Model):
                 # save weights of Model sub component
                 sub_component.save_training_settings(
                     dir_path=sub_dir_path,
-                    new_training_settings=new_training_settings)
+                    new_training_settings=new_training_settings,
+                )
 
     def load_weights(self, dir_path, checkpoint_number=None):
         """Load the model weights.
@@ -380,8 +422,9 @@ class BaseModelManager(Model):
 
             if issubclass(type(sub_component), Model):
                 # load weights of Model sub component
-                sub_component.load_weights(dir_path=sub_dir_path,
-                                           checkpoint_number=checkpoint_number)
+                sub_component.load_weights(
+                    dir_path=sub_dir_path, checkpoint_number=checkpoint_number
+                )
 
     def _save(self, dir_path, **kwargs):
         """Virtual method for additional save tasks by derived class
@@ -444,21 +487,28 @@ class BaseModelManager(Model):
         tf.Tensor
             Scalar regularization loss
         """
-        reg_loss = 0.
+        reg_loss = 0.0
 
         # apply regularization
-        if opt_config['l1_regularization'] > 0.:
+        if opt_config["l1_regularization"] > 0.0:
             reg_loss += tf.add_n([tf.reduce_sum(tf.abs(v)) for v in variables])
 
-        if opt_config['l2_regularization'] > 0.:
+        if opt_config["l2_regularization"] > 0.0:
             reg_loss += tf.add_n([tf.reduce_sum(v**2) for v in variables])
 
         return reg_loss
 
     @tf.function
-    def get_loss(self, data_batch, loss_module, opt_config, is_training,
-                 summary_writer=None, parameter_tensor_name='x_parameters',
-                 **kwargs):
+    def get_loss(
+        self,
+        data_batch,
+        loss_module,
+        opt_config,
+        is_training,
+        summary_writer=None,
+        parameter_tensor_name="x_parameters",
+        **kwargs
+    ):
         """Get the scalar loss for a batch of data and a given loss component.
 
         Parameters
@@ -478,7 +528,7 @@ class BaseModelManager(Model):
             True: in training mode
             False: inference mode.
         summary_writer : tf.summary.SummaryWriter, optional
-            If provied, tensorflow summaries will be calculated and written
+            If provided, tensorflow summaries will be calculated and written
             to the specified summary writer.
         parameter_tensor_name : str, optional
             The name of the parameter tensor to use. Default: 'x_parameters'
@@ -501,18 +551,21 @@ class BaseModelManager(Model):
             result_tensors = model.get_tensors(
                 data_batch_dict,
                 is_training=is_training,
-                parameter_tensor_name=parameter_tensor_name)
+                parameter_tensor_name=parameter_tensor_name,
+            )
 
             loss_value = loss_module.get_loss(
-                data_batch_dict, result_tensors,
+                data_batch_dict,
+                result_tensors,
                 self.data_handler.tensors,
                 model=model,
                 parameter_tensor_name=parameter_tensor_name,
-                **kwargs)
+                **kwargs
+            )
 
             reg_loss = self.regularization_loss(
-                                        variables=model.trainable_variables,
-                                        opt_config=opt_config)
+                variables=model.trainable_variables, opt_config=opt_config
+            )
 
             if combined_loss is None:
                 combined_loss = loss_value + reg_loss
@@ -523,20 +576,31 @@ class BaseModelManager(Model):
             if summary_writer is not None:
                 with summary_writer.as_default():
                     tf.summary.scalar(
-                        'loss_{:04d}'.format(i), loss_value,
-                        step=tf.cast(model.step, dtype=tf.int64))
-                    if (opt_config['l1_regularization'] > 0. or
-                            opt_config['l2_regularization'] > 0.):
+                        "loss_{:04d}".format(i),
+                        loss_value,
+                        step=tf.cast(model.step, dtype=tf.int64),
+                    )
+                    if (
+                        opt_config["l1_regularization"] > 0.0
+                        or opt_config["l2_regularization"] > 0.0
+                    ):
                         tf.summary.scalar(
-                            'reg_loss_{:04d}'.format(i), reg_loss,
-                            step=tf.cast(model.step, dtype=tf.int64))
+                            "reg_loss_{:04d}".format(i),
+                            reg_loss,
+                            step=tf.cast(model.step, dtype=tf.int64),
+                        )
 
         return combined_loss
 
     @tf.function
-    def perform_training_step(self, data_batch, loss_module, opt_config,
-                              parameter_tensor_name='x_parameters',
-                              **kwargs):
+    def perform_training_step(
+        self,
+        data_batch,
+        loss_module,
+        opt_config,
+        parameter_tensor_name="x_parameters",
+        **kwargs
+    ):
         """Perform one training step
 
         Parameters
@@ -563,7 +627,9 @@ class BaseModelManager(Model):
         """
         with tf.GradientTape() as tape:
             combined_loss = self.get_loss(
-                data_batch, loss_module, opt_config,
+                data_batch,
+                loss_module,
+                opt_config,
                 is_training=True,
                 parameter_tensor_name=parameter_tensor_name,
                 **kwargs
@@ -575,21 +641,25 @@ class BaseModelManager(Model):
         gradients = tape.gradient(combined_loss, variables)
 
         # remove nans in gradients and replace these with zeros
-        if 'remove_nan_gradients' in opt_config:
-            remove_nan_gradients = opt_config['remove_nan_gradients']
+        if "remove_nan_gradients" in opt_config:
+            remove_nan_gradients = opt_config["remove_nan_gradients"]
         else:
             remove_nan_gradients = False
         if remove_nan_gradients:
-            gradients = [tf.where(tf.is_nan(grad), tf.zeros_like(grad), grad)
-                         for grad in gradients if grad is not None]
+            gradients = [
+                tf.where(tf.is_nan(grad), tf.zeros_like(grad), grad)
+                for grad in gradients
+                if grad is not None
+            ]
 
-        if 'clip_gradients_value' in opt_config:
-            clip_gradients_value = opt_config['clip_gradients_value']
+        if "clip_gradients_value" in opt_config:
+            clip_gradients_value = opt_config["clip_gradients_value"]
         else:
             clip_gradients_value = None
         if clip_gradients_value is not None:
-            capped_gradients, _ = tf.clip_by_global_norm(gradients,
-                                                         clip_gradients_value)
+            capped_gradients, _ = tf.clip_by_global_norm(
+                gradients, clip_gradients_value
+            )
         else:
             capped_gradients = gradients
 
@@ -598,17 +668,21 @@ class BaseModelManager(Model):
         for gradient in capped_gradients:
             assert_finite = tf.Assert(
                 tf.math.is_finite(tf.reduce_mean(gradient)),
-                [tf.reduce_min(gradient),
-                 tf.reduce_mean(gradient),
-                 tf.reduce_max(gradient)])
+                [
+                    tf.reduce_min(gradient),
+                    tf.reduce_mean(gradient),
+                    tf.reduce_max(gradient),
+                ],
+            )
             asserts.append(assert_finite)
         with tf.control_dependencies(asserts):
             self.optimizer.apply_gradients(zip(capped_gradients, variables))
 
         return combined_loss
 
-    def get_concrete_function(self, function, input_signature,
-                              **fixed_objects):
+    def get_concrete_function(
+        self, function, input_signature, **fixed_objects
+    ):
         """Get a concrete tensorflow function with a fixed input signature
 
         Parameters
@@ -625,14 +699,21 @@ class BaseModelManager(Model):
         tf.function
             A concrete tensorflow function with a fixed input_signature.
         """
+
         @tf.function(input_signature=input_signature)
         def concrete_function(data_batch):
             return function(data_batch, **fixed_objects)
 
         return concrete_function
 
-    def train(self, config, loss_module, num_training_iterations,
-              evaluation_module=None, profile_training=False):
+    def train(
+        self,
+        config,
+        loss_module,
+        num_training_iterations,
+        evaluation_module=None,
+        profile_training=False,
+    ):
         """Train the model.
 
         Parameters
@@ -672,19 +753,19 @@ class BaseModelManager(Model):
         """
         self.assert_configured(True)
 
-        # deine directories
-        save_dir = self.configuration.config['config']['manager_dir']
-        train_log_dir = os.path.join(save_dir, 'logs/training')
-        val_log_dir = os.path.join(save_dir, 'logs/validation')
-        eval_log_dir = os.path.join(save_dir, 'logs/evaluation')
+        # define directories
+        save_dir = self.configuration.config["config"]["manager_dir"]
+        train_log_dir = os.path.join(save_dir, "logs/training")
+        val_log_dir = os.path.join(save_dir, "logs/validation")
+        eval_log_dir = os.path.join(save_dir, "logs/evaluation")
 
         # create optimizer from config
-        opt_config = config['training_settings']
-        optimizer_settings = dict(opt_config['optimizer_settings'])
+        opt_config = config["training_settings"]
+        optimizer_settings = dict(opt_config["optimizer_settings"])
 
         # create learning rate schedule if learning rate is a dict
-        if 'learning_rate' in optimizer_settings:
-            if isinstance(optimizer_settings['learning_rate'], dict):
+        if "learning_rate" in optimizer_settings:
+            if isinstance(optimizer_settings["learning_rate"], dict):
 
                 # assume that the learning rate dictionary defines a schedule
                 # In this case the dictionary must have the following keys:
@@ -693,40 +774,49 @@ class BaseModelManager(Model):
                 #   settings: dict
                 #       keyword arguments that are passed on to the scheduler
                 #       class.
-                lr_cfg = optimizer_settings.pop('learning_rate')
-                scheduler_class = misc.load_class(lr_cfg['full_class_string'])
-                scheduler = scheduler_class(**lr_cfg['settings'])
-                optimizer_settings['learning_rate'] = scheduler
+                lr_cfg = optimizer_settings.pop("learning_rate")
+                scheduler_class = misc.load_class(lr_cfg["full_class_string"])
+                scheduler = scheduler_class(**lr_cfg["settings"])
+                optimizer_settings["learning_rate"] = scheduler
 
-        optimizer = getattr(tf.optimizers, opt_config['optimizer_name'])(
-            **optimizer_settings)
-        self._untracked_data['optimizer'] = optimizer
+        optimizer = getattr(tf.optimizers, opt_config["optimizer_name"])(
+            **optimizer_settings
+        )
+        self._untracked_data["optimizer"] = optimizer
 
         # save new training step to model
-        training_components = {'loss_module': loss_module}
+        training_components = {"loss_module": loss_module}
         if evaluation_module is not None:
-            training_components['evaluation_module'] = evaluation_module
+            training_components["evaluation_module"] = evaluation_module
 
         new_training_settings = {
-            'config': config,
-            'components': training_components,
+            "config": config,
+            "components": training_components,
         }
-        self.save(dir_path=save_dir,
-                  description='Starting Training',
-                  new_training_settings=new_training_settings,
-                  num_training_steps=None,
-                  protected=True,
-                  overwrite=True)
+        self.save(
+            dir_path=save_dir,
+            description="Starting Training",
+            new_training_settings=new_training_settings,
+            num_training_steps=None,
+            protected=True,
+            overwrite=True,
+        )
 
         # create writers
         training_writer = tf.summary.create_file_writer(train_log_dir)
         validation_writer = tf.summary.create_file_writer(val_log_dir)
         evaluation_writer = tf.summary.create_file_writer(eval_log_dir)
 
-        train_dataset = iter(self.data_handler.get_tf_dataset(
-            **config['data_iterator_settings']['training']))
-        validation_dataset = iter(self.data_handler.get_tf_dataset(
-            **config['data_iterator_settings']['validation']))
+        train_dataset = iter(
+            self.data_handler.get_tf_dataset(
+                **config["data_iterator_settings"]["training"]
+            )
+        )
+        validation_dataset = iter(
+            self.data_handler.get_tf_dataset(
+                **config["data_iterator_settings"]["validation"]
+            )
+        )
 
         # -------------------------------------------------------
         # get concrete functions for training and loss evaluation
@@ -736,7 +826,7 @@ class BaseModelManager(Model):
             input_signature=(train_dataset.element_spec,),
             loss_module=loss_module,
             opt_config=opt_config,
-            **opt_config['additional_loss_module_kwargs']
+            **opt_config["additional_loss_module_kwargs"]
         )
 
         get_loss_train = self.get_concrete_function(
@@ -746,7 +836,7 @@ class BaseModelManager(Model):
             opt_config=opt_config,
             is_training=False,
             summary_writer=training_writer,
-            **opt_config['additional_loss_module_kwargs']
+            **opt_config["additional_loss_module_kwargs"]
         )
 
         get_loss_val = self.get_concrete_function(
@@ -756,7 +846,7 @@ class BaseModelManager(Model):
             opt_config=opt_config,
             is_training=False,
             summary_writer=validation_writer,
-            **opt_config['additional_loss_module_kwargs']
+            **opt_config["additional_loss_module_kwargs"]
         )
 
         # --------------------------------
@@ -786,7 +876,7 @@ class BaseModelManager(Model):
             # --------------------------
             # evaluate on validation set
             # --------------------------
-            if step % opt_config['validation_frequency'] == 0:
+            if step % opt_config["validation_frequency"] == 0:
                 new_validation_time = timeit.default_timer()
                 time_diff = new_validation_time - validation_time
                 validation_time = new_validation_time
@@ -805,25 +895,28 @@ class BaseModelManager(Model):
 
                 # check if there is a nan
                 if np.isnan(loss_training) or np.isnan(loss_validation):
-                    raise ValueError('Aborting training due to invalid loss')
+                    raise ValueError("Aborting training due to invalid loss")
 
                 # write to file
                 training_writer.flush()
                 validation_writer.flush()
 
                 # print out loss to console
-                msg = 'Step: {:08d}, Runtime: {:2.2f}s, Time/Step: {:3.3f}s'
-                print(msg.format(
-                    step, validation_time - start_time,
-                    time_diff /
-                    opt_config['validation_frequency']))
-                print('\t[Train]      {:3.3f}'.format(loss_training))
-                print('\t[Validation] {:3.3f}'.format(loss_validation))
+                msg = "Step: {:08d}, Runtime: {:2.2f}s, Time/Step: {:3.3f}s"
+                print(
+                    msg.format(
+                        step,
+                        validation_time - start_time,
+                        time_diff / opt_config["validation_frequency"],
+                    )
+                )
+                print("\t[Train]      {:3.3f}".format(loss_training))
+                print("\t[Validation] {:3.3f}".format(loss_validation))
 
             # ------------------------------------------------
             # Perform additional evaluations on validation set
             # ------------------------------------------------
-            if step % opt_config['evaluation_frequency'] == 0:
+            if step % opt_config["evaluation_frequency"] == 0:
 
                 # call evaluation component if it exists
                 if evaluation_module is not None:
@@ -836,7 +929,8 @@ class BaseModelManager(Model):
                         loss_module=loss_module,
                         tensors=self.data_handler.tensors,
                         step=tf.convert_to_tensor(step, dtype=tf.int64),
-                        writer=evaluation_writer)
+                        writer=evaluation_writer,
+                    )
 
                     # write to file
                     evaluation_writer.flush()
@@ -844,9 +938,8 @@ class BaseModelManager(Model):
             # ----------
             # save model
             # ----------
-            if step % opt_config['save_frequency'] == 0 and step != 0:
-                self.save_weights(dir_path=save_dir,
-                                  num_training_steps=step)
+            if step % opt_config["save_frequency"] == 0 and step != 0:
+                self.save_weights(dir_path=save_dir, num_training_steps=step)
 
             # -----------------------
             # Profile steps 90 to 100
@@ -860,7 +953,9 @@ class BaseModelManager(Model):
                     tf.profiler.experimental.stop()
 
         # save model
-        self.save_weights(dir_path=save_dir,
-                          num_training_steps=step,
-                          description='End of training step',
-                          protected=True)
+        self.save_weights(
+            dir_path=save_dir,
+            num_training_steps=step,
+            description="End of training step",
+            protected=True,
+        )
