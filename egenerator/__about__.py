@@ -18,7 +18,8 @@ __version__ = "{}.{}.{}{}".format(
 # A dictionary of changes that are not backwards compatible
 # with previous versions. The keys are the versions that
 # contain the breaking changes and the values contain
-# information on the changes that were made.
+# a list of dictinoaries with information on
+# each of the changes that were made.
 # Mandatory keys are:
 #    "type": "global" or "local"
 #        "global" means that the change affects all components
@@ -27,30 +28,43 @@ __version__ = "{}.{}.{}{}".format(
 #
 # Example:
 # __version_compatibility__ = {
-#     "1.0.0": {
+#     "1.0.0": [{
 #         "Description": "Description of the breaking change",
 #         "type": "global",
-#     },
-#     "1.0.1": {
+#     }],
+#     "1.0.1": [{
 #         "Description": "Description of the breaking change",
 #         "type": "local",
 #         "affected_components": ["class_string1", "class_string2"],
-#     },
+#     }],
 # }
 __version_compatibility__ = {
-    "1.1.0": {
-        "Description": (
-            "Bugfix: Fixed a bug in the re-normalization for time "
-            "window exclusions. The bug re-normalized the individual "
-            "mixture model components instead of the whole mixture. "
-            "This bug thus lead to changes in the shape of the pulse "
-            "arrival time PDF when exclusions were used. This is now "
-            "fixed to instead re-normalize the whole mixture. "
-            "Older models will have compensated for this effect if "
-            "already trained as a mixture of multiple sources. Thus, "
-            "introducing this bugfix will lead to incompatibilities "
-            "with older models."
-        ),
-        "type": "global",
-    },
+    "1.1.0": [
+        {
+            "Description": (
+                "Bugfix: Fixed a bug in the re-normalization for time "
+                "window exclusions. The bug re-normalized the individual "
+                "mixture model components instead of the whole mixture. "
+                "This bug thus lead to changes in the shape of the pulse "
+                "arrival time PDF when exclusions were used. This is now "
+                "fixed to instead re-normalize the whole mixture. "
+                "Older models will have compensated for this effect if "
+                "already trained as a mixture of multiple sources. Thus, "
+                "introducing this bugfix will lead to incompatibilities "
+                "with older models."
+            ),
+            "type": "global",
+        },
+        {
+            "Description": (
+                "The shift_cascade_vertex option was removed from the "
+                "label modules. It is now part of the cascade models. "
+                "In addition, the float_precision must now be set and "
+                "the previous parameter estimate_charge_distribution "
+                "was renamed to charge_distribution_type. These changes "
+                "are not backwards compatible with previous versions."
+            ),
+            "type": "global",
+        },
+    ],
 }
