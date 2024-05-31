@@ -469,14 +469,16 @@ class Source(Model):
         )
 
         # uniformly scale up pdf values due to excluded regions
-        if "dom_cdf_exclusion" in result_tensors:
+        if "dom_cdf_exclusion_sum" in result_tensors:
 
-            # shape: [n_events, 86, 60, n_components]
-            dom_cdf_exclusion = result_tensors["dom_cdf_exclusion"].numpy()
+            # shape: [n_events, 86, 60, 1]
+            dom_cdf_exclusion_sum = result_tensors[
+                "dom_cdf_exclusion_sum"
+            ].numpy()
 
-            # shape: [n_events, 86, 60, n_components, 1]
-            dom_cdf_exclusion = dom_cdf_exclusion[..., np.newaxis]
-            scale /= 1.0 - dom_cdf_exclusion + 1e-3
+            # shape: [n_events, 86, 60, 1, 1]
+            dom_cdf_exclusion_sum = dom_cdf_exclusion_sum[..., np.newaxis]
+            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
 
         # shape: [n_events, 86, 60, n_points]
         cdf_values = np.sum(mixture_cdf * scale, axis=3)
@@ -649,14 +651,16 @@ class Source(Model):
         )
 
         # uniformly scale up pdf values due to excluded regions
-        if "dom_cdf_exclusion" in result_tensors:
+        if "dom_cdf_exclusion_sum" in result_tensors:
 
-            # shape: [n_events, 86, 60, n_components]
-            dom_cdf_exclusion = result_tensors["dom_cdf_exclusion"].numpy()
+            # shape: [n_events, 86, 60, 1]
+            dom_cdf_exclusion_sum = result_tensors[
+                "dom_cdf_exclusion_sum"
+            ].numpy()
 
-            # shape: [n_events, 86, 60, n_components, 1]
-            dom_cdf_exclusion = dom_cdf_exclusion[..., np.newaxis]
-            scale /= 1.0 - dom_cdf_exclusion + 1e-3
+            # shape: [n_events, 86, 60, 1, 1]
+            dom_cdf_exclusion_sum = dom_cdf_exclusion_sum[..., np.newaxis]
+            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
 
         # shape: [n_events, 86, 60, n_points]
         pdf_values = np.sum(mixture_pdf * scale, axis=3)

@@ -79,6 +79,27 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         self.AddParameter(
             "n_doms_y", "Number of DOMs to plot along y-axis.", 5
         )
+        self.AddParameter(
+            "dom_pdf_kwargs",
+            "Additional keyword arguments passed on to `plot_dom_pdf`.",
+            {},
+        )
+        self.AddParameter(
+            "dom_cdf_kwargs",
+            "Additional keyword arguments passed on to `plot_dom_cdf`.",
+            {},
+        )
+        self.AddParameter(
+            "pdf_file_template",
+            "The file template name to which the PDF will be saved to",
+            "dom_pdf_{run_id:06d}_{event_id:06d}.png",
+        )
+        self.AddParameter(
+            "cdf_file_template",
+            "The file template name to which the CDF will be saved to",
+            "dom_cdf_{run_id:06d}_{event_id:06d}.png",
+        )
+        self.AddParameter("add_event_header", "Add event information.", True)
 
     def Configure(self):
         """Configures Module and loads model from file."""
@@ -92,6 +113,11 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         self.num_threads = self.GetParameter("num_threads")
         self.n_doms_x = self.GetParameter("n_doms_x")
         self.n_doms_y = self.GetParameter("n_doms_y")
+        self.pdf_file_template = self.GetParameter("pdf_file_template")
+        self.cdf_file_template = self.GetParameter("cdf_file_template")
+        self.dom_pdf_kwargs = self.GetParameter("dom_pdf_kwargs")
+        self.dom_cdf_kwargs = self.GetParameter("dom_cdf_kwargs")
+        self.add_event_header = self.GetParameter("add_event_header")
 
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
@@ -158,8 +184,10 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
             output_dir=self.output_dir,
             n_doms_x=self.n_doms_x,
             n_doms_y=self.n_doms_y,
-            pdf_file_template="dom_pdf_{run_id:06d}_{event_id:06d}.png",
-            cdf_file_template="dom_cdf_{run_id:06d}_{event_id:06d}.png",
+            pdf_file_template=self.pdf_file_template,
+            cdf_file_template=self.cdf_file_template,
+            dom_pdf_kwargs=self.dom_pdf_kwargs,
+            dom_cdf_kwargs=self.dom_cdf_kwargs,
         )
 
     def Physics(self, frame):
@@ -176,7 +204,7 @@ class EventGeneratorVisualizeBestFit(icetray.I3ConditionalModule):
         assert n == 1, "Currently only 1-event at a time is supported"
 
         # collect event meta data
-        if "I3EventHeader" in frame:
+        if "I3EventHeader" in frame and self.add_event_header:
             header = frame["I3EventHeader"]
             event_header = {
                 "run_id": header.run_id,

@@ -381,6 +381,15 @@ class MultiSource(Source):
                         msg.format(name, base, dom_cdf_exclusion_sum_i.shape)
                     )
 
+                # undo re-normalization of PDF for the individual source at
+                # a specific DOM. We will need to re-normalize, once everything
+                # from all sources is there at a particular DOM.
+                # Shape: [n_pulses]
+                pulse_cdf_exclusion = tf.gather_nd(
+                    tf.squeeze(dom_cdf_exclusion_sum_i, axis=-1), pulses_ids
+                )
+                pulse_pdf_i *= 1.0 - pulse_cdf_exclusion + 1e-3
+
             # accumulate charge
             # (assumes that sources are linear and independent)
             if dom_charges is None:
@@ -400,6 +409,7 @@ class MultiSource(Source):
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
+            # Shape: [n_pulses]
             pulse_weight_i = tf.gather_nd(
                 tf.squeeze(dom_charges_i, axis=3), pulses_ids
             )
@@ -427,6 +437,12 @@ class MultiSource(Source):
             dom_cdf_exclusion_sum /= dom_charges
 
             result_tensors["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
+
+            # Also re-normalize PDF for exclusions if present
+            pulse_cdf_exclusion = tf.gather_nd(
+                tf.squeeze(dom_cdf_exclusion_sum, axis=-1), pulses_ids
+            )
+            result_tensors["pulse_pdf"] /= 1.0 - pulse_cdf_exclusion + 1e-3
 
         return result_tensors
 

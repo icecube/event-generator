@@ -983,6 +983,60 @@ class BaseComponent(object):
                 )
             )
 
+            # check if the saved component was made with a newer version
+            # than the one currently used
+            if version_control.is_newer_version(
+                version_base=egenerator.__version__,
+                version_test=config_dict["event_generator_version"],
+            ):
+                msg = (
+                    "The saved component was created with a newer version of "
+                    "Event-Generator. Make sure the component is still "
+                    "compatible with this version!"
+                )
+                self._logger.error(msg)
+
+            # go through compatibility changes since the saved version
+            for version, info in egenerator.__version_compatibility__.items():
+                is_newer = version_control.is_newer_version(
+                    version_base=config_dict["event_generator_version"],
+                    version_test=version,
+                )
+
+                # check if this version is compatible
+                if is_newer:
+                    if info["type"] == "global":
+                        msg = "A global change was made in "
+                        msg += "Event-Generator version {!r} leading to "
+                        msg += "incompatibility with the version of this model {!r}."
+                        msg = msg.format(
+                            version,
+                            config_dict["event_generator_version"],
+                        )
+                        self._logger.fatal(msg)
+                        raise ValueError(msg)
+                    elif info["type"] == "local":
+                        if (
+                            self.configuration.class_string
+                            in info["affected_components"]
+                        ):
+                            msg = "A local change was made to the component {!r} in "
+                            msg += "Event-Generator version {!r} leading to "
+                            msg += "incompatibility with the version of this model {!r}."
+                            msg = msg.format(
+                                self.configuration.class_string,
+                                version,
+                                config_dict["event_generator_version"],
+                            )
+                            self._logger.fatal(msg)
+                            raise ValueError(msg)
+                    else:
+                        raise KeyError(
+                            "Unknown type of compatibility change: {}.".format(
+                                info["type"]
+                            )
+                        )
+
         # check if this is the correct class
         if (
             self.configuration.class_string
