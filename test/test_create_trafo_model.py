@@ -94,7 +94,6 @@ class TestCreateTrafoModel(unittest.TestCase):
             # settings for the label module
             "label_module": "cascades.CascadeGeneratorLabelModule",
             "label_settings": {
-                "shift_cascade_vertex": False,
                 # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
                 "trafo_log": [False, False, False, False, False, False, False],
                 "label_key": "LabelsDeepLearning",
