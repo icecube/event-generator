@@ -46,12 +46,6 @@ class DefaultNoiseModel(Source):
         """
         self.assert_configured(False)
 
-        # backwards compatibility for models that didn't define precision
-        if "float_precision" in config:
-            float_precision = config["float_precision"]
-        else:
-            float_precision = "float32"
-
         # ---------------------------------------
         # Define input parameters of noise source
         # ---------------------------------------
@@ -61,7 +55,7 @@ class DefaultNoiseModel(Source):
         self._untracked_data["local_vars"] = new_weights(
             shape=[2],
             stddev=1e-5,
-            float_precision=float_precision,
+            float_precision=config["float_precision"],
             name="noise_scaling",
         )
 

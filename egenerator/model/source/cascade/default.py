@@ -9,8 +9,7 @@ from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles
-
-# from egenerator.manager.component import Configuration, BaseComponent
+from egenerator.utils.cascades import shift_to_maximum
 
 
 class DefaultCascadeModel(Source):
@@ -49,12 +48,6 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(False)
 
-        # backwards compatibility for models that didn't define precision
-        if "float_precision" in config:
-            float_precision = config["float_precision"]
-        else:
-            float_precision = "float32"
-
         # ---------------------------------------------
         # Define input parameters of cascade hypothesis
         # ---------------------------------------------
@@ -82,6 +75,9 @@ class DefaultCascadeModel(Source):
 
         num_inputs = 11 + num_add_labels + num_snowstorm_params
 
+        if config["add_anisotropy_angle"]:
+            num_inputs += 2
+
         if config["add_opening_angle"]:
             num_inputs += 1
 
@@ -91,7 +87,7 @@ class DefaultCascadeModel(Source):
         if config["num_local_vars"] > 0:
             self._untracked_data["local_vars"] = new_weights(
                 shape=[1, 86, 60, config["num_local_vars"]],
-                float_precision=float_precision,
+                float_precision=config["float_precision"],
                 name="local_dom_input_variables",
             )
             num_inputs += config["num_local_vars"]
@@ -116,7 +112,7 @@ class DefaultCascadeModel(Source):
             dilation_rate_list=None,
             hex_num_rotations_list=1,
             method_list=config["method_list"],
-            float_precision=float_precision,
+            float_precision=config["float_precision"],
         )
 
         return parameter_names
@@ -199,6 +195,29 @@ class DefaultCascadeModel(Source):
             time_exclusions_exist = False
         print("\t Applying time exclusions:", time_exclusions_exist)
 
+        # parameters: x, y, z, zenith, azimuth, energy, time
+        num_features = parameters.get_shape().as_list()[-1]
+        params_reshaped = tf.reshape(parameters, [-1, 1, 1, num_features])
+        parameter_list = tf.unstack(params_reshaped, axis=-1)
+
+        # shift cascade vertex to shower maximum
+        if config["shift_cascade_vertex"]:
+            x, y, z, t = shift_to_maximum(
+                x=parameter_list[0],
+                y=parameter_list[1],
+                z=parameter_list[2],
+                zenith=parameter_list[3],
+                azimuth=parameter_list[4],
+                ref_energy=parameter_list[5],
+                t=parameter_list[6],
+                reverse=False,
+            )
+            parameter_list[0] = x
+            parameter_list[1] = y
+            parameter_list[2] = z
+            parameter_list[6] = t
+            parameters = tf.stack(parameter_list, axis=-1)
+
         # get parameters tensor dtype
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
@@ -213,8 +232,6 @@ class DefaultCascadeModel(Source):
             parameters, tensor_name=parameter_tensor_name
         )
 
-        num_features = parameters.get_shape().as_list()[-1]
-
         # -----------------------------------
         # Calculate input values for DOMs
         # -----------------------------------
@@ -224,11 +241,6 @@ class DefaultCascadeModel(Source):
         # alpha (azimuthal angle to DOM)
         # beta (zenith angle to DOM)
 
-        params_reshaped = tf.reshape(parameters, [-1, 1, 1, num_features])
-
-        # parameters: x, y, z, zenith, azimuth, energy, time
-        parameter_list = tf.unstack(params_reshaped, axis=-1)
-
         # calculate displacement vector
         dx = detector.x_coords[..., 0] - parameter_list[0]
         dy = detector.x_coords[..., 1] - parameter_list[1]
@@ -237,12 +249,18 @@ class DefaultCascadeModel(Source):
         dy = tf.expand_dims(dy, axis=-1)
         dz = tf.expand_dims(dz, axis=-1)
 
-        distance = tf.sqrt(dx**2 + dy**2 + dz**2)
+        # stabilize with 1e-1 (10cm) when distance approaches DOM radius
+        distance = tf.sqrt(dx**2 + dy**2 + dz**2) + 1e-1
+        distance_xy = tf.sqrt(dx**2 + dy**2) + 1e-1
 
         # calculate observation angle
         dx_normed = dx / distance
         dy_normed = dy / distance
         dz_normed = dz / distance
+
+        # angle in xy-plane (relevant for anisotropy)
+        dx_normed_xy = dx / distance_xy
+        dy_normed_xy = dy / distance_xy
 
         # calculate direction vector of cascade
         cascade_zenith = parameter_list[3]
@@ -290,6 +308,10 @@ class DefaultCascadeModel(Source):
             dz_normed,
             distance,
         ]
+
+        if config["add_anisotropy_angle"]:
+            input_list.append(dx_normed_xy)
+            input_list.append(dy_normed_xy)
 
         if config["add_opening_angle"]:
             input_list.append(opening_angle_traf)

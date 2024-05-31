@@ -7,7 +7,6 @@ import pandas as pd
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
-from egenerator.utils.cascades import shift_to_maximum
 
 
 class SnowstormCascadeGeneratorLabelModule(BaseComponent):
@@ -30,7 +29,6 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
     def _configure(
         self,
         config_data,
-        shift_cascade_vertex,
         trafo_log,
         float_precision,
         label_key="LabelsDeepLearning",
@@ -46,9 +44,6 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         config_data : None, str, or DataTensorList
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
-        shift_cascade_vertex : bool
-            Shift cascade vertex to shower maximum instead of interaction
-            point.
         trafo_log : None or bool or list of bool
             Whether or not to apply logarithm on cascade parameters.
             If a single bool is given, this applies to all labels. Otherwise
@@ -112,12 +107,6 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Description
         """
 
-        # sanity checks:
-        if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError(
-                "{!r} is not a boolean value!".format(shift_cascade_vertex)
-            )
-
         # extend trafo log for snowstorm parameters: fill with False
         if isinstance(trafo_log, bool):
             trafo_log_ext = [trafo_log] * 7
@@ -162,7 +151,6 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(
                 config_data=config_data,
-                shift_cascade_vertex=shift_cascade_vertex,
                 trafo_log=trafo_log,
                 float_precision=float_precision,
                 label_key=label_key,
@@ -241,14 +229,6 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         finally:
             f.close()
 
-        # shift cascade vertex to shower maximum?
-        if self.configuration.config["shift_cascade_vertex"]:
-            x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
-            cascade_parameters[0] = x
-            cascade_parameters[1] = y
-            cascade_parameters[2] = z
-            cascade_parameters[6] = t
-
         # format cascade parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
         cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
@@ -311,14 +291,6 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
-        # shift cascade vertex to shower maximum?
-        if self.configuration.config["shift_cascade_vertex"]:
-            x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
-            cascade_parameters[0] = x
-            cascade_parameters[1] = y
-            cascade_parameters[2] = z
-            cascade_parameters[6] = t
-
         # format cascade parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
         cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
@@ -371,50 +343,3 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             raise ValueError("Module not configured yet!")
 
         pass
-
-    def _shift_to_maximum(
-        self, x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6
-    ):
-        """
-        PPC does its own cascade extension, leaving the showers at the
-        production vertex. Reapply the parametrization to find the
-        position of the shower maximum, which is also the best approximate
-        position for a point cascade.
-
-        Parameters
-        ----------
-        x : float or np.ndarray of floats
-            Cascade interaction vertex x (unshifted) in meters.
-        y : float or np.ndarray of floats
-            Cascade interaction vertex y (unshifted) in meters.
-        z : float or np.ndarray of floats
-            Cascade interaction vertex z (unshifted) in meters.
-        zenith : float or np.ndarray of floats
-            Cascade zenith direction in rad.
-        azimuth : float or np.ndarray of floats
-            Cascade azimuth direction in rad.
-        ref_energy : float or np.ndarray of floats
-            Energy of cascade in GeV.
-        t : float or np.ndarray of floats
-            Cascade interaction vertex time (unshifted) in ns.
-        eps : float, optional
-            Small constant float.
-
-        Returns
-        -------
-        Tuple of float or tuple of np.ndarray
-            Shifted vertex position (position of shower maximum) in meter and
-            shifted vertex time in nano seconds.
-        """
-
-        return shift_to_maximum(
-            x=x,
-            y=y,
-            z=z,
-            zenith=zenith,
-            azimuth=azimuth,
-            ref_energy=ref_energy,
-            t=t,
-            eps=eps,
-            reverse=False,
-        )

@@ -7,7 +7,6 @@ import pandas as pd
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
-from egenerator.utils.cascades import shift_to_maximum
 
 
 class SnowstormTrackGeneratorLabelModule(BaseComponent):
@@ -28,7 +27,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
     def _configure(
         self,
         config_data,
-        shift_cascade_vertex,
         trafo_log,
         float_precision,
         num_cascades=5,
@@ -44,9 +42,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         config_data : None, str, or DataTensorList
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
-        shift_cascade_vertex : bool
-            Shift cascade vertex to shower maximum instead of interaction
-            point.
         trafo_log : None or bool or list of bool
             Whether or not to apply logarithm on parameters.
             If a single bool is given, this applies to all labels. Otherwise
@@ -116,10 +111,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         """
 
         # sanity checks:
-        if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError(
-                "{!r} is not a boolean value!".format(shift_cascade_vertex)
-            )
         if num_cascades < 0:
             raise ValueError(
                 "Num cascades {} must be positive!".format(num_cascades)
@@ -192,7 +183,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(
                 config_data=config_data,
-                shift_cascade_vertex=shift_cascade_vertex,
                 trafo_log=trafo_log,
                 float_precision=float_precision,
                 num_cascades=num_cascades,
@@ -271,10 +261,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         finally:
             f.close()
 
-        # shift cascade vertices to shower maximum?
-        if self.configuration.config["shift_cascade_vertex"]:
-            track_parameters = self._shift_parameters(track_parameters)
-
         # format track parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
@@ -337,10 +323,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
-        # shift cascade vertices to shower maximum?
-        if self.configuration.config["shift_cascade_vertex"]:
-            track_parameters = self._shift_parameters(track_parameters)
-
         # format track parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
         track_parameters = np.array(track_parameters, dtype=dtype).T
@@ -392,64 +374,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         if not self.is_configured:
             raise ValueError("Module not configured yet!")
 
-        pass
-
-    def _shift_parameters(self, parameters):
-        """Adjust parameters due to shifting of cascades to shower maximum.
-
-        Parameters
-        ----------
-        parameters : list of array
-            The parameters that should be shifted.
-
-        Returns
-        -------
-        list of array
-            The shifted parameters
-        """
-        num_cascades = self.configuration.config["num_cascades"]
-        param_dict = self.data["parameter_dict"]
-
-        zenith = parameters[param_dict["zenith"]]
-        azimuth = parameters[param_dict["azimuth"]]
-
-        c = 0.299792458  # meter / ns
-        dir_x = -np.sin(zenith) * np.cos(azimuth)
-        dir_y = -np.sin(zenith) * np.sin(azimuth)
-        dir_z = -np.cos(zenith)
-
-        # fix anchor point of track which is the first provided cascade
-        # This means that the start and end distance of the track segment
-        # must also be adjusted
-        if num_cascades > 0:
-            shift = self._get_cascade_extension(
-                parameters[param_dict["cascade_0000_energy"]]
-            )
-
-            parameters[param_dict["track_anchor_x"]] += dir_x * shift
-            parameters[param_dict["track_anchor_y"]] += dir_y * shift
-            parameters[param_dict["track_anchor_z"]] += dir_z * shift
-            parameters[param_dict["track_anchor_time"]] += shift / c
-
-            parameters[param_dict["track_distance_start"]] -= shift
-            parameters[param_dict["track_distance_end"]] -= shift
-
-            # Also shift all of the remaining cascades
-            for i in range(1, num_cascades):
-                shift_i = self._get_cascade_extension(
-                    parameters[param_dict["cascade_{:04d}_energy".format(i)]]
-                )
-
-                # get index of cascade distance parameter
-                dist_index = param_dict["cascade_{:04d}_distance".format(i)]
-
-                # we need to compensate for the shift of the anchor point
-                parameters[dist_index] -= shift
-
-                # and also for the shift of the ith cascade itself
-                parameters[dist_index] += shift_i
-
-        return parameters
+        raise not NotImplementedError("This module is read-only!")
 
     def _get_cascade_extension(self, ref_energy, eps=1e-6):
         """
@@ -486,50 +411,3 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
         length_to_maximum = np.clip(((a - 1.0) / b) * l_rad, 0.0, float("inf"))
         return length_to_maximum
-
-    def _shift_to_maximum(
-        self, x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6
-    ):
-        """
-        PPC does its own cascade extension, leaving the showers at the
-        production vertex. Reapply the parametrization to find the
-        position of the shower maximum, which is also the best approximate
-        position for a point cascade.
-
-        Parameters
-        ----------
-        x : float or np.ndarray of floats
-            Cascade interaction vertex x (unshifted) in meters.
-        y : float or np.ndarray of floats
-            Cascade interaction vertex y (unshifted) in meters.
-        z : float or np.ndarray of floats
-            Cascade interaction vertex z (unshifted) in meters.
-        zenith : float or np.ndarray of floats
-            Cascade zenith direction in rad.
-        azimuth : float or np.ndarray of floats
-            Cascade azimuth direction in rad.
-        ref_energy : float or np.ndarray of floats
-            Energy of cascade in GeV.
-        t : float or np.ndarray of floats
-            Cascade interaction vertex time (unshifted) in ns.
-        eps : float, optional
-            Small constant float.
-
-        Returns
-        -------
-        Tuple of float or tuple of np.ndarray
-            Shifted vertex position (position of shower maximum) in meter and
-            shifted vertex time in nano seconds.
-        """
-
-        return shift_to_maximum(
-            x=x,
-            y=y,
-            z=z,
-            zenith=zenith,
-            azimuth=azimuth,
-            ref_energy=ref_energy,
-            t=t,
-            eps=eps,
-            reverse=False,
-        )
