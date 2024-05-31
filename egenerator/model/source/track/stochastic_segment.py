@@ -553,12 +553,18 @@ class StochasticTrackSegmentModel(Source):
         # -------------------------------------------
         # Get expected charge at DOM
         # -------------------------------------------
-        if config["estimate_charge_distribution"] is True:
+        if config["charge_distribution_type"] == "asymmetric_gaussian":
             n_charge = 3
-        elif config["estimate_charge_distribution"] == "negative_binomial":
+        elif config["charge_distribution_type"] == "negative_binomial":
             n_charge = 2
-        else:
+        elif config["charge_distribution_type"] == "poisson":
             n_charge = 1
+        else:
+            raise ValueError(
+                "Unknown charge distribution type: {}".format(
+                    config["charge_distribution_type"]
+                )
+            )
 
         # the result of the convolution layers are the latent variables
         dom_charges_trafo = tf.expand_dims(
@@ -596,7 +602,7 @@ class StochasticTrackSegmentModel(Source):
         # -------------------------------------
         # get charge distribution uncertainties
         # -------------------------------------
-        if config["estimate_charge_distribution"] is True:
+        if config["charge_distribution_type"] == "asymmetric_gaussian":
             sigma_scale_trafo = tf.expand_dims(
                 conv_hex3d_layers[-1][..., 1], axis=-1
             )
@@ -676,7 +682,7 @@ class StochasticTrackSegmentModel(Source):
             tensor_dict["dom_charges_variance"] = dom_charges_unc**2
             tensor_dict["dom_charges_log_pdf_values"] = dom_charges_llh
 
-        elif config["estimate_charge_distribution"] == "negative_binomial":
+        elif config["charge_distribution_type"] == "negative_binomial":
             """
             Use negative binomial PDF instead of Poisson to account for
             over-dispersion induces by systematic variations.
@@ -725,10 +731,17 @@ class StochasticTrackSegmentModel(Source):
             tensor_dict["dom_charges_variance"] = dom_charges_variance
             tensor_dict["dom_charges_log_pdf_values"] = dom_charges_llh
 
-        else:
+        elif config["charge_distribution_type"] == "poisson":
             # Poisson Distribution: variance is equal to expected charge
             tensor_dict["dom_charges_unc"] = tf.sqrt(dom_charges)
             tensor_dict["dom_charges_variance"] = dom_charges
+
+        else:
+            raise ValueError(
+                "Unknown charge distribution type: {}".format(
+                    config["charge_distribution_type"]
+                )
+            )
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF

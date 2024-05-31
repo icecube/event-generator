@@ -391,12 +391,18 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
         # Gather latent vars of mixture model
         # -------------------------------------------
-        if config["estimate_charge_distribution"] is True:
+        if config["charge_distribution_type"] == "asymmetric_gaussian":
             n_charge = 3
-        elif config["estimate_charge_distribution"] == "negative_binomial":
+        elif config["charge_distribution_type"] == "negative_binomial":
             n_charge = 2
-        else:
+        elif config["charge_distribution_type"] == "poisson":
             n_charge = 1
+        else:
+            raise ValueError(
+                "Unknown charge distribution type: {!r}".format(
+                    config["charge_distribution_type"]
+                )
+            )
 
         # check if we have the right amount of filters in the latent dimension
         n_models = config["num_latent_models"]
@@ -409,7 +415,7 @@ class DefaultCascadeModel(Source):
         if n_models <= 1:
             raise ValueError("{!r} !> 1".format(n_models))
 
-        print("\t Charge method:", config["estimate_charge_distribution"])
+        print("\t Charge method:", config["charge_distribution_type"])
         print("\t Number of Asymmetric Gaussian Components:", n_models)
 
         out_layer = conv_hex3d_layers[-1]
@@ -665,7 +671,7 @@ class DefaultCascadeModel(Source):
         # -------------------------------------
         # get charge distribution uncertainties
         # -------------------------------------
-        if config["estimate_charge_distribution"] is True:
+        if config["charge_distribution_type"] == "asymmetric_gaussian":
             sigma_scale_trafo = tf.expand_dims(
                 conv_hex3d_layers[-1][..., 1], axis=-1
             )
@@ -741,7 +747,7 @@ class DefaultCascadeModel(Source):
             tensor_dict["dom_charges_variance"] = dom_charges_unc**2
             tensor_dict["dom_charges_log_pdf_values"] = dom_charges_llh
 
-        elif config["estimate_charge_distribution"] == "negative_binomial":
+        elif config["charge_distribution_type"] == "negative_binomial":
             """
             Use negative binomial PDF instead of Poisson to account for
             over-dispersion induces by systematic variations.
@@ -781,10 +787,17 @@ class DefaultCascadeModel(Source):
             tensor_dict["dom_charges_variance"] = dom_charges_variance
             tensor_dict["dom_charges_log_pdf_values"] = dom_charges_llh
 
-        else:
+        elif config["charge_distribution_type"] == "poisson":
             # Poisson Distribution: variance is equal to expected charge
             tensor_dict["dom_charges_unc"] = tf.sqrt(dom_charges)
             tensor_dict["dom_charges_variance"] = dom_charges
+
+        else:
+            raise ValueError(
+                "Unknown charge distribution type: {!r}".format(
+                    config["charge_distribution_type"]
+                )
+            )
 
         # --------------------------
         # Calculate Pulse PDF Values

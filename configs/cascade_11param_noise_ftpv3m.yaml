@@ -496,7 +496,7 @@ model_settings: {
                 'scale_charge_by_relative_dom_efficiency': True,
                 'scale_charge_by_global_dom_efficiency': True,
                 'prevent_mixture_component_swapping': False,
-                'estimate_charge_distribution': 'negative_binomial',
+                'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
                 'float_precision': float64,
 
