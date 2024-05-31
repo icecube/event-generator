@@ -81,6 +81,9 @@ class DefaultCascadeModel(Source):
         if config["add_opening_angle"]:
             num_inputs += 1
 
+        if config["add_dom_angular_acceptance"]:
+            num_inputs += 1
+
         if config["add_dom_coordinates"]:
             num_inputs += 3
 
@@ -315,6 +318,11 @@ class DefaultCascadeModel(Source):
 
         if config["add_opening_angle"]:
             input_list.append(opening_angle_traf)
+
+        if config["add_dom_angular_acceptance"]:
+            raise NotImplementedError(
+                "DOM angular acceptance not yet implemented"
+            )
 
         if config["add_dom_coordinates"]:
 
@@ -633,7 +641,11 @@ class DefaultCascadeModel(Source):
         )
 
         # clip value range for more stability during training
-        dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20.0, 15)
+        dom_charges_trafo = tfp.math.clip_by_value_preserve_gradient(
+            dom_charges_trafo,
+            -20.0,
+            15,
+        )
 
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
@@ -641,7 +653,7 @@ class DefaultCascadeModel(Source):
         # scale charges by cascade energy
         if config["scale_charge"]:
             # make sure cascade energy does not turn negative
-            cascade_energy = tf.clip_by_value(
+            cascade_energy = tfp.math.clip_by_value_preserve_gradient(
                 parameter_list[5], 0.0, float("inf")
             )
             scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
