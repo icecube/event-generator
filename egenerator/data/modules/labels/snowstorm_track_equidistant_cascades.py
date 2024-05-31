@@ -13,8 +13,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(BaseComponent):
     """Track Equidistant Cascades
 
     This is a label module that loads the snowstorm track labels
-    for a track that is defined by equidistant cascades. Because the cascades
-    are all equidistant, not vertex shifting is applied.
+    for a track that is defined by equidistant cascades.
     """
 
     def __init__(self, logger=None):

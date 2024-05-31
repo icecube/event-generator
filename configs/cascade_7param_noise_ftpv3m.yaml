@@ -1,15 +1,13 @@
 ---
 ##############
-# Config for independent multi cascade events
+# Config for single cascade events
 #
-# Note: This config is only intended for exporting of model.
-# Training with this config will lead to *WRONG* results since the
-# labels read in are *not* correct!!
+# Detailed information on the parameters are given in the SetupManager
+# class located in egenerator.settings.setup_manager.py.
 ##############
 
 # Provide a unique name for the model
-unique_name: 'independent_multi_cascade_7param_noise_tw_BFRv1Spice321_low_mem_n002'
-
+unique_name: 'cascade_7param_noise_ftpv3m'
 
 #------------------
 # Training settings
@@ -89,13 +87,10 @@ reconstruction_settings: {
     'seed': 'MonopodFit4_PartialExclusion',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
-    'seed_parameter_names': [
-        'cascade_00_x', 'cascade_00_y', 'cascade_00_z', 'cascade_00_zenith',
-        'cascade_00_azimuth', 'cascade_00_energy', 'cascade_00_time',
-        'cascade_01_x', 'cascade_01_y', 'cascade_01_z', 'cascade_01_zenith',
-        'cascade_01_azimuth', 'cascade_01_energy', 'cascade_01_time',
-    ],
-    'seed_missing_value': ,
+    'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
+                             'energy', 'time',
+                         ],
+    'seed_missing_value': 1.,
     'seed_missing_value_dict': {
     },
     'seed_float_precision': 'float32',
@@ -145,7 +140,7 @@ model_manager_settings: {
     'model_manager_class': 'egenerator.manager.source.SourceManager',
 
     # restore model if True, otherwise start from scratch
-    'restore_model' : False,
+    'restore_model' : True,
 
     # These settings are used to configure the model manager and may not change
     config: {
@@ -156,13 +151,13 @@ model_manager_settings: {
         # Define which model parameters to use for the I3Particle
         # [x, y, z, zenith, azimuth, energy, time]
         'I3ParticleMapping': {
-            'x': 'cascade_00_x',
-            'y': 'cascade_00_y',
-            'z': 'cascade_00_z',
-            'zenith': 'cascade_00_zenith',
-            'azimuth': 'cascade_00_azimuth',
-            'energy': 'cascade_00_energy',
-            'time': 'cascade_00_time',
+            'x': 'cascade_x',
+            'y': 'cascade_y',
+            'z': 'cascade_z',
+            'zenith': 'cascade_zenith',
+            'azimuth': 'cascade_azimuth',
+            'energy': 'cascade_energy',
+            'time': 'cascade_time',
         },
     },
 }
@@ -185,7 +180,34 @@ data_iterator_settings: {
         'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
-            'dumy_file_path',
+            # Snowstorm EM datasets
+            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
+
+            # SnowStorm Mixed EM/Hadronic cascades
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30243/egenerator_30243_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30244/egenerator_30244_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30245/egenerator_30245_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30246/egenerator_30246_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30247/egenerator_30247_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
+            # PPC BFRv1 Datasets
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30052/egenerator_30052_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30053/egenerator_30053_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30054/egenerator_30054_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30055/egenerator_30055_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30056/egenerator_30056_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+
         ],
     },
 
@@ -218,7 +240,14 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            'dumy_file_path',
+            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+
+            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+
+             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
         ],
     },
 
@@ -234,7 +263,36 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-            'dumy_file_path',
+            # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*1000*.hdf5',
+            # # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*1000*.hdf5',
+
+            # # NuGen -- L5MonopodFit4 vertex
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
+
+            # # Egenerator NuGen SpiceLea Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/5/egenerator_NuE_low_energy_IC86_2013_l5_lea_run_000040*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/27/egenerator_NuE_medium_energy_IC86_2013_l5_lea_run_0002600*.hdf5',
+
+            # # Egenerator NuGen Spice3.2 Test Data
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_0000400*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_00004000.hdf5',
+
+            # MESE NuGen NuE l5 Benchmark Datasets
+            # Spice3.2.1 variable
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99900/egenerator_99900_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # Spice3.2.1 const
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99901/egenerator_99901_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea variable
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # SpiceLea const
+            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # Spice3.2.1 variable no fourier
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
         ],
     },
 }
@@ -253,7 +311,7 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': True,
+            'add_normalization_term': False,
             # choose the loss function to use
             'loss_function_name': 'unbinned_pulse_time_llh',
         },
@@ -266,7 +324,7 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': True,
+            'add_normalization_term': False,
             # choose the loss function to use
             'loss_function_name': 'negative_binomial_charge_pdf',
         },
@@ -293,7 +351,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_independent_multi_cascade_n0002',
+    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
 }
 
 #----------------------
@@ -330,21 +388,10 @@ data_handler_settings: {
 
     # settings for the label module
     'label_settings':{
-        # Warning:
-        # in this case it only shifts the first cascade and not the second!
-        'shift_cascade_vertex': True,  # Do not actually use for training!!
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, energy, time)?
-        'trafo_log': [
-            False, False, False, False, False, True, False,
-            False, False, False, False, False, True, False,
-        ],
+        'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
-        'additional_labels': [
-            'cascade_x', 'cascade_y', 'cascade_z',
-            'cascade_zenith', 'cascade_azimuth',
-            'cascade_energy', 'cascade_t',
-        ],
         'snowstorm_key': 'SnowstormParameters',
         'num_snowstorm_params': 0,
         'float_precision': 'float32',
@@ -396,8 +443,7 @@ model_settings: {
     config: {
         'sources': {
             'noise': 'noise',
-            'cascade_00': 'cascade',
-            'cascade_01': 'cascade',
+            'cascade': 'cascade',
         },
     },
 
@@ -407,18 +453,6 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-
-            # The directory from which this base source will be loaded
-            'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/noise',
-
-            # define data trafo settings for the noise base source
-            data_trafo_settings: {
-                'float_precision': 'float64',
-                'norm_constant': !!float 1e-6,
-                'num_batches': 5000,
-                'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
-            },
-
             config: {},
         },
 
@@ -426,19 +460,10 @@ model_settings: {
             # The cascade source model class to use
             'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
-            # The directory from which this base source will be loaded
-            'load_dir': '/net/big-tank/POOL/users/mhuennefeld/exported_models/egenerator/cascade_7param_noise_tw_BFRv1Spice321_low_mem_01/models_0000/cascade',
-
-            # define data trafo settings for the noise base source
-            data_trafo_settings: {
-                'float_precision': 'float64',
-                'norm_constant': !!float 1e-6,
-                'num_batches': 5000,
-                'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
-            },
-
             config: {
                 'keep_prob':,
+                'shift_cascade_vertex': True,
+                'add_anisotropy_angle': True,
                 'add_opening_angle': True,
                 'add_dom_coordinates': False,
                 'num_local_vars': 0,
@@ -446,7 +471,7 @@ model_settings: {
                 'scale_charge_by_relative_dom_efficiency': True,
                 'scale_charge_by_global_dom_efficiency': False,
                 'prevent_mixture_component_swapping': False,
-                'estimate_charge_distribution': 'negative_binomial',
+                'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
 
                 # This is a list of labels in addition to
