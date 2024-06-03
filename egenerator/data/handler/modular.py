@@ -1,8 +1,6 @@
 from __future__ import division, print_function
-import os
 import logging
 import numpy as np
-import pandas as pd
 
 from egenerator import misc
 from egenerator.manager.component import Configuration
@@ -11,7 +9,6 @@ from egenerator.data.tensor import DataTensorList
 
 
 class ModuleDataHandler(BaseDataHandler):
-
     """A derived class from the base data handler 'BaseDataHandler'.
     This class uses a modular structure to load a data, label, misc, weight,
     and filter module. These modules are responsible for loading the
@@ -43,6 +40,7 @@ class ModuleDataHandler(BaseDataHandler):
     weight_tensors : DataTensorList
         The data tensor list of tensors of type 'weight'.
     """
+
     def _get_value(self, name, member_attribute):
         data_dict = getattr(self, member_attribute)
         if data_dict is not None and name in data_dict:
@@ -52,43 +50,43 @@ class ModuleDataHandler(BaseDataHandler):
 
     @property
     def data_module(self):
-        return self._get_value('data_module', '_sub_components')
+        return self._get_value("data_module", "_sub_components")
 
     @property
     def data_tensors(self):
-        return self._get_value('data_tensors', '_data')
+        return self._get_value("data_tensors", "_data")
 
     @property
     def filter_module(self):
-        return self._get_value('filter_module', '_sub_components')
+        return self._get_value("filter_module", "_sub_components")
 
     @property
     def label_module(self):
-        return self._get_value('label_module', '_sub_components')
+        return self._get_value("label_module", "_sub_components")
 
     @property
     def label_tensors(self):
-        return self._get_value('label_tensors', '_data')
+        return self._get_value("label_tensors", "_data")
 
     @property
     def misc_module(self):
-        return self._get_value('misc_module', '_sub_components')
+        return self._get_value("misc_module", "_sub_components")
 
     @property
     def misc_tensors(self):
-        return self._get_value('misc_tensors', '_data')
+        return self._get_value("misc_tensors", "_data")
 
     @property
     def modules_are_loaded(self):
-        return self._get_value('modules_are_loaded', '_untracked_data')
+        return self._get_value("modules_are_loaded", "_untracked_data")
 
     @property
     def weight_module(self):
-        return self._get_value('weight_module', '_sub_components')
+        return self._get_value("weight_module", "_sub_components")
 
     @property
     def weight_tensors(self):
-        return self._get_value('weight_tensors', '_data')
+        return self._get_value("weight_tensors", "_data")
 
     def __init__(self, logger=None):
         """Initialize data handler
@@ -101,7 +99,7 @@ class ModuleDataHandler(BaseDataHandler):
         logger = logger or logging.getLogger(__name__)
         super(ModuleDataHandler, self).__init__(logger=logger)
 
-        self._untracked_data['modules_are_loaded'] = False
+        self._untracked_data["modules_are_loaded"] = False
 
     def _load_modules(self, config):
         """Load modules
@@ -117,33 +115,38 @@ class ModuleDataHandler(BaseDataHandler):
             A dictionary of the sub components.
         """
         if self.modules_are_loaded:
-            raise ValueError('Modules have already been loaded!')
+            raise ValueError("Modules have already been loaded!")
 
-        base = 'egenerator.data.modules.{}.{}'
+        base = "egenerator.data.modules.{}.{}"
 
         sub_components = {}
 
         # load the data loader module
-        sub_components['data_module'] = misc.load_class(
-            base.format('data', config['data_module']))()
+        sub_components["data_module"] = misc.load_class(
+            base.format("data", config["data_module"])
+        )()
 
         # load the label loader module
-        sub_components['label_module'] = misc.load_class(
-            base.format('labels', config['label_module']))()
+        sub_components["label_module"] = misc.load_class(
+            base.format("labels", config["label_module"])
+        )()
 
         # load the weight loader module
-        sub_components['weight_module'] = misc.load_class(
-            base.format('weights', config['weight_module']))()
+        sub_components["weight_module"] = misc.load_class(
+            base.format("weights", config["weight_module"])
+        )()
 
         # load the misc loader module
-        sub_components['misc_module'] = misc.load_class(
-            base.format('misc', config['misc_module']))()
+        sub_components["misc_module"] = misc.load_class(
+            base.format("misc", config["misc_module"])
+        )()
 
         # load the filter module
-        sub_components['filter_module'] = misc.load_class(
-            base.format('filters', config['filter_module']))()
+        sub_components["filter_module"] = misc.load_class(
+            base.format("filters", config["filter_module"])
+        )()
 
-        self._untracked_data['modules_are_loaded'] = True
+        self._untracked_data["modules_are_loaded"] = True
         return sub_components
 
     def _configure_derived_class(self, config, config_data=None):
@@ -202,17 +205,20 @@ class ModuleDataHandler(BaseDataHandler):
 
         # read test file and collect meta data
         data = {}
-        configuration_dict = {}
-        for name in ['data', 'label', 'weight', 'misc', 'filter']:
-            sub_components[name+'_module'].configure(
-                    config_data=config_data, **config[name + '_settings'])
+        for name in ["data", "label", "weight", "misc", "filter"]:
+            sub_components[name + "_module"].configure(
+                config_data=config_data, **config[name + "_settings"]
+            )
 
-            data.update(sub_components[name+'_module'].data)
+            data.update(sub_components[name + "_module"].data)
 
         # combine tensors
-        data['tensors'] = DataTensorList(
-            data['data_tensors'].list + data['label_tensors'].list +
-            data['weight_tensors'].list + data['misc_tensors'].list)
+        data["tensors"] = DataTensorList(
+            data["data_tensors"].list
+            + data["label_tensors"].list
+            + data["weight_tensors"].list
+            + data["misc_tensors"].list
+        )
 
         # define configuration
         # set config to mutable_settings:
@@ -220,9 +226,14 @@ class ModuleDataHandler(BaseDataHandler):
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings={},
-            mutable_settings={'config': config},
-            mutable_sub_components=['weight_module', 'misc_module',
-                                    'filter_module', 'label_module'])
+            mutable_settings={"config": config},
+            mutable_sub_components=[
+                "weight_module",
+                "misc_module",
+                "filter_module",
+                "label_module",
+            ],
+        )
 
         # add sub component configurations to this configuration
         configuration.add_sub_components(sub_components)
@@ -257,9 +268,14 @@ class ModuleDataHandler(BaseDataHandler):
         """
         for name in names:
             # check if the updated component is allowed to be updated
-            if name not in ['data_module', 'label_module', 'weight_module',
-                            'misc_module', 'filter_module']:
-                msg = 'Can not update {!r} since it does not exist'
+            if name not in [
+                "data_module",
+                "label_module",
+                "weight_module",
+                "misc_module",
+                "filter_module",
+            ]:
+                msg = "Can not update {!r} since it does not exist"
                 raise ValueError(msg.format(name))
 
             # update data
@@ -267,22 +283,26 @@ class ModuleDataHandler(BaseDataHandler):
 
             # update mutable settings
             new_config = self.configuration.mutable_settings
-            new_config['config'][name] = misc.get_full_class_string_of_object(
-                self.sub_components[name])
-            new_config['config'][name.replace('module', 'settings')] = \
+            new_config["config"][name] = misc.get_full_class_string_of_object(
+                self.sub_components[name]
+            )
+            new_config["config"][name.replace("module", "settings")] = (
                 self.sub_components[name].configuration.config
+            )
             self.configuration.update_mutable_settings(new_config)
 
             # replace sub components configuration
             self.configuration.replace_sub_components(
-                    {name: self.sub_components[name]})
+                {name: self.sub_components[name]}
+            )
 
         # update tensors list
-        self._data['tensors'] = DataTensorList(
-            self._data['data_tensors'].list +
-            self._data['label_tensors'].list +
-            self._data['weight_tensors'].list +
-            self._data['misc_tensors'].list)
+        self._data["tensors"] = DataTensorList(
+            self._data["data_tensors"].list
+            + self._data["label_tensors"].list
+            + self._data["weight_tensors"].list
+            + self._data["misc_tensors"].list
+        )
 
     def _get_data(self, file_or_frame, method, *args, **kwargs):
         """Get data from hdf file or I3Frame.
@@ -312,58 +332,76 @@ class ModuleDataHandler(BaseDataHandler):
         ValueError
             Description
         """
-        methods = ['get_from_hdf', 'get_from_frame', 'create_from_frame']
+        methods = ["get_from_hdf", "get_from_frame", "create_from_frame"]
         if method not in methods:
-            raise ValueError('Method {} is not in {!r}'.format(
-                method, methods))
+            raise ValueError(
+                "Method {} is not in {!r}".format(method, methods)
+            )
 
         # load data
-        if method == 'get_from_hdf':
-            assert isinstance(file_or_frame, str), 'Expected file path string'
+        if method == "get_from_hdf":
+            assert isinstance(file_or_frame, str), "Expected file path string"
 
             num_data, data = self.data_module.get_data_from_hdf(
-                                                file_or_frame, *args,
-                                                label_key=self.label_module.configuration.config['label_key'],
-                                                **kwargs)
+                file_or_frame, *args,
+                label_key=self.label_module.configuration.config["label_key"],
+                **kwargs)
 
             num_labels, labels = self.label_module.get_data_from_hdf(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_misc, misc = self.misc_module.get_data_from_hdf(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_weights, weights = self.weight_module.get_data_from_hdf(
-                                                file_or_frame, *args, **kwargs)
-        elif method == 'get_from_frame':
+                file_or_frame, *args, **kwargs
+            )
+        elif method == "get_from_frame":
             num_data, data = self.data_module.get_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_labels, labels = self.label_module.get_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_misc, misc = self.misc_module.get_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_weights, weights = self.weight_module.get_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
-        elif method == 'create_from_frame':
+                file_or_frame, *args, **kwargs
+            )
+        elif method == "create_from_frame":
             num_data, data = self.data_module.create_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_labels, labels = self.label_module.create_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_misc, misc = self.misc_module.create_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
             num_weights, weights = self.weight_module.create_data_from_frame(
-                                                file_or_frame, *args, **kwargs)
+                file_or_frame, *args, **kwargs
+            )
         # check if there were any problems loading data and skip if there were
         found_problem = False
         if self.data_tensors.len > 0 and num_data is None and data is None:
             found_problem = True
-        if self.label_tensors.len > 0 and num_labels is None \
-                and labels is None:
+        if (
+            self.label_tensors.len > 0
+            and num_labels is None
+            and labels is None
+        ):
             found_problem = True
         if self.misc_tensors.len > 0 and num_misc is None and misc is None:
             found_problem = True
-        if self.weight_tensors.len > 0 and num_weights is None \
-                and weights is None:
+        if (
+            self.weight_tensors.len > 0
+            and num_weights is None
+            and weights is None
+        ):
             found_problem = True
         if found_problem:
-            msg = 'Found missing values, skipping {!r}'
+            msg = "Found missing values, skipping {!r}"
             self._logger.warning(msg.format(file_or_frame))
             return None, None
 
@@ -374,53 +412,67 @@ class ModuleDataHandler(BaseDataHandler):
             if num_events is None:
                 num_events = num
             elif num_events != num:
-                raise ValueError('{!r} != {!r}'.format(num_events, num))
+                raise ValueError("{!r} != {!r}".format(num_events, num))
             return num_events
 
         event_batch = []
         for tensor in self.tensors.list:
 
             if tensor.exists:
-                if tensor.type == 'data':
+                if tensor.type == "data":
                     num_events = check_num_events(num_events, num_data)
                     event_batch.append(
-                        data[self.data_tensors.get_index(tensor.name)])
+                        data[self.data_tensors.get_index(tensor.name)]
+                    )
 
-                elif tensor.type == 'label':
+                elif tensor.type == "label":
                     num_events = check_num_events(num_events, num_labels)
                     event_batch.append(
-                        labels[self.label_tensors.get_index(tensor.name)])
+                        labels[self.label_tensors.get_index(tensor.name)]
+                    )
 
-                elif tensor.type == 'misc':
+                elif tensor.type == "misc":
                     num_events = check_num_events(num_events, num_misc)
                     event_batch.append(
-                        misc[self.misc_tensors.get_index(tensor.name)])
+                        misc[self.misc_tensors.get_index(tensor.name)]
+                    )
 
-                elif tensor.type == 'weight':
+                elif tensor.type == "weight":
                     num_events = check_num_events(num_events, num_weights)
                     event_batch.append(
-                        weights[self.weight_tensors.get_index(tensor.name)])
+                        weights[self.weight_tensors.get_index(tensor.name)]
+                    )
             else:
                 event_batch.append(None)
 
         if num_events is None:
-            raise ValueError('Something went wrong!')
+            raise ValueError("Something went wrong!")
 
         # get filter mask for events
-        if method == 'get_from_hdf':
+        if method == "get_from_hdf":
             filter_mask = self.filter_module.get_event_filter_mask_from_hdf(
-                file_or_frame, self.tensors, num_events, event_batch,
-                *args, **kwargs)
-        elif method in ['get_from_frame', 'create_from_frame']:
+                file_or_frame,
+                self.tensors,
+                num_events,
+                event_batch,
+                *args,
+                **kwargs
+            )
+        elif method in ["get_from_frame", "create_from_frame"]:
             filter_mask = self.filter_module.get_event_filter_mask_from_frame(
-                file_or_frame, self.tensors, num_events, event_batch,
-                *args, **kwargs)
+                file_or_frame,
+                self.tensors,
+                num_events,
+                event_batch,
+                *args,
+                **kwargs
+            )
 
         # filter out events, if there is at least one event that is filtered
         if not np.all(filter_mask):
-            num_events, event_batch = self._filter_data(filter_mask,
-                                                        num_events,
-                                                        event_batch)
+            num_events, event_batch = self._filter_data(
+                filter_mask, num_events, event_batch
+            )
 
         if num_events == 0:
             return None, None
@@ -434,7 +486,7 @@ class ModuleDataHandler(BaseDataHandler):
         ----------
         filter_mask : array_like
             An array of bool indicating whether an event passed the filter
-            (True) or wheter it is filtered out (False).
+            (True) or whether it is filtered out (False).
             Shape: [num_events]
         num_events : int
             The number of loaded events.
@@ -461,20 +513,22 @@ class ModuleDataHandler(BaseDataHandler):
                 filtered_batch[tensor_index] = None
 
             if tensor.vector_info is not None:
-                if tensor.vector_info['type'] == 'value':
+                if tensor.vector_info["type"] == "value":
                     # we are collecting value tensors together with
                     # the indices tensors, so skip for now
                     continue
-                elif tensor.vector_info['type'] == 'index':
+                elif tensor.vector_info["type"] == "index":
                     # get value tensor
                     value_index = self.tensors.get_index(
-                        tensor.vector_info['reference'])
+                        tensor.vector_info["reference"]
+                    )
                     values = event_batch[value_index]
                     indices = event_batch[tensor_index]
 
                     if values is None or indices is None:
-                        assert values == indices, '{!r} != {!r}'.format(
-                            values, indices)
+                        assert values == indices, "{!r} != {!r}".format(
+                            values, indices
+                        )
                         filtered_batch[value_index] = None
                         filtered_batch[tensor_index] = None
                     else:
@@ -483,7 +537,8 @@ class ModuleDataHandler(BaseDataHandler):
                         # flattened again
                         # shape: [n_events, n_per_event, k] (not a tensor!)
                         values, indices = self.batch_to_event_structure(
-                                            values, indices, num_events)
+                            values, indices, num_events
+                        )
 
                         # filtered event values and indices
                         # shape: [n_filtered, n_per_event. k] (not a tensor!)
@@ -496,8 +551,9 @@ class ModuleDataHandler(BaseDataHandler):
 
                         # set new batch indices
                         for batch_index in range(filtered_num_events):
-                            event_indices_filtered[batch_index][:, 0] = \
-                                batch_index
+                            event_indices_filtered[batch_index][
+                                :, 0
+                            ] = batch_index
 
                         # shape: [n_pulses, k]
                         values, indices = self.event_to_batch_structure(
@@ -511,8 +567,9 @@ class ModuleDataHandler(BaseDataHandler):
             else:
                 # This data input is already in event structure and
                 # must simply be concatenated along axis 0.
-                filtered_batch[tensor_index] = \
-                    event_batch[tensor_index][filter_mask]
+                filtered_batch[tensor_index] = event_batch[tensor_index][
+                    filter_mask
+                ]
 
         return filtered_num_events, filtered_batch
 
@@ -536,7 +593,7 @@ class ModuleDataHandler(BaseDataHandler):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        return self._get_data(file, method='get_from_hdf', *args, **kwargs)
+        return self._get_data(file, method="get_from_hdf", *args, **kwargs)
 
     def _get_data_from_frame(self, frame, *args, **kwargs):
         """Get data from I3Frame.
@@ -556,7 +613,7 @@ class ModuleDataHandler(BaseDataHandler):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
         """
-        return self._get_data(frame, method='get_from_frame', *args, **kwargs)
+        return self._get_data(frame, method="get_from_frame", *args, **kwargs)
 
     def _create_data_from_frame(self, frame, *args, **kwargs):
         """Create data from I3Frame.
@@ -578,7 +635,8 @@ class ModuleDataHandler(BaseDataHandler):
         """
 
         return self._get_data(
-            frame, method='create_from_frame', *args, **kwargs)
+            frame, method="create_from_frame", *args, **kwargs
+        )
 
     def _write_data_to_frame(self, data, frame, *args, **kwargs):
         """Write data to I3Frame.
@@ -597,10 +655,10 @@ class ModuleDataHandler(BaseDataHandler):
         """
 
         # loop through each module
-        for name in ['data', 'label', 'misc', 'weight']:
+        for name in ["data", "label", "misc", "weight"]:
 
             # get module
-            module = getattr(self, name + '_module')
+            module = getattr(self, name + "_module")
 
             # collect data tensors
             data_batch = []

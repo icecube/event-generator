@@ -12,13 +12,12 @@ try:
     from icecube import dataclasses
 except ImportError:
     logging.getLogger(__name__).warning(
-        'Could not import icecube. No IceCube support')
+        "Could not import icecube. No IceCube support"
+    )
 
 
 class SeedLoaderMiscModule(BaseComponent):
-
-    """This is a misc module that loads seeds for Source Hypotheses.
-    """
+    """This is a misc module that loads seeds for Source Hypotheses."""
 
     def __init__(self, logger=None):
         """Initialize seed loader module
@@ -32,8 +31,15 @@ class SeedLoaderMiscModule(BaseComponent):
         logger = logger or logging.getLogger(__name__)
         super(SeedLoaderMiscModule, self).__init__(logger=logger)
 
-    def _configure(self, config_data, seed_names, seed_parameter_names,
-                   float_precision, missing_value=None, missing_value_dict={}):
+    def _configure(
+        self,
+        config_data,
+        seed_names,
+        seed_parameter_names,
+        float_precision,
+        missing_value=None,
+        missing_value_dict={},
+    ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -101,7 +107,7 @@ class SeedLoaderMiscModule(BaseComponent):
         """
 
         if not isinstance(config_data, (type(None), str, DataTensorList)):
-            raise ValueError('Unknown type: {!r}'.format(type(config_data)))
+            raise ValueError("Unknown type: {!r}".format(type(config_data)))
 
         num_params = 0
         for name in seed_parameter_names:
@@ -113,24 +119,28 @@ class SeedLoaderMiscModule(BaseComponent):
         # create data tensor list
         tensor_list = []
         for seed_name in seed_names:
-            tensor_list.append(DataTensor(name=seed_name,
-                                          shape=[None, num_params],
-                                          tensor_type='misc',
-                                          dtype=float_precision))
+            tensor_list.append(
+                DataTensor(
+                    name=seed_name,
+                    shape=[None, num_params],
+                    tensor_type="misc",
+                    dtype=float_precision,
+                )
+            )
 
-        data = {
-            'misc_tensors': DataTensorList(tensor_list)
-        }
+        data = {"misc_tensors": DataTensorList(tensor_list)}
 
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings={'config_data': config_data},
-            mutable_settings={'seed_names': seed_names,
-                              'seed_parameter_names': seed_parameter_names,
-                              'float_precision': float_precision,
-                              'missing_value': missing_value,
-                              'missing_value_dict': missing_value_dict},
-            )
+            settings={"config_data": config_data},
+            mutable_settings={
+                "seed_names": seed_names,
+                "seed_parameter_names": seed_parameter_names,
+                "float_precision": float_precision,
+                "missing_value": missing_value,
+                "missing_value_dict": missing_value_dict,
+            },
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file):
@@ -151,59 +161,67 @@ class SeedLoaderMiscModule(BaseComponent):
             Returns None if no misc data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         # open file
-        f = pd.HDFStore(file, 'r')
+        f = pd.HDFStore(file, "r")
 
         seeds = []
         num_events_list = []
-        missing_value = self.configuration.config['missing_value']
-        missing_value_dict = self.configuration.config['missing_value_dict']
-        for tensor in self.data['misc_tensors'].list:
+        missing_value = self.configuration.config["missing_value"]
+        missing_value_dict = self.configuration.config["missing_value_dict"]
+        for tensor in self.data["misc_tensors"].list:
             seed_name = tensor.name
 
             seed_parameters = []
             try:
                 _labels = f[seed_name]
-                for ls in self.configuration.config['seed_parameter_names']:
-                    if isinstance(ls, str):
-                        ls = [ls]
+                for names in self.configuration.config["seed_parameter_names"]:
+                    if isinstance(names, str):
+                        names = [names]
                     else:
-                        ls = [ls[0]] * ls[1]
-                    for l in ls:
-                        if l in _labels:
-                            seed_parameters.append(_labels[l].values)
-                        elif l in missing_value_dict:
+                        names = [names[0]] * names[1]
+                    for name in names:
+                        if name in _labels:
+                            seed_parameters.append(_labels[name].values)
+                        elif name in missing_value_dict:
                             num_events = len(seed_parameters[-1])
                             seed_parameters.append(
-                                [missing_value_dict[l]]*num_events)
+                                [missing_value_dict[name]] * num_events
+                            )
                         elif missing_value is not None:
                             num_events = len(seed_parameters[-1])
-                            seed_parameters.append([missing_value]*num_events)
+                            seed_parameters.append(
+                                [missing_value] * num_events
+                            )
                         else:
-                            raise KeyError('Could not find key {!r}'.format(l))
+                            raise KeyError(
+                                "Could not find key {!r}".format(name)
+                            )
 
             except Exception as e:
                 self._logger.warning(e)
-                self._logger.warning('Skipping file: {}'.format(file))
+                self._logger.warning("Skipping file: {}".format(file))
                 return None, None
             finally:
                 f.close()
 
             # format cascade parameters
-            dtype = getattr(np, self.configuration.config['float_precision'])
+            dtype = getattr(np, self.configuration.config["float_precision"])
             seed_parameters = np.array(seed_parameters, dtype=dtype).T
 
             seeds.append(seed_parameters)
             num_events = len(seed_parameters)
             num_events_list.append(num_events)
 
-        # check if number of events matches accross all events
+        # check if number of events matches across all events
         if not np.all([n == num_events for n in num_events_list]):
-            msg = 'Not all event numbers match: {!r} for seeds: {!r}.'
-            raise ValueError(msg.format(
-                num_events_list, self.configuration.config['seed_names']))
+            msg = "Not all event numbers match: {!r} for seeds: {!r}."
+            raise ValueError(
+                msg.format(
+                    num_events_list, self.configuration.config["seed_names"]
+                )
+            )
 
         return num_events, seeds
 
@@ -229,66 +247,72 @@ class SeedLoaderMiscModule(BaseComponent):
             Returns None if no misc data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         seeds = []
         num_events_list = []
-        missing_value = self.configuration.config['missing_value']
-        missing_value_dict = self.configuration.config['missing_value_dict']
-        for tensor in self.data['misc_tensors'].list:
+        missing_value = self.configuration.config["missing_value"]
+        missing_value_dict = self.configuration.config["missing_value_dict"]
+        for tensor in self.data["misc_tensors"].list:
             seed_name = tensor.name
 
             seed_parameters = []
             try:
                 _labels = frame[seed_name]
-                for ls in self.configuration.config['seed_parameter_names']:
-                    if isinstance(ls, str):
-                        ls = [ls]
+                for names in self.configuration.config["seed_parameter_names"]:
+                    if isinstance(names, str):
+                        names = [names]
                     else:
-                        ls = [ls[0]] * ls[1]
-                    for l in ls:
+                        names = [names[0]] * names[1]
+                    for name in names:
                         if isinstance(_labels, dataclasses.I3Particle):
-                            if hasattr(_labels, l):
-                                value = getattr(_labels, l)
-                            elif l in ['x', 'y', 'z']:
-                                value = getattr(_labels.pos, l)
-                            elif l in ['zenith', 'azimuth']:
-                                value = getattr(_labels.dir, l)
-                            elif l in missing_value_dict:
-                                value = missing_value_dict[l]
+                            if hasattr(_labels, name):
+                                value = getattr(_labels, name)
+                            elif name in ["x", "y", "z"]:
+                                value = getattr(_labels.pos, name)
+                            elif name in ["zenith", "azimuth"]:
+                                value = getattr(_labels.dir, name)
+                            elif name in missing_value_dict:
+                                value = missing_value_dict[name]
                             elif missing_value is not None:
                                 value = missing_value
                             else:
                                 raise KeyError(
-                                    'Could not find key {!r}'.format(l))
+                                    "Could not find key {!r}".format(name)
+                                )
                             seed_parameters.append([value])
-                        elif l in _labels:
-                            seed_parameters.append([_labels[l]])
-                        elif l in missing_value_dict:
-                            seed_parameters.append([missing_value_dict[l]])
+                        elif name in _labels:
+                            seed_parameters.append([_labels[name]])
+                        elif name in missing_value_dict:
+                            seed_parameters.append([missing_value_dict[name]])
                         elif missing_value is not None:
                             seed_parameters.append([missing_value])
                         else:
-                            raise KeyError('Could not find key {!r}'.format(l))
+                            raise KeyError(
+                                "Could not find key {!r}".format(name)
+                            )
 
             except KeyError as e:
                 self._logger.warning(e)
-                self._logger.warning('Skipping frame: {}'.format(frame))
+                self._logger.warning("Skipping frame: {}".format(frame))
                 return None, None
 
             # format cascade parameters
-            dtype = getattr(np, self.configuration.config['float_precision'])
+            dtype = getattr(np, self.configuration.config["float_precision"])
             seed_parameters = np.array(seed_parameters, dtype=dtype).T
 
             seeds.append(seed_parameters)
             num_events = len(seed_parameters)
             num_events_list.append(num_events)
 
-        # check if number of events matches accross all events
+        # check if number of events matches across all events
         if not np.all([n == num_events for n in num_events_list]):
-            msg = 'Not all event numbers match: {!r} for seeds: {!r}.'
-            raise ValueError(msg.format(
-                num_events_list, self.configuration.config['seed_names']))
+            msg = "Not all event numbers match: {!r} for seeds: {!r}."
+            raise ValueError(
+                msg.format(
+                    num_events_list, self.configuration.config["seed_names"]
+                )
+            )
 
         return num_events, seeds
 
@@ -314,7 +338,7 @@ class SeedLoaderMiscModule(BaseComponent):
             Returns None if no misc data is created.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         return self.get_data_from_frame(frame, *args, **kwargs)
 
@@ -334,6 +358,6 @@ class SeedLoaderMiscModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         pass

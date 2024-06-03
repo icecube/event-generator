@@ -11,9 +11,7 @@ from egenerator.utils.cascades import shift_to_maximum
 
 
 class SnowstormCascadeGeneratorLabelModule(BaseComponent):
-
-    """This is a label module that loads the snowstorm cascade labels.
-    """
+    """This is a label module that loads the snowstorm cascade labels."""
 
     def __init__(self, logger=None):
         """Initialize cascade module
@@ -26,13 +24,20 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
 
         logger = logger or logging.getLogger(__name__)
         super(SnowstormCascadeGeneratorLabelModule, self).__init__(
-                                                                logger=logger)
+            logger=logger
+        )
 
-    def _configure(self, config_data, shift_cascade_vertex, trafo_log,
-                   float_precision, label_key='LabelsDeepLearning',
-                   additional_labels=None,
-                   snowstorm_key='SnowstormParameters',
-                   num_snowstorm_params=30):
+    def _configure(
+        self,
+        config_data,
+        shift_cascade_vertex,
+        trafo_log,
+        float_precision,
+        label_key="LabelsDeepLearning",
+        additional_labels=None,
+        snowstorm_key="SnowstormParameters",
+        num_snowstorm_params=30,
+    ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -109,48 +114,63 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
 
         # sanity checks:
         if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError('{!r} is not a boolean value!'.format(
-                shift_cascade_vertex))
+            raise TypeError(
+                "{!r} is not a boolean value!".format(shift_cascade_vertex)
+            )
 
-        # extend trafo log for snowstorm parameters: fill with Flase
+        # extend trafo log for snowstorm parameters: fill with False
         if isinstance(trafo_log, bool):
             trafo_log_ext = [trafo_log] * 7
         else:
             trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False]*num_snowstorm_params)
+        trafo_log_ext.extend([False] * num_snowstorm_params)
 
         # create a list of label names to load
         if additional_labels is None:
             additional_labels = []
         label_names = [
-            'cascade_x', 'cascade_y', 'cascade_z', 'cascade_zenith',
-            'cascade_azimuth', 'cascade_energy', 'cascade_t',
+            "cascade_x",
+            "cascade_y",
+            "cascade_z",
+            "cascade_zenith",
+            "cascade_azimuth",
+            "cascade_energy",
+            "cascade_t",
         ] + additional_labels
 
-        data = {'label_names': label_names}
-        data['label_tensors'] = DataTensorList([DataTensor(
-            name='x_parameters',
-            shape=[None, len(label_names) + num_snowstorm_params],
-            tensor_type='label',
-            dtype=float_precision,
-            trafo=True,
-            trafo_log=trafo_log_ext)])
+        data = {"label_names": label_names}
+        data["label_tensors"] = DataTensorList(
+            [
+                DataTensor(
+                    name="x_parameters",
+                    shape=[None, len(label_names) + num_snowstorm_params],
+                    tensor_type="label",
+                    dtype=float_precision,
+                    trafo=True,
+                    trafo_log=trafo_log_ext,
+                )
+            ]
+        )
 
         if isinstance(config_data, DataTensorList):
-            if config_data != data['label_tensors']:
-                msg = 'Tensors are wrong: {!r} != {!r}'
-                raise ValueError(msg.format(config_data,
-                                            data['label_tensors']))
+            if config_data != data["label_tensors"]:
+                msg = "Tensors are wrong: {!r} != {!r}"
+                raise ValueError(
+                    msg.format(config_data, data["label_tensors"])
+                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config_data=config_data,
-                          shift_cascade_vertex=shift_cascade_vertex,
-                          trafo_log=trafo_log,
-                          float_precision=float_precision,
-                          label_key=label_key,
-                          additional_labels=additional_labels,
-                          snowstorm_key=snowstorm_key,
-                          num_snowstorm_params=num_snowstorm_params))
+            settings=dict(
+                config_data=config_data,
+                shift_cascade_vertex=shift_cascade_vertex,
+                trafo_log=trafo_log,
+                float_precision=float_precision,
+                label_key=label_key,
+                additional_labels=additional_labels,
+                snowstorm_key=snowstorm_key,
+                num_snowstorm_params=num_snowstorm_params,
+            ),
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -180,26 +200,26 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Description
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         # open file
-        f = pd.HDFStore(file, 'r')
+        f = pd.HDFStore(file, "r")
 
         cascade_parameters = []
         try:
-            _labels = f[self.configuration.config['label_key']]
-            for l in self.data['label_names']:
-                cascade_parameters.append(_labels[l])
+            _labels = f[self.configuration.config["label_key"]]
+            for label in self.data["label_names"]:
+                cascade_parameters.append(_labels[label])
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(cascade_parameters[0])
 
             if num_params > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = f[snowstorm_key]
-                    params = _snowstorm_params['item']
-                    index = _snowstorm_params['vector_index']
+                    params = _snowstorm_params["item"]
+                    index = _snowstorm_params["vector_index"]
                     assert max(index) == num_params - 1
                     assert min(index) == 0
 
@@ -216,13 +236,13 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping file: {}'.format(file))
+            self._logger.warning("Skipping file: {}".format(file))
             return None, None
         finally:
             f.close()
 
         # shift cascade vertex to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
+        if self.configuration.config["shift_cascade_vertex"]:
             x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
             cascade_parameters[0] = x
             cascade_parameters[1] = y
@@ -230,9 +250,8 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             cascade_parameters[6] = t
 
         # format cascade parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
-        cascade_parameters = np.array(cascade_parameters,
-                                      dtype=dtype).T
+        dtype = getattr(np, self.configuration.config["float_precision"])
+        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
         num_events = len(cascade_parameters)
 
         return num_events, (cascade_parameters,)
@@ -259,16 +278,16 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Returns None if no label data is loaded.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         cascade_parameters = []
         try:
-            _labels = frame[self.configuration.config['label_key']]
-            for l in self.data['label_names']:
-                cascade_parameters.append(np.atleast_1d(_labels[l]))
+            _labels = frame[self.configuration.config["label_key"]]
+            for label in self.data["label_names"]:
+                cascade_parameters.append(np.atleast_1d(_labels[label]))
 
-            snowstorm_key = self.configuration.config['snowstorm_key']
-            num_params = self.configuration.config['num_snowstorm_params']
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            num_params = self.configuration.config["num_snowstorm_params"]
             num_events = len(cascade_parameters[0])
 
             if num_params > 0:
@@ -289,11 +308,11 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
 
         except Exception as e:
             self._logger.warning(e)
-            self._logger.warning('Skipping frame: {}'.format(frame))
+            self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
         # shift cascade vertex to shower maximum?
-        if self.configuration.config['shift_cascade_vertex']:
+        if self.configuration.config["shift_cascade_vertex"]:
             x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
             cascade_parameters[0] = x
             cascade_parameters[1] = y
@@ -301,9 +320,8 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             cascade_parameters[6] = t
 
         # format cascade parameters
-        dtype = getattr(np, self.configuration.config['float_precision'])
-        cascade_parameters = np.array(cascade_parameters,
-                                      dtype=dtype).T
+        dtype = getattr(np, self.configuration.config["float_precision"])
+        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
         num_events = len(cascade_parameters)
 
         return num_events, (cascade_parameters,)
@@ -330,7 +348,7 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Returns None if no label data is created.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         return self.get_data_from_frame(frame, *args, **kwargs)
 
@@ -350,12 +368,13 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         pass
 
-    def _shift_to_maximum(self, x, y, z, zenith, azimuth, ref_energy, t,
-                          eps=1e-6):
+    def _shift_to_maximum(
+        self, x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6
+    ):
         """
         PPC does its own cascade extension, leaving the showers at the
         production vertex. Reapply the parametrization to find the
@@ -389,6 +408,13 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         """
 
         return shift_to_maximum(
-            x=x, y=y, z=z, zenith=zenith, azimuth=azimuth,
-            ref_energy=ref_energy, t=t, eps=eps, reverse=False,
+            x=x,
+            y=y,
+            z=z,
+            zenith=zenith,
+            azimuth=azimuth,
+            ref_energy=ref_energy,
+            t=t,
+            eps=eps,
+            reverse=False,
         )

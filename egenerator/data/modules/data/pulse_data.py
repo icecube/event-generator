@@ -5,13 +5,11 @@ import numpy as np
 import pandas as pd
 
 from egenerator import misc
-from egenerator.utils import detector
 from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
 class PulseDataModule(BaseComponent):
-
     """Pulse data module
 
     This data module loads unbinned pulse data and total dom charge.
@@ -21,9 +19,9 @@ class PulseDataModule(BaseComponent):
     Attributes
     ----------
     dom_exclusions_exist : bool
-        Indicates wheter a DOM exclusions key was provided.
+        Indicates whether a DOM exclusions key was provided.
     time_exclusions_exist : bool
-        Indicates wheter a time exclusions key was provided.
+        Indicates whether a time exclusions key was provided.
     """
 
     def __init__(self, logger=None):
@@ -38,9 +36,17 @@ class PulseDataModule(BaseComponent):
         logger = logger or logging.getLogger(__name__)
         super(PulseDataModule, self).__init__(logger=logger)
 
-    def _configure(self, config_data, pulse_key, dom_exclusions_key,
-                   time_exclusions_key, float_precision, add_charge_quantiles,
-                   discard_pulses_from_excluded_doms, pulse_is_mcpe=False):
+    def _configure(
+        self,
+        config_data,
+        pulse_key,
+        dom_exclusions_key,
+        time_exclusions_key,
+        float_precision,
+        add_charge_quantiles,
+        discard_pulses_from_excluded_doms,
+        pulse_is_mcpe=False,
+    ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
 
@@ -112,7 +118,7 @@ class PulseDataModule(BaseComponent):
             Description
         """
         if not isinstance(pulse_key, str):
-            msg = 'Pulse key type: {!r} != str'
+            msg = "Pulse key type: {!r} != str"
             raise TypeError(msg.format(type(pulse_key)))
 
         time_exclusions_exist = time_exclusions_key is not None
@@ -123,71 +129,93 @@ class PulseDataModule(BaseComponent):
         else:
             pulse_dim = 2
 
-        x_dom_charge = DataTensor(name='x_dom_charge',
-                                  shape=[None, 86, 60, 1],
-                                  tensor_type='data',
-                                  dtype=float_precision,
-                                  trafo=True,
-                                  trafo_reduce_axes=(1, 2),
-                                  trafo_log=True,
-                                  trafo_batch_axis=0)
-        x_dom_exclusions = DataTensor(name='x_dom_exclusions',
-                                      shape=[None, 86, 60, 1],
-                                      tensor_type='data',
-                                      dtype='bool',
-                                      exists=dom_exclusions_exist)
-        x_pulses = DataTensor(name='x_pulses',
-                              shape=[None, pulse_dim],
-                              tensor_type='data',
-                              vector_info={'type': 'value',
-                                           'reference': 'x_pulses_ids'},
-                              dtype=float_precision)
-        x_pulses_ids = DataTensor(name='x_pulses_ids',
-                                  shape=[None, 3],
-                                  tensor_type='data',
-                                  vector_info={'type': 'index',
-                                               'reference': 'x_pulses'},
-                                  dtype='int32')
-        x_time_window = DataTensor(name='x_time_window',
-                                   shape=[None, 2],
-                                   tensor_type='data',
-                                   dtype=float_precision)
+        x_dom_charge = DataTensor(
+            name="x_dom_charge",
+            shape=[None, 86, 60, 1],
+            tensor_type="data",
+            dtype=float_precision,
+            trafo=True,
+            trafo_reduce_axes=(1, 2),
+            trafo_log=True,
+            trafo_batch_axis=0,
+        )
+        x_dom_exclusions = DataTensor(
+            name="x_dom_exclusions",
+            shape=[None, 86, 60, 1],
+            tensor_type="data",
+            dtype="bool",
+            exists=dom_exclusions_exist,
+        )
+        x_pulses = DataTensor(
+            name="x_pulses",
+            shape=[None, pulse_dim],
+            tensor_type="data",
+            vector_info={"type": "value", "reference": "x_pulses_ids"},
+            dtype=float_precision,
+        )
+        x_pulses_ids = DataTensor(
+            name="x_pulses_ids",
+            shape=[None, 3],
+            tensor_type="data",
+            vector_info={"type": "index", "reference": "x_pulses"},
+            dtype="int32",
+        )
+        x_time_window = DataTensor(
+            name="x_time_window",
+            shape=[None, 2],
+            tensor_type="data",
+            dtype=float_precision,
+        )
         x_time_exclusions = DataTensor(
-                            name='x_time_exclusions',
-                            shape=[None, 2],
-                            tensor_type='data',
-                            vector_info={'type': 'value',
-                                         'reference': 'x_time_exclusions_ids'},
-                            dtype=float_precision,
-                            exists=time_exclusions_exist)
+            name="x_time_exclusions",
+            shape=[None, 2],
+            tensor_type="data",
+            vector_info={
+                "type": "value",
+                "reference": "x_time_exclusions_ids",
+            },
+            dtype=float_precision,
+            exists=time_exclusions_exist,
+        )
         x_time_exclusions_ids = DataTensor(
-                            name='x_time_exclusions_ids',
-                            shape=[None, 3],
-                            tensor_type='data',
-                            vector_info={'type': 'index',
-                                         'reference': 'x_time_exclusions'},
-                            dtype='int32',
-                            exists=time_exclusions_exist)
+            name="x_time_exclusions_ids",
+            shape=[None, 3],
+            tensor_type="data",
+            vector_info={"type": "index", "reference": "x_time_exclusions"},
+            dtype="int32",
+            exists=time_exclusions_exist,
+        )
 
         data = {}
-        data['data_tensors'] = DataTensorList([
-            x_dom_charge, x_dom_exclusions, x_pulses, x_pulses_ids,
-            x_time_window, x_time_exclusions, x_time_exclusions_ids])
+        data["data_tensors"] = DataTensorList(
+            [
+                x_dom_charge,
+                x_dom_exclusions,
+                x_pulses,
+                x_pulses_ids,
+                x_time_window,
+                x_time_exclusions,
+                x_time_exclusions_ids,
+            ]
+        )
 
-        data['np_float_precision'] = getattr(np, float_precision)
+        data["np_float_precision"] = getattr(np, float_precision)
 
-        data['time_exclusions_exist'] = time_exclusions_exist
-        data['dom_exclusions_exist'] = dom_exclusions_exist
+        data["time_exclusions_exist"] = time_exclusions_exist
+        data["dom_exclusions_exist"] = dom_exclusions_exist
 
         if isinstance(config_data, DataTensorList):
-            if not config_data == data['data_tensors']:
-                raise ValueError('{!r} != {!r}'.format(config_data,
-                                                       data['data_tensors']))
+            if not config_data == data["data_tensors"]:
+                raise ValueError(
+                    "{!r} != {!r}".format(config_data, data["data_tensors"])
+                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config_data=config_data,
-                          float_precision=float_precision,
-                          add_charge_quantiles=add_charge_quantiles),
+            settings=dict(
+                config_data=config_data,
+                float_precision=float_precision,
+                add_charge_quantiles=add_charge_quantiles,
+            ),
             mutable_settings=dict(
                 pulse_key=pulse_key,
                 pulse_is_mcpe=pulse_is_mcpe,
@@ -195,8 +223,9 @@ class PulseDataModule(BaseComponent):
                 time_exclusions_key=time_exclusions_key,
                 discard_pulses_from_excluded_doms=(
                     discard_pulses_from_excluded_doms
-                )),
-            )
+                ),
+            ),
+        )
         return configuration, data, {}
 
     def get_data_from_hdf(self, file, *args, **kwargs):
@@ -221,9 +250,8 @@ class PulseDataModule(BaseComponent):
 
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
-        hdf_time_index = 10
         # 11: npe, 12: charge
         if self.configuration.config["pulse_is_mcpe"]:
             hdf_charge_index = 11
@@ -233,40 +261,48 @@ class PulseDataModule(BaseComponent):
         # open file
         f = pd.HDFStore(file, 'r')
         try:
-            pulses = f[self.configuration.config['pulse_key']]
-            _labels = f[kwargs['label_key']]
-            if self.data['dom_exclusions_exist']:
+            pulses = f[self.configuration.config["pulse_key"]]
+            _labels = f[kwargs["label_key"]]
+            if self.data["dom_exclusions_exist"]:
                 try:
-                    dom_exclusions = \
-                        f[self.configuration.config['dom_exclusions_key']]
+                    dom_exclusions = f[
+                        self.configuration.config["dom_exclusions_key"]
+                    ]
                 except KeyError:
-                    msg = 'Could not find exclusion key {!r}'
-                    self._logger.warning(msg.format(
-                        self.configuration.config['dom_exclusions_key']))
+                    msg = "Could not find exclusion key {!r}"
+                    self._logger.warning(
+                        msg.format(
+                            self.configuration.config["dom_exclusions_key"]
+                        )
+                    )
                     dom_exclusions = None
             else:
                 dom_exclusions = None
 
-            if self.data['time_exclusions_exist']:
+            if self.data["time_exclusions_exist"]:
                 try:
-                    time_exclusions = \
-                        f[self.configuration.config['time_exclusions_key']]
+                    time_exclusions = f[
+                        self.configuration.config["time_exclusions_key"]
+                    ]
                 except KeyError:
-                    msg = 'Could not find time exclusion key {!r}'
-                    self._logger.warning(msg.format(
-                        self.configuration.config['time_exclusions_key']))
+                    msg = "Could not find time exclusion key {!r}"
+                    self._logger.warning(
+                        msg.format(
+                            self.configuration.config["time_exclusions_key"]
+                        )
+                    )
                     time_exclusions = None
             else:
                 time_exclusions = None
 
         except Exception as e:
-            self._logger.warning('Skipping file: {} due to {}'.format(file, e))
+            self._logger.warning("Skipping file: {} due to {}".format(file, e))
             return None, None
         finally:
             f.close()
 
         # create Dictionary with event IDs
-        size = len(_labels['Event'])
+        size = len(_labels["Event"])
 
         if not size:
             raise ValueError("Label length is 0.")
@@ -276,79 +312,83 @@ class PulseDataModule(BaseComponent):
             event_dict[(row[1:5])] = row[0]
 
         # create empty array for DOM charges
-        x_dom_charge = np.zeros([size, 86, 60, 1],
-                                dtype=self.data['np_float_precision'])
+        x_dom_charge = np.zeros(
+            [size, 86, 60, 1], dtype=self.data["np_float_precision"]
+        )
 
-        if self.data['dom_exclusions_exist']:
-            bad_doms = np.reshape(detector.bad_doms_mask, [1, 86, 60, 1])
-            x_dom_exclusions = (
-                np.ones_like(x_dom_charge) * bad_doms).astype(bool)
+        if self.data["dom_exclusions_exist"]:
+            x_dom_exclusions = (np.ones_like(x_dom_charge)).astype(bool)
         else:
             x_dom_exclusions = None
 
-        if self.data['time_exclusions_exist']:
-            num_tws = len(time_exclusions['Event'])
+        if self.data["time_exclusions_exist"]:
+            num_tws = len(time_exclusions["Event"])
             x_time_exclusions = np.empty(
-                (num_tws, 2), dtype=self.data['np_float_precision'])
+                (num_tws, 2), dtype=self.data["np_float_precision"]
+            )
             x_time_exclusions_ids = np.empty((num_tws, 3), dtype=np.int32)
         else:
             x_time_exclusions = None
             x_time_exclusions_ids = None
 
-        add_charge_quantiles = \
-            self.configuration.config['add_charge_quantiles']
+        add_charge_quantiles = self.configuration.config[
+            "add_charge_quantiles"
+        ]
         if add_charge_quantiles:
             pulse_dim = 3
         else:
             pulse_dim = 2
 
-        num_pulses = len(pulses['Event'])
-        x_pulses = np.empty((num_pulses, pulse_dim),
-                            dtype=self.data['np_float_precision'])
+        num_pulses = len(pulses["Event"])
+        x_pulses = np.empty(
+            (num_pulses, pulse_dim), dtype=self.data["np_float_precision"]
+        )
         x_pulses_ids = np.empty((num_pulses, 3), dtype=np.int32)
 
         # create array for time data
         x_time_window = np.empty(
-            [size, 2],  dtype=self.data['np_float_precision'])
-        x_time_window[:, 0] = float('inf')
-        x_time_window[:, 1] = -float('inf')
+            [size, 2], dtype=self.data["np_float_precision"]
+        )
+        x_time_window[:, 0] = float("inf")
+        x_time_window[:, 1] = -float("inf")
 
         # ---------------------
         # get pulse information
         # ---------------------
         for pulse_index, row in enumerate(pulses.itertuples()):
-            string = row[6]
-            dom = row[7]
+            string = row.string
+            dom = row.om
             if dom > 60:
                 self._logger.warning(
-                    'skipping pulse: {} {}'.format(string, dom))
+                    "skipping pulse: {} {}".format(string, dom)
+                )
                 continue
 
             index = event_dict[(row[1:5])]
 
-            # pulse charge: row[hdf_charge_index], time: row[hdf_time_index]
+            # pulse charge: row[hdf_charge_index]
             # accumulate charge in DOMs
-            x_dom_charge[index, string-1, dom-1, 0] += row[hdf_charge_index]
+            x_dom_charge[index, string - 1, dom - 1, 0] += row[hdf_charge_index]
 
             # gather pulses
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
-                cum_charge = float(x_dom_charge[index, string-1, dom-1, 0])
-                x_pulses[pulse_index] = [row[hdf_charge_index], row[hdf_time_index], cum_charge]
+                cum_charge = float(x_dom_charge[index, string - 1, dom - 1, 0])
+                x_pulses[pulse_index] = [row[hdf_charge_index], row.time, cum_charge]
 
             else:
                 # (charge, time)
-                x_pulses[pulse_index] = [row[hdf_charge_index], row[hdf_time_index]]
+                x_pulses[pulse_index] = [row[hdf_charge_index], row.time]
 
             # gather pulse ids (batch index, string, dom)
-            x_pulses_ids[pulse_index] = [index, string-1, dom-1]
+            x_pulses_ids[pulse_index] = [index, string - 1, dom - 1]
 
             # update time window
-            if row[hdf_time_index] > x_time_window[index, 1]:
-                x_time_window[index, 1] = row[hdf_time_index]
-            if row[hdf_time_index] < x_time_window[index, 0]:
-                x_time_window[index, 0] = row[hdf_time_index]
+            if row.time > x_time_window[index, 1]:
+                x_time_window[index, 1] = row.time
+            if row.time < x_time_window[index, 0]:
+                x_time_window[index, 0] = row.time
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
@@ -356,9 +396,11 @@ class PulseDataModule(BaseComponent):
             # compute flat indices
             dim1 = x_dom_charge.shape[1]
             dim2 = x_dom_charge.shape[2]
-            flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
-                            x_pulses_ids[:, 1]*dim2 +  # string
-                            x_pulses_ids[:, 2])  # DOM
+            flat_indices = (
+                x_pulses_ids[:, 0] * dim1 * dim2  # event
+                + x_pulses_ids[:, 1] * dim2  # string
+                + x_pulses_ids[:, 2]
+            )  # DOM
 
             # flatten dom charges
             flat_charges = x_dom_charge.flatten()
@@ -371,43 +413,47 @@ class PulseDataModule(BaseComponent):
         # -------------------
         if time_exclusions is not None:
             for tw_index, row in enumerate(time_exclusions.itertuples()):
-                string = row[6]
-                dom = row[7]
+                string = row.string
+                dom = row.om
                 if dom > 60:
                     self._logger.warning(
-                        'skipping tw: {} {}'.format(string, dom))
+                        "skipping tw: {} {}".format(string, dom)
+                    )
                     continue
                 index = event_dict[(row[1:5])]
 
-                # t_start (pulse time): row[hdf_time_index], t_end (pulse width): row[11]
+                # t_start (pulse time): row.time, t_end (pulse width): row[11]
 
                 # (t_start, t_end)
-                x_time_exclusions[tw_index] = [row[hdf_time_index], row[11]]
+                x_time_exclusions[tw_index] = [row.time, row.width]
+
                 # gather pulse ids (batch index, string, dom)
-                x_time_exclusions_ids[tw_index] = [index, string-1, dom-1]
+                x_time_exclusions_ids[tw_index] = [index, string - 1, dom - 1]
 
         # ------------------
         # get dom exclusions
         # ------------------
         if dom_exclusions is not None:
             for row in dom_exclusions.itertuples():
-                string = row[7]
-                dom = row[8]
+                string = row.string
+                dom = row.om
                 if dom > 60:
-                    msg = 'skipping exclusion DOM: {!r} {!r}'
+                    msg = "skipping exclusion DOM: {!r} {!r}"
                     self._logger.info(msg.format(string, dom))
                     continue
                 index = event_dict[(row[1:5])]
-                x_dom_exclusions[index, string-1, dom-1, 0] = False
+                x_dom_exclusions[index, string - 1, dom - 1, 0] = False
 
-            if self.configuration.config['discard_pulses_from_excluded_doms']:
+            if self.configuration.config["discard_pulses_from_excluded_doms"]:
 
                 # compute flat indices
                 dim1 = x_dom_exclusions.shape[1]
                 dim2 = x_dom_exclusions.shape[2]
-                flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
-                                x_pulses_ids[:, 1]*dim2 +  # string
-                                x_pulses_ids[:, 2])  # DOM
+                flat_indices = (
+                    x_pulses_ids[:, 0] * dim1 * dim2  # event
+                    + x_pulses_ids[:, 1] * dim2  # string
+                    + x_pulses_ids[:, 2]
+                )  # DOM
 
                 # flatten dom charges
                 flat_exclusions = x_dom_exclusions.flatten()
@@ -419,16 +465,16 @@ class PulseDataModule(BaseComponent):
 
         # put everything together and make sure the order is correct
         data_dict = {
-            'x_dom_charge': x_dom_charge,
-            'x_dom_exclusions': x_dom_exclusions,
-            'x_pulses': x_pulses,
-            'x_pulses_ids': x_pulses_ids,
-            'x_time_window': x_time_window,
-            'x_time_exclusions': x_time_exclusions,
-            'x_time_exclusions_ids': x_time_exclusions_ids,
+            "x_dom_charge": x_dom_charge,
+            "x_dom_exclusions": x_dom_exclusions,
+            "x_pulses": x_pulses,
+            "x_pulses_ids": x_pulses_ids,
+            "x_time_window": x_time_window,
+            "x_time_exclusions": x_time_exclusions,
+            "x_time_exclusions_ids": x_time_exclusions_ids,
         }
         event_batch = []
-        for tensor in self.data['data_tensors'].list:
+        for tensor in self.data["data_tensors"].list:
             event_batch.append(data_dict[tensor.name])
 
         return size, event_batch
@@ -454,37 +500,42 @@ class PulseDataModule(BaseComponent):
         from icecube import dataclasses
 
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         # get pulses
-        pulses = frame[self.configuration.config['pulse_key']]
-
-        if isinstance(pulses, dataclasses.I3RecoPulseSeriesMapMask) or \
-           isinstance(pulses, dataclasses.I3RecoPulseSeriesMapUnion):
-            pulses = pulses.apply(frame)
+        pulses = dataclasses.I3RecoPulseSeriesMap.from_frame(
+            frame,
+            self.configuration.config["pulse_key"],
+        )
 
         # get DOM exclusions
-        if self.data['dom_exclusions_exist']:
+        if self.data["dom_exclusions_exist"]:
             try:
-                dom_exclusions = \
-                    frame[self.configuration.config['dom_exclusions_key']]
+                dom_exclusions = frame[
+                    self.configuration.config["dom_exclusions_key"]
+                ]
             except KeyError:
-                msg = 'Could not find exclusion key {!r}'
-                self._logger.warning(msg.format(
-                    self.configuration.config['dom_exclusions_key']))
+                msg = "Could not find exclusion key {!r}"
+                self._logger.warning(
+                    msg.format(self.configuration.config["dom_exclusions_key"])
+                )
                 dom_exclusions = None
         else:
             dom_exclusions = None
 
         # get time window exclusions
-        if self.data['time_exclusions_exist']:
+        if self.data["time_exclusions_exist"]:
             try:
-                time_exclusions = \
-                    frame[self.configuration.config['time_exclusions_key']]
+                time_exclusions = frame[
+                    self.configuration.config["time_exclusions_key"]
+                ]
             except KeyError:
-                msg = 'Could not find time window exclusion key {!r}'
-                self._logger.warning(msg.format(
-                    self.configuration.config['time_exclusions_key']))
+                msg = "Could not find time window exclusion key {!r}"
+                self._logger.warning(
+                    msg.format(
+                        self.configuration.config["time_exclusions_key"]
+                    )
+                )
                 time_exclusions = None
         else:
             time_exclusions = None
@@ -493,17 +544,16 @@ class PulseDataModule(BaseComponent):
         size = 1
 
         # create empty array for DOM charges
-        x_dom_charge = np.zeros([size, 86, 60, 1],
-                                dtype=self.data['np_float_precision'])
+        x_dom_charge = np.zeros(
+            [size, 86, 60, 1], dtype=self.data["np_float_precision"]
+        )
 
-        if self.data['dom_exclusions_exist']:
-            bad_doms = np.reshape(detector.bad_doms_mask, [1, 86, 60, 1])
-            x_dom_exclusions = (
-                np.ones_like(x_dom_charge) * bad_doms).astype(bool)
+        if self.data["dom_exclusions_exist"]:
+            x_dom_exclusions = (np.ones_like(x_dom_charge)).astype(bool)
         else:
             x_dom_exclusions = None
 
-        if self.data['time_exclusions_exist']:
+        if self.data["time_exclusions_exist"]:
             x_time_exclusions = []
             x_time_exclusions_ids = []
         else:
@@ -512,12 +562,14 @@ class PulseDataModule(BaseComponent):
 
         # create array for time data
         x_time_window = np.empty(
-            [size, 2],  dtype=self.data['np_float_precision'])
-        x_time_window[:, 0] = float('inf')
-        x_time_window[:, 1] = -float('inf')
+            [size, 2], dtype=self.data["np_float_precision"]
+        )
+        x_time_window[:, 0] = float("inf")
+        x_time_window[:, 1] = -float("inf")
 
-        add_charge_quantiles = \
-            self.configuration.config['add_charge_quantiles']
+        add_charge_quantiles = self.configuration.config[
+            "add_charge_quantiles"
+        ]
 
         x_pulses = []
         x_pulses_ids = []
@@ -532,21 +584,24 @@ class PulseDataModule(BaseComponent):
 
             if dom > 60:
                 self._logger.warning(
-                    'skipping pulse: {} {}'.format(string, dom))
+                    "skipping pulse: {} {}".format(string, dom)
+                )
                 continue
 
             for pulse in pulse_list:
                 index = 0
 
-                # pulse charge: row[hdf_charge_index], time: row[hdf_time_index]
+                # pulse charge: row[hdf_charge_index], time: row.time
                 # accumulate charge in DOMs
-                x_dom_charge[index, string-1, dom-1, 0] += pulse.charge
+                x_dom_charge[index, string - 1, dom - 1, 0] += pulse.charge
 
                 # gather pulses
                 if add_charge_quantiles:
 
                     # (charge, time, quantile)
-                    cum_charge = float(x_dom_charge[index, string-1, dom-1, 0])
+                    cum_charge = float(
+                        x_dom_charge[index, string - 1, dom - 1, 0]
+                    )
                     x_pulses.append([pulse.charge, pulse.time, cum_charge])
 
                 else:
@@ -554,7 +609,7 @@ class PulseDataModule(BaseComponent):
                     x_pulses.append([pulse.charge, pulse.time])
 
                 # gather pulse ids (batch index, string, dom)
-                x_pulses_ids.append([index, string-1, dom-1])
+                x_pulses_ids.append([index, string - 1, dom - 1])
 
                 # update time window
                 if pulse.time > x_time_window[index, 1]:
@@ -562,7 +617,7 @@ class PulseDataModule(BaseComponent):
                 if pulse.time < x_time_window[index, 0]:
                     x_time_window[index, 0] = pulse.time
 
-        x_pulses = np.array(x_pulses, dtype=self.data['np_float_precision'])
+        x_pulses = np.array(x_pulses, dtype=self.data["np_float_precision"])
         x_pulses_ids = np.array(x_pulses_ids, dtype=np.int32)
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
@@ -571,9 +626,11 @@ class PulseDataModule(BaseComponent):
             # compute flat indices
             dim1 = x_dom_charge.shape[1]
             dim2 = x_dom_charge.shape[2]
-            flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
-                            x_pulses_ids[:, 1]*dim2 +  # string
-                            x_pulses_ids[:, 2])  # DOM
+            flat_indices = (
+                x_pulses_ids[:, 0] * dim1 * dim2  # event
+                + x_pulses_ids[:, 1] * dim2  # string
+                + x_pulses_ids[:, 2]
+            )  # DOM
 
             # flatten dom charges
             flat_charges = x_dom_charge.flatten()
@@ -592,7 +649,8 @@ class PulseDataModule(BaseComponent):
 
                 if dom > 60:
                     self._logger.warning(
-                        'skipping time window: {} {}'.format(string, dom))
+                        "skipping time window: {} {}".format(string, dom)
+                    )
                     continue
 
                 for tw in tw_list:
@@ -602,16 +660,19 @@ class PulseDataModule(BaseComponent):
                     x_time_exclusions.append([tw.start, tw.stop])
 
                     # gather pulse ids (batch index, string, dom)
-                    x_time_exclusions_ids.append([index, string-1, dom-1])
+                    x_time_exclusions_ids.append([index, string - 1, dom - 1])
 
             if x_time_exclusions:
                 x_time_exclusions = np.array(
-                    x_time_exclusions, dtype=self.data['np_float_precision'])
+                    x_time_exclusions, dtype=self.data["np_float_precision"]
+                )
                 x_time_exclusions_ids = np.array(
-                    x_time_exclusions_ids, dtype=np.int32)
+                    x_time_exclusions_ids, dtype=np.int32
+                )
             else:
                 x_time_exclusions = np.empty(
-                    (0, 2), dtype=self.data['np_float_precision'])
+                    (0, 2), dtype=self.data["np_float_precision"]
+                )
                 x_time_exclusions_ids = np.empty((0, 3), dtype=np.int32)
 
         # ------------------
@@ -623,21 +684,23 @@ class PulseDataModule(BaseComponent):
                 dom = omkey.om
 
                 if dom > 60:
-                    msg = 'skipping exclusion DOM: {!r} {!r}'
+                    msg = "skipping exclusion DOM: {!r} {!r}"
                     self._logger.info(msg.format(string, dom))
                     continue
 
                 index = 0
-                x_dom_exclusions[index, string-1, dom-1, 0] = False
+                x_dom_exclusions[index, string - 1, dom - 1, 0] = False
 
-            if self.configuration.config['discard_pulses_from_excluded_doms']:
+            if self.configuration.config["discard_pulses_from_excluded_doms"]:
 
                 # compute flat indices
                 dim1 = x_dom_exclusions.shape[1]
                 dim2 = x_dom_exclusions.shape[2]
-                flat_indices = (x_pulses_ids[:, 0]*dim1*dim2 +  # event
-                                x_pulses_ids[:, 1]*dim2 +  # string
-                                x_pulses_ids[:, 2])  # DOM
+                flat_indices = (
+                    x_pulses_ids[:, 0] * dim1 * dim2  # event
+                    + x_pulses_ids[:, 1] * dim2  # string
+                    + x_pulses_ids[:, 2]
+                )  # DOM
 
                 # flatten dom charges
                 flat_exclusions = x_dom_exclusions.flatten()
@@ -649,16 +712,16 @@ class PulseDataModule(BaseComponent):
 
         # put everything together and make sure the order is correct
         data_dict = {
-            'x_dom_charge': x_dom_charge,
-            'x_dom_exclusions': x_dom_exclusions,
-            'x_pulses': x_pulses,
-            'x_pulses_ids': x_pulses_ids,
-            'x_time_window': x_time_window,
-            'x_time_exclusions': x_time_exclusions,
-            'x_time_exclusions_ids': x_time_exclusions_ids,
+            "x_dom_charge": x_dom_charge,
+            "x_dom_exclusions": x_dom_exclusions,
+            "x_pulses": x_pulses,
+            "x_pulses_ids": x_pulses_ids,
+            "x_time_window": x_time_window,
+            "x_time_exclusions": x_time_exclusions,
+            "x_time_exclusions_ids": x_time_exclusions_ids,
         }
         event_batch = []
-        for tensor in self.data['data_tensors'].list:
+        for tensor in self.data["data_tensors"].list:
             event_batch.append(data_dict[tensor.name])
 
         return size, event_batch
@@ -682,7 +745,7 @@ class PulseDataModule(BaseComponent):
             DataTensorList (self.data['data_tensors']).
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         return self.get_data_from_frame(frame, *args, **kwargs)
 
@@ -702,6 +765,6 @@ class PulseDataModule(BaseComponent):
             Arbitrary keyword arguments.
         """
         if not self.is_configured:
-            raise ValueError('Module not configured yet!')
+            raise ValueError("Module not configured yet!")
 
         pass

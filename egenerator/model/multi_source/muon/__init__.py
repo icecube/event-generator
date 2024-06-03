@@ -3,6 +3,5 @@ from egenerator.model.multi_source.muon.starting import (
 )
 
 __all__ = [
-    'StartingVariableMultiCascadeModel',
+    "StartingVariableMultiCascadeModel",
 ]
-

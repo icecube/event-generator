@@ -1,13 +1,11 @@
 from __future__ import division, print_function
 import logging
-import tensorflow as tf
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
 
 
 class MultiLossModule(BaseComponent):
-
     """Multi loss module that combines the loss of multiple loss modules.
 
     A loss component that is used to compute the loss. The component
@@ -69,20 +67,27 @@ class MultiLossModule(BaseComponent):
 
         dependent_sub_components = {}
         for i, module in enumerate(loss_modules):
-            dependent_sub_components['loss_modules_{:04d}'.format(i)] = module
+            dependent_sub_components["loss_modules_{:04d}".format(i)] = module
 
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict())
+            settings=dict(),
+        )
 
         return configuration, {}, dependent_sub_components
 
-    def get_loss(self, data_batch_dict, result_tensors, tensors, model,
-                 parameter_tensor_name='x_parameters',
-                 reduce_to_scalar=True,
-                 sort_loss_terms=False,
-                 **kwargs):
+    def get_loss(
+        self,
+        data_batch_dict,
+        result_tensors,
+        tensors,
+        model,
+        parameter_tensor_name="x_parameters",
+        reduce_to_scalar=True,
+        sort_loss_terms=False,
+        **kwargs
+    ):
         """Get the scalar loss for a given data batch and result tensors.
 
         Parameters
@@ -118,7 +123,7 @@ class MultiLossModule(BaseComponent):
             If True, the individual terms of the log likelihood loss will be
             reduced (aggregated) to a scalar loss.
             If False, a list of tensors will be returned that contain the terms
-            of the log likelihood. Note that each of the returend tensors may
+            of the log likelihood. Note that each of the returned tensors may
             have a different shape.
         sort_loss_terms : bool, optional
             If true, the loss terms will be sorted and aggregated in three
