@@ -48,6 +48,16 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(False)
 
+        if (
+            config["scale_charge_by_angular_acceptance"]
+            and config["scale_charge_by_relative_angular_acceptance"]
+        ):
+            raise ValueError(
+                "Only one of 'scale_charge_by_angular_acceptance' "
+                "and 'scale_charge_by_relative_angular_acceptance' "
+                "can be set to True."
+            )
+
         # ---------------------------------------------
         # Define input parameters of cascade hypothesis
         # ---------------------------------------------
@@ -322,12 +332,33 @@ class DefaultCascadeModel(Source):
         if (
             config["add_dom_angular_acceptance"]
             or config["scale_charge_by_angular_acceptance"]
+            or config["scale_charge_by_relative_angular_acceptance"]
         ):
-            # Hole-ice Parameters
-            # shape: [n_batch, 1, 1, 1]
-            if config["use_constant_hole_ice"]:
-                p0 = tf.ones_like(dz_normed) * config["constant_hole_ice_p0"]
-                p1 = tf.ones_like(dz_normed) * config["constant_hole_ice_p1"]
+            if (
+                config["use_constant_baseline_hole_ice"]
+                or config["scale_charge_by_relative_angular_acceptance"]
+            ):
+                # Hole-ice Parameters
+                # shape: [n_batch, 1, 1, 1]
+                p0_base = (
+                    tf.ones_like(dz_normed) * config["baseline_hole_ice_p0"]
+                )
+                p1_base = (
+                    tf.ones_like(dz_normed) * config["baseline_hole_ice_p1"]
+                )
+
+                # input tenser: cos(eta), p0, p1 in last dimension
+                # Shape: [n_batch, 86, 60, 3]
+                x_base = tf.concat([dz_normed, p0_base, p1_base], axis=-1)
+
+                # Shape: [n_batch, 86, 60, 1]
+                angular_acceptance_base = dom_acceptance.get_acceptance(
+                    x=x_base,
+                    dtype=config["float_precision"],
+                )
+
+            if config["use_constant_baseline_hole_ice"]:
+                angular_acceptance = angular_acceptance_base
             else:
                 p0 = tf.tile(
                     parameter_list[
@@ -342,14 +373,18 @@ class DefaultCascadeModel(Source):
                     [1, 86, 60, 1],
                 )
 
-            # input tenser: cos(eta), p0, p1 in last dimension
-            # Shape: [n_batch, 86, 60, 3]
-            x = tf.concat([dz_normed, p0, p1], axis=-1)
+                # input tenser: cos(eta), p0, p1 in last dimension
+                # Shape: [n_batch, 86, 60, 3]
+                x = tf.concat([dz_normed, p0, p1], axis=-1)
 
-            # Shape: [n_batch, 86, 60, 1]
-            angular_acceptance = dom_acceptance.get_acceptance(
-                x=x,
-                dtype=config["float_precision"],
+                # Shape: [n_batch, 86, 60, 1]
+                angular_acceptance = dom_acceptance.get_acceptance(
+                    x=x,
+                    dtype=config["float_precision"],
+                )
+
+            relative_angular_acceptance = (
+                angular_acceptance / angular_acceptance_base
             )
 
             if config["add_dom_angular_acceptance"]:
@@ -704,6 +739,13 @@ class DefaultCascadeModel(Source):
 
         if config["scale_charge_by_angular_acceptance"]:
             dom_charges *= angular_acceptance
+
+        if config["scale_charge_by_relative_angular_acceptance"]:
+            dom_charges *= tfp.math.clip_by_value_preserve_gradient(
+                relative_angular_acceptance,
+                1e-2,
+                100,
+            )
 
         # apply time window exclusions if needed
         if time_exclusions_exist:
