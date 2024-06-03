@@ -180,7 +180,7 @@ class DefaultNoiseModel(Source):
             t_min = tf.gather(time_window[:, 0], indices=x_time_excl_batch_id)
             t_max = tf.gather(time_window[:, 1], indices=x_time_excl_batch_id)
             tw_livetime = tf.gather(livetime, indices=x_time_excl_batch_id)
-            tw_reduced = tf.clip_by_value(
+            tw_reduced = tfp.math.clip_by_value_preserve_gradient(
                 x_time_exclusions,
                 tf.expand_dims(t_min, axis=-1),
                 tf.expand_dims(t_max, axis=-1),

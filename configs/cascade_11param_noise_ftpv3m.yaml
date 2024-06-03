@@ -98,7 +98,7 @@ reconstruction_settings: {
     'seed_missing_value_dict': {
         'Absorption': 1.,
         'HoleIceForward_Unified_00': 0.,
-        'HoleIceForward_Unified_01': 0.,
+        'HoleIceForward_Unified_01': -0.05,
         'Scattering': 1.,
     },
     'seed_float_precision': 'float64',
@@ -337,12 +337,12 @@ loss_module_settings: [
 
             # define uniform priors
             'uniform_parameters': {
-                'cascade_Absorption': [0.9, 1.1],
-                'cascade_AnisotropyScale': [0., 2.0],
-                'cascade_DOMEfficiency': [0.9, 1.1],
-                'cascade_Scattering': [0.9, 1.1],
-                'cascade_HoleIceForward_Unified_00': [-1.0, 1.0], #[-0.65, 0.60],
-                'cascade_HoleIceForward_Unified_01': [-0.2, 0.2], #[-0.08, 0.08],
+                'cascade_Absorption': [0.913, 1.087],
+                # 'cascade_AnisotropyScale': [0., 2.0],
+                # 'cascade_DOMEfficiency': [0.9, 1.1],
+                'cascade_Scattering': [0.913, 1.087],
+                'cascade_HoleIceForward_Unified_p0': [-0.5, 0.5],
+                'cascade_HoleIceForward_Unified_p1': [-0.15, 0.05],
             },
 
             # define fourier component sigmas
@@ -413,7 +413,7 @@ data_handler_settings: {
         'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
         'additional_labels': [],
-        'snowstorm_key': 'SnowstormParameters',
+        'snowstorm_key': 'SnowstormParameterDict',
         'num_snowstorm_params': 6,
         'float_precision': 'float64',
     },
@@ -490,15 +490,22 @@ model_settings: {
                 'shift_cascade_vertex': True,
                 'add_anisotropy_angle': True,
                 'add_opening_angle': True,
+                'add_dom_angular_acceptance': True,
                 'add_dom_coordinates': False,
                 'num_local_vars': 0,
                 'scale_charge': True,
                 'scale_charge_by_relative_dom_efficiency': True,
-                'scale_charge_by_global_dom_efficiency': True,
+                'scale_charge_by_global_dom_efficiency': False,
+                'scale_charge_by_angular_acceptance': True,
                 'prevent_mixture_component_swapping': False,
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
                 'float_precision': float64,
+
+                # Use constant DOM Angular acceptance?
+                'use_constant_hole_ice': False,
+                'constant_hole_ice_p0': 0.28,
+                'constant_hole_ice_p1': -0.075,
 
                 # This is a list of labels in addition to
                 # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
@@ -508,9 +515,9 @@ model_settings: {
                 # This is a list of the ordered snowstorm parameters: (name, number)
                 'snowstorm_parameter_names': [
                     ['Absorption', 1],
-                    ['AnisotropyScale', 1],
-                    ['DOMEfficiency', 1],
-                    ['HoleIceForward_Unified_{:02d}', 2],
+                    # ['AnisotropyScale', 1],
+                    # ['DOMEfficiency', 1],
+                    ['HoleIceForward_Unified_p{:01d}', 2],
                     # ['IceWavePlusModes_{:02d}', 24],
                     ['Scattering', 1],
                 ],

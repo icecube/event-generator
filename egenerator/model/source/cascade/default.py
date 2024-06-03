@@ -8,7 +8,7 @@ from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector, basis_functions, angles
+from egenerator.utils import detector, basis_functions, angles, dom_acceptance
 from egenerator.utils.cascades import shift_to_maximum
 
 
@@ -79,6 +79,9 @@ class DefaultCascadeModel(Source):
             num_inputs += 2
 
         if config["add_opening_angle"]:
+            num_inputs += 1
+
+        if config["add_dom_angular_acceptance"]:
             num_inputs += 1
 
         if config["add_dom_coordinates"]:
@@ -315,6 +318,42 @@ class DefaultCascadeModel(Source):
 
         if config["add_opening_angle"]:
             input_list.append(opening_angle_traf)
+
+        if (
+            config["add_dom_angular_acceptance"]
+            or config["scale_charge_by_angular_acceptance"]
+        ):
+            # Hole-ice Parameters
+            # shape: [n_batch, 1, 1, 1]
+            if config["use_constant_hole_ice"]:
+                p0 = tf.ones_like(dz_normed) * config["constant_hole_ice_p0"]
+                p1 = tf.ones_like(dz_normed) * config["constant_hole_ice_p1"]
+            else:
+                p0 = tf.tile(
+                    parameter_list[
+                        self.get_index("HoleIceForward_Unified_p0")
+                    ],
+                    [1, 86, 60, 1],
+                )
+                p1 = tf.tile(
+                    parameter_list[
+                        self.get_index("HoleIceForward_Unified_p1")
+                    ],
+                    [1, 86, 60, 1],
+                )
+
+            # input tenser: cos(eta), p0, p1 in last dimension
+            # Shape: [n_batch, 86, 60, 3]
+            x = tf.concat([dz_normed, p0, p1], axis=-1)
+
+            # Shape: [n_batch, 86, 60, 1]
+            angular_acceptance = dom_acceptance.get_acceptance(
+                x=x,
+                dtype=config["float_precision"],
+            )
+
+            if config["add_dom_angular_acceptance"]:
+                input_list.append(angular_acceptance)
 
         if config["add_dom_coordinates"]:
 
@@ -633,7 +672,11 @@ class DefaultCascadeModel(Source):
         )
 
         # clip value range for more stability during training
-        dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20.0, 15)
+        dom_charges_trafo = tfp.math.clip_by_value_preserve_gradient(
+            dom_charges_trafo,
+            -20.0,
+            15,
+        )
 
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
@@ -641,7 +684,7 @@ class DefaultCascadeModel(Source):
         # scale charges by cascade energy
         if config["scale_charge"]:
             # make sure cascade energy does not turn negative
-            cascade_energy = tf.clip_by_value(
+            cascade_energy = tfp.math.clip_by_value_preserve_gradient(
                 parameter_list[5], 0.0, float("inf")
             )
             scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
@@ -658,6 +701,9 @@ class DefaultCascadeModel(Source):
             dom_charges *= tf.expand_dims(
                 parameter_list[self.get_index("DOMEfficiency")], axis=-1
             )
+
+        if config["scale_charge_by_angular_acceptance"]:
+            dom_charges *= angular_acceptance
 
         # apply time window exclusions if needed
         if time_exclusions_exist:

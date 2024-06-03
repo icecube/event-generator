@@ -572,7 +572,11 @@ class StochasticTrackSegmentModel(Source):
         )
 
         # clip value range for more stability during training
-        dom_charges_trafo = tf.clip_by_value(dom_charges_trafo, -20.0, 15)
+        dom_charges_trafo = tfp.math.clip_by_value_preserve_gradient(
+            dom_charges_trafo,
+            -20.0,
+            15,
+        )
 
         # apply exponential which also forces positive values
         dom_charges = tf.exp(dom_charges_trafo)
