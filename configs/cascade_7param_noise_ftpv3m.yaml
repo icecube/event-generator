@@ -465,14 +465,22 @@ model_settings: {
                 'shift_cascade_vertex': True,
                 'add_anisotropy_angle': True,
                 'add_opening_angle': True,
+                'add_dom_angular_acceptance': False,
                 'add_dom_coordinates': False,
                 'num_local_vars': 0,
                 'scale_charge': True,
                 'scale_charge_by_relative_dom_efficiency': True,
                 'scale_charge_by_global_dom_efficiency': False,
+                'scale_charge_by_angular_acceptance': True,
                 'prevent_mixture_component_swapping': False,
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
+                'float_precision': float64,
+
+                # Use constant DOM Angular acceptance?
+                'use_constant_hole_ice': True,
+                'constant_hole_ice_p0': 0.28,
+                'constant_hole_ice_p1': -0.075,
 
                 # This is a list of labels in addition to
                 # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
