@@ -703,7 +703,16 @@ class DefaultCascadeModel(Source):
             )
 
         if config["scale_charge_by_angular_acceptance"]:
-            dom_charges *= angular_acceptance
+
+            # do not let charge scaling go down to zero
+            # Even if cascade is coming from directly above, the photons
+            # will scatter and arrive from vaying angles.
+            dom_charges *= (
+                tfp.math.clip_by_value_preserve_gradient(
+                    angular_acceptance, 0, float("inf")
+                )
+                + 1e-2
+            )
 
         # apply time window exclusions if needed
         if time_exclusions_exist:
