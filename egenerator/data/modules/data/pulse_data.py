@@ -40,6 +40,7 @@ class PulseDataModule(BaseComponent):
         self,
         config_data,
         pulse_key,
+        event_id_key,
         dom_exclusions_key,
         time_exclusions_key,
         float_precision,
@@ -56,6 +57,10 @@ class PulseDataModule(BaseComponent):
             object. The module will be configured with this.
         pulse_key : str
             The key in which the pulse series are saved to.
+        event_id_key : str
+            A key in which the event ids are saved to. This frame
+            keys must be in table structure where each row corresponds
+            to exactly one event, i.e. this may not be a vector.
         dom_exclusions_key : str, optional
             The key in which the dom exclusions are saved to.
         time_exclusions_key : str, optional
@@ -214,6 +219,7 @@ class PulseDataModule(BaseComponent):
             ),
             mutable_settings=dict(
                 pulse_key=pulse_key,
+                event_id_key=event_id_key,
                 dom_exclusions_key=dom_exclusions_key,
                 time_exclusions_key=time_exclusions_key,
                 discard_pulses_from_excluded_doms=(
@@ -252,7 +258,7 @@ class PulseDataModule(BaseComponent):
 
         try:
             pulses = f[self.configuration.config["pulse_key"]]
-            _labels = f["LabelsDeepLearning"]
+            _event_ids = f[self.configuration.config["event_id_key"]]
             if self.data["dom_exclusions_exist"]:
                 try:
                     dom_exclusions = f[
@@ -292,9 +298,9 @@ class PulseDataModule(BaseComponent):
             f.close()
 
         # create Dictionary with event IDs
-        size = len(_labels["Event"])
+        size = len(_event_ids["Event"])
         event_dict = {}
-        for idx, row in _labels.iterrows():
+        for idx, row in _event_ids.iterrows():
             event_dict[
                 (row.iloc[0], row.iloc[1], row.iloc[2], row.iloc[3])
             ] = idx

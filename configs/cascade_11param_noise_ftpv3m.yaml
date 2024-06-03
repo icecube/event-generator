@@ -411,7 +411,7 @@ data_handler_settings: {
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, energy, time)?
         'trafo_log': [False, False, False, False, False, True, False],
-        'label_key': 'LabelsDeepLearning',
+        'label_key': 'LabelsMCCascade',
         'additional_labels': [],
         'snowstorm_key': 'SnowstormParameterDict',
         'snowstorm_parameters': [
@@ -452,7 +452,7 @@ data_handler_settings: {
     # settings for the filter module
     'filter_settings':{
         'constraints': [
-            # # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            # # ['LabelsMCCascade', 'cascade_z', '<', -250.],
         ],
     },
 }
