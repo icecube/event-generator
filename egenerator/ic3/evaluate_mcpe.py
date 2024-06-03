@@ -7,7 +7,7 @@ import math
 
 import matplotlib.pyplot as plt
 
-from icecube import dataclasses, icetray, photonics_service
+from icecube import dataclasses, icetray, photonics_service, simclasses
 from icecube.icetray.i3logging import log_info, log_warn
 
 from egenerator.utils.configurator import ManagerConfigurator
@@ -323,31 +323,31 @@ class CalculateLikelihood(EventGeneratorSimulation):
         total_charge = result_tensors['dom_charges'].numpy()
         mcpe_series_map = frame["I3MCPESeriesMap"]
 
-        event_generator_total_dom_charge = dataclasses.I3MapKeyDouble()
-        mc_total_dom_charge = dataclasses.I3MapKeyDouble()
+        # We have to use here I3MCPulseSeriesMap here because for a simple I3MapKeyDouble is no hdf5 converter implemented ...
+
+        event_generator_total_dom_charge = dataclasses.I3MapKeyVectorDouble()
+        mc_total_dom_charge = dataclasses.I3MapKeyVectorDouble()
 
         if validate_photonics:
             geo = frame["I3Geometry"]
             particle = frame["I3MCTree"].get_head()
-            photonics_total_dom_charge = dataclasses.I3MapKeyDouble()
-
+            photonics_total_dom_charge = dataclasses.I3MapKeyVectorDouble()
 
         for string in range(86):
             for om in range(60):
                 omkey = icetray.OMKey(string + 1, om + 1)
-
-                event_generator_total_dom_charge[omkey] = float(total_charge[0, string, om, 0])
+                event_generator_total_dom_charge[omkey] = [float(total_charge[0, string, om, 0])]
 
                 if validate_photonics:
                     position = geo.omgeo[omkey].position
                     self.photonics.cascade_pxs.SelectModuleCoordinates(*position)
                     charge, _, t0 = self.photonics.cascade_pxs.SelectSource(photonics_service.PhotonicsSource(particle))
-                    photonics_total_dom_charge[omkey] = float(charge)
+                    photonics_total_dom_charge[omkey] = [float(charge)]
 
                 if omkey in mcpe_series_map:
-                    mc_total_dom_charge[omkey] = np.sum([pulse.npe for pulse in mcpe_series_map[omkey]], dtype="float")
+                    mc_total_dom_charge[omkey] = [np.sum([pulse.npe for pulse in mcpe_series_map[omkey]], dtype="float")]
                 else:
-                    mc_total_dom_charge[omkey] = 0
+                    mc_total_dom_charge[omkey] = [0]
 
         frame.Put("MCTotalChargePerDOM", mc_total_dom_charge)
         frame.Put("EventGeneratorTotalChargePerDOM", event_generator_total_dom_charge)
@@ -373,7 +373,6 @@ class CalculateLikelihood(EventGeneratorSimulation):
             geo = frame["I3Geometry"]
             particle = frame["I3MCTree"].get_head()
             photonics_total_dom_charge = dataclasses.I3MapKeyDouble()
-
 
         for string in range(86):
             for om in range(60):
