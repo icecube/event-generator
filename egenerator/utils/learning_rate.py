@@ -58,7 +58,6 @@ class MultiLearningRateScheduler(tf.optimizers.schedules.LearningRateSchedule):
         self.schedulers = schedulers
         self.name = name
 
-    @tf.function
     def __call__(self, step):
 
         step = tf.convert_to_tensor(step)
@@ -86,7 +85,10 @@ class MultiLearningRateScheduler(tf.optimizers.schedules.LearningRateSchedule):
 
             pred_fn_pairs.append(
                 (
-                    step > low and step <= high,
+                    tf.math.logical_and(
+                        tf.math.greater(step, low),
+                        tf.math.less_equal(step, high),
+                    ),
                     lambda: scheduler(step - low),
                 )
             )
