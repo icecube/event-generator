@@ -392,8 +392,16 @@ data_handler_settings: {
         # (x, y, z, zenith, azimuth, energy, time)?
         'trafo_log': [False, False, False, False, False, True, False],
         'label_key': 'LabelsDeepLearning',
-        'snowstorm_key': 'SnowstormParameters',
-        'num_snowstorm_params': 0,
+        'additional_labels': [],
+        'snowstorm_key': 'SnowstormParameterDict',
+        'snowstorm_parameters': [
+            "Absorption",
+            # "AnisotropyScale",
+            # "DOMEfficiency",
+            "HoleIceForward_Unified_p0",
+            "HoleIceForward_Unified_p1",
+            "Scattering",
+        ],
         'float_precision': 'float32',
     },
 

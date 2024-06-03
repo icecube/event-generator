@@ -414,7 +414,14 @@ data_handler_settings: {
         'label_key': 'LabelsDeepLearning',
         'additional_labels': [],
         'snowstorm_key': 'SnowstormParameterDict',
-        'num_snowstorm_params': 6,
+        'snowstorm_parameters': [
+            "Absorption",
+            # "AnisotropyScale",
+            # "DOMEfficiency",
+            "HoleIceForward_Unified_p0",
+            "HoleIceForward_Unified_p1",
+            "Scattering",
+        ],
         'float_precision': 'float64',
     },
 
@@ -446,10 +453,6 @@ data_handler_settings: {
     'filter_settings':{
         'constraints': [
             # # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
-            # ['SnowstormParameters', 3, '>=', -0.65],
-            # ['SnowstormParameters', 3, '<=', 0.60],
-            # ['SnowstormParameters', 4, '>=', -0.08],
-            # ['SnowstormParameters', 4, '<=', 0.08],
         ],
     },
 }

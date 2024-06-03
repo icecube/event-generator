@@ -383,8 +383,9 @@ class DefaultCascadeModel(Source):
                     dtype=config["float_precision"],
                 )
 
-            relative_angular_acceptance = (
-                angular_acceptance / angular_acceptance_base
+            # stabilize with 1e-3 when acceptance approaches zero
+            relative_angular_acceptance = (angular_acceptance + 1e-3) / (
+                angular_acceptance_base + 1e-3
             )
 
             if config["add_dom_angular_acceptance"]:
@@ -746,6 +747,7 @@ class DefaultCascadeModel(Source):
                     angular_acceptance, 0, float("inf")
                 )
                 + 1e-2
+            )
 
         if config["scale_charge_by_relative_angular_acceptance"]:
             dom_charges *= tfp.math.clip_by_value_preserve_gradient(
