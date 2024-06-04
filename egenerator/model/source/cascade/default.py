@@ -743,14 +743,16 @@ class DefaultCascadeModel(Source):
             # will scatter and arrive from vaying angles.
             dom_charges *= (
                 tfp.math.clip_by_value_preserve_gradient(
-                    angular_acceptance, 0, float("inf")
+                    tf.expand_dims(angular_acceptance, axis=-1),
+                    0,
+                    float("inf"),
                 )
                 + 1e-2
             )
 
         if config["scale_charge_by_relative_angular_acceptance"]:
             dom_charges *= tfp.math.clip_by_value_preserve_gradient(
-                relative_angular_acceptance,
+                tf.expand_dims(relative_angular_acceptance, axis=-1),
                 1e-2,
                 100,
             )
