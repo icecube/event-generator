@@ -180,15 +180,11 @@ data_iterator_settings: {
         'num_add_files': 20,
         'num_repetitions': 3,
         'input_data': [
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*1.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*2.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*3.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*4.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*5.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*6.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*7.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*8.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*9.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
         ],
     },
 
@@ -203,11 +199,11 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30253/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30254/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30255/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30256/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30257/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
         ],
     },
 
@@ -223,7 +219,12 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            # Note: The validation data is the same as the training data. Do not pay attention to validation curve!
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
         ],
     },
 
