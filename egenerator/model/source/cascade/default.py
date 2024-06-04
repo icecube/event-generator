@@ -229,7 +229,6 @@ class DefaultCascadeModel(Source):
             parameter_list[1] = y
             parameter_list[2] = z
             parameter_list[6] = t
-            parameters = tf.stack(parameter_list, axis=-1)
 
         # get parameters tensor dtype
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
@@ -240,7 +239,7 @@ class DefaultCascadeModel(Source):
         pulse_times = pulses[:, 1]
         pulse_batch_id = pulses_ids[:, 0]
 
-        # get transformed parameters
+        # get transformed (unshifted) parameters
         parameters_trafo = self.data_trafo.transform(
             parameters, tensor_name=parameter_tensor_name
         )
