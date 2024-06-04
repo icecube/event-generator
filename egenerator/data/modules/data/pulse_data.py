@@ -252,11 +252,7 @@ class PulseDataModule(BaseComponent):
         if not self.is_configured:
             raise ValueError("Module not configured yet!")
 
-        # 11: npe, 12: charge
-        if self.configuration.config["pulse_is_mcpe"]:
-            hdf_charge_index = 11
-        else:
-            hdf_charge_index = 12
+        charge_str = "npe" if self.configuration.config["pulse_is_mcpe"] else "charge"
 
         # open file
         f = pd.HDFStore(file, 'r')
@@ -366,20 +362,19 @@ class PulseDataModule(BaseComponent):
 
             index = event_dict[(row[1:5])]
 
-            # pulse charge: row[hdf_charge_index]
             # accumulate charge in DOMs
-            x_dom_charge[index, string - 1, dom - 1, 0] += row[hdf_charge_index]
+            x_dom_charge[index, string - 1, dom - 1, 0] += getattr(row, charge_str)
 
             # gather pulses
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
                 cum_charge = float(x_dom_charge[index, string - 1, dom - 1, 0])
-                x_pulses[pulse_index] = [row[hdf_charge_index], row.time, cum_charge]
+                x_pulses[pulse_index] = [getattr(row, charge_str), row.time, cum_charge]
 
             else:
                 # (charge, time)
-                x_pulses[pulse_index] = [row[hdf_charge_index], row.time]
+                x_pulses[pulse_index] = [getattr(row, charge_str), row.time]
 
             # gather pulse ids (batch index, string, dom)
             x_pulses_ids[pulse_index] = [index, string - 1, dom - 1]
@@ -591,7 +586,6 @@ class PulseDataModule(BaseComponent):
             for pulse in pulse_list:
                 index = 0
 
-                # pulse charge: row[hdf_charge_index], time: row.time
                 # accumulate charge in DOMs
                 x_dom_charge[index, string - 1, dom - 1, 0] += pulse.charge
 
