@@ -199,7 +199,11 @@ class DefaultLossModule(BaseComponent):
                 loss_terms[2] = tf.zeros_like(dom_tensor)
 
         if normalize_by_total_charge:
-            total_charge = tf.reduce_sum(data_batch_dict["x_pulses"][:, 0])
+            total_charge = tf.math.clip_by_value(
+                tf.reduce_sum(data_batch_dict["x_pulses"][:, 0]),
+                1,
+                float("inf"),
+            )
             loss_terms = [loss / total_charge for loss in loss_terms]
 
         if reduce_to_scalar:
@@ -1201,7 +1205,7 @@ class DefaultLossModule(BaseComponent):
             List of tensors defining the terms of the log likelihood
         """
 
-        # underneath 5e-5 the log_negative_binomial function becomes unstable
+        # prevent log(zeros) issues
         eps = 1e-7
         dtype = getattr(
             tf, self.configuration.config["config"]["float_precision"]
