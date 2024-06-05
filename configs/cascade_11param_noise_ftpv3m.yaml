@@ -181,11 +181,11 @@ data_iterator_settings: {
     'training': {
         'batch_size': 32,
         'num_splits': ,
-        'file_capacity': 20,
+        'file_capacity': 10,
         'batch_capacity': 1000,
-        'dataset_capacity': 500,
-        'num_jobs': 20,
-        'num_add_files': 20,
+        'dataset_capacity': 100,
+        'num_jobs': 15,
+        'num_add_files': 15,
         'num_repetitions': 5,
         'input_data': [
             '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*1.hdf5',
