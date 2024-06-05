@@ -430,8 +430,6 @@ class PulseDataModule(BaseComponent):
                 string = row.string
                 dom = row.om
                 if dom > 60:
-                    msg = "skipping exclusion DOM: {!r} {!r}"
-                    self._logger.info(msg.format(string, dom))
                     continue
                 index = event_dict[(row[1:5])]
                 x_dom_exclusions[index, string - 1, dom - 1, 0] = False
