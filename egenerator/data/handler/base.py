@@ -502,6 +502,72 @@ class BaseDataHandler(BaseComponent):
         """
         raise NotImplementedError()
 
+    def convert_data_batch(self, data_batch, num_events):
+        """Converts a data batch to the event structure.
+
+        Parameters
+        ----------
+        data_batch : list of array_like
+            The data batch to be converted.
+            Vector tensors are expected to be in batch structure.
+            These will then be converted to event structure.
+        num_events : int
+            The number of events in the batch.
+
+        Returns
+        -------
+        list of array_like
+            The converted data batch.
+        """
+        data_batch_converted = [[] for i in range(len(self.tensors.list))]
+
+        for i, tensor in enumerate(self.tensors.list):
+
+            if tensor.vector_info is not None:
+                if tensor.vector_info["type"] == "value":
+                    # we are collecting value tensors together with
+                    # the indices tensors, so skip for now
+                    continue
+                elif tensor.vector_info["type"] == "index":
+                    # get value tensor
+                    value_index = self.tensors.get_index(
+                        tensor.vector_info["reference"]
+                    )
+                    values = data_batch[value_index]
+                    indices = data_batch[i]
+
+                    if values is None or indices is None:
+                        assert values == indices, "{!r} != {!r}".format(
+                            values, indices
+                        )
+                        data_batch_converted[value_index] = None
+                        data_batch_converted[i] = None
+                    else:
+                        # This data input is a vector type and must be
+                        # restructured to event shape
+                        values, indices = self.batch_to_event_structure(
+                            values, indices, num_events
+                        )
+
+                        data_batch_converted[value_index] = values
+                        data_batch_converted[i] = indices
+                else:
+                    raise ValueError(
+                        "Unknown vector type {!r}".format(
+                            tensor.vector_info["type"]
+                        )
+                    )
+            else:
+                # This data input is already in event structure
+                data_batch_converted[i] = data_batch[i]
+
+            assert len(data_batch_converted) == len(data_batch), (
+                "Length of data batch {!r} and converted batch {!r} do not "
+                "match!".format(len(data_batch), len(data_batch_converted))
+            )
+
+        return data_batch_converted
+
     def batch_to_event_structure(self, values, indices, num_events):
         """Restructures values and indices which are provided as a
         list [-1, ...] over a complete batch, to shape [n_events, n_per_event].
@@ -680,7 +746,6 @@ class BaseDataHandler(BaseComponent):
         ValueError
             Description
         """
-
         self.check_if_configured()
 
         if isinstance(input_data, list):
@@ -783,6 +848,10 @@ class BaseDataHandler(BaseComponent):
                         file, *args, **kwargs
                     )
 
+                    # reformat vector data here from batch to event format
+                    if data is not None:
+                        data = self.convert_data_batch(data, num_events)
+
                     if verbose:
                         end = time.time()
                         self._logger.debug(
@@ -802,20 +871,6 @@ class BaseDataHandler(BaseComponent):
                             # put batch in queue
                             data_batch_queue.put((num_events, data))
                         else:
-
-                            """
-                            Note: num_splits is currently broken!
-
-                            Not all data tensors are provided in a format
-                            where the first axis is the batch dimension!
-                            That means that splitting has to be more complex
-                            to make sure the correct pulses are kept for each
-                            event
-                            """
-                            raise NotImplementedError(
-                                "num_splits currently not supported"
-                            )
-
                             # split data into several smaller chunks
                             # (Multiprocessing queue can only handle
                             #  a certain size)
@@ -854,39 +909,22 @@ class BaseDataHandler(BaseComponent):
                 # check if data exists
                 if data_batch[i] is None:
                     exists[i] = False
-
-                if tensor.vector_info is not None:
-                    if tensor.vector_info["type"] == "value":
-                        # we are collecting value tensors together with
-                        # the indices tensors, so skip for now
-                        continue
-                    elif tensor.vector_info["type"] == "index":
-                        # get value tensor
-                        value_index = self.tensors.get_index(
-                            tensor.vector_info["reference"]
-                        )
-                        values = data_batch[value_index]
-                        indices = data_batch[i]
-
-                        if values is None or indices is None:
-                            assert values == indices, "{!r} != {!r}".format(
-                                values, indices
-                            )
-                            event_list[value_index].append(None)
-                            event_list[i].append(None)
-                        else:
-                            # This data input is a vector type and must be
-                            # restructured to event shape
-                            values, indices = self.batch_to_event_structure(
-                                values, indices, num_events
-                            )
-
-                            event_list[value_index].extend(values)
-                            event_list[i].extend(indices)
-                else:
-                    # This data input is already in event structure and
-                    # must simply be concatenated along axis 0.
                     event_list[i].append(data_batch[i])
+                else:
+                    # assumes that all tensors are in event format
+                    assert len(data_batch[i]) == num_events, (
+                        f"Length of data_batch[{i}] ({len(data_batch[i])}) "
+                        f"does not match num_events ({num_events})"
+                    )
+
+                    if tensor.vector_info is None:
+                        # This data input is tabular data of constant size
+                        # It must simply be concatenated along axis 0 later
+                        event_list[i].append(data_batch[i])
+                    else:
+                        # This data input is a vector type and due to
+                        # the ragged shape we will have to keep it as lists
+                        event_list[i].extend(data_batch[i])
 
         def data_queue_iterator(sample_randomly):
             """Helper Method to create batches.
@@ -922,15 +960,12 @@ class BaseDataHandler(BaseComponent):
                 # get a new set of events from queue and fill
                 num_events, data_batch = data_batch_queue.get()
                 current_queue_size = num_events
-                t_fill_start = time.time()
                 fill_event_list(data_batch, event_list, exists, num_events)
-                t_fill_stop = time.time()
 
                 if verbose:
                     self._logger.debug(
-                        f"Started with {num_events} events in {t_fill_stop-t_fill_start:2.2f}s."
+                        f"Started with {num_events} events. "
                         f"final_batch_queue: {final_batch_queue.qsize()}. "
-                        "Adding additional files.."
                     )
 
                 n_files = 0
@@ -950,19 +985,14 @@ class BaseDataHandler(BaseComponent):
                         num_events, data_batch = data_batch_queue.get()
                         n_files += 1
                         current_queue_size += num_events
-                        t_fill_start = time.time()
                         fill_event_list(
                             data_batch, event_list, exists, num_events
                         )
-                        t_fill_stop = time.time()
 
                         if verbose:
                             self._logger.debug(
-                                f"Added {num_events} events in "
-                                f"{t_fill_stop-t_fill_start:2.2f}s."
-                            )
-                            self._logger.debug(
-                                "Current final batch queue size: "
+                                f"Added {num_events} events."
+                                "final_batch_queue: "
                                 f"{final_batch_queue.qsize()}"
                             )
 
@@ -992,10 +1022,6 @@ class BaseDataHandler(BaseComponent):
 
                     # loop through shuffled events and accumulate them
                     for index in shuffled_indices:
-
-                        if verbose:
-                            if size == 0:
-                                t_batch_start = time.time()
 
                         # add event to batch
                         for i, tensor in enumerate(self.tensors.list):
@@ -1051,12 +1077,6 @@ class BaseDataHandler(BaseComponent):
                                         file_list_queue.qsize(),
                                         data_batch_queue.qsize(),
                                         final_batch_queue.qsize(),
-                                    )
-                                )
-                                t_batch_stop = time.time()
-                                self._logger.debug(
-                                    "Time to create batch: {:02.2f}s".format(
-                                        t_batch_stop - t_batch_start
                                     )
                                 )
                             final_batch_queue.put(tuple(batch))
