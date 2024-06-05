@@ -173,12 +173,12 @@ data_iterator_settings: {
     'training': {
         'batch_size': 32,
         'num_splits': ,
-        'file_capacity': 10,
-        'batch_capacity': 500,
+        'file_capacity': 20,
+        'batch_capacity': 1000,
         'dataset_capacity': 500,
-        'num_jobs': 10,
-        'num_add_files': 20,
-        'num_repetitions': 3,
+        'num_jobs': 20,
+        'num_add_files': 10,
+        'num_repetitions': 5,
         'input_data': [
             '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
             '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
@@ -242,7 +242,8 @@ data_iterator_settings: {
         'input_data': [
 
             # validation data
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/302*/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
 
             # MESE NuGen NuE l5 Benchmark Datasets
             # Spice3.2.1 variable
@@ -252,7 +253,7 @@ data_iterator_settings: {
             # SpiceLea variable
             # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # SpiceLea const
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # Spice3.2.1 variable no fourier
             # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
         ],
