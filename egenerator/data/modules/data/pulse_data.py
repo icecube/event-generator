@@ -676,8 +676,6 @@ class PulseDataModule(BaseComponent):
                 dom = omkey.om
 
                 if dom > 60:
-                    msg = "skipping exclusion DOM: {!r} {!r}"
-                    self._logger.info(msg.format(string, dom))
                     continue
 
                 index = 0
