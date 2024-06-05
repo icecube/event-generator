@@ -199,7 +199,7 @@ class DefaultLossModule(BaseComponent):
                 loss_terms[2] = tf.zeros_like(dom_tensor)
 
         if normalize_by_total_charge:
-            total_charge = tf.math.clip_by_value(
+            total_charge = tf.clip_by_value(
                 tf.reduce_sum(data_batch_dict["x_pulses"][:, 0]),
                 1,
                 float("inf"),
