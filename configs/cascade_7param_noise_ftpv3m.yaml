@@ -19,14 +19,14 @@ training_settings: {
         'learning_rate': {
             'full_class_string': 'egenerator.utils.learning_rate.MultiLearningRateScheduler',
             'settings':{
-                'boundaries': [10000, 1000000],
+                'boundaries': [1000, 1000000],
                 'scheduler_settings': [
                     {
                     'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
                     'settings': {
-                        'initial_learning_rate': 0.01,
+                        'initial_learning_rate': 0.00001,
                         'end_learning_rate': 0.001,
-                        'decay_steps': 10000,
+                        'decay_steps': 1000,
                         },
                     },
                     {
@@ -34,7 +34,7 @@ training_settings: {
                     'settings': {
                         'initial_learning_rate': 0.001,
                         'end_learning_rate': 0.001,
-                        'decay_steps': 990000,
+                        'decay_steps': 999000,
                         },
                     },
                     {
