@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function
 import os
+import logging
 from copy import deepcopy
 import click
 import tensorflow as tf
@@ -23,7 +24,12 @@ from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
     help="The reconstruction config file to use. If None, "
     "then the first provided config file will be used.",
 )
-def main(config_files, reco_config_file=None):
+@click.argument(
+    "--log_level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING"]),
+    default="INFO",
+)
+def main(config_files, reco_config_file=None, log_level="INFO"):
     """Script to train model.
 
     Parameters
@@ -34,12 +40,18 @@ def main(config_files, reco_config_file=None):
         passed, an ensemble of models will be used.
     reco_config_file : str, optional
         Name of config file which defines the reconstruction settings.
+        If None, then the first provided config file will be used.
+    log_level : str, optional
+        The logging level.
 
     Raises
     ------
     ValueError
         Description
     """
+
+    # set up logging
+    logging.basicConfig(level=log_level)
 
     if reco_config_file is None:
         reco_config_file = [config_files[0]]

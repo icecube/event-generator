@@ -15,14 +15,24 @@ from egenerator.utils.build_components import build_loss_module
 
 @click.command()
 @click.argument("config_files", type=click.Path(exists=True), nargs=-1)
-def main(config_files):
+@click.argument(
+    "--log_level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING"]),
+    default="INFO",
+)
+def main(config_files, log_level):
     """Script to train model.
 
     Parameters
     ----------
     config_files : list of strings
         List of yaml config files.
+    log_level : str
+        The logging level.
     """
+
+    # set up logging
+    logging.basicConfig(level=log_level)
 
     # limit GPU usage
     gpu_devices = tf.config.list_physical_devices("GPU")
