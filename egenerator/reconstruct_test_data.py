@@ -27,7 +27,7 @@ from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 @click.option(
     "--log_level",
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
-    default="INFO",
+    default="WARNING",
 )
 def main(config_files, reco_config_file=None, log_level="INFO"):
     """Script to train model.

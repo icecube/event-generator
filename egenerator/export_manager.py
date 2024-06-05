@@ -31,7 +31,7 @@ from egenerator.utils.build_components import build_manager
 @click.option(
     "--log_level",
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
-    default="INFO",
+    default="WARNING",
 )
 def main(config_files, output_dir, reco_config_file=None, log_level="INFO"):
     """Script to export model manager.

@@ -15,7 +15,7 @@ from egenerator.data.trafo import DataTransformer
 @click.option(
     "--log_level",
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
-    default="INFO",
+    default="WARNING",
 )
 def main(config_files, log_level="INFO"):
     """Script to generate trafo model.
