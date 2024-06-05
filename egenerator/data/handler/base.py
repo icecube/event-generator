@@ -777,9 +777,19 @@ class BaseDataHandler(BaseComponent):
                                 data_batch_queue.qsize(),
                             )
                         )
+                        start = time.time()
+
                     num_events, data = self.get_data_from_hdf(
                         file, *args, **kwargs
                     )
+
+                    if verbose:
+                        end = time.time()
+                        self._logger.debug(
+                            "Time to load file {!r}: {:02.2f}s".format(
+                                file, end - start
+                            )
+                        )
 
                     # biased selection
                     if biased_selection_module is not None:
@@ -907,6 +917,8 @@ class BaseDataHandler(BaseComponent):
                 exists = [True for v in self.tensors.names]
                 event_list = [[] for v in self.tensors.names]
 
+                t_event_list_start = time.time()
+
                 # get a new set of events from queue and fill
                 num_events, data_batch = data_batch_queue.get()
                 current_queue_size = num_events
@@ -937,10 +949,15 @@ class BaseDataHandler(BaseComponent):
                 for i, tensor in enumerate(self.tensors.list):
                     if exists[i] and tensor.vector_info is None:
                         event_list[i] = np.concatenate(event_list[i], axis=0)
+                t_event_list_stop = time.time()
 
                 queue_size = current_queue_size
                 if verbose:
                     self._logger.debug("queue_size:", queue_size)
+                    self._logger.debug(
+                        "Time to create event list: "
+                        f"{t_event_list_stop - t_event_list_start}s"
+                    )
 
                 # num_repetitions:
                 #   potentially dangerous for batch_size approx file_size
@@ -952,6 +969,10 @@ class BaseDataHandler(BaseComponent):
 
                     # loop through shuffled events and accumulate them
                     for index in shuffled_indices:
+
+                        if verbose:
+                            if size == 0:
+                                t_batch_start = time.time()
 
                         # add event to batch
                         for i, tensor in enumerate(self.tensors.list):
@@ -1007,6 +1028,12 @@ class BaseDataHandler(BaseComponent):
                                         file_list_queue.qsize(),
                                         data_batch_queue.qsize(),
                                         final_batch_queue.qsize(),
+                                    )
+                                )
+                                t_batch_stop = time.time()
+                                self._logger.debug(
+                                    "Time to create batch: {:02.2f}s".format(
+                                        t_batch_stop - t_batch_start
                                     )
                                 )
                             final_batch_queue.put(tuple(batch))
