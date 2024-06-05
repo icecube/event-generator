@@ -953,7 +953,9 @@ class BaseDataHandler(BaseComponent):
 
                 queue_size = current_queue_size
                 if verbose:
-                    self._logger.debug("queue_size:", queue_size)
+                    self._logger.debug(
+                        f"Event queue size for batching: {queue_size}"
+                    )
                     self._logger.debug(
                         "Time to create event list: "
                         f"{t_event_list_stop - t_event_list_start}s"
