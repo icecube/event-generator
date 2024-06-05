@@ -922,7 +922,16 @@ class BaseDataHandler(BaseComponent):
                 # get a new set of events from queue and fill
                 num_events, data_batch = data_batch_queue.get()
                 current_queue_size = num_events
+                t_fill_start = time.time()
                 fill_event_list(data_batch, event_list, exists, num_events)
+                t_fill_stop = time.time()
+
+                if verbose:
+                    self._logger.debug(
+                        f"Started with {num_events} events in {t_fill_stop-t_fill_start:2.2f}s."
+                        f"final_batch_queue: {final_batch_queue.qsize()}. "
+                        "Adding additional files.."
+                    )
 
                 n_files = 0
                 while (
@@ -941,9 +950,21 @@ class BaseDataHandler(BaseComponent):
                         num_events, data_batch = data_batch_queue.get()
                         n_files += 1
                         current_queue_size += num_events
+                        t_fill_start = time.time()
                         fill_event_list(
                             data_batch, event_list, exists, num_events
                         )
+                        t_fill_stop = time.time()
+
+                        if verbose:
+                            self._logger.debug(
+                                f"Added {num_events} events in "
+                                f"{t_fill_stop-t_fill_start:2.2f}s."
+                            )
+                            self._logger.debug(
+                                "Current final batch queue size: "
+                                f"{final_batch_queue.qsize()}"
+                            )
 
                 # concatenate into one numpy array:
                 for i, tensor in enumerate(self.tensors.list):
