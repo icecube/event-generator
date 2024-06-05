@@ -12,7 +12,7 @@ from egenerator.data.trafo import DataTransformer
 
 @click.command()
 @click.argument("config_files", type=click.Path(exists=True), nargs=-1)
-@click.argument(
+@click.option(
     "--log_level",
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="INFO",

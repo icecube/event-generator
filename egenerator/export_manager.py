@@ -28,7 +28,7 @@ from egenerator.utils.build_components import build_manager
     help="The reconstruction config file to use. If None, "
     "then the first provided config file will be used.",
 )
-@click.argument(
+@click.option(
     "--log_level",
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="INFO",
