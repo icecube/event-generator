@@ -229,7 +229,6 @@ class DefaultCascadeModel(Source):
             parameter_list[1] = y
             parameter_list[2] = z
             parameter_list[6] = t
-            parameters = tf.stack(parameter_list, axis=-1)
 
         # get parameters tensor dtype
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
@@ -240,7 +239,7 @@ class DefaultCascadeModel(Source):
         pulse_times = pulses[:, 1]
         pulse_batch_id = pulses_ids[:, 0]
 
-        # get transformed parameters
+        # get transformed (unshifted) parameters
         parameters_trafo = self.data_trafo.transform(
             parameters, tensor_name=parameter_tensor_name
         )
@@ -383,8 +382,9 @@ class DefaultCascadeModel(Source):
                     dtype=config["float_precision"],
                 )
 
-            relative_angular_acceptance = (
-                angular_acceptance / angular_acceptance_base
+            # stabilize with 1e-3 when acceptance approaches zero
+            relative_angular_acceptance = (angular_acceptance + 1e-3) / (
+                angular_acceptance_base + 1e-3
             )
 
             if config["add_dom_angular_acceptance"]:
@@ -743,13 +743,16 @@ class DefaultCascadeModel(Source):
             # will scatter and arrive from vaying angles.
             dom_charges *= (
                 tfp.math.clip_by_value_preserve_gradient(
-                    angular_acceptance, 0, float("inf")
+                    tf.expand_dims(angular_acceptance, axis=-1),
+                    0,
+                    float("inf"),
                 )
                 + 1e-2
+            )
 
         if config["scale_charge_by_relative_angular_acceptance"]:
             dom_charges *= tfp.math.clip_by_value_preserve_gradient(
-                relative_angular_acceptance,
+                tf.expand_dims(relative_angular_acceptance, axis=-1),
                 1e-2,
                 100,
             )

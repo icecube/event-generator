@@ -19,14 +19,14 @@ training_settings: {
         'learning_rate': {
             'full_class_string': 'egenerator.utils.learning_rate.MultiLearningRateScheduler',
             'settings':{
-                'boundaries': [10000, 500000],
+                'boundaries': [1000, 1000000],
                 'scheduler_settings': [
                     {
                     'full_class_string': 'tensorflow.keras.optimizers.schedules.PolynomialDecay',
                     'settings': {
-                        'initial_learning_rate': 0.01,
+                        'initial_learning_rate': 0.00001,
                         'end_learning_rate': 0.001,
-                        'decay_steps': 10000,
+                        'decay_steps': 1000,
                         },
                     },
                     {
@@ -34,7 +34,7 @@ training_settings: {
                     'settings': {
                         'initial_learning_rate': 0.001,
                         'end_learning_rate': 0.001,
-                        'decay_steps': 490000,
+                        'decay_steps': 999000,
                         },
                     },
                     {
@@ -60,11 +60,11 @@ training_settings: {
     'save_frequency': 500,
 
     # Number of training iterations to train the model for
-    'num_training_iterations': 1000000,
+    'num_training_iterations': 1500000,
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
-        'normalize_by_total_charge': False,
+        'normalize_by_total_charge': True,
     },
 }
 
@@ -84,7 +84,7 @@ reconstruction_settings: {
     # define which tensor to use as parameter_tensor (default: x_parameters)
     'parameter_tensor_name': 'x_parameters',
     # define seed (to seed from MC truth choose: 'x_parameters')
-    'seed': 'MonopodFit4_PartialExclusion',
+    'seed': 'x_parameters',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
     'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
@@ -174,40 +174,17 @@ data_iterator_settings: {
         'batch_size': 32,
         'num_splits': ,
         'file_capacity': 10,
-        'batch_capacity': 500,
-        'dataset_capacity': 500,
-        'num_jobs': 10,
-        'num_add_files': 20,
-        'num_repetitions': 3,
+        'batch_capacity': 1000,
+        'dataset_capacity': 100,
+        'num_jobs': 15,
+        'num_add_files': 15,
+        'num_repetitions': 5,
         'input_data': [
-            # Snowstorm EM datasets
-            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-
-            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30036/egenerator_30036_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-
-            # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/0*000-0*999/*.hdf5',
-
-            # SnowStorm Mixed EM/Hadronic cascades
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30243/egenerator_30243_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30244/egenerator_30244_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30245/egenerator_30245_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30246/egenerator_30246_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30247/egenerator_30247_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-
-            # PPC BFRv1 Datasets
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30052/egenerator_30052_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30053/egenerator_30053_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30054/egenerator_30054_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30055/egenerator_30055_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30056/egenerator_30056_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
         ],
     },
 
@@ -218,13 +195,15 @@ data_iterator_settings: {
         'file_capacity': 1,
         'batch_capacity': 2,
         'num_jobs': 20,
-        'num_add_files': 1,
+        'num_add_files': 0,
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30032/egenerator_30032_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30033/egenerator_30033_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30034/egenerator_30034_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
         ],
     },
 
@@ -232,22 +211,20 @@ data_iterator_settings: {
     'validation': {
         'batch_size': 32,
         'num_splits': ,
-        'file_capacity': 5,
+        'file_capacity': 1,
         'batch_capacity': 10,
         'dataset_capacity': 10,
-        'num_jobs': 2,
-        'num_add_files': 5,
+        'num_jobs': 3,
+        'num_add_files': 3,
         'num_repetitions': 1,
         'pick_random_files_forever': True,
         'input_data': [
-            # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
-
-            # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
-
-             # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
+            # Note: The validation data is the same as the training data. Do not pay attention to validation curve!
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
         ],
     },
 
@@ -263,24 +240,10 @@ data_iterator_settings: {
         'sample_randomly': False,
         'pick_random_files_forever': False,
         'input_data': [
-            # # 1e2 - 1e4 GeV [uniform spread around vertex time, vertex time]
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30240/egenerator_30240_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*.hdf5',
-            # # 1e4 - 1e6 GeV [uniform spread around vertex time, vertex time]
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30241/egenerator_30241_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*1000*.hdf5',
-            # # 1e6 - 1e8 GeV [uniform spread around vertex time, vertex time]
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/30242/egenerator_30242_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/01000-01999/*1000*.hdf5',
 
-            # # NuGen -- L5MonopodFit4 vertex
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/NuGen/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/5/DNN_l5_lea_000040*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/NuGen/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/cascade_vertex/27/DNN_l5_lea_0002600*.hdf5',
-
-            # # Egenerator NuGen SpiceLea Test Data
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen/NuE/low_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/5/egenerator_NuE_low_energy_IC86_2013_l5_lea_run_000040*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen/NuE/medium_energy/IC86_2013/l5_lea/IC86_pulses/trigger_time/27/egenerator_NuE_medium_energy_IC86_2013_l5_lea_run_0002600*.hdf5',
-
-            # # Egenerator NuGen Spice3.2 Test Data
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen_new/NuE/low_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_0000400*.hdf5',
-            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/egenerator_test_data/NuGen_new/NuE/medium_energy/IC86_flasher_p1=0.3_p2=0.0/l3/IC86_pulses/trigger_time/5/egenerator_*_run_00004000.hdf5',
+            # validation data
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
+            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
 
             # MESE NuGen NuE l5 Benchmark Datasets
             # Spice3.2.1 variable
@@ -290,7 +253,7 @@ data_iterator_settings: {
             # SpiceLea variable
             # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # SpiceLea const
-            '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
             # Spice3.2.1 variable no fourier
             # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
         ],
@@ -311,7 +274,7 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': False,
+            'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'unbinned_pulse_time_llh',
         },
@@ -324,9 +287,22 @@ loss_module_settings: [
             # the float precision to use
             'float_precision': 'float32',
             # Add normalization terms to llh if True
-            'add_normalization_term': False,
+            'add_normalization_term': True,
             # choose the loss function to use
-            'loss_function_name': 'negative_binomial_charge_pdf',
+            'loss_function_name': 'normalized_dom_charge_pdf',
+        },
+    },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'negative_binomial_event_charge_pdf',
         },
     },
 ]
@@ -351,7 +327,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    'model_dir': '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_snowstorm_cascade_no_fourier_marginalized_pulse_data_noise_tw',
+    'model_dir': '/cephfs/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_cascade_7param_noise_ftpv3m',
 }
 
 #----------------------
@@ -372,12 +348,13 @@ data_handler_settings: {
 
     # settings for the data module
     'data_settings':{
-        'pulse_key': 'InIceDSTPulses_masked',
-        'dom_exclusions_key': 'combined_exclusions_DOMs',
-        'time_exclusions_key': 'combined_exclusions_TimeWindowsHDF5',
+        'pulse_key': 'MCPulses',
+        'event_id_key': 'LabelsMCCascade',
+        'dom_exclusions_key': BadDomsList,
+        'time_exclusions_key': ,
         'float_precision': 'float32',
         'add_charge_quantiles': False,
-        'discard_pulses_from_excluded_doms': False,
+        'discard_pulses_from_excluded_doms': True,
     },
 
     # --------------------
@@ -391,9 +368,17 @@ data_handler_settings: {
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, energy, time)?
         'trafo_log': [False, False, False, False, False, True, False],
-        'label_key': 'LabelsDeepLearning',
-        'snowstorm_key': 'SnowstormParameters',
-        'num_snowstorm_params': 0,
+        'label_key': 'LabelsMCCascade',
+        'additional_labels': [],
+        'snowstorm_key': 'SnowstormParameterDict',
+        'snowstorm_parameters': [
+            # "Absorption",
+            # # "AnisotropyScale",
+            # # "DOMEfficiency",
+            # "HoleIceForward_Unified_p0",
+            # "HoleIceForward_Unified_p1",
+            # "Scattering",
+        ],
         'float_precision': 'float32',
     },
 
@@ -424,7 +409,7 @@ data_handler_settings: {
     # settings for the filter module
     'filter_settings':{
         'constraints': [
-            # ['LabelsDeepLearning', 'cascade_z', '<', -250.],
+            # ['LabelsMCCascade', 'cascade_z', '<', -250.],
         ],
     },
 }
@@ -453,7 +438,7 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-            config: {},
+            config: {'float_precision': float32},
         },
 
         cascade: {
@@ -475,13 +460,13 @@ model_settings: {
                 'scale_charge_by_relative_angular_acceptance': False,
                 'prevent_mixture_component_swapping': False,
                 'charge_distribution_type': 'negative_binomial',
-                'num_latent_models': 10,
-                'float_precision': float64,
+                'num_latent_models': 5,
+                'float_precision': float32,
 
                 # Baseline DOM Angular acceptance
-                'use_constant_baseline_hole_ice': False,
-                'baseline_hole_ice_p0': 0.28,
-                'baseline_hole_ice_p1': -0.075,
+                'use_constant_baseline_hole_ice': True,
+                'baseline_hole_ice_p0': 0.25,
+                'baseline_hole_ice_p1': -0.06,
 
                 # This is a list of labels in addition to
                 # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
@@ -490,7 +475,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [25, 100, 100, 100, 100, 42],
+                'num_filters_list' : [25, 100, 100, 100, 100, 22],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',

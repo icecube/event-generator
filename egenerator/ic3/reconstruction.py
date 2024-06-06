@@ -116,7 +116,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
             "snowstorm_key",
             "Only relevant if labels are being loaded. "
             "The key from which to load snowstorm parameters.",
-            "SnowstormParameters",
+            "SnowstormParameterDict",
         )
         self.AddParameter(
             "num_threads",

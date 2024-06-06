@@ -85,6 +85,7 @@ class TestCreateTrafoModel(unittest.TestCase):
             "data_module": "pulse_data.PulseDataModule",
             "data_settings": {
                 "pulse_key": "InIceDSTPulses",
+                "event_id_key": "LabelsDeepLearning",
                 "dom_exclusions_key": "BrightDOMs",
                 "time_exclusions_key": None,
                 "float_precision": "float32",

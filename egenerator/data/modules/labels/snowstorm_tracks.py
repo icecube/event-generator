@@ -31,8 +31,8 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         float_precision,
         num_cascades=5,
         label_key="EventGeneratorMuonTrackLabels",
-        snowstorm_key="SnowstormParameters",
-        num_snowstorm_params=30,
+        snowstorm_key="SnowstormParameterDict",
+        snowstorm_parameters=[],
     ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
@@ -65,9 +65,10 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             The name of the key under which the snowstorm parameters are saved.
             If `snowstorm_key` is None, no snowstorm parameters will be loaded.
             Instead a default value of 1. will be assigned to each of the
-            `num_snowstorm_params` number of snowstorm parameters.
-        num_snowstorm_params : int, optional
-            The number of varied snowstorm parameters.
+            `snowstorm_parameters` defined.
+        snowstorm_parameters : list[str], optional
+            The names of the snowstorm parameters. These must exist in the
+            SnowStormParameter dict specified in `snowstorm_key`.
 
         Returns
         -------
@@ -154,7 +155,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             trafo_log_ext = [trafo_log] * num_params
         else:
             trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False] * num_snowstorm_params)
+        trafo_log_ext.extend([False] * len(snowstorm_parameters))
 
         data = {
             "parameter_dict": parameter_dict,
@@ -164,7 +165,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             [
                 DataTensor(
                     name="x_parameters",
-                    shape=[None, num_params + num_snowstorm_params],
+                    shape=[None, num_params + len(snowstorm_parameters)],
                     tensor_type="label",
                     dtype=float_precision,
                     trafo=True,
@@ -188,7 +189,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                 num_cascades=num_cascades,
                 label_key=label_key,
                 snowstorm_key=snowstorm_key,
-                num_snowstorm_params=num_snowstorm_params,
+                snowstorm_parameters=snowstorm_parameters,
             ),
         )
         return configuration, data, {}
@@ -232,26 +233,20 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                 track_parameters.append(_labels[label])
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
-            num_params = self.configuration.config["num_snowstorm_params"]
+            snowstorm_params = self.configuration.config[
+                "snowstorm_parameters"
+            ]
             num_events = len(track_parameters[0])
 
-            if num_params > 0:
+            if len(snowstorm_params) > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = f[snowstorm_key]
-                    params = _snowstorm_params["item"]
-                    index = _snowstorm_params["vector_index"]
-                    assert max(index) == num_params - 1
-                    assert min(index) == 0
-
-                    for i in range(num_params):
-
-                        snowstorm_param = params[index == i]
-                        assert len(snowstorm_param) == num_events
-                        track_parameters.append(snowstorm_param)
-
+                    for key in snowstorm_params:
+                        track_parameters.append(_snowstorm_params[key])
+                        assert len(_snowstorm_params[key]) == num_events
                 else:
                     # No Snowstorm key is provided: add dummy values
-                    for i in range(num_params):
+                    for key in snowstorm_params:
                         track_parameters.append(np.ones(num_events))
 
         except Exception as e:
@@ -299,23 +294,21 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                 track_parameters.append(np.atleast_1d(_labels[label]))
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
-            num_params = self.configuration.config["num_snowstorm_params"]
+            snowstorm_params = self.configuration.config[
+                "snowstorm_parameters"
+            ]
             num_events = len(track_parameters[0])
 
-            if num_params > 0:
+            if len(snowstorm_params) > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = frame[snowstorm_key]
-                    assert len(_snowstorm_params) == num_params
-
-                    for i in range(num_params):
-
-                        snowstorm_param = np.atleast_1d(_snowstorm_params[i])
+                    for key in snowstorm_params:
+                        snowstorm_param = np.atleast_1d(_snowstorm_params[key])
                         assert len(snowstorm_param) == num_events
                         track_parameters.append(snowstorm_param)
-
                 else:
                     # No Snowstorm key is provided: add dummy values
-                    for i in range(num_params):
+                    for key in snowstorm_params:
                         track_parameters.append(np.ones(num_events))
 
         except Exception as e:

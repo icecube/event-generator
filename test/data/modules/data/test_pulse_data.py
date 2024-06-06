@@ -173,6 +173,7 @@ class TestPulseDataModule(unittest.TestCase):
         self.config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": "BrightDOMs",
             "time_exclusions_key": None,
             "float_precision": "float64",
@@ -185,6 +186,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "pulse_key",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": None,
             "time_exclusions_key": None,
             "float_precision": "float32",
@@ -215,6 +217,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "pulse_key",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": None,
             "time_exclusions_key": None,
             "float_precision": "float32",
@@ -232,6 +235,7 @@ class TestPulseDataModule(unittest.TestCase):
         """
         config = {
             "pulse_key": "pulse_key",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": None,
             "time_exclusions_key": None,
             "float_precision": "float32",
@@ -255,6 +259,7 @@ class TestPulseDataModule(unittest.TestCase):
                 config = {
                     "config_data": "file_path_string",
                     "pulse_key": "pulse_key",
+                    "event_id_key": "LabelsDeepLearning",
                     "dom_exclusions_key": dom_exclusions_key,
                     "time_exclusions_key": None,
                     "float_precision": float_precision,
@@ -339,6 +344,7 @@ class TestPulseDataModule(unittest.TestCase):
                 config = {
                     "config_data": tensors_true,
                     "pulse_key": "pulse_key",
+                    "event_id_key": "LabelsDeepLearning",
                     "dom_exclusions_key": dom_exclusions_key,
                     "time_exclusions_key": None,
                     "float_precision": float_precision,
@@ -353,6 +359,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "pulse_key",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": None,
             "time_exclusions_key": None,
             "float_precision": "float32",
@@ -374,6 +381,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": "missing_key",
             "time_exclusions_key": None,
             "float_precision": "float32",
@@ -434,6 +442,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": None,
             "time_exclusions_key": None,
             "float_precision": "float32",
@@ -452,6 +461,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": None,
             "time_exclusions_key": None,
             "float_precision": "float64",
@@ -540,6 +550,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": None,
             "time_exclusions_key": None,
             "float_precision": "float64",
@@ -605,6 +616,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": "BrightDOMs",
             "time_exclusions_key": None,
             "float_precision": "float64",
@@ -664,6 +676,7 @@ class TestPulseDataModule(unittest.TestCase):
         config = {
             "config_data": "dummy_data",
             "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
             "dom_exclusions_key": "BrightDOMs",
             "time_exclusions_key": "key_does_not_exist",
             "float_precision": "float64",
