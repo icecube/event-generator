@@ -1244,7 +1244,7 @@ class DefaultLossModule(BaseComponent):
         event_total = tf.reduce_sum(hits_pred, axis=[1, 2], keepdims=True)
 
         # shape: [n_batch, 86, 60]
-        dom_pdf = hits_pred / event_total
+        dom_pdf = hits_pred / (event_total + eps)
         llh_dom = hits_true * tf.math.log(dom_pdf + eps)
 
         if sort_loss_terms:
