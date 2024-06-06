@@ -24,6 +24,7 @@ class TestModuleDataHandler(unittest.TestCase):
                 "data_module": "pulse_data.PulseDataModule",
                 "data_settings": {
                     "pulse_key": "AggregatedPulses_combined",
+                    "event_id_key": "LabelsDeepLearning",
                     "dom_exclusions_key": None,
                     "time_exclusions_key": None,
                     "float_precision": "float32",
@@ -227,6 +228,7 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
             "data_module": "pulse_data.PulseDataModule",
             "data_settings": {
                 "pulse_key": "InIceDSTPulses",
+                "event_id_key": "LabelsDeepLearning",
                 "dom_exclusions_key": "BrightDOMs",
                 "time_exclusions_key": None,
                 "float_precision": "float32",
