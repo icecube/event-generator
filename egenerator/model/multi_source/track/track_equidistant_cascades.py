@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 
 from egenerator.model.multi_source.base import MultiSource
@@ -262,7 +261,7 @@ class TrackEquidistantCascadeModel(MultiSource):
             cascade_time = start_time + dist / c
 
             # make sure cascade energy does not turn negative
-            cascade_energy = tfp.math.clip_by_value_preserve_gradient(
+            cascade_energy = tf.clip_by_value(
                 cascade_energy, 0.0, float("inf")
             )
 

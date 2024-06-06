@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 
 from tfscripts import layers as tfs
@@ -606,9 +605,7 @@ class DefaultCascadeModel(Source):
                 )
             )
             with tf.control_dependencies(asserts):
-                tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
-                    tw_cdf_exclusion, 0.0, 1.0
-                )
+                tw_cdf_exclusion = tf.clip_by_value(tw_cdf_exclusion, 0.0, 1.0)
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -649,7 +646,7 @@ class DefaultCascadeModel(Source):
                 )
             )
             with tf.control_dependencies(asserts):
-                dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                dom_cdf_exclusion = tf.clip_by_value(
                     dom_cdf_exclusion, 0.0, 1.0
                 )
 
@@ -689,10 +686,8 @@ class DefaultCascadeModel(Source):
                 )
             )
             with tf.control_dependencies(asserts):
-                dom_cdf_exclusion_sum = (
-                    tfp.math.clip_by_value_preserve_gradient(
-                        dom_cdf_exclusion_sum, 0.0, 1.0
-                    )
+                dom_cdf_exclusion_sum = tf.clip_by_value(
+                    dom_cdf_exclusion_sum, 0.0, 1.0
                 )
 
             tensor_dict["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
@@ -707,7 +702,7 @@ class DefaultCascadeModel(Source):
         )
 
         # clip value range for more stability during training
-        dom_charges_trafo = tfp.math.clip_by_value_preserve_gradient(
+        dom_charges_trafo = tf.clip_by_value(
             dom_charges_trafo,
             -20.0,
             15,
@@ -719,7 +714,7 @@ class DefaultCascadeModel(Source):
         # scale charges by cascade energy
         if config["scale_charge"]:
             # make sure cascade energy does not turn negative
-            cascade_energy = tfp.math.clip_by_value_preserve_gradient(
+            cascade_energy = tf.clip_by_value(
                 parameter_list[5], 0.0, float("inf")
             )
             scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
@@ -742,7 +737,7 @@ class DefaultCascadeModel(Source):
             # Even if cascade is coming from directly above, the photons
             # will scatter and arrive from vaying angles.
             dom_charges *= (
-                tfp.math.clip_by_value_preserve_gradient(
+                tf.clip_by_value(
                     tf.expand_dims(angular_acceptance, axis=-1),
                     0,
                     float("inf"),
@@ -751,7 +746,7 @@ class DefaultCascadeModel(Source):
             )
 
         if config["scale_charge_by_relative_angular_acceptance"]:
-            dom_charges *= tfp.math.clip_by_value_preserve_gradient(
+            dom_charges *= tf.clip_by_value(
                 tf.expand_dims(relative_angular_acceptance, axis=-1),
                 1e-2,
                 100,
@@ -800,11 +795,7 @@ class DefaultCascadeModel(Source):
 
             # set default value to poisson uncertainty
             dom_charges_sigma = (
-                tf.sqrt(
-                    tfp.math.clip_by_value_preserve_gradient(
-                        dom_charges, 0.0001, float("inf")
-                    )
-                )
+                tf.sqrt(tf.clip_by_value(dom_charges, 0.0001, float("inf")))
                 * sigma_scale
             )
 

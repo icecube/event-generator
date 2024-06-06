@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 
 from tfscripts import layers as tfs
@@ -572,7 +571,7 @@ class StochasticTrackSegmentModel(Source):
         )
 
         # clip value range for more stability during training
-        dom_charges_trafo = tfp.math.clip_by_value_preserve_gradient(
+        dom_charges_trafo = tf.clip_by_value(
             dom_charges_trafo,
             -20.0,
             15,
@@ -637,11 +636,7 @@ class StochasticTrackSegmentModel(Source):
 
             # set default value to poisson uncertainty
             dom_charges_sigma = (
-                tf.sqrt(
-                    tfp.math.clip_by_value_preserve_gradient(
-                        dom_charges, 0.0001, float("inf")
-                    )
-                )
+                tf.sqrt(tf.clip_by_value(dom_charges, 0.0001, float("inf")))
                 * sigma_scale
             )
 

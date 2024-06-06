@@ -1,7 +1,6 @@
 from __future__ import division, print_function
 import logging
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 
 from tfscripts.weights import new_weights
@@ -180,7 +179,7 @@ class DefaultNoiseModel(Source):
             t_min = tf.gather(time_window[:, 0], indices=x_time_excl_batch_id)
             t_max = tf.gather(time_window[:, 1], indices=x_time_excl_batch_id)
             tw_livetime = tf.gather(livetime, indices=x_time_excl_batch_id)
-            tw_reduced = tfp.math.clip_by_value_preserve_gradient(
+            tw_reduced = tf.clip_by_value(
                 x_time_exclusions,
                 tf.expand_dims(t_min, axis=-1),
                 tf.expand_dims(t_max, axis=-1),
@@ -223,9 +222,7 @@ class DefaultNoiseModel(Source):
                 )
             )
             with tf.control_dependencies(asserts):
-                tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
-                    tw_cdf_exclusion, 0.0, 1.0
-                )
+                tw_cdf_exclusion = tf.clip_by_value(tw_cdf_exclusion, 0.0, 1.0)
 
             # accumulate time window exclusions for each event
             # shape: [n_batch, 86, 60, 1]
@@ -264,7 +261,7 @@ class DefaultNoiseModel(Source):
                 )
             )
             with tf.control_dependencies(asserts):
-                dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
+                dom_cdf_exclusion = tf.clip_by_value(
                     dom_cdf_exclusion, 0.0, 1.0
                 )
 

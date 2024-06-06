@@ -3,7 +3,6 @@ import logging
 from tqdm import tqdm
 from datetime import datetime
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
@@ -473,10 +472,8 @@ class DataTransformer(BaseComponent):
                     data_list = tf.unstack(data, axis=-1)
                     for bin_i, do_log in enumerate(tensor.trafo_log):
                         if do_log:
-                            data_list[bin_i] = (
-                                tfp.math.clip_by_value_preserve_gradient(
-                                    data_list[bin_i], -60.0, 60.0
-                                )
+                            data_list[bin_i] = tf.clip_by_value(
+                                data_list[bin_i], -60.0, 60.0
                             )
                             data_list[bin_i] = exp_func(data_list[bin_i]) - 1.0
                     data = tf.stack(data_list, axis=-1)
