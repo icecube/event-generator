@@ -302,6 +302,19 @@ loss_module_settings: [
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
+            'loss_function_name': 'negative_binomial_charge_pdf',
+        },
+    },
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
             'loss_function_name': 'negative_binomial_event_charge_pdf',
         },
     },
@@ -354,7 +367,7 @@ data_handler_settings: {
         'time_exclusions_key': ,
         'float_precision': 'float32',
         'add_charge_quantiles': False,
-        'discard_pulses_from_excluded_doms': True,
+        'discard_pulses_from_excluded_doms': False,
     },
 
     # --------------------
@@ -460,7 +473,7 @@ model_settings: {
                 'scale_charge_by_relative_angular_acceptance': False,
                 'prevent_mixture_component_swapping': False,
                 'charge_distribution_type': 'negative_binomial',
-                'num_latent_models': 5,
+                'num_latent_models': 10,
                 'float_precision': float32,
 
                 # Baseline DOM Angular acceptance
@@ -475,7 +488,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [25, 100, 100, 100, 100, 22],
+                'num_filters_list' : [25, 100, 100, 100, 100, 42],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',
