@@ -253,27 +253,38 @@ class DefaultCascadeModel(Source):
         # beta (zenith angle to DOM)
 
         # calculate displacement vector
+        # Shape: [n_batch, 86, 60] = [1, 86, 60] - [n_batch, 1, 1]
         dx = detector.x_coords[..., 0] - parameter_list[0]
         dy = detector.x_coords[..., 1] - parameter_list[1]
         dz = detector.x_coords[..., 2] - parameter_list[2]
+        # Shape: [n_batch, 86, 60, 1]
         dx = tf.expand_dims(dx, axis=-1)
         dy = tf.expand_dims(dy, axis=-1)
         dz = tf.expand_dims(dz, axis=-1)
 
         # stabilize with 1e-1 (10cm) when distance approaches DOM radius
+        # Shape: [n_batch, 86, 60, 1]
         distance = tf.sqrt(dx**2 + dy**2 + dz**2) + 1e-1
         distance_xy = tf.sqrt(dx**2 + dy**2) + 1e-1
 
+        # compute t_geometry: time for photon to travel to DOM
+        # Shape: [n_batch, 86, 60, 1]
+        c_ice = 0.22103046286329384  # m/ns
+        dt_geometry = distance / c_ice
+
         # calculate observation angle
+        # Shape: [n_batch, 86, 60, 1]
         dx_normed = dx / distance
         dy_normed = dy / distance
         dz_normed = dz / distance
 
         # angle in xy-plane (relevant for anisotropy)
+        # Shape: [n_batch, 86, 60, 1]
         dx_normed_xy = dx / distance_xy
         dy_normed_xy = dy / distance_xy
 
         # calculate direction vector of cascade
+        # Shape: [n_batch, 86, 60]
         cascade_zenith = parameter_list[3]
         cascade_azimuth = parameter_list[4]
         cascade_dir_x = -tf.sin(cascade_zenith) * tf.cos(cascade_azimuth)
@@ -456,8 +467,8 @@ class DefaultCascadeModel(Source):
 
         # scale time range down to avoid big numbers:
         t_scale = 1.0 / self.time_unit_in_ns  # [1./ns]
-        average_t_dist = 1000.0 * t_scale
         t_pdf = t_pdf * t_scale
+        dt_geometry = dt_geometry * t_scale
         if time_exclusions_exist:
             t_exclusions = t_exclusions * t_scale
 
@@ -491,6 +502,7 @@ class DefaultCascadeModel(Source):
         print("\t Charge method:", config["charge_distribution_type"])
         print("\t Number of Asymmetric Gaussian Components:", n_models)
 
+        # shape: [n_batch, 86, 60, n_models * 4 + n_charge]
         out_layer = conv_hex3d_layers[-1]
         latent_mu = out_layer[
             ..., n_charge + 0 * n_models : n_charge + 1 * n_models
@@ -507,16 +519,40 @@ class DefaultCascadeModel(Source):
 
         # add reasonable scaling for parameters assuming the latent vars
         # are distributed normally around zero
-        factor_sigma = 1.0  # ns
-        factor_mu = 1.0  # ns
+        factor_sigma = 1000 * t_scale  # ns
+        factor_mu = 500 * t_scale  # ns
         factor_r = 1.0
         factor_scale = 1.0
 
         # create correct offset and scaling
-        latent_mu = average_t_dist + factor_mu * latent_mu
         latent_sigma = 2 + factor_sigma * latent_sigma
         latent_r = 1 + factor_r * latent_r
         latent_scale = 1 + factor_scale * latent_scale
+
+        # special handling for placements of asymmetric Gaussians via mu:
+        # these will be placed relative to t_geometry,
+        # which is the earliest possible time for a DOM to be hit from photons
+        # originating from the cascade vertex. Once waveforms are defined
+        # relative to t_geometry, their overall features are similar to each
+        # other. In particular, there is a peak around 8000ns arising form
+        # after pulses. We will place the asymmetric Gaussians around these
+        # features.
+        t_seed = (
+            np.r_[
+                [0, 100, 8000, 14000, 4000, 800, 300, 1000, 400, 2000],
+                np.random.RandomState(42).uniform(0, 14000, max(1, n_models)),
+            ][:n_models]
+            * t_scale
+        )
+        t_seed = np.reshape(t_seed, [1, 1, 1, n_models])
+
+        # per DOM offset to shift to t_geometry
+        # Note that the pulse times are already offset by the cascade vertex
+        # time. So we now only need to  add dt_geometry.
+        # shape: [n_batch, 86, 60, n_models] =
+        #       [n_batch, 86, 60, 1] + [1, 1, 1, n_models]
+        #       + [n_batch, 86, 60, n_models]
+        latent_mu = dt_geometry + t_seed + factor_mu * latent_mu
 
         # force positive and min values
         latent_scale = tf.nn.elu(latent_scale) + 1.00001
@@ -717,7 +753,7 @@ class DefaultCascadeModel(Source):
             cascade_energy = tf.clip_by_value(
                 parameter_list[5], 0.0, float("inf")
             )
-            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 10000.0
+            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 1000.0
             dom_charges *= scale_factor
 
         # scale charges by relative DOM efficiency
