@@ -66,5 +66,17 @@ __version_compatibility__ = {
             ),
             "type": "global",
         },
+        {
+            "Description": (
+                "The cascade default model was modified to change the "
+                "charge scaling. The asymmetric Gaussian components "
+                "are now offset by the time it takes for the first photon"
+                "to reach the DOM from the cascade vertex. This change is "
+                "not backwards compatible with previous versions. "
+                "In addition, a number of naming changes were made to "
+                "various modules and components in event-generator. "
+            ),
+            "type": "global",
+        },
     ],
 }
