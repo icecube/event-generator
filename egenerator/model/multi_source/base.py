@@ -875,6 +875,8 @@ class MultiSource(Source):
         output_nested_pdfs=False,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute CDF values at x for given result_tensors
@@ -929,6 +931,14 @@ class MultiSource(Source):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -937,7 +947,8 @@ class MultiSource(Source):
         array_like
             The CDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms] if DOMs specified
         dict [optional]
             A dictionary with the CDFs of the nested sources. See description
             of `output_nested_pdfs`.
@@ -947,21 +958,25 @@ class MultiSource(Source):
 
         nested_cdfs = {}
         cdf_values = None
-        dom_charges = result_tensors["dom_charges"].numpy()
+        dom_charges = result_tensors["dom_charges"].numpy()[:, strings, doms]
         for name, (base_source, result_tensors_i) in sorted(
             flattened_results.items()
         ):
 
-            # shape: [n_events, 86, 60, n_points]
+            # shape: [n_events, n_strings, n_doms, n_points]
             cdf_values_i = base_source.cdf(
                 x,
                 result_tensors_i,
                 tw_exclusions=tw_exclusions,
                 tw_exclusions_ids=tw_exclusions_ids,
+                strings=strings,
+                doms=doms,
             )
 
-            # shape: [n_events, 86, 60, 1]
-            dom_charges_i = result_tensors_i["dom_charges"].numpy()
+            # shape: [n_events, n_strings, n_doms, 1]
+            dom_charges_i = result_tensors_i["dom_charges"].numpy()[
+                :, strings, doms
+            ]
 
             if cdf_values is None:
                 cdf_values = cdf_values_i * dom_charges_i
@@ -986,6 +1001,8 @@ class MultiSource(Source):
         output_nested_pdfs=False,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute PDF values at x for given result_tensors
@@ -1040,6 +1057,14 @@ class MultiSource(Source):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -1048,7 +1073,8 @@ class MultiSource(Source):
         array_like
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms] if DOMs specified
         dict [optional]
             A dictionary with the PDFs of the nested sources. See description
             of `output_nested_pdfs`.
@@ -1058,21 +1084,25 @@ class MultiSource(Source):
 
         nested_pdfs = {}
         pdf_values = None
-        dom_charges = result_tensors["dom_charges"].numpy()
+        dom_charges = result_tensors["dom_charges"].numpy()[:, strings, doms]
         for name, (base_source, result_tensors_i) in sorted(
             flattened_results.items()
         ):
 
-            # shape: [n_events, 86, 60, n_points]
+            # shape: [n_events, n_strings, n_doms, n_points]
             pdf_values_i = base_source.pdf(
                 x,
                 result_tensors_i,
                 tw_exclusions=tw_exclusions,
                 tw_exclusions_ids=tw_exclusions_ids,
+                strings=strings,
+                doms=doms,
             )
 
-            # shape: [n_events, 86, 60, 1]
-            dom_charges_i = result_tensors_i["dom_charges"].numpy()
+            # shape: [n_events, n_strings, n_doms, 1]
+            dom_charges_i = result_tensors_i["dom_charges"].numpy()[
+                :, strings, doms
+            ]
 
             if pdf_values is None:
                 pdf_values = pdf_values_i * dom_charges_i

@@ -367,6 +367,8 @@ class Source(Model):
         result_tensors,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute CDF values at x for given result_tensors
@@ -411,6 +413,14 @@ class Source(Model):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -419,7 +429,8 @@ class Source(Model):
         array_like
             The CDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms] if DOMs specified
 
         Raises
         ------
@@ -457,13 +468,21 @@ class Source(Model):
                 )
 
         # extract values
-        # shape: [n_events, 86, 60, n_components, 1]
-        mu = result_tensors["latent_var_mu"].numpy()[..., np.newaxis]
-        scale = result_tensors["latent_var_scale"].numpy()[..., np.newaxis]
-        sigma = result_tensors["latent_var_sigma"].numpy()[..., np.newaxis]
-        r = result_tensors["latent_var_r"].numpy()[..., np.newaxis]
+        # shape: [n_events, n_strings, n_doms, n_components, 1]
+        mu = result_tensors["latent_var_mu"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
+        scale = result_tensors["latent_var_scale"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
+        sigma = result_tensors["latent_var_sigma"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
+        r = result_tensors["latent_var_r"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
 
-        # shape: [n_events, 86, 60, n_components, n_points]
+        # shape: [n_events, n_strings, n_doms, n_components, n_points]
         mixture_cdf = basis_functions.asymmetric_gauss_cdf(
             x=x, mu=mu, sigma=sigma, r=r
         )
@@ -471,16 +490,15 @@ class Source(Model):
         # uniformly scale up pdf values due to excluded regions
         if "dom_cdf_exclusion_sum" in result_tensors:
 
-            # shape: [n_events, 86, 60, 1]
+            # shape: [n_events, n_strings, n_doms, 1, 1]
             dom_cdf_exclusion_sum = result_tensors[
                 "dom_cdf_exclusion_sum"
-            ].numpy()
+            ].numpy()[:, strings, doms, ..., np.newaxis]
 
-            # shape: [n_events, 86, 60, 1, 1]
-            dom_cdf_exclusion_sum = dom_cdf_exclusion_sum[..., np.newaxis]
+            # shape: [n_events, n_strings, n_doms, 1, 1]
             scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
 
-        # shape: [n_events, 86, 60, n_points]
+        # shape: [n_events, n_strings, n_doms, n_points]
         cdf_values = np.sum(mixture_cdf * scale, axis=3)
 
         # apply time window exclusions:
@@ -552,6 +570,8 @@ class Source(Model):
         result_tensors,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute PDF values at x for given result_tensors
@@ -596,6 +616,14 @@ class Source(Model):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -604,7 +632,8 @@ class Source(Model):
         array_like
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms] if DOMs specified
 
         Raises
         ------
@@ -639,13 +668,21 @@ class Source(Model):
                 )
 
         # extract values
-        # shape: [n_events, 86, 60, n_components, 1]
-        mu = result_tensors["latent_var_mu"].numpy()[..., np.newaxis]
-        scale = result_tensors["latent_var_scale"].numpy()[..., np.newaxis]
-        sigma = result_tensors["latent_var_sigma"].numpy()[..., np.newaxis]
-        r = result_tensors["latent_var_r"].numpy()[..., np.newaxis]
+        # shape: [n_events, n_strings, n_doms, n_components, 1]
+        mu = result_tensors["latent_var_mu"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
+        scale = result_tensors["latent_var_scale"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
+        sigma = result_tensors["latent_var_sigma"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
+        r = result_tensors["latent_var_r"].numpy()[
+            :, strings, doms, ..., np.newaxis
+        ]
 
-        # shape: [n_events, 86, 60, n_components, n_points]
+        # shape: [n_events, n_strings, n_doms, n_components, n_points]
         mixture_pdf = basis_functions.asymmetric_gauss(
             x=x, mu=mu, sigma=sigma, r=r
         )
@@ -653,16 +690,15 @@ class Source(Model):
         # uniformly scale up pdf values due to excluded regions
         if "dom_cdf_exclusion_sum" in result_tensors:
 
-            # shape: [n_events, 86, 60, 1]
+            # shape: [n_events, n_strings, n_doms, 1, 1]
             dom_cdf_exclusion_sum = result_tensors[
                 "dom_cdf_exclusion_sum"
-            ].numpy()
+            ].numpy()[:, strings, doms, ..., np.newaxis]
 
-            # shape: [n_events, 86, 60, 1, 1]
-            dom_cdf_exclusion_sum = dom_cdf_exclusion_sum[..., np.newaxis]
+            # shape: [n_events, n_strings, n_doms, 1, 1]
             scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
 
-        # shape: [n_events, 86, 60, n_points]
+        # shape: [n_events, n_strings, n_doms, n_points]
         pdf_values = np.sum(mixture_pdf * scale, axis=3)
 
         # apply time window exclusions:

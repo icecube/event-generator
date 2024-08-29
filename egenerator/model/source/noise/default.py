@@ -339,6 +339,8 @@ class DefaultNoiseModel(Source):
         result_tensors,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute CDF values at x for given result_tensors
@@ -379,6 +381,14 @@ class DefaultNoiseModel(Source):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -387,7 +397,8 @@ class DefaultNoiseModel(Source):
         array_like
             The CDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms] if DOMs specified
 
         No Longer Raises
         ----------------
@@ -421,6 +432,8 @@ class DefaultNoiseModel(Source):
         else:
             dom_cdf_exclusion_sum = np.zeros((len(time_window), 86, 60, 1))
 
+        dom_cdf_exclusion_sum = dom_cdf_exclusion_sum[:, strings, doms]
+
         # shape: [n_events, 1, 1, n_points]
         t_end = np.where(
             x >= time_window[..., 1],
@@ -428,7 +441,7 @@ class DefaultNoiseModel(Source):
             x,
         )
 
-        # Shape: [n_events, 86, 60, n_points]
+        # Shape: [n_events, n_strings, n_doms, n_points]
         cdf_values = (
             (t_end - time_window[..., 0])
             / livetime
@@ -503,6 +516,8 @@ class DefaultNoiseModel(Source):
         result_tensors,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute PDF values at x for given result_tensors
@@ -543,6 +558,14 @@ class DefaultNoiseModel(Source):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -551,7 +574,8 @@ class DefaultNoiseModel(Source):
         array_like
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms] if DOMs specified
 
         No Longer Raises
         ----------------
@@ -588,10 +612,12 @@ class DefaultNoiseModel(Source):
         else:
             dom_cdf_exclusion_sum = np.zeros((len(time_window), 86, 60, 1))
 
-        # Shape: [n_events, 86, 60, 1]
+        dom_cdf_exclusion_sum = dom_cdf_exclusion_sum[:, strings, doms]
+
+        # Shape: [n_events, n_strings, n_doms, 1]
         pdf_values = pdf_constant / (1.0 - dom_cdf_exclusion_sum + 1e-3)
 
-        # Shape: [n_events, 86, 60, n_points]
+        # Shape: [n_events, n_strings, n_doms, n_points]
         pdf_values = np.tile(pdf_values, reps=(1, 1, 1, n_points))
 
         pdf_values = np.where(
