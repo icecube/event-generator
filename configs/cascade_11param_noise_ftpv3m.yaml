@@ -264,16 +264,16 @@ data_iterator_settings: {
             # # Spice3.2.1 variable no fourier
             # # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
 
-            # FTPv3m baseline
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99915/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # # FTPv3m baseline
+            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99915/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
             # FTPv3m SnowStorm
             '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99916/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            # FTPv3m SnowStorm Absorption
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99917/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            # FTPv3m SnowStorm Scattering
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99918/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            # FTPv3m SnowStorm HoleIce
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99919/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # # FTPv3m SnowStorm Absorption
+            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99917/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # # FTPv3m SnowStorm Scattering
+            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99918/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # # FTPv3m SnowStorm HoleIce
+            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99919/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
 
         ],
     },
