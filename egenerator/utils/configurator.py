@@ -213,8 +213,10 @@ class ManagerConfigurator:
         # update data transformer
         if "data_handler" in modified_sub_components:
             tensors = []
-            for module in modified_sub_components["data_handler"].values():
-                tensors.extend(module.data_tensors.list)
+            for key, module in modified_sub_components["data_handler"].items():
+                tensors.extend(
+                    module[f"{key.replace('_module', '')}_tensors"].list
+                )
             modified_sub_components["data_trafo"] = build_data_transformer(
                 data_trafo_settings,
                 modified_tensors=DataTensorList(tensors),
