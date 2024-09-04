@@ -10,6 +10,7 @@ from __future__ import division, print_function
 from egenerator import misc
 from egenerator.data.trafo import DataTransformer
 from egenerator.loss.multi_loss import MultiLossModule
+from egenerator.data.tensor import DataTensorList
 
 
 def build_data_handler(data_handler_settings):
@@ -33,6 +34,61 @@ def build_data_handler(data_handler_settings):
     data_handler = DataHandlerClass()
     data_handler.configure(config=data_handler_settings)
     return data_handler
+
+
+def build_data_transformer(
+    data_trafo_settings,
+    modified_tensors=None,
+):
+    """Build a data transformer object
+
+    Parameters
+    ----------
+    data_trafo_settings : dict
+        A dictionary containing the settings for the data transformer.
+    modifed_tensors : DataTensorList object, optional
+        A modified tensorlist to use.
+        Will update information on the tensorlist including:
+            - exists fields of each tensor
+
+    Returns
+    -------
+    DataTransformer object
+        The data transformer object.
+    """
+    data_trafo = DataTransformer()
+    data_trafo.load(data_trafo_settings["model_dir"])
+
+    if modified_tensors is not None:
+
+        tensors = data_trafo.data["tensors"]
+
+        # make sure that the same tensors are used
+        assert (
+            tensors.names == modified_tensors.names
+        ), f"{tensors.names} != {modified_tensors.names}"
+
+        tensors = []
+        for tensor_i, t_mod_i in zip(tensors, modified_tensors):
+
+            tensor_to_add = tensor_i
+
+            # only update tensors that have no transformation
+            # i.e. which the trafo model does not rely on
+            if not tensor_i.trafo:
+                diff = tensor_i.compare(t_mod_i)
+
+                # only update tensor if the only difference
+                # is whether the tensor exists or not
+                if len(diff) == 0 or diff == ["exists"]:
+                    tensor_to_add = t_mod_i
+
+            tensors.append(tensor_to_add)
+
+        # update the tensor list
+        data_trafo._data["tensors"] = DataTensorList(tensors)
+
+    return data_trafo
 
 
 def build_loss_module(loss_module_settings):
@@ -140,9 +196,9 @@ def build_model(
 
                     # check if the base model has its own data transformer defined
                     if "data_trafo_settings" in settings:
-                        data_transformer_base = DataTransformer()
-                        data_transformer_base.load(
-                            settings["data_trafo_settings"]["model_dir"]
+                        data_transformer_base = build_data_transformer(
+                            settings["data_trafo_settings"],
+                            modified_tensors=data_transformer.data["tensors"],
                         )
                     else:
                         data_transformer_base = data_transformer
@@ -235,8 +291,10 @@ def build_manager(
         # create and load TrafoModel
         # --------------------------
         if data_transformer is None:
-            data_transformer = DataTransformer()
-            data_transformer.load(config["data_trafo_settings"]["model_dir"])
+            data_transformer = build_data_transformer(
+                config["data_trafo_settings"],
+                modified_tensors=data_handler.tensors,
+            )
 
         # -----------------------
         # create and Model object

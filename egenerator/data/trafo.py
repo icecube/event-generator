@@ -111,7 +111,7 @@ class DataTransformer(BaseComponent):
         data["np_float_dtype"] = getattr(np, float_precision)
         data["tf_float_dtype"] = getattr(tf, float_precision)
 
-        # create empty onlince variance variables
+        # create empty online variance variables
         var_dict = {}
         for tensor in data_handler.tensors.list:
 

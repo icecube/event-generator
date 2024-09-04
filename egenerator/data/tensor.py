@@ -222,6 +222,31 @@ class DataTensor(object):
                 tensor_dict[key] = deepcopy(value)
         return tensor_dict
 
+    def compare(self, other):
+        """Compare two data tensors
+
+        Parameters
+        ----------
+        other : DataTensor
+            The other data tensor to compare against.
+
+        Returns
+        -------
+        list
+            A list of attributes that differ between
+            the two data tensors.
+        """
+        data = self.to_dict()
+        data_other = other.to_dict()
+
+        assert sorted(data.keys()) == sorted(data_other.keys())
+
+        diff = []
+        for key in data.keys():
+            if data[key] != data_other[key]:
+                diff.append(key)
+        return diff
+
 
 class DataTensorList(object):
 
