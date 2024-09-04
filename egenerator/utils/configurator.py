@@ -5,6 +5,7 @@ import tensorflow as tf
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
+from egenerator.utils.build_components import build_data_transformer
 from egenerator.utils.build_components import build_loss_module
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
@@ -100,6 +101,7 @@ class ManagerConfigurator:
         setup_manager = SetupManager([reco_config_file])
         self.config = setup_manager.get_config()
         data_handler_settings = self.config["data_handler_settings"]
+        data_trafo_settings = self.config["data_trafo_settings"]
 
         # ------------------
         # Create loss module
@@ -206,6 +208,15 @@ class ManagerConfigurator:
                 modified_sub_components["data_handler"] = {
                     "data_module": data_module
                 }
+
+        # update data transformer
+        if "data_handler" in modified_sub_components:
+            modified_sub_components["data_trafo"] = build_data_transformer(
+                data_trafo_settings,
+                modified_tensors=modified_sub_components[
+                    "data_handler"
+                ].tensors,
+            )
 
         # -----------------------------
         # Create and load Model Manager
