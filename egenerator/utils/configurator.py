@@ -1,6 +1,7 @@
 import os
 import logging
 import tensorflow as tf
+from copy import deepcopy
 
 from egenerator import misc
 from egenerator.settings.setup_manager import SetupManager
@@ -102,7 +103,6 @@ class ManagerConfigurator:
         setup_manager = SetupManager([reco_config_file])
         self.config = setup_manager.get_config()
         data_handler_settings = self.config["data_handler_settings"]
-        data_trafo_settings = self.config["data_trafo_settings"]
 
         # ------------------
         # Create loss module
@@ -210,18 +210,6 @@ class ManagerConfigurator:
                     "data_module": data_module
                 }
 
-        # update data transformer
-        if "data_handler" in modified_sub_components:
-            tensors = []
-            for key, module in modified_sub_components["data_handler"].items():
-                tensors.extend(
-                    module[f"{key.replace('_module', '')}_tensors"].list
-                )
-            modified_sub_components["data_trafo"] = build_data_transformer(
-                data_trafo_settings,
-                modified_tensors=DataTensorList(tensors),
-            )
-
         # -----------------------------
         # Create and load Model Manager
         # -----------------------------
@@ -237,6 +225,31 @@ class ManagerConfigurator:
             config_i["model_manager_settings"]["config"][
                 "manager_dir"
             ] = manager_dir
+
+            # update data transformer
+            if "data_handler" in modified_sub_components:
+
+                # update directory of data_trafo to choose the trafo
+                # object of the first model
+                # (they have to be compatible across models)
+                data_trafo_settings = deepcopy(config_i["data_trafo_settings"])
+                data_trafo_settings["model_dir"] = os.path.join(
+                    manager_dir, "models_0000/data_trafo/"
+                )
+
+                tensors = []
+                for key, module in modified_sub_components[
+                    "data_handler"
+                ].items():
+                    tensors.extend(
+                        module.data[
+                            f"{key.replace('_module', '')}_tensors"
+                        ].list
+                    )
+                modified_sub_components["data_trafo"] = build_data_transformer(
+                    data_trafo_settings,
+                    modified_tensors=DataTensorList(tensors),
+                )
 
             # load manager objects and extract models and a data_handler
             model_manger, _, data_handler, data_transformer = build_manager(
