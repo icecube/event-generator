@@ -364,7 +364,7 @@ class DefaultCascadeModel(Source):
                 angular_acceptance_base = dom_acceptance.get_acceptance(
                     x=x_base,
                     dtype=config["float_precision"],
-                )
+                )[..., tf.newaxis]
 
             if config["use_constant_baseline_hole_ice"]:
                 angular_acceptance = angular_acceptance_base
@@ -390,7 +390,7 @@ class DefaultCascadeModel(Source):
                 angular_acceptance = dom_acceptance.get_acceptance(
                     x=x,
                     dtype=config["float_precision"],
-                )
+                )[..., tf.newaxis]
 
             if config["scale_charge_by_relative_angular_acceptance"]:
                 # stabilize with 1e-3 when acceptance approaches zero
@@ -774,17 +774,12 @@ class DefaultCascadeModel(Source):
             # Even if cascade is coming from directly above, the photons
             # will scatter and arrive from vaying angles.
             dom_charges *= (
-                tf.clip_by_value(
-                    tf.expand_dims(angular_acceptance, axis=-1),
-                    0,
-                    float("inf"),
-                )
-                + 1e-2
+                tf.clip_by_value(angular_acceptance, 0, float("inf")) + 1e-2
             )
 
         if config["scale_charge_by_relative_angular_acceptance"]:
             dom_charges *= tf.clip_by_value(
-                tf.expand_dims(relative_angular_acceptance, axis=-1),
+                relative_angular_acceptance,
                 1e-2,
                 100,
             )
