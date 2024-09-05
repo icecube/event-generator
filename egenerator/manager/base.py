@@ -283,7 +283,9 @@ class BaseModelManager(Model):
             The names of the sub components that were modified.
         """
         for name in names:
-            if name not in ["data_handler"]:
+            if name not in ["data_handler"] and not isinstance(
+                self.sub_components[name], Model
+            ):
                 msg = "Can not update {!r}."
                 raise ValueError(msg.format(name))
 

@@ -213,26 +213,32 @@ class Model(tf.Module, BaseComponent):
             The names of the sub components that were modified.
         """
         for name in names:
-            if name not in ["data_trafo"]:
+            if name == "data_trafo":
+                # make sure that the only difference is the exists field
+                # (currently we only need this, so we will be restrictive
+                #  in the future we might need to be more flexible)
+                tensors = self.data_trafo.data["tensors"]
+                tensors_other = self.sub_components[name].data["tensors"]
+
+                # check if the same tensors are present
+                if tensors.names != tensors_other.names:
+                    raise ValueError(
+                        f"{tensors.names} != {tensors_other.names}"
+                    )
+
+                diffs = []
+                for tensor, tensors_other in zip(
+                    tensors.list, tensors_other.list
+                ):
+                    diffs.extend(tensor.compare(tensors_other))
+
+                diffs = set(diffs)
+                if diffs and diffs != {"exists"}:
+                    raise ValueError(f"Unexpected differences: {diffs}")
+            elif isinstance(self.sub_components[name], Model):
+                pass
+            else:
                 raise ValueError(f"Can not update {name}.")
-
-            # make sure that the only difference is the exists field
-            # (currently we only need this, so we will be restrictive
-            #  in the future we might need to be more flexible)
-            tensors = self.data_trafo.data["tensors"]
-            tensors_other = self.sub_components[name].data["tensors"]
-
-            # check if the same tensors are present
-            if tensors.names != tensors_other.names:
-                raise ValueError(f"{tensors.names} != {tensors_other.names}")
-
-            diffs = []
-            for tensor, tensors_other in zip(tensors, tensors_other):
-                diffs.extend(tensor.compare(tensors_other))
-
-            diffs = set(diffs)
-            if diffs != {"exists"}:
-                raise ValueError(f"Unexpected differences: {diffs}")
 
     def _count_number_of_variables(self):
         """Counts number of model variables
