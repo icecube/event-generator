@@ -104,7 +104,7 @@ reconstruction_settings: {
         'method': 'BFGS',
         'options': {
             # 'ftol': !!float 1e-7,
-            'gtol': !!float 1e-3,
+            'gtol': !!float 1e1,
         }
     },
 

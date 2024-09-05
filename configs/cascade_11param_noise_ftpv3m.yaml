@@ -97,11 +97,11 @@ reconstruction_settings: {
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
         'Absorption': 1.,
-        'HoleIceForward_Unified_00': 0.,
-        'HoleIceForward_Unified_01': -0.05,
+        'HoleIceForward_Unified_00': 0.25,
+        'HoleIceForward_Unified_01': -0.06,
         'Scattering': 1.,
     },
-    'seed_float_precision': 'float64',
+    'seed_float_precision': 'float32',
 
     # choose the optimizer interface:
     #   'scipy' or 'tfp' (tensorflow_probability)
@@ -112,7 +112,7 @@ reconstruction_settings: {
         'method': 'BFGS',
         'options': {
             # 'ftol': !!float 1e-7,
-            'gtol': !!float 1e-3,
+            'gtol': !!float 1e1,
         }
     },
 
@@ -292,7 +292,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -305,7 +305,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -331,7 +331,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -342,15 +342,14 @@ loss_module_settings: [
         # The loss module class to use
         'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
         config: {
-
+            # the float precision to use
+            'float_precision': 'float32',
             # define uniform priors
             'uniform_parameters': {
                 'cascade_Absorption': [0.913, 1.087],
-                # 'cascade_AnisotropyScale': [0., 2.0],
-                # 'cascade_DOMEfficiency': [0.9, 1.1],
                 'cascade_Scattering': [0.913, 1.087],
-                'cascade_HoleIceForward_Unified_p0': [-0.5, 0.5],
-                'cascade_HoleIceForward_Unified_p1': [-0.15, 0.05],
+                'cascade_HoleIceForward_Unified_p0': [-0.1, 0.5],
+                'cascade_HoleIceForward_Unified_p1': [-0.1, 0.0],
             },
 
             # define fourier component sigmas
@@ -404,7 +403,7 @@ data_handler_settings: {
         'event_id_key': 'LabelsMCCascade',
         'dom_exclusions_key': BadDomsList,
         'time_exclusions_key': ,
-        'float_precision': 'float64',
+        'float_precision': 'float32',
         'add_charge_quantiles': False,
         'discard_pulses_from_excluded_doms': False,
     },
@@ -425,13 +424,11 @@ data_handler_settings: {
         'snowstorm_key': 'SnowstormParameterDict',
         'snowstorm_parameters': [
             "Absorption",
-            # "AnisotropyScale",
-            # "DOMEfficiency",
             "HoleIceForward_Unified_p0",
             "HoleIceForward_Unified_p1",
             "Scattering",
         ],
-        'float_precision': 'float64',
+        'float_precision': 'float32',
     },
 
     # ---------------------
@@ -490,7 +487,7 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-            config: {'float_precision': float64},
+            config: {'float_precision': float32},
         },
 
         cascade: {
@@ -513,7 +510,7 @@ model_settings: {
                 'prevent_mixture_component_swapping': False,
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
-                'float_precision': float64,
+                'float_precision': float32,
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': False,
@@ -528,10 +525,7 @@ model_settings: {
                 # This is a list of the ordered snowstorm parameters: (name, number)
                 'snowstorm_parameter_names': [
                     ['Absorption', 1],
-                    # ['AnisotropyScale', 1],
-                    # ['DOMEfficiency', 1],
                     ['HoleIceForward_Unified_p{:01d}', 2],
-                    # ['IceWavePlusModes_{:02d}', 24],
                     ['Scattering', 1],
                 ],
 
