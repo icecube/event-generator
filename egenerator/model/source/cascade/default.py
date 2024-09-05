@@ -373,18 +373,18 @@ class DefaultCascadeModel(Source):
                     parameter_list[
                         self.get_index("HoleIceForward_Unified_p0")
                     ],
-                    [1, 86, 60, 1],
+                    [1, 86, 60],
                 )
                 p1 = tf.tile(
                     parameter_list[
                         self.get_index("HoleIceForward_Unified_p1")
                     ],
-                    [1, 86, 60, 1],
+                    [1, 86, 60],
                 )
 
                 # input tenser: cos(eta), p0, p1 in last dimension
                 # Shape: [n_batch, 86, 60, 3]
-                x = tf.concat([dz_normed, p0, p1], axis=-1)
+                x = tf.stack([dz_normed, p0, p1], axis=-1)
 
                 # Shape: [n_batch, 86, 60, 1]
                 angular_acceptance = dom_acceptance.get_acceptance(
