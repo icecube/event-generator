@@ -12,6 +12,45 @@ from egenerator.data.tensor import DataTensorList
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
+def find_dependent_structure(config, name, fill_value="Object"):
+    """Finds a nested structure for dependent objects
+
+    Recursion stops at found object, i.e. additional objects
+    nested deeper within the found object are not considered.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration dictionary
+    name : str
+        The name of the object to find
+    fill_value : str, optional
+        The value to fill the found object with
+        in the nested structure.
+
+    Returns
+    -------
+    dict
+        The nested structure of the dependent objects.
+    """
+    if len(config["dependent_sub_components"]) == 0:
+        return {}
+
+    structure = {}
+    for sub_component in config["dependent_sub_components"]:
+        if sub_component == name:
+            structure[sub_component] = fill_value
+        else:
+            structure_sub = find_dependent_structure(
+                config["sub_component_configurations"][sub_component],
+                name,
+            )
+            if structure_sub:
+                structure[sub_component] = structure_sub
+
+    return structure
+
+
 class ManagerConfigurator:
 
     def __init__(
@@ -237,6 +276,7 @@ class ManagerConfigurator:
                     manager_dir, "models_0000/data_trafo/"
                 )
 
+                # get updated data transformer with modified tensors
                 tensors = []
                 for key, module in modified_sub_components[
                     "data_handler"
@@ -246,10 +286,25 @@ class ManagerConfigurator:
                             f"{key.replace('_module', '')}_tensors"
                         ].list
                     )
-                modified_sub_components["data_trafo"] = build_data_transformer(
+                data_transformer = build_data_transformer(
                     data_trafo_settings,
                     modified_tensors=DataTensorList(tensors),
                 )
+
+                # find and update all modules depending on the
+                # data_transformer
+                structure = find_dependent_structure(
+                    config=config_i,
+                    name="data_trafo",
+                    fill_value=data_transformer,
+                )
+                for key, value in structure.items():
+                    if key in modified_sub_components:
+                        raise NotImplementedError(
+                            f"Implement proper recursive update: {key}"
+                        )
+                    else:
+                        modified_sub_components[key] = value
 
             # load manager objects and extract models and a data_handler
             model_manger, _, data_handler, data_transformer = build_manager(

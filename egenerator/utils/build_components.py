@@ -62,7 +62,7 @@ def build_data_transformer(
     if modified_tensors is not None:
 
         tensors = []
-        for tensor_i in data_trafo.data["tensors"]:
+        for tensor_i in data_trafo.data["tensors"].list:
 
             tensor_to_add = tensor_i
 
@@ -71,7 +71,7 @@ def build_data_transformer(
             if (
                 not tensor_i.trafo
             ) and tensor_i.name in modified_tensors.names:
-                t_mod_i = modified_tensors[
+                t_mod_i = modified_tensors.list[
                     modified_tensors.get_index(tensor_i.name)
                 ]
                 diff = tensor_i.compare(t_mod_i)
