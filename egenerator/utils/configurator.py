@@ -4,6 +4,7 @@ import tensorflow as tf
 from copy import deepcopy
 
 from egenerator import misc
+from egenerator.settings.yaml import yaml_loader
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
 from egenerator.utils.build_components import build_data_transformer
@@ -43,7 +44,8 @@ def find_dependent_structure(config, name, fill_value="Object"):
         else:
             structure_sub = find_dependent_structure(
                 config["sub_component_configurations"][sub_component],
-                name,
+                name=name,
+                fill_value=fill_value,
             )
             if structure_sub:
                 structure[sub_component] = structure_sub
@@ -268,6 +270,11 @@ class ManagerConfigurator:
             # update data transformer
             if "data_handler" in modified_sub_components:
 
+                with open(
+                    os.path.join(manager_dir, "configuration.yaml"), "r"
+                ) as stream:
+                    manager_configuration = yaml_loader.load(stream)
+
                 # update directory of data_trafo to choose the trafo
                 # object of the first model
                 # (they have to be compatible across models)
@@ -294,7 +301,7 @@ class ManagerConfigurator:
                 # find and update all modules depending on the
                 # data_transformer
                 structure = find_dependent_structure(
-                    config=config_i,
+                    config=manager_configuration,
                     name="data_trafo",
                     fill_value=data_transformer,
                 )

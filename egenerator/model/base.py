@@ -186,6 +186,54 @@ class Model(tf.Module, BaseComponent):
         """
         raise NotImplementedError()
 
+    def _update_sub_components(self, names):
+        """Update settings which are based on the modified sub component.
+
+        During loading of a component, sub components may be changed with a
+        new and modified (but compatible) version. This allows the alteration
+        of mutable settings.
+        Some settings or data of a component may depend on mutable settings
+        of a sub component. If these are not saved and retrieved directly from
+        the sub component, they will not be automatically updated.
+        This method is triggered when a sub component with the name 'name'
+        is updated. It allows to update settings and data that depend on the
+        modified sub component.
+
+        Enforcing a derived class to implement this method (even if it is a
+        simple 'pass' in the case of no dependent settings and data)
+        will ensure that the user is aware of the issue.
+
+        A good starting point to obtain an overview of which settings may need
+        to be modified, is to check the _configure method. Any settings and
+        data set there might need to be updated.
+
+        Parameters
+        ----------
+        names : list of str
+            The names of the sub components that were modified.
+        """
+        for name in names:
+            if name not in ["data_trafo"]:
+                raise ValueError(f"Can not update {name}.")
+
+            # make sure that the only difference is the exists field
+            # (currently we only need this, so we will be restrictive
+            #  in the future we might need to be more flexible)
+            tensors = self.data_trafo.data["tensors"]
+            tensors_other = self.sub_components[name].data["tensors"]
+
+            # check if the same tensors are present
+            if tensors.names != tensors_other.names:
+                raise ValueError(f"{tensors.names} != {tensors_other.names}")
+
+            diffs = []
+            for tensor, tensors_other in zip(tensors, tensors_other):
+                diffs.extend(tensor.compare(tensors_other))
+
+            diffs = set(diffs)
+            if diffs != {"exists"}:
+                raise ValueError(f"Unexpected differences: {diffs}")
+
     def _count_number_of_variables(self):
         """Counts number of model variables
 
