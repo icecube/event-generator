@@ -50,8 +50,8 @@ Documentation = "https://icecube.wisc.edu/~mhuennefeld/docs/event_generator/html
 "Bug Tracker" = "https://github.com/icecube/event-generator/issues"
 Discussions = "https://github.com/icecube/event-generator/discussions"
 
-[tool.setuptools]
-packages = ["egenerator"]
+[tool.setuptools.packages.find]
+where = ["egenerator"]
 
 [tool.setuptools.dynamic]
 version = {attr = "egenerator.__version__"}
