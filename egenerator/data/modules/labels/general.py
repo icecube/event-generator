@@ -107,13 +107,23 @@ class GeneralLabelModule(BaseComponent):
         """
 
         # extend trafo log for snowstorm parameters: fill with False
-        if isinstance(trafo_log, bool):
-            trafo_log_ext = [trafo_log] * len(parameter_names)
+        if trafo_log is None:
+            trafo_log_ext = None
         else:
-            trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False] * len(snowstorm_parameters))
+            if isinstance(trafo_log, bool):
+                trafo_log_ext = [trafo_log] * len(parameter_names)
+            else:
+                trafo_log_ext = list(trafo_log)
+            trafo_log_ext.extend([False] * len(snowstorm_parameters))
 
-        data = {"parameter_names": parameter_names}
+        parameter_dict = {}
+        for i, parameter_name in enumerate(parameter_names):
+            parameter_dict[parameter_name] = i
+
+        data = {
+            "parameter_names": parameter_names,
+            "parameter_dict": parameter_dict,
+        }
         data["label_tensors"] = DataTensorList(
             [
                 DataTensor(

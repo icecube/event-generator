@@ -2,7 +2,9 @@ import unittest
 import numpy as np
 import os
 
-from egenerator.data.modules.labels.cascades import CascadeGeneratorLabelModule
+from egenerator.data.modules.labels.snowstorm_cascades import (
+    SnowstormCascadeGeneratorLabelModule,
+)
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
@@ -48,7 +50,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
             "float_precision": "float64",
             "label_key": "labels",
         }
-        module = CascadeGeneratorLabelModule()
+        module = SnowstormCascadeGeneratorLabelModule()
         module.configure(**config)
         settings = module.configuration.settings
         self.assertEqual(settings["trafo_log"], False)
@@ -88,7 +90,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
                 )
             ]
         )
-        module = CascadeGeneratorLabelModule()
+        module = SnowstormCascadeGeneratorLabelModule()
 
         # check if error is correctly raised when wrong data type is passed
         with self.assertRaises(ValueError) as context:
@@ -109,7 +111,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
                 "float_precision": "float64",
                 "label_key": "labels",
             }
-            module = CascadeGeneratorLabelModule()
+            module = SnowstormCascadeGeneratorLabelModule()
             module.configure(**config)
 
             tensors_true = DataTensorList(
@@ -124,6 +126,16 @@ class TestCascadeLabelsModule(unittest.TestCase):
                     )
                 ]
             )
+            print(module.data["label_tensors"])
+            print(tensors_true)
+            t = module.data["label_tensors"].list[0]
+            print(
+                module.data["label_tensors"]
+                .list[0]
+                .compare(tensors_true.list[0])
+            )
+            print(t.trafo_log)
+            print(tensors_true.list[0].trafo_log)
             self.assertTrue(module.data["label_tensors"] == tensors_true)
 
             # make sure the internal check also works
@@ -133,12 +145,12 @@ class TestCascadeLabelsModule(unittest.TestCase):
                 "float_precision": "float64",
                 "label_key": "labels",
             }
-            module = CascadeGeneratorLabelModule()
+            module = SnowstormCascadeGeneratorLabelModule()
             module.configure(**config)
 
     def test_get_data_from_hdf_check_configured(self):
         """Check if error is raised when not configured"""
-        module = CascadeGeneratorLabelModule()
+        module = SnowstormCascadeGeneratorLabelModule()
 
         with self.assertRaises(ValueError) as context:
             num_events, data = module.get_data_from_hdf("wrong_file_path")
@@ -152,7 +164,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
             "float_precision": "float64",
             "label_key": "labels",
         }
-        module = CascadeGeneratorLabelModule()
+        module = SnowstormCascadeGeneratorLabelModule()
         module.configure(**config)
 
         num_events, data = module.get_data_from_hdf(self.file_path)
@@ -168,7 +180,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
             "float_precision": "float64",
             "label_key": "labels",
         }
-        module = CascadeGeneratorLabelModule()
+        module = SnowstormCascadeGeneratorLabelModule()
         module.configure(**config)
 
         with self.assertRaises(IOError) as context:
@@ -182,7 +194,7 @@ class TestCascadeLabelsModule(unittest.TestCase):
             "trafo_log": False,
             "float_precision": "float64",
         }
-        module = CascadeGeneratorLabelModule()
+        module = SnowstormCascadeGeneratorLabelModule()
         module.configure(**config)
 
         num_events, data = module.get_data_from_hdf(self.file_path)

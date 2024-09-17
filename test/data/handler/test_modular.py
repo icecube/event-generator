@@ -6,7 +6,9 @@ from copy import deepcopy
 
 from egenerator.data.handler.modular import ModuleDataHandler
 from egenerator.data.modules.data.pulse_data import PulseDataModule
-from egenerator.data.modules.labels.cascades import CascadeGeneratorLabelModule
+from egenerator.data.modules.labels.snowstorm_cascades import (
+    SnowstormCascadeGeneratorLabelModule,
+)
 from egenerator.data.modules.weights.dummy import DummyWeightModule
 from egenerator.data.modules.misc.dummy import DummyMiscModule
 from egenerator.data.modules.filters.dummy import DummyFilterModule
@@ -32,7 +34,7 @@ class TestModuleDataHandler(unittest.TestCase):
                     "discard_pulses_from_excluded_doms": False,
                 },
                 # settings for the label module
-                "label_module": "cascades.CascadeGeneratorLabelModule",
+                "label_module": "snowstorm_cascades.SnowstormCascadeGeneratorLabelModule",
                 "label_settings": {
                     # logarithm on labels
                     # (x, y, z, zenith, azimuth, energy, time)?
@@ -92,7 +94,8 @@ class TestModuleDataHandler(unittest.TestCase):
         )
         self.assertTrue(
             isinstance(
-                sub_components["label_module"], CascadeGeneratorLabelModule
+                sub_components["label_module"],
+                SnowstormCascadeGeneratorLabelModule,
             )
         )
         self.assertTrue(
@@ -236,7 +239,7 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
                 "discard_pulses_from_excluded_doms": False,
             },
             # settings for the label module
-            "label_module": "cascades.CascadeGeneratorLabelModule",
+            "label_module": "snowstorm_cascades.SnowstormCascadeGeneratorLabelModule",
             "label_settings": {
                 # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
                 "trafo_log": [False, False, False, False, False, True, False],
