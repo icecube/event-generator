@@ -1,15 +1,13 @@
 from __future__ import division, print_function
 
 import logging
-import numpy as np
-import pandas as pd
 
 from egenerator import misc
-from egenerator.manager.component import BaseComponent, Configuration
-from egenerator.data.tensor import DataTensorList, DataTensor
+from egenerator.manager.component import Configuration
+from egenerator.data.modules.labels.general import GeneralLabelModule
 
 
-class SnowstormTrackGeneratorLabelModule(BaseComponent):
+class SnowstormTrackGeneratorLabelModule(GeneralLabelModule):
     """This is a label module that loads the snowstorm track labels."""
 
     def __init__(self, logger=None):
@@ -22,7 +20,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(SnowstormTrackGeneratorLabelModule, self).__init__(logger=logger)
+        super(GeneralLabelModule, self).__init__(logger=logger)
 
     def _configure(
         self,
@@ -117,14 +115,6 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                 "Num cascades {} must be positive!".format(num_cascades)
             )
 
-        # compute number of parameters
-        if num_cascades == 0:
-            num_params = 10
-        elif num_cascades == 1:
-            num_params = 11
-        else:
-            num_params = 11 + (num_cascades - 1) * 2
-
         # create list of parameter names which is needed for data loading
         parameter_names = [
             "zenith",
@@ -146,40 +136,18 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                     parameter_names.append("cascade_{:04d}_energy".format(i))
                     parameter_names.append("cascade_{:04d}_distance".format(i))
 
-        parameter_dict = {}
-        for i, parameter_name in enumerate(parameter_names):
-            parameter_dict[parameter_name] = i
-
-        # extend trafo log for snowstorm parameters: fill with False
-        if isinstance(trafo_log, bool):
-            trafo_log_ext = [trafo_log] * num_params
-        else:
-            trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False] * len(snowstorm_parameters))
-
-        data = {
-            "parameter_dict": parameter_dict,
-            "parameter_names": parameter_names,
-        }
-        data["label_tensors"] = DataTensorList(
-            [
-                DataTensor(
-                    name="x_parameters",
-                    shape=[None, num_params + len(snowstorm_parameters)],
-                    tensor_type="label",
-                    dtype=float_precision,
-                    trafo=True,
-                    trafo_log=trafo_log_ext,
-                )
-            ]
+        _, data, _ = super(
+            SnowstormTrackGeneratorLabelModule, self
+        )._configure(
+            config_data=config_data,
+            trafo_log=trafo_log,
+            float_precision=float_precision,
+            parameter_names=parameter_names,
+            label_key=label_key,
+            snowstorm_key=snowstorm_key,
+            snowstorm_parameters=snowstorm_parameters,
         )
 
-        if isinstance(config_data, DataTensorList):
-            if config_data != data["label_tensors"]:
-                msg = "Tensors are wrong: {!r} != {!r}"
-                raise ValueError(
-                    msg.format(config_data, data["label_tensors"])
-                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(
@@ -193,214 +161,3 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             ),
         )
         return configuration, data, {}
-
-    def get_data_from_hdf(self, file, *args, **kwargs):
-        """Get label data from hdf file.
-
-        Parameters
-        ----------
-        file : str
-            The path to the hdf file.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is loaded.
-
-        Raises
-        ------
-        ValueError
-            Description
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        # open file
-        f = pd.HDFStore(file, "r")
-
-        track_parameters = []
-        try:
-            _labels = f[self.configuration.config["label_key"]]
-            for label in self.data["parameter_names"]:
-                track_parameters.append(_labels[label])
-
-            snowstorm_key = self.configuration.config["snowstorm_key"]
-            snowstorm_params = self.configuration.config[
-                "snowstorm_parameters"
-            ]
-            num_events = len(track_parameters[0])
-
-            if len(snowstorm_params) > 0:
-                if snowstorm_key is not None:
-                    _snowstorm_params = f[snowstorm_key]
-                    for key in snowstorm_params:
-                        track_parameters.append(_snowstorm_params[key])
-                        assert len(_snowstorm_params[key]) == num_events
-                else:
-                    # No Snowstorm key is provided: add dummy values
-                    for key in snowstorm_params:
-                        track_parameters.append(np.ones(num_events))
-
-        except Exception as e:
-            self._logger.warning(e)
-            self._logger.warning("Skipping file: {}".format(file))
-            return None, None
-        finally:
-            f.close()
-
-        # format track parameters
-        dtype = getattr(np, self.configuration.config["float_precision"])
-        track_parameters = np.array(track_parameters, dtype=dtype).T
-        num_events = len(track_parameters)
-
-        return num_events, (track_parameters,)
-
-    def get_data_from_frame(self, frame, *args, **kwargs):
-        """Get label data from frame.
-
-        Parameters
-        ----------
-        frame : I3Frame
-            The I3Frame from which to get the data.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is loaded.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        track_parameters = []
-        try:
-            _labels = frame[self.configuration.config["label_key"]]
-            for label in self.data["parameter_names"]:
-                track_parameters.append(np.atleast_1d(_labels[label]))
-
-            snowstorm_key = self.configuration.config["snowstorm_key"]
-            snowstorm_params = self.configuration.config[
-                "snowstorm_parameters"
-            ]
-            num_events = len(track_parameters[0])
-
-            if len(snowstorm_params) > 0:
-                if snowstorm_key is not None:
-                    _snowstorm_params = frame[snowstorm_key]
-                    for key in snowstorm_params:
-                        snowstorm_param = np.atleast_1d(_snowstorm_params[key])
-                        assert len(snowstorm_param) == num_events
-                        track_parameters.append(snowstorm_param)
-                else:
-                    # No Snowstorm key is provided: add dummy values
-                    for key in snowstorm_params:
-                        track_parameters.append(np.ones(num_events))
-
-        except Exception as e:
-            self._logger.warning(e)
-            self._logger.warning("Skipping frame: {}".format(frame))
-            return None, None
-
-        # format track parameters
-        dtype = getattr(np, self.configuration.config["float_precision"])
-        track_parameters = np.array(track_parameters, dtype=dtype).T
-        num_events = len(track_parameters)
-
-        return num_events, (track_parameters,)
-
-    def create_data_from_frame(self, frame, *args, **kwargs):
-        """Create label data from frame.
-
-        Parameters
-        ----------
-        frame : I3Frame
-            The I3Frame from which to get the data.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is created.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        return self.get_data_from_frame(frame, *args, **kwargs)
-
-    def write_data_to_frame(self, data, frame, *args, **kwargs):
-        """Write label data to I3Frame.
-
-        Parameters
-        ----------
-        data : tuple of array-like tensors
-            The input data (array-like) as specified in the
-            DataTensorList (self.data['data_tensors']).
-        frame : I3Frame
-            The I3Frame to which the data is to be written to.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        raise not NotImplementedError("This module is read-only!")
-
-    def _get_cascade_extension(self, ref_energy, eps=1e-6):
-        """
-        PPC does its own cascade extension, leaving the showers at the
-        production vertex. Reapply the parametrization to find the
-        position of the shower maximum, which is also the best approximate
-        position for a point cascade.
-
-        Parameters
-        ----------
-        ref_energy : array_like
-            Energy of cascade in GeV.
-        eps : float, optional
-            Small constant float.
-
-        Returns
-        -------
-        array_like
-            Distance of shower maximum to cascade vertex in meter.
-        """
-
-        # Radiation length in meters, assuming an ice density of 0.9216 g/cm^3
-        l_rad = 0.358 / 0.9216  # in meter
-
-        """
-        Parameters taken from I3SimConstants (for particle e-):
-        https://code.icecube.wisc.edu/projects/icecube/browser/IceCube/
-        meta-projects/combo/trunk/sim-services/private/
-        sim-services/I3SimConstants.cxx
-        """
-        a = 2.01849 + 0.63176 * np.log(ref_energy + eps)
-        b = l_rad / 0.63207
-
-        # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
-        length_to_maximum = np.clip(((a - 1.0) / b) * l_rad, 0.0, float("inf"))
-        return length_to_maximum

@@ -9,12 +9,8 @@ from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
-class DummyMuonFixedCascadesLabelModule(BaseComponent):
-    """This is a dummy label module that loads muon labels
-
-    Note: these are dummy labels and therefore *not* correct.
-          Do *not* use for training!
-    """
+class GeneralLabelModule(BaseComponent):
+    """This is a label module that loads general snowstorm labels."""
 
     def __init__(self, logger=None):
         """Initialize cascade module
@@ -26,15 +22,17 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(DummyMuonFixedCascadesLabelModule, self).__init__(logger=logger)
+        super(GeneralLabelModule, self).__init__(logger=logger)
 
     def _configure(
         self,
         config_data,
         trafo_log,
         float_precision,
-        num_cascades,
+        parameter_names,
         label_key="LabelsDeepLearning",
+        snowstorm_key="SnowstormParameterDict",
+        snowstorm_parameters=[],
     ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
@@ -49,14 +47,23 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
             If a single bool is given, this applies to all labels. Otherwise
             a list of bools corresponds to the labels in the order:
                 x, y, z, zenith, azimuth, energy, time
+            Snowstorm parameters must not be defined here. No logarithm will be
+            applied to the snowstorm parameters.
         float_precision : str
             The float precision as a str.
-        num_cascades : int
-            Number of cascade energy losses along muon track.
-            These are filled with dummy values (min 100 GeV) and are *not*
-            correct.
+        parameter_names : list[str]
+            A list of labels to load from the label_key.
+            These labels are added before the snowstorm keys if provided.
         label_key : str, optional
             The name of the key under which the labels are saved.
+        snowstorm_key : str, optional
+            The name of the key under which the snowstorm parameters are saved.
+            If `snowstorm_key` is None, no snowstorm parameters will be loaded.
+            Instead a default value of 1. will be assigned to each of the
+            `snowstorm_parameters` defined.
+        snowstorm_parameters : list[str], optional
+            The names of the snowstorm parameters. These must exist in the
+            SnowStormParameter dict specified in `snowstorm_key`.
 
         Returns
         -------
@@ -99,16 +106,26 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
             Description
         """
 
-        data = {}
+        # extend trafo log for snowstorm parameters: fill with False
+        if isinstance(trafo_log, bool):
+            trafo_log_ext = [trafo_log] * len(parameter_names)
+        else:
+            trafo_log_ext = list(trafo_log)
+        trafo_log_ext.extend([False] * len(snowstorm_parameters))
+
+        data = {"parameter_names": parameter_names}
         data["label_tensors"] = DataTensorList(
             [
                 DataTensor(
                     name="x_parameters",
-                    shape=[None, 6 + num_cascades],
+                    shape=[
+                        None,
+                        len(parameter_names) + len(snowstorm_parameters),
+                    ],
                     tensor_type="label",
                     dtype=float_precision,
                     trafo=True,
-                    trafo_log=trafo_log,
+                    trafo_log=trafo_log_ext,
                 )
             ]
         )
@@ -125,8 +142,9 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
                 config_data=config_data,
                 trafo_log=trafo_log,
                 float_precision=float_precision,
-                num_cascades=num_cascades,
                 label_key=label_key,
+                snowstorm_key=snowstorm_key,
+                snowstorm_parameters=snowstorm_parameters,
             ),
         )
         return configuration, data, {}
@@ -151,6 +169,11 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
             The input data (array-like) as specified in the
             DataTensorList (self.tensors).
             Returns None if no label data is loaded.
+
+        Raises
+        ------
+        ValueError
+            Description
         """
         if not self.is_configured:
             raise ValueError("Module not configured yet!")
@@ -158,28 +181,28 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         # open file
         f = pd.HDFStore(file, "r")
 
-        cascade_parameters = []
+        parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
-            for label in [
-                "cascade_x",
-                "cascade_y",
-                "cascade_z",
-                "cascade_zenith",
-                "cascade_azimuth",
-                "cascade_t",
-            ]:
-                cascade_parameters.append(_labels[label])
+            for label in self.data["parameter_names"]:
+                parameters.append(_labels[label])
 
-            # add dummy energy loss values
-            cascade_energy = _labels["cascade_energy"]
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            snowstorm_params = self.configuration.config[
+                "snowstorm_parameters"
+            ]
+            num_events = len(parameters[0])
 
-            num_cascades = self.configuration.config["num_cascades"]
-            energy_per_cascade = np.clip(
-                cascade_energy / num_cascades, 100, float("inf")
-            )
-
-            cascade_parameters.extend([energy_per_cascade] * num_cascades)
+            if len(snowstorm_params) > 0:
+                if snowstorm_key is not None:
+                    _snowstorm_params = f[snowstorm_key]
+                    for key in snowstorm_params:
+                        parameters.append(_snowstorm_params[key])
+                        assert len(_snowstorm_params[key]) == num_events
+                else:
+                    # No Snowstorm key is provided: add dummy values
+                    for key in snowstorm_params:
+                        parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
@@ -190,10 +213,10 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
 
         # format cascade parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
-        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
-        num_events = len(cascade_parameters)
+        parameters = np.array(parameters, dtype=dtype).T
+        num_events = len(parameters)
 
-        return num_events, (cascade_parameters,)
+        return num_events, (parameters,)
 
     def get_data_from_frame(self, frame, *args, **kwargs):
         """Get label data from frame.
@@ -219,28 +242,30 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
         if not self.is_configured:
             raise ValueError("Module not configured yet!")
 
-        cascade_parameters = []
+        parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
-            for label in [
-                "cascade_x",
-                "cascade_y",
-                "cascade_z",
-                "cascade_zenith",
-                "cascade_azimuth",
-                "cascade_t",
-            ]:
-                cascade_parameters.append(np.atleast_1d(_labels[label]))
+            for label in self.data["parameter_names"]:
+                parameters.append(np.atleast_1d(_labels[label]))
 
-            # add dummy energy loss values
-            cascade_energy = np.atleast_1d(_labels["cascade_energy"])
+            snowstorm_key = self.configuration.config["snowstorm_key"]
+            snowstorm_params = self.configuration.config[
+                "snowstorm_parameters"
+            ]
+            num_events = len(parameters[0])
 
-            num_cascades = self.configuration.config["num_cascades"]
-            energy_per_cascade = np.clip(
-                cascade_energy / num_cascades, 100, float("inf")
-            )
+            if len(snowstorm_params) > 0:
+                if snowstorm_key is not None:
+                    _snowstorm_params = frame[snowstorm_key]
+                    for key in snowstorm_params:
+                        snowstorm_param = np.atleast_1d(_snowstorm_params[key])
+                        assert len(snowstorm_param) == num_events
+                        parameters.append(snowstorm_param)
 
-            cascade_parameters.extend([energy_per_cascade] * num_cascades)
+                else:
+                    # No Snowstorm key is provided: add dummy values
+                    for key in snowstorm_params:
+                        parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
@@ -249,10 +274,10 @@ class DummyMuonFixedCascadesLabelModule(BaseComponent):
 
         # format cascade parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
-        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
-        num_events = len(cascade_parameters)
+        parameters = np.array(parameters, dtype=dtype).T
+        num_events = len(parameters)
 
-        return num_events, (cascade_parameters,)
+        return num_events, (parameters,)
 
     def create_data_from_frame(self, frame, *args, **kwargs):
         """Create label data from frame.
