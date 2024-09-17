@@ -7,10 +7,9 @@ from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
 from egenerator.utils import detector, basis_functions, angles, dom_acceptance
-from egenerator.utils.cascades import shift_to_maximum
 
 
-class DefaultCascadeModel(Source):
+class EnteringSphereInfTrack(Source):
 
     def __init__(self, logger=None):
         """Instantiate Source class
@@ -21,7 +20,7 @@ class DefaultCascadeModel(Source):
             The logger to use.
         """
         self._logger = logger or logging.getLogger(__name__)
-        super(DefaultCascadeModel, self).__init__(logger=self._logger)
+        super(EnteringSphereInfTrack, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -60,19 +59,13 @@ class DefaultCascadeModel(Source):
         # Define input parameters of cascade hypothesis
         # ---------------------------------------------
         parameter_names = [
-            "x",
-            "y",
-            "z",
+            "entry_zenith",
+            "entry_azimuth",
+            "entry_t",
+            "entry_energy",
             "zenith",
             "azimuth",
-            "energy",
-            "time",
         ]
-        if "additional_label_names" in config:
-            parameter_names += config["additional_label_names"]
-            num_add_labels = len(config["additional_label_names"])
-        else:
-            num_add_labels = 0
 
         num_snowstorm_params = 0
         if "snowstorm_parameter_names" in config:
@@ -81,13 +74,10 @@ class DefaultCascadeModel(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_inputs = 11 + num_add_labels + num_snowstorm_params
+        num_inputs = 13 + num_snowstorm_params
 
         if config["add_anisotropy_angle"]:
             num_inputs += 2
-
-        if config["add_opening_angle"]:
-            num_inputs += 1
 
         if config["add_dom_angular_acceptance"]:
             num_inputs += 1
@@ -186,7 +176,7 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(True)
 
-        print("Applying Default Cascade Model...")
+        print("Applying EnteringSphereInfTrack Model...")
         tensor_dict = {}
 
         config = self.configuration.config["config"]
@@ -206,33 +196,20 @@ class DefaultCascadeModel(Source):
             time_exclusions_exist = False
         print("\t Applying time exclusions:", time_exclusions_exist)
 
-        # parameters: x, y, z, zenith, azimuth, energy, time
+        # parameters: e_zenith, e_azimuth, time, energy, zenith, azimuth
         num_features = parameters.get_shape().as_list()[-1]
-        params_reshaped = tf.reshape(parameters, [-1, 1, 1, num_features])
+        params_reshaped = tf.reshape(parameters, [-1, 1, 1, 1, num_features])
         parameter_list = tf.unstack(params_reshaped, axis=-1)
-
-        # shift cascade vertex to shower maximum
-        if config["shift_cascade_vertex"]:
-            x, y, z, t = shift_to_maximum(
-                x=parameter_list[0],
-                y=parameter_list[1],
-                z=parameter_list[2],
-                zenith=parameter_list[3],
-                azimuth=parameter_list[4],
-                ref_energy=parameter_list[5],
-                t=parameter_list[6],
-                reverse=False,
-            )
-            parameter_list[0] = x
-            parameter_list[1] = y
-            parameter_list[2] = z
-            parameter_list[6] = t
 
         # get parameters tensor dtype
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict["x_dom_charge"]
+
+        # DOM coordinates
+        # Shape: [1, 86, 60, 1, 3]
+        dom_coords = np.reshape(detector.x_coords, [1, 86, 60, 1, 3])
 
         pulse_times = pulses[:, 1]
         pulse_batch_id = pulses_ids[:, 0]
@@ -245,97 +222,186 @@ class DefaultCascadeModel(Source):
         # -----------------------------------
         # Calculate input values for DOMs
         # -----------------------------------
-        # cascade_azimuth, cascade_zenith, cascade_energy
-        # cascade_x, cascade_y, cascade_z
-        # dx, dy, dz, distance
-        # alpha (azimuthal angle to DOM)
-        # beta (zenith angle to DOM)
+        # Globals:
+        #   - entry_energy
+        #   - e_dir_x, e_dir_y, e_dir_z [normalized]
+        #   - dir_x, dir_y, dir_z [normalized]
+        #
+        # Locals:
+        #   - dx, dy, dz, dist, length_along_track [cherenkov]
+        #   - opening angle cherenkov cone and PMT direction
+        #
+        # Note: we will try to keep the number of input features
+        # to a minimum for now. One could test if adding more
+        # (redundant) features could help the model to learn
 
-        # calculate displacement vector
-        # Shape: [n_batch, 86, 60] = [86, 60] - [n_batch, 1, 1]
-        dx = detector.x_coords[..., 0] - parameter_list[0]
-        dy = detector.x_coords[..., 1] - parameter_list[1]
-        dz = detector.x_coords[..., 2] - parameter_list[2]
-        # Shape: [n_batch, 86, 60, 1]
-        dx = tf.expand_dims(dx, axis=-1)
-        dy = tf.expand_dims(dy, axis=-1)
-        dz = tf.expand_dims(dz, axis=-1)
+        # extract parameters
+        # shape: [n_batch, 1, 1, 1]
+        e_zenith = parameter_list[0]
+        e_azimuth = parameter_list[1]
+        e_time = parameter_list[2]
+        e_energy = tf.clip_by_value(parameter_list[3], 0.0, float("inf"))
+        zenith = parameter_list[4]
+        azimuth = parameter_list[5]
 
-        # stabilize with 1e-1 (10cm) when distance approaches DOM radius
+        # calculate normalized vector to entry point
+        # shape: [n_batch, 1, 1, 1]
+        e_dir_x = -tf.sin(e_zenith) * tf.cos(e_azimuth)
+        e_dir_y = -tf.sin(e_zenith) * tf.sin(e_azimuth)
+        e_dir_z = -tf.cos(e_zenith)
+
+        # calculate entry position on a sphere of the given radius
+        # shape: [n_batch, 1, 1, 1]
+        e_pos_x = e_dir_x * config["sphere_radius"]
+        e_pos_y = e_dir_y * config["sphere_radius"]
+        e_pos_z = e_dir_z * config["sphere_radius"]
+
+        # calculate direction vector of track
+        # shape: [n_batch, 1, 1, 1]
+        dir_x = -tf.sin(zenith) * tf.cos(azimuth)
+        dir_y = -tf.sin(zenith) * tf.sin(azimuth)
+        dir_z = -tf.cos(zenith)
+
+        # vector of entry point to DOM
+        # Shape: [n_batch, 86, 60, 1] = [1, 86, 60, 1] - [n_batch, 1, 1, 1]
+        h_x = dom_coords[..., 0] - e_pos_x
+        h_y = dom_coords[..., 1] - e_pos_y
+        h_z = dom_coords[..., 2] - e_pos_z
+
+        # distance along track between entry point and
+        # closest approach point of infinite track
         # Shape: [n_batch, 86, 60, 1]
-        distance = tf.sqrt(dx**2 + dy**2 + dz**2) + 1e-1
-        distance_xy = tf.sqrt(dx**2 + dy**2) + 1e-1
+        length_closest_approach = dir_x * h_x + dir_y * h_y + dir_z * h_z
+
+        # calculate closest approach points of track to each DOM
+        # Shape: [n_batch, 86, 60, 1]
+        closest_x = e_pos_x + length_closest_approach * dir_x
+        closest_y = e_pos_y + length_closest_approach * dir_y
+        closest_z = e_pos_z + length_closest_approach * dir_z
+
+        # calculate displacement vectors to closest approach
+        # Shape: [n_batch, 86, 60, 1] = [1, 86, 60, 1] - [n_batch, 1, 1, 1]
+        dx_inf = dom_coords[..., 0] - closest_x
+        dy_inf = dom_coords[..., 1] - closest_y
+        dz_inf = dom_coords[..., 2] - closest_z
+
+        # distance from DOM to closest approach point
+        # shape: [n_batch, 86, 60, 1]
+        distance_closest = tf.sqrt(dx_inf**2 + dy_inf**2 + dz_inf**2) + 1e-1
+
+        # shift to cherenkov emission point
+        # calculate distance on track of cherenkov position
+        # shape: [n_batch, 86, 60, 1]
+        cherenkov_angle = np.arccos(1.0 / 1.3195)
+        length_cherenkov_pos = (
+            length_closest_approach
+            - distance_closest / np.tan(cherenkov_angle)
+        )
+
+        # calculate cheerenkov emission point
+        # shape: [n_batch, 86, 60, 1]
+        cherenkov_x = e_pos_x + length_cherenkov_pos * dir_x
+        cherenkov_y = e_pos_y + length_cherenkov_pos * dir_y
+        cherenkov_z = e_pos_z + length_cherenkov_pos * dir_z
+
+        # calculate displacement vectors to cherenkov emission
+        # Shape: [n_batch, 86, 60, 1] = [1, 86, 60, 1] - [n_batch, 1, 1, 1]
+        dx_cherenkov = dom_coords[..., 0] - cherenkov_x
+        dy_cherenkov = dom_coords[..., 1] - cherenkov_y
+        dz_cherenkov = dom_coords[..., 2] - cherenkov_z
+
+        # distance from DOM to cherenkov emission point
+        # shape: [n_batch, 86, 60, 1]
+        distance_cherenkov = (
+            tf.sqrt(dx_cherenkov**2 + dy_cherenkov**2 + dz_cherenkov**2) + 1e-1
+        )
+        distance_cherenkov_xy = (
+            tf.sqrt(dx_cherenkov**2 + dy_cherenkov**2) + 1e-1
+        )
+
+        # calculate observation angle
+        # Shape: [n_batch, 86, 60, 1]
+        dx_cherenkov_normed = dx_cherenkov / distance_cherenkov
+        dy_cherenkov_normed = dy_cherenkov / distance_cherenkov
+        dz_cherenkov_normed = dz_cherenkov / distance_cherenkov
+
+        # angle in xy-plane (relevant for anisotropy)
+        # shape: [n_batch, 86, 60, 1]
+        dx_cherenkov_normed_xy = dx_cherenkov / distance_cherenkov_xy
+        dy_cherenkov_normed_xy = dy_cherenkov / distance_cherenkov_xy
+
+        # calculate opening angle of cherenkov light and PMT direction
+        # shape: [n_batch, 86, 60, 1]
+        opening_angle = angles.get_angle(
+            tf.stack([0, 0, 1], axis=-1),
+            tf.concat(
+                [
+                    dx_cherenkov_normed,
+                    dy_cherenkov_normed,
+                    dz_cherenkov_normed,
+                ],
+                axis=-1,
+            ),
+        )
 
         # compute t_geometry: time for photon to travel to DOM
         # Shape: [n_batch, 86, 60, 1]
         c_ice = 0.22103046286329384  # m/ns
-        dt_geometry = distance / c_ice
-
-        # calculate observation angle
-        # Shape: [n_batch, 86, 60, 1]
-        dx_normed = dx / distance
-        dy_normed = dy / distance
-        dz_normed = dz / distance
-
-        # angle in xy-plane (relevant for anisotropy)
-        # Shape: [n_batch, 86, 60, 1]
-        dx_normed_xy = dx / distance_xy
-        dy_normed_xy = dy / distance_xy
-
-        # calculate direction vector of cascade
-        # Shape: [n_batch, 86, 60]
-        cascade_zenith = parameter_list[3]
-        cascade_azimuth = parameter_list[4]
-        cascade_dir_x = -tf.sin(cascade_zenith) * tf.cos(cascade_azimuth)
-        cascade_dir_y = -tf.sin(cascade_zenith) * tf.sin(cascade_azimuth)
-        cascade_dir_z = -tf.cos(cascade_zenith)
-
-        # calculate opening angle of displacement vector and cascade direction
-        opening_angle = angles.get_angle(
-            tf.stack([cascade_dir_x, cascade_dir_y, cascade_dir_z], axis=-1),
-            tf.concat([dx_normed, dy_normed, dz_normed], axis=-1),
-        )
-        opening_angle = tf.expand_dims(opening_angle, axis=-1)
+        c = 0.299792458  # m/ns
+        dt_geometry = distance_cherenkov / c_ice + length_cherenkov_pos / c
 
         # transform dx, dy, dz, distance, zenith, azimuth to correct scale
-        params_mean = self.data_trafo.data[parameter_tensor_name + "_mean"]
-        params_std = self.data_trafo.data[parameter_tensor_name + "_std"]
         norm_const = self.data_trafo.data["norm_constant"]
 
-        distance /= np.linalg.norm(params_std[0:3]) + norm_const
-        opening_angle_traf = (opening_angle - params_mean[3]) / (
-            norm_const + params_std[3]
+        # transform distances and lengths in detector
+        distance_cherenkov_tr = distance_cherenkov / (
+            config["sphere_radius"] + norm_const
+        )
+        length_cherenkov_pos_tr = length_cherenkov_pos / (
+            config["sphere_radius"] + norm_const
         )
 
+        # transform angle
+        opening_angle_traf = opening_angle / (norm_const + np.pi)
+
+        # ----------------------
+        # Collect input features
+        # ----------------------
+        # Shape: [n_batch, 1, 1, 1]
         x_parameters_expanded = tf.unstack(
-            tf.reshape(parameters_trafo, [-1, 1, 1, num_features]), axis=-1
+            tf.reshape(parameters_trafo, [-1, 1, 1, 1, num_features]), axis=-1
         )
 
-        modified_parameters = tf.stack(
-            x_parameters_expanded[:3]
-            + [cascade_dir_x, cascade_dir_y, cascade_dir_z]
-            + [x_parameters_expanded[5]]
-            + x_parameters_expanded[7:],
+        # parameters: e_zenith, e_azimuth, time, energy, zenith, azimuth [+ snowstorm]
+        # Shape: [n_batch, 1, 1, num_inputs]
+        modified_parameters = tf.concat(
+            [e_dir_x, e_dir_y, e_dir_z]
+            + [x_parameters_expanded[3]]
+            + [dir_x, dir_y, dir_z]
+            + x_parameters_expanded[6:],
             axis=-1,
         )
 
         # put everything together
+        # Shape: [n_batch, 86, 60, num_inputs]
         params_expanded = tf.tile(modified_parameters, [1, 86, 60, 1])
 
+        # Now add local features
+        #   - dx, dy, dz, dist, length_along_track [cherenkov]
+        #   - opening angle cherenkov cone and PMT direction
         input_list = [
             params_expanded,
-            dx_normed,
-            dy_normed,
-            dz_normed,
-            distance,
+            dx_cherenkov_normed,
+            dy_cherenkov_normed,
+            dz_cherenkov_normed,
+            distance_cherenkov_tr,
+            length_cherenkov_pos_tr,
+            opening_angle_traf,
         ]
 
         if config["add_anisotropy_angle"]:
-            input_list.append(dx_normed_xy)
-            input_list.append(dy_normed_xy)
-
-        if config["add_opening_angle"]:
-            input_list.append(opening_angle_traf)
+            input_list.append(dx_cherenkov_normed_xy)
+            input_list.append(dy_cherenkov_normed_xy)
 
         if (
             config["add_dom_angular_acceptance"]
@@ -349,21 +415,25 @@ class DefaultCascadeModel(Source):
                 # Hole-ice Parameters
                 # shape: [n_batch, 1, 1, 1]
                 p0_base = (
-                    tf.ones_like(dz_normed) * config["baseline_hole_ice_p0"]
+                    tf.ones_like(dz_cherenkov_normed)
+                    * config["baseline_hole_ice_p0"]
                 )
                 p1_base = (
-                    tf.ones_like(dz_normed) * config["baseline_hole_ice_p1"]
+                    tf.ones_like(dz_cherenkov_normed)
+                    * config["baseline_hole_ice_p1"]
                 )
 
                 # input tenser: cos(eta), p0, p1 in last dimension
                 # Shape: [n_batch, 86, 60, 3]
-                x_base = tf.concat([dz_normed, p0_base, p1_base], axis=-1)
+                x_base = tf.concat(
+                    [dz_cherenkov_normed, p0_base, p1_base], axis=-1
+                )
 
                 # Shape: [n_batch, 86, 60, 1]
                 angular_acceptance_base = dom_acceptance.get_acceptance(
                     x=x_base,
                     dtype=config["float_precision"],
-                )[..., tf.newaxis]
+                )
 
             if config["use_constant_baseline_hole_ice"]:
                 angular_acceptance = angular_acceptance_base
@@ -371,25 +441,25 @@ class DefaultCascadeModel(Source):
                 p0 = tf.tile(
                     parameter_list[
                         self.get_index("HoleIceForward_Unified_p0")
-                    ][..., tf.newaxis],
+                    ],
                     [1, 86, 60, 1],
                 )
                 p1 = tf.tile(
                     parameter_list[
                         self.get_index("HoleIceForward_Unified_p1")
-                    ][..., tf.newaxis],
+                    ],
                     [1, 86, 60, 1],
                 )
 
                 # input tenser: cos(eta), p0, p1 in last dimension
                 # Shape: [n_batch, 86, 60, 3]
-                x = tf.concat([dz_normed, p0, p1], axis=-1)
+                x = tf.concat([dz_cherenkov_normed, p0, p1], axis=-1)
 
                 # Shape: [n_batch, 86, 60, 1]
                 angular_acceptance = dom_acceptance.get_acceptance(
                     x=x,
                     dtype=config["float_precision"],
-                )[..., tf.newaxis]
+                )
 
             if config["scale_charge_by_relative_angular_acceptance"]:
                 # stabilize with 1e-3 when acceptance approaches zero
@@ -410,7 +480,7 @@ class DefaultCascadeModel(Source):
             dom_coords /= 284.0
 
             # extend to correct batch shape:
-            dom_coords = tf.ones_like(dx_normed) * dom_coords
+            dom_coords = tf.ones_like(dz_cherenkov_normed) * dom_coords
 
             print("\t dom_coords", dom_coords)
             input_list.append(dom_coords)
@@ -419,7 +489,8 @@ class DefaultCascadeModel(Source):
 
             # extend to correct shape:
             local_vars = (
-                tf.ones_like(dx_normed) * self._untracked_data["local_vars"]
+                tf.ones_like(dz_cherenkov_normed)
+                * self._untracked_data["local_vars"]
             )
             print("\t local_vars", local_vars)
 
@@ -442,16 +513,14 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
 
         # offset PDF evaluation times with cascade vertex time
-        tensor_dict["time_offsets"] = parameters[:, 6]
-        t_pdf = pulse_times - tf.gather(
-            parameters[:, 6], indices=pulse_batch_id
-        )
+        tensor_dict["time_offsets"] = e_time
+        t_pdf = pulse_times - tf.gather(e_time, indices=pulse_batch_id)
         if time_exclusions_exist:
             # offset time exclusions
 
             # shape: [n_events]
             tw_cascade_t = tf.gather(
-                parameters[:, 6], indices=x_time_exclusions_ids[:, 0]
+                e_time, indices=x_time_exclusions_ids[:, 0]
             )
 
             # shape: [n_events, 2, 1]
@@ -750,10 +819,7 @@ class DefaultCascadeModel(Source):
         # scale charges by cascade energy
         if config["scale_charge"]:
             # make sure cascade energy does not turn negative
-            cascade_energy = tf.clip_by_value(
-                parameter_list[5], 0.0, float("inf")
-            )
-            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 1000.0
+            scale_factor = tf.expand_dims(e_energy, axis=-1) / 1000.0
             dom_charges *= scale_factor
 
         # scale charges by relative DOM efficiency
