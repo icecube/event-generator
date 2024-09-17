@@ -5,8 +5,6 @@ Functions:
 
 """
 
-from __future__ import division, print_function
-
 from egenerator import misc
 from egenerator.data.trafo import DataTransformer
 from egenerator.loss.multi_loss import MultiLossModule

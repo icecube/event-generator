@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 import logging
 from egenerator.model.multi_source.base import MultiSource
 
