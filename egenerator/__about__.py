@@ -78,5 +78,13 @@ __version_compatibility__ = {
             ),
             "type": "global",
         },
+        {
+            "Description": (
+                "The label modules were restructured to reduce code "
+                "duplication. This change is not backwards compatible "
+                "with previous versions."
+            ),
+            "type": "global",
+        },
     ],
 }
