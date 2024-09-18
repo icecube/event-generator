@@ -1,6 +1,6 @@
 ---
 ##############
-# Config for single cascade events
+# Config for tracks entering in a sphere around IceCube
 #
 # Detailed information on the parameters are given in the SetupManager
 # class located in egenerator.settings.setup_manager.py.
@@ -256,7 +256,7 @@ data_iterator_settings: {
         'input_data': [
 
             # validation data
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*00000.hdf5',
         ],
     },
 }
@@ -382,7 +382,7 @@ data_handler_settings: {
         # logarithm on labels:
         # (e_zenith, e_azimuth, e_time, e_energy, zenith, azimuth)?
         'trafo_log': [False, False, False, True, False, False],
-        'label_key': 'LabelsMCCascade',
+        'label_key': 'LabelsMCTrackSphere',
         'parameter_names': [
             "entry_zenith",
             "entry_azimuth",
@@ -430,7 +430,7 @@ data_handler_settings: {
     # settings for the filter module
     'filter_settings':{
         'constraints': [
-            # ['LabelsMCCascade', 'cascade_z', '<', -250.],
+            # ['LabelsMCTrackSphere', 'entry_energy', '>', 1000.],
         ],
     },
 }
@@ -445,7 +445,7 @@ model_settings: {
     # The source class to use
     'model_class': 'egenerator.model.multi_source.independent.IndependentMultiSource',
 
-    # configuration settings for DefaultMultiCascadeModel object
+    # configuration settings for EnteringSphereInfTrack object
     config: {
         'sources': {
             'noise': 'noise',
@@ -463,11 +463,12 @@ model_settings: {
         },
 
         track: {
-            # The cascade source model class to use
+            # The track source model class to use
             'model_class': 'egenerator.model.source.track.inf_tracks_sphere.EnteringSphereInfTrack',
 
             config: {
                 'keep_prob':,
+                'sphere_radius': 750.,
                 'add_anisotropy_angle': True,
                 'add_dom_angular_acceptance': False,
                 'add_dom_coordinates': False,

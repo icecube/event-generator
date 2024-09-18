@@ -239,10 +239,12 @@ class EnteringSphereInfTrack(Source):
         # shape: [n_batch, 1, 1, 1]
         e_zenith = parameter_list[0]
         e_azimuth = parameter_list[1]
-        e_time = parameter_list[2]
         e_energy = tf.clip_by_value(parameter_list[3], 0.0, float("inf"))
         zenith = parameter_list[4]
         azimuth = parameter_list[5]
+
+        # shape: [n_batch]
+        e_time = parameters[:, 2]
 
         # calculate normalized vector to entry point
         # shape: [n_batch, 1, 1, 1]
@@ -333,7 +335,7 @@ class EnteringSphereInfTrack(Source):
         # calculate opening angle of cherenkov light and PMT direction
         # shape: [n_batch, 86, 60, 1]
         opening_angle = angles.get_angle(
-            tf.stack([0, 0, 1], axis=-1),
+            tf.stack([0.0, 0.0, 1.0], axis=-1),
             tf.concat(
                 [
                     dx_cherenkov_normed,
@@ -342,7 +344,7 @@ class EnteringSphereInfTrack(Source):
                 ],
                 axis=-1,
             ),
-        )
+        )[..., tf.newaxis]
 
         # compute t_geometry: time for photon to travel to DOM
         # Shape: [n_batch, 86, 60, 1]
@@ -433,7 +435,7 @@ class EnteringSphereInfTrack(Source):
                 angular_acceptance_base = dom_acceptance.get_acceptance(
                     x=x_base,
                     dtype=config["float_precision"],
-                )
+                )[..., tf.newaxis]
 
             if config["use_constant_baseline_hole_ice"]:
                 angular_acceptance = angular_acceptance_base
@@ -459,7 +461,7 @@ class EnteringSphereInfTrack(Source):
                 angular_acceptance = dom_acceptance.get_acceptance(
                     x=x,
                     dtype=config["float_precision"],
-                )
+                )[..., tf.newaxis]
 
             if config["scale_charge_by_relative_angular_acceptance"]:
                 # stabilize with 1e-3 when acceptance approaches zero
@@ -802,6 +804,7 @@ class EnteringSphereInfTrack(Source):
         # -------------------------------------------
 
         # the result of the convolution layers are the latent variables
+        # Shape: [n_batch, 86, 60, 1]
         dom_charges_trafo = tf.expand_dims(
             conv_hex3d_layers[-1][..., 0], axis=-1
         )
@@ -814,12 +817,14 @@ class EnteringSphereInfTrack(Source):
         )
 
         # apply exponential which also forces positive values
+        # Shape: [n_batch, 86, 60, 1]
         dom_charges = tf.exp(dom_charges_trafo)
 
         # scale charges by cascade energy
         if config["scale_charge"]:
             # make sure cascade energy does not turn negative
-            scale_factor = tf.expand_dims(e_energy, axis=-1) / 1000.0
+            # shape: [n_batch, 86, 60, 1] * [n_batch, 1, 1, 1]
+            scale_factor = e_energy / 1000.0
             dom_charges *= scale_factor
 
         # scale charges by relative DOM efficiency
@@ -830,9 +835,7 @@ class EnteringSphereInfTrack(Source):
 
         # scale charges by global DOM efficiency
         if config["scale_charge_by_global_dom_efficiency"]:
-            dom_charges *= tf.expand_dims(
-                parameter_list[self.get_index("DOMEfficiency")], axis=-1
-            )
+            dom_charges *= parameter_list[self.get_index("DOMEfficiency")]
 
         if config["scale_charge_by_angular_acceptance"]:
             # do not let charge scaling go down to zero
