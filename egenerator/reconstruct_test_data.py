@@ -28,6 +28,11 @@ from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="WARNING",
 )
+@click.option(
+    "--num_threads",
+    type=int,
+    default=0,
+)
 def main(config_files, reco_config_file=None, log_level="INFO", num_threads=0):
     """Script to train model.
 

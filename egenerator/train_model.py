@@ -19,6 +19,11 @@ from egenerator.utils.build_components import build_loss_module
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="WARNING",
 )
+@click.option(
+    "--num_threads",
+    type=int,
+    default=0,
+)
 def main(config_files, log_level, num_threads=0):
     """Script to train model.
 
