@@ -300,7 +300,7 @@ class TestPulseDataModule(unittest.TestCase):
                         ),
                         DataTensor(
                             name="x_pulses_ids",
-                            shape=[None, 3],
+                            shape=[None, 4],
                             tensor_type="data",
                             vector_info={
                                 "type": "index",
@@ -522,7 +522,7 @@ class TestPulseDataModule(unittest.TestCase):
         pulses : array_like
             The pulses. Shape: [n_pulses, 3]
         pulses_ids : array_like
-            The pulses ids. Shape: [n_pulses, 3]
+            The pulses ids. Shape: [n_pulses, 4]
         event : int
             The (zero-based) event id.
         string : int

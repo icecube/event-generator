@@ -154,9 +154,9 @@ class DefaultCascadeModel(Source):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
@@ -183,6 +183,11 @@ class DefaultCascadeModel(Source):
                     Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
+            Optional:
+
+                'pulse_cdf': The cumulative likelihood evaluated
+                             for each pulse
+                             Shape: [-1]
         """
         self.assert_configured(True)
 
@@ -192,7 +197,7 @@ class DefaultCascadeModel(Source):
         config = self.configuration.config["config"]
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict["x_pulses"]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
+        pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
         tensors = self.data_trafo.data["tensors"]
         if (
@@ -953,9 +958,19 @@ class DefaultCascadeModel(Source):
             )
             * pulse_latent_scale
         )
+        pulse_cdf_values = (
+            basis_functions.tf_asymmetric_gauss_cdf(
+                x=t_pdf,
+                mu=pulse_latent_mu,
+                sigma=pulse_latent_sigma,
+                r=pulse_latent_r,
+            )
+            * pulse_latent_scale
+        )
 
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
+        pulse_cdf_values = tf.reduce_sum(pulse_cdf_values, axis=-1)
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
@@ -967,8 +982,10 @@ class DefaultCascadeModel(Source):
 
             # Shape: [n_pulses]
             pulse_pdf_values /= 1.0 - pulse_cdf_exclusion + 1e-3
+            pulse_cdf_values /= 1.0 - pulse_cdf_exclusion + 1e-3
 
         tensor_dict["pulse_pdf"] = pulse_pdf_values
+        tensor_dict["pulse_cdf"] = pulse_cdf_values
         # ---------------------
 
         return tensor_dict

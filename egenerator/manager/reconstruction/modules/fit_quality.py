@@ -682,7 +682,10 @@ class GoodnessOfFit:
                         np.cumsum(pulse_charges) / np.sum(pulse_charges)
                     )
                 pulses = np.stack(pulse_elements, axis=1)
-                pulses_ids = np.tile((0, string, om), reps=[num_pe, 1])
+                pulses_ids = np.tile((0, string, om, 0), reps=[num_pe, 1])
+
+                # set pulse number
+                pulses_ids[:, 3] = np.arange(num_pe)
 
                 x_pulses.append(pulses)
                 x_pulses_ids.append(pulses_ids)

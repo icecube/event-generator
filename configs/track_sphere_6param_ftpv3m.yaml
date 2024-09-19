@@ -270,6 +270,7 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use
@@ -283,6 +284,7 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use
@@ -296,6 +298,7 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use
@@ -309,6 +312,7 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use

@@ -154,7 +154,7 @@ class PulseDataModule(BaseComponent):
         )
         x_pulses_ids = DataTensor(
             name="x_pulses_ids",
-            shape=[None, 3],
+            shape=[None, 4],
             tensor_type="data",
             vector_info={"type": "index", "reference": "x_pulses"},
             dtype="int32",
@@ -335,7 +335,10 @@ class PulseDataModule(BaseComponent):
         x_pulses = np.empty(
             (num_pulses, pulse_dim), dtype=self.data["np_float_precision"]
         )
-        x_pulses_ids = np.empty((num_pulses, 3), dtype=np.int32)
+        x_pulses_ids = np.empty((num_pulses, 4), dtype=np.int32)
+
+        # create pulse counter for each DOM
+        pulse_counter = np.zeros([size, 86, 60], dtype=np.int32)
 
         # create array for time data
         x_time_window = np.empty(
@@ -371,8 +374,17 @@ class PulseDataModule(BaseComponent):
                 # (charge, time)
                 x_pulses[pulse_index] = [row.charge, row.time]
 
-            # gather pulse ids (batch index, string, dom)
-            x_pulses_ids[pulse_index] = [index, string - 1, dom - 1]
+            # gather pulse ids (batch index, string, dom, pulse number)
+            pulse_number = pulse_counter[index, string - 1, dom - 1]
+            x_pulses_ids[pulse_index] = [
+                index,
+                string - 1,
+                dom - 1,
+                pulse_number,
+            ]
+
+            # increment pulse counter
+            pulse_counter[index, string - 1, dom - 1] += 1
 
             # update time window
             if row.time > x_time_window[index, 1]:
@@ -536,6 +548,9 @@ class PulseDataModule(BaseComponent):
             [size, 86, 60, 1], dtype=self.data["np_float_precision"]
         )
 
+        # create pulse counter for each DOM
+        pulse_counter = np.zeros([size, 86, 60], dtype=np.int32)
+
         if self.data["dom_exclusions_exist"]:
             x_dom_exclusions = (np.ones_like(x_dom_charge)).astype(bool)
         else:
@@ -596,8 +611,12 @@ class PulseDataModule(BaseComponent):
                     # (charge, time)
                     x_pulses.append([pulse.charge, pulse.time])
 
-                # gather pulse ids (batch index, string, dom)
-                x_pulses_ids.append([index, string - 1, dom - 1])
+                # gather pulse ids (batch index, string, dom, pulse number)
+                pulse_number = pulse_counter[index, string - 1, dom - 1]
+                x_pulses_ids.append([index, string - 1, dom - 1, pulse_number])
+
+                # increment pulse counter
+                pulse_counter[index, string - 1, dom - 1] += 1
 
                 # update time window
                 if pulse.time > x_time_window[index, 1]:

@@ -85,9 +85,9 @@ class DefaultNoiseModel(Source):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
@@ -113,6 +113,11 @@ class DefaultNoiseModel(Source):
                     the predicted variance on the charge at each DOM.
                     Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
+                             Shape: [-1]
+            Optional:
+
+                'pulse_cdf': The cumulative likelihood evaluated
+                             for each pulse
                              Shape: [-1]
         """
         self.assert_configured(True)
@@ -142,7 +147,10 @@ class DefaultNoiseModel(Source):
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
         # shape: [n_pulses, 3]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
+        pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
+
+        # Shape: [n_pulses, 2] [charge, time]
+        pulses = data_batch_dict["x_pulses"]
 
         # shape: [n_batch, 2]
         time_window = data_batch_dict["x_time_window"]
@@ -308,6 +316,14 @@ class DefaultNoiseModel(Source):
         # shape: [n_pulses]
         pulse_pdf = tf.gather(dom_pdf_constant, indices=pulses_ids[:, 0])
 
+        # compute pulse cdf values
+        # shape: [n_pulses, 2]
+        pulse_tw = tf.gather(time_window, indices=pulses_ids[:, 0])
+        # shape: [n_pulses]
+        pulse_cdf = (pulses[:, 1] - pulse_tw[:, 0]) / (
+            pulse_tw[:, 1] - pulse_tw[:, 0]
+        )
+
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
             # shape: [n_pulses, 1] --> squeeze --> [n_pulses]
@@ -315,6 +331,7 @@ class DefaultNoiseModel(Source):
                 tf.gather_nd(dom_cdf_exclusion_sum, pulses_ids), axis=1
             )
             pulse_pdf /= 1.0 - pulse_cdf_exclusion + 1e-3
+            pulse_cdf /= 1.0 - pulse_cdf_exclusion + 1e-3
 
         # add tensors to tensor dictionary
         tensor_dict["time_offsets"] = None
@@ -325,6 +342,7 @@ class DefaultNoiseModel(Source):
         tensor_dict["pdf_constant"] = dom_pdf_constant
         tensor_dict["pdf_time_window"] = time_window
         tensor_dict["pulse_pdf"] = pulse_pdf
+        tensor_dict["pulse_cdf"] = pulse_cdf
 
         if time_exclusions_exist:
             tensor_dict["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum

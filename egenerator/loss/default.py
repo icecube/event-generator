@@ -121,9 +121,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -247,9 +247,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -338,7 +338,7 @@ class DefaultLossModule(BaseComponent):
         if sort_loss_terms:
             loss_doms = tf.tensor_scatter_nd_add(
                 llh_poisson,
-                indices=data_batch_dict["x_pulses_ids"],
+                indices=data_batch_dict["x_pulses_ids"][:, :3],
                 updates=time_log_likelihood,
             )
             loss_terms = [None, None, loss_doms]
@@ -381,9 +381,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -442,7 +442,156 @@ class DefaultLossModule(BaseComponent):
                 None,
                 tf.tensor_scatter_nd_add(
                     tf.zeros_like(data_batch_dict["x_dom_charge"][..., 0]),
-                    indices=data_batch_dict["x_pulses_ids"],
+                    indices=data_batch_dict["x_pulses_ids"][:, :3],
+                    updates=time_loss,
+                ),
+            ]
+        else:
+            loss_terms = [time_loss]
+
+        # Add normalization terms if desired
+        # Note: these are irrelevant for the minimization, but will make loss
+        # curves more meaningful
+        if self.configuration.config["config"]["add_normalization_term"]:
+            # pulse likelihood has everything included due to utilize
+            # asymmetric Gaussian
+            pass
+
+        return loss_terms
+
+    def unbinned_pulse_time_mpe_llh(
+        self, data_batch_dict, result_tensors, tensors, sort_loss_terms
+    ):
+        """Unbinned Pulse Time MPE likelhood.
+
+        Pulses must *not* contain any pulses in excluded DOMs or excluded time
+        windows. It is assumed that these pulses are already removed, e.g.
+        the time pdf is calculated for all pulses.
+
+        This computes the MPE likelihood by taking in account the time
+        of the first pulse at each DOM in addition to the total charge
+        at the DOM.
+
+        Parameters
+        ----------
+        data_batch_dict : dict of tf.Tensor
+            parameters : tf.Tensor
+                A tensor which describes the input parameters of the source.
+                This fully defines the source hypothesis. The tensor is of
+                shape [-1, n_params] and the last dimension must match the
+                order of the parameter names (self.parameter_names),
+            pulses : tf.Tensor
+                The input pulses (charge, time) of all events in a batch.
+                Shape: [-1, 2]
+            pulses_ids : tf.Tensor
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
+        result_tensors : dict of tf.Tensor
+            A dictionary of output tensors.
+            This  dictionary must at least contain:
+                'pulse_pdf': The likelihood evaluated for each pulse
+                             Shape: [-1]
+                'pulse_cdf': The cumulative distribution function evaluated
+                             for each pulse
+                             Shape: [-1]
+        tensors : DataTensorList
+            The data tensor list describing the input data
+        sort_loss_terms : bool, optional
+            If true, the loss terms will be sorted and aggregated in three
+            types of loss terms (this requires `reduce_to_scalar` == False):
+                scalar: shape []
+                    scalar loss for the whole batch of events
+                event: shape [n_batch]
+                    vector loss with one value per event
+                dom: shape [n_batch, 86, 60]
+                    tensor loss with one value for each DOM and event
+
+        Returns
+        -------
+        List of tf.tensor
+            Poisson Likelihood.
+            List of tensors defining the terms of the log likelihood
+
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
+        dtype = getattr(
+            tf, self.configuration.config["config"]["float_precision"]
+        )
+
+        # throw error if this is being used with time window exclusions
+        # one needs to calculate cumulative pdf from exclusion window and
+        # reduce the predicted charge by this factor
+        if (
+            "x_time_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+        ):
+            assert (
+                "dom_cdf_exclusion_sum" in result_tensors
+            ), "Model must deal with time exclusions!"
+
+        # shape: [n_pulses]
+        pulse_charges = data_batch_dict["x_pulses"][:, 0]
+        pulse_pdf_values = result_tensors["pulse_pdf"]
+        pulse_cdf_values = result_tensors["pulse_cdf"]
+
+        # get the index of the first pulse at each DOM
+        # Shape: [n_pulses, 4] # [batch, string, dom, pulse_number]
+        mask_first = data_batch_dict["x_pulses_ids"][:, 3] == 0
+
+        # Shape: [n_pulses_first]
+        pulses_ids_first = data_batch_dict["x_pulses_ids"][:, :3][mask_first]
+        pulse_pdf_value_first = pulse_pdf_values[mask_first]
+        pulse_cdf_value_first = pulse_cdf_values[mask_first]
+        pulse_charge_first = pulse_charges[mask_first]
+
+        # shape: [n_batch, 86, 60, 1]
+        hits_true = data_batch_dict["x_dom_charge"]
+
+        # shape: [n_batch, 86, 60]
+        dom_charges_true = tf.squeeze(hits_true, axis=-1)
+
+        # mask out dom exclusions
+        if (
+            "x_dom_exclusions" in tensors.names
+            and tensors.list[tensors.get_index("x_dom_exclusions")].exists
+        ):
+            mask_valid = tf.cast(
+                tf.squeeze(data_batch_dict["x_dom_exclusions"], axis=-1),
+                dtype=dtype,
+            )
+            dom_charges_true = dom_charges_true * mask_valid
+
+        # get the total DOM charge at the DOMs of the first pulses
+        # Shape: [n_pulses_first]
+        dom_charges_true_pulses = tf.gather_nd(
+            dom_charges_true, pulses_ids_first
+        )
+
+        # compute MPE log-likelihood
+        # Contribution at DOM i:
+        #   charge_i * pdf_i(t_0)^c_0 * (1 - cdf_i(t_0))^(charge_i - c_0)
+        #   with t_0 and c_0 the first pulse time and charge at DOM i
+        # Shape: [n_pulses_first]
+        eps = 1e-7
+        mpe_log_llh = (
+            tf.math.log(dom_charges_true_pulses)
+            + pulse_charge_first * tf.math.log(pulse_pdf_value_first + eps)
+            + (dom_charges_true_pulses - pulse_charge_first)
+            * tf.math.log(1 - pulse_cdf_value_first + eps)
+        )
+        time_loss = -mpe_log_llh
+
+        if sort_loss_terms:
+            loss_terms = [
+                None,
+                None,
+                tf.tensor_scatter_nd_add(
+                    tf.zeros_like(data_batch_dict["x_dom_charge"][..., 0]),
+                    indices=pulses_ids_first,
                     updates=time_loss,
                 ),
             ]
@@ -484,9 +633,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -573,7 +722,7 @@ class DefaultLossModule(BaseComponent):
         if sort_loss_terms:
             loss_doms = tf.tensor_scatter_nd_add(
                 -llh_charge,
-                indices=data_batch_dict["x_pulses_ids"],
+                indices=data_batch_dict["x_pulses_ids"][:, :3],
                 updates=time_loss,
             )
             loss_terms = [None, None, loss_doms]
@@ -622,9 +771,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -710,7 +859,7 @@ class DefaultLossModule(BaseComponent):
                 None,
                 tf.tensor_scatter_nd_add(
                     tf.zeros_like(data_batch_dict["x_dom_charge"][..., 0]),
-                    indices=data_batch_dict["x_pulses_ids"],
+                    indices=data_batch_dict["x_pulses_ids"][:, :3],
                     updates=time_loss,
                 ),
             ]
@@ -752,9 +901,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -885,9 +1034,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -1020,9 +1169,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
@@ -1168,9 +1317,9 @@ class DefaultLossModule(BaseComponent):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:

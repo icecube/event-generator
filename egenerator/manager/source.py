@@ -632,7 +632,7 @@ class SourceManager(BaseModelManager):
         def model_tensors_function(
             parameters,
             x_pulses=tf.ones([1, x_pulses_shape[1]], dtype=pulse_dtype),
-            x_pulses_ids=tf.convert_to_tensor([[0, 0, 0]]),
+            x_pulses_ids=tf.convert_to_tensor([[0, 0, 0, 0]]),
             x_dom_exclusions=tf.ones([0, 86, 60, 1], dtype=tf.bool),
             x_dom_charge=tf.ones([0, 86, 60, 1], dtype=param_dtype),
             x_time_window=tf.convert_to_tensor([[9000, 9001]], dtype=tw_dtype),
@@ -654,8 +654,9 @@ class SourceManager(BaseModelManager):
                 Shape: [n_pulses, 2]
             x_pulses_ids : tf.Tensor, optional
                 The pulse ids. These identify to which event and string and
-                DOM each pulse belongs to: [[batch_id, string-1, DOM-1]]
-                Shape: [n_pulses, 3]
+                DOM each pulse belongs to:
+                    [[batch_id, string-1, DOM-1, pulse_number]]
+                Shape: [n_pulses, 4]
             x_dom_exclusions : tf.Tensor, optional
                 A boolean tensor which denotes which DOM is excluded.
                 Shape: [n_events, 86, 60, 1]
