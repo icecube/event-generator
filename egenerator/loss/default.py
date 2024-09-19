@@ -578,9 +578,9 @@ class DefaultLossModule(BaseComponent):
         # Shape: [n_pulses_first]
         eps = 1e-7
         mpe_log_llh = (
-            tf.math.log(dom_charges_true_pulses)
+            tf.math.log(dom_charges_true_pulses + eps)
             + pulse_charge_first * tf.math.log(pulse_pdf_value_first + eps)
-            + (dom_charges_true_pulses - pulse_charge_first)
+            + (dom_charges_true_pulses - pulse_charge_first + eps)
             * tf.math.log(1 - pulse_cdf_value_first + eps)
         )
         time_loss = -mpe_log_llh

@@ -19,7 +19,7 @@ from egenerator.utils.build_components import build_loss_module
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="WARNING",
 )
-def main(config_files, log_level):
+def main(config_files, log_level, num_threads=0):
     """Script to train model.
 
     Parameters
@@ -28,6 +28,10 @@ def main(config_files, log_level):
         List of yaml config files.
     log_level : str
         The logging level.
+    num_threads : int, optional
+        Number of threads to use for tensorflow settings
+        `intra_op_parallelism_threads` and `inter_op_parallelism_threads`.
+        If zero (default), the system picks an appropriate number.
     """
 
     # set up logging
@@ -37,6 +41,10 @@ def main(config_files, log_level):
     gpu_devices = tf.config.list_physical_devices("GPU")
     for device in gpu_devices:
         tf.config.experimental.set_memory_growth(device, True)
+
+    # limit number of CPU threads
+    tf.config.threading.set_intra_op_parallelism_threads(num_threads)
+    tf.config.threading.set_inter_op_parallelism_threads(num_threads)
 
     # read in and combine config files and set up
     setup_manager = SetupManager(config_files)
