@@ -6,6 +6,7 @@ from egenerator import misc
 from egenerator.model.base import Model
 from egenerator.model.source.base import Source
 from egenerator.manager.component import Configuration
+from egenerator.utils import tf_helpers
 
 
 class MultiSource(Source):
@@ -457,7 +458,9 @@ class MultiSource(Source):
 
         # normalize time exclusion sum: divide by total charge at DOM
         if time_exclusions_exist:
-            dom_cdf_exclusion_sum /= dom_charges
+            dom_cdf_exclusion_sum = tf_helpers.safe_cdf_clip(
+                dom_cdf_exclusion_sum / dom_charges
+            )
 
             result_tensors["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
 
@@ -469,6 +472,13 @@ class MultiSource(Source):
 
             if all_models_have_cdf_values:
                 result_tensors["pulse_cdf"] /= 1.0 - pulse_cdf_exclusion + 1e-3
+
+        # ensure proper CDF ranges
+        if "pulse_cdf" in result_tensors:
+            result_tensors["pulse_cdf"] = tf_helpers.safe_cdf_clip(
+                result_tensors["pulse_cdf"]
+            )
+
         return result_tensors
 
     def save_weights(

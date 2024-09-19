@@ -6,7 +6,13 @@ from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector, basis_functions, angles, dom_acceptance
+from egenerator.utils import (
+    detector,
+    basis_functions,
+    angles,
+    dom_acceptance,
+    tf_helpers,
+)
 
 
 class EnteringSphereInfTrack(Source):
@@ -690,34 +696,9 @@ class EnteringSphereInfTrack(Source):
                 r=tw_latent_r,
             )
 
-            tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
-
-            # some safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            tw_cdf_exclusion > -1e-4,
-                            ~tf.math.is_finite(tw_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade TW CDF < 0!", tf.reduce_min(tw_cdf_exclusion)],
-                )
+            tw_cdf_exclusion = tf_helpers.safe_cdf_clip(
+                tw_cdf_stop - tw_cdf_start
             )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            tw_cdf_exclusion < 1.0001,
-                            ~tf.math.is_finite(tw_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade TW CDF > 1!", tf.reduce_max(tw_cdf_exclusion)],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                tw_cdf_exclusion = tf.clip_by_value(tw_cdf_exclusion, 0.0, 1.0)
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -728,39 +709,7 @@ class EnteringSphereInfTrack(Source):
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
-            # limit to range [0., 1.]
-            # Note: we loose gradients if clipping is applied. Maybe
-            # tfp.math.clip_value_value_preserve_gradient is a better idea?
-            # these values should be close to 0 and 1, keeping gradients
-            # for values slightly outside should therefore be more correct
-            # add safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion > -1e-4,
-                            ~tf.math.is_finite(dom_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade DOM CDF < 0!", tf.reduce_min(dom_cdf_exclusion)],
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion < 1.0001,
-                            ~tf.math.is_finite(dom_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade DOM CDF > 1!", tf.reduce_max(dom_cdf_exclusion)],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion = tf.clip_by_value(
-                    dom_cdf_exclusion, 0.0, 1.0
-                )
+            dom_cdf_exclusion = tf_helpers.safe_cdf_clip(dom_cdf_exclusion)
 
             # Shape: [None, 86, 60, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
@@ -768,40 +717,9 @@ class EnteringSphereInfTrack(Source):
             )
 
             # add safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion_sum > -1e-4,
-                            ~tf.math.is_finite(dom_cdf_exclusion_sum),
-                        )
-                    ),
-                    [
-                        "Cascade DOM CDF sum < 0!",
-                        tf.reduce_min(dom_cdf_exclusion_sum),
-                    ],
-                )
+            dom_cdf_exclusion_sum = tf_helpers.safe_cdf_clip(
+                dom_cdf_exclusion_sum
             )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion_sum < 1.0001,
-                            ~tf.math.is_finite(dom_cdf_exclusion_sum),
-                        )
-                    ),
-                    [
-                        "Cascade DOM CDF sum > 1!",
-                        tf.reduce_max(dom_cdf_exclusion_sum),
-                    ],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion_sum = tf.clip_by_value(
-                    dom_cdf_exclusion_sum, 0.0, 1.0
-                )
-
             tensor_dict["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
 
         # -------------------------------------------
