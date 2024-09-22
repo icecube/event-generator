@@ -1,6 +1,6 @@
 from icecube import icetray
 
-from ic3_labels.labels.modules.muon_track_labels import (
+from ic3_labels.labels.modules.event_generator.muon_track_labels import (
     get_sphere_inf_track_geometry_values,
 )
 
