@@ -1,3 +1,4 @@
+import math
 from icecube import icetray
 
 from ic3_labels.labels.modules.event_generator.muon_track_labels import (
@@ -24,12 +25,18 @@ class SphereInfTrackSeedConverter(icetray.I3ConditionalModule):
             "The radius of the sphere around IceCube [in meters].",
             750,
         )
+        self.AddParameter(
+            "replacement_values",
+            "Replacement values for non-finite values.",
+            {"entry_energy": 10000.0},
+        )
 
     def Configure(self):
         """Configure"""
         self._seed_key = self.GetParameter("seed_key")
         self._output_key = self.GetParameter("output_key")
         self._sphere_radius = self.GetParameter("sphere_radius")
+        self._replacement_values = self.GetParameter("replacement_values")
 
         if self._output_key is None:
             self._output_key = self._seed_key + "_SphereInfTrackSeed"
@@ -54,6 +61,11 @@ class SphereInfTrackSeedConverter(icetray.I3ConditionalModule):
 
         # add energy
         geometry_values["entry_energy"] = track.energy
+
+        # replace non-finite values
+        for key, value in self._replacement_values.items():
+            if not math.isfinite(geometry_values[key]):
+                geometry_values[key] = value
 
         frame[self._output_key] = geometry_values
         self.PushFrame(frame)
