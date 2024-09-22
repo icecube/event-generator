@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-def safe_cdf_clip(cdf_values, tol=1e-3):
+def safe_cdf_clip(cdf_values, tol=1e-2):
     """Perform clipping of CDF values
 
     Clips provided CDF values to be between 0 and 1.
@@ -13,7 +13,7 @@ def safe_cdf_clip(cdf_values, tol=1e-3):
     cdf_values : tf.Tensor
         The CDF values to clip.
     tol : float, optional
-        The tolerance for clipping, by default 1e-3.
+        The tolerance for clipping, by default 1e-2.
 
     Returns
     -------
