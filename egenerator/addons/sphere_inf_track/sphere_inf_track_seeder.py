@@ -20,7 +20,7 @@ class SphereInfTrackSeedConverter(icetray.I3ConditionalModule):
             None,
         )
         self.AddParameter(
-            "SphereRadius",
+            "sphere_radius",
             "The radius of the sphere around IceCube [in meters].",
             750,
         )
@@ -29,7 +29,7 @@ class SphereInfTrackSeedConverter(icetray.I3ConditionalModule):
         """Configure"""
         self._seed_key = self.GetParameter("seed_key")
         self._output_key = self.GetParameter("output_key")
-        self._sphere_radius = self.GetParameter("SphereRadius")
+        self._sphere_radius = self.GetParameter("sphere_radius")
 
         if self._output_key is None:
             self._output_key = self._seed_key + "_SphereInfTrackSeed"
