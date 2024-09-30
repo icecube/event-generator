@@ -637,9 +637,9 @@ class EnteringSphereInfTrack(Source):
         latent_mu = dt_geometry + t_seed + factor_mu * latent_mu
 
         # force positive and min values
-        latent_scale = tf.nn.elu(latent_scale) + 1.00001
-        latent_r = tf.nn.elu(latent_r) + 1.001
-        latent_sigma = tf.nn.elu(latent_sigma) + 1.001
+        latent_scale = tf.math.exp(latent_scale)
+        latent_r = tf.math.exp(latent_r)
+        latent_sigma = tf.math.exp(latent_sigma) + 0.0001
 
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
@@ -877,7 +877,7 @@ class EnteringSphereInfTrack(Source):
 
             # create correct offset and force positive and min values
             # The over-dispersion parameterized by alpha must be greater zero
-            dom_charges_alpha = tf.nn.elu(alpha_trafo - 5) + 1.000001
+            dom_charges_alpha = tf.math.exp(alpha_trafo - 5) + 0.000001
 
             # compute log pdf
             dom_charges_llh = basis_functions.tf_log_negative_binomial(
