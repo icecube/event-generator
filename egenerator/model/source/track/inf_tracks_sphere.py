@@ -777,10 +777,12 @@ class EnteringSphereInfTrack(Source):
 
         # apply time window exclusions if needed
         if time_exclusions_exist:
-            dom_charges = dom_charges * (1.0 - dom_cdf_exclusion_sum + 1e-3)
+            dom_charges = dom_charges * (
+                1.0 - dom_cdf_exclusion_sum + self.epsilon
+            )
 
         # add small constant to make sure dom charges are > 0:
-        dom_charges += 1e-7
+        dom_charges += self.epsilon
 
         tensor_dict["dom_charges"] = dom_charges
 
@@ -827,7 +829,6 @@ class EnteringSphereInfTrack(Source):
 
             # Apply Asymmetric Gaussian and/or Poisson Likelihood
             # shape: [n_batch, 86, 60, 1]
-            eps = 1e-7
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
                 tf.math.log(
@@ -837,9 +838,9 @@ class EnteringSphereInfTrack(Source):
                         sigma=dom_charges_sigma,
                         r=dom_charges_r,
                     )
-                    + eps
+                    + self.epsilon
                 ),
-                dom_charges_true * tf.math.log(dom_charges + eps)
+                dom_charges_true * tf.math.log(dom_charges + self.epsilon)
                 - dom_charges,
             )
 
@@ -849,7 +850,7 @@ class EnteringSphereInfTrack(Source):
                 # take mean of left and right side uncertainty
                 # Note: this might not be correct
                 dom_charges_sigma * ((1 + dom_charges_r) / 2.0),
-                tf.math.sqrt(dom_charges + eps),
+                tf.math.sqrt(dom_charges + self.epsilon),
             )
 
             # add tensors to tensor dictionary
@@ -968,8 +969,8 @@ class EnteringSphereInfTrack(Source):
             )
 
             # Shape: [n_pulses]
-            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion + 1e-3
-            pulse_cdf_values /= 1.0 - pulse_cdf_exclusion + 1e-3
+            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion + self.epsilon
+            pulse_cdf_values /= 1.0 - pulse_cdf_exclusion + self.epsilon
 
         tensor_dict["pulse_pdf"] = pulse_pdf_values
         tensor_dict["pulse_cdf"] = pulse_cdf_values

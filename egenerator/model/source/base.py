@@ -108,6 +108,21 @@ class Source(Model):
         else:
             return None
 
+    @property
+    def epsilon(self):
+        if self.configuration.config["config"]["float_precision"] == "float32":
+            return 1e-7
+        elif (
+            self.configuration.config["config"]["float_precision"] == "float64"
+        ):
+            return 1e-15
+        else:
+            raise ValueError(
+                "Invalid float precision: {}".format(
+                    self.configuration.config["config"]["float_precision"]
+                )
+            )
+
     def __init__(self, logger=None):
         """Instantiate Source class
 
@@ -437,6 +452,7 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
+        eps = 1e-7
 
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -495,7 +511,7 @@ class Source(Model):
             ].numpy()[:, strings, doms, ..., np.newaxis]
 
             # shape: [n_events, n_strings, n_doms, 1, 1]
-            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
+            scale /= 1.0 - dom_cdf_exclusion_sum + eps
 
         # shape: [n_events, n_strings, n_doms, n_points]
         cdf_values = np.sum(mixture_cdf * scale, axis=3)
@@ -640,6 +656,7 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
+        eps = 1e-7
 
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -695,7 +712,7 @@ class Source(Model):
             ].numpy()[:, strings, doms, ..., np.newaxis]
 
             # shape: [n_events, n_strings, n_doms, 1, 1]
-            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
+            scale /= 1.0 - dom_cdf_exclusion_sum + eps
 
         # shape: [n_events, n_strings, n_doms, n_points]
         pdf_values = np.sum(mixture_pdf * scale, axis=3)

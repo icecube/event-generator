@@ -400,9 +400,9 @@ class MultiSource(Source):
                 pulse_cdf_exclusion = tf.gather_nd(
                     tf.squeeze(dom_cdf_exclusion_sum_i, axis=-1), pulses_ids
                 )
-                pulse_pdf_i *= 1.0 - pulse_cdf_exclusion + 1e-3
+                pulse_pdf_i *= 1.0 - pulse_cdf_exclusion + self.epsilon
                 if all_models_have_cdf_values:
-                    pulse_cdf_i *= 1.0 - pulse_cdf_exclusion + 1e-3
+                    pulse_cdf_i *= 1.0 - pulse_cdf_exclusion + self.epsilon
 
             # accumulate charge
             # (assumes that sources are linear and independent)
@@ -443,9 +443,9 @@ class MultiSource(Source):
             tf.squeeze(dom_charges, axis=3), pulses_ids
         )
 
-        pulse_pdf /= pulse_weight_total + 1e-6
+        pulse_pdf /= pulse_weight_total + self.epsilon
         if all_models_have_cdf_values:
-            pulse_cdf /= pulse_weight_total + 1e-6
+            pulse_cdf /= pulse_weight_total + self.epsilon
 
         result_tensors = {
             "dom_charges": dom_charges,
@@ -468,10 +468,14 @@ class MultiSource(Source):
             pulse_cdf_exclusion = tf.gather_nd(
                 tf.squeeze(dom_cdf_exclusion_sum, axis=-1), pulses_ids
             )
-            result_tensors["pulse_pdf"] /= 1.0 - pulse_cdf_exclusion + 1e-3
+            result_tensors["pulse_pdf"] /= (
+                1.0 - pulse_cdf_exclusion + self.epsilon
+            )
 
             if all_models_have_cdf_values:
-                result_tensors["pulse_cdf"] /= 1.0 - pulse_cdf_exclusion + 1e-3
+                result_tensors["pulse_cdf"] /= (
+                    1.0 - pulse_cdf_exclusion + self.epsilon
+                )
 
         # ensure proper CDF ranges
         if "pulse_cdf" in result_tensors:

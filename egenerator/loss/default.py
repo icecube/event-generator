@@ -26,6 +26,21 @@ class DefaultLossModule(BaseComponent):
         else:
             return None
 
+    @property
+    def epsilon(self):
+        if self.configuration.config["config"]["float_precision"] == "float32":
+            return 1e-7
+        elif (
+            self.configuration.config["config"]["float_precision"] == "float64"
+        ):
+            return 1e-15
+        else:
+            raise ValueError(
+                "Invalid float precision: {}".format(
+                    self.configuration.config["config"]["float_precision"]
+                )
+            )
+
     def __init__(self, logger=None):
         """Initializes LossModule object.
 
@@ -320,11 +335,7 @@ class DefaultLossModule(BaseComponent):
             dom_charges_pred = dom_charges_pred * mask_valid
 
         # prevent log(zeros) issues
-        eps = 1e-7
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
-        # pulse_log_pdf_values = tf.where(hits_true > 0,
-        #                                 tf.math.log(pulse_pdf_values + eps),
-        #                                 tf.zeros_like(pulse_pdf_values))
+        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
@@ -332,7 +343,7 @@ class DefaultLossModule(BaseComponent):
 
         # get poisson likelihood over total charge at a DOM for extendended LLH
         llh_poisson = dom_charges_pred - dom_charges_true * tf.math.log(
-            dom_charges_pred + eps
+            dom_charges_pred + self.epsilon
         )
 
         if sort_loss_terms:
@@ -429,8 +440,7 @@ class DefaultLossModule(BaseComponent):
             ), "Model must deal with time exclusions!"
 
         # prevent log(zeros) issues
-        eps = 1e-7
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
+        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
@@ -576,7 +586,7 @@ class DefaultLossModule(BaseComponent):
         #   charge_i * pdf_i(t_0)^c_0 * (1 - cdf_i(t_0))^(charge_i - c_0)
         #   with t_0 and c_0 the first pulse time and charge at DOM i
         # Shape: [n_pulses_first]
-        eps = 1e-7
+        eps = self.epsilon
         mpe_log_llh = (
             tf.math.log(dom_charges_true_pulses + eps)
             + pulse_charge_first * tf.math.log(pulse_pdf_value_first + eps)
@@ -709,11 +719,7 @@ class DefaultLossModule(BaseComponent):
             llh_charge = llh_charge * mask_valid
 
         # prevent log(zeros) issues
-        eps = 1e-7
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
-        # pulse_log_pdf_values = tf.where(hits_true > 0,
-        #                                 tf.math.log(pulse_pdf_values + eps),
-        #                                 tf.zeros_like(pulse_pdf_values))
+        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
@@ -828,8 +834,7 @@ class DefaultLossModule(BaseComponent):
             )
 
         # prevent log(zeros) issues
-        eps = 1e-7
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + eps)
+        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( log(pdf_d(t_i)) )
@@ -1084,7 +1089,7 @@ class DefaultLossModule(BaseComponent):
         # var = mu + alpha*mu**2
         # alpha = (var - mu) / (mu**2)
         dom_charges_alpha = (dom_charges_variance - hits_pred) / (
-            hits_pred**2 + eps
+            hits_pred**2 + self.epsilon
         )
         # Make sure alpha is positive
         dom_charges_alpha = tf.clip_by_value(
@@ -1351,7 +1356,6 @@ class DefaultLossModule(BaseComponent):
         """
 
         # prevent log(zeros) issues
-        eps = 1e-7
         dtype = getattr(
             tf, self.configuration.config["config"]["float_precision"]
         )
@@ -1389,8 +1393,8 @@ class DefaultLossModule(BaseComponent):
         event_total = tf.reduce_sum(hits_pred, axis=[1, 2], keepdims=True)
 
         # shape: [n_batch, 86, 60]
-        dom_pdf = hits_pred / (event_total + eps)
-        llh_dom = hits_true * tf.math.log(dom_pdf + eps)
+        dom_pdf = hits_pred / (event_total + self.epsilon)
+        llh_dom = hits_true * tf.math.log(dom_pdf + self.epsilon)
 
         if sort_loss_terms:
             loss_terms = [
