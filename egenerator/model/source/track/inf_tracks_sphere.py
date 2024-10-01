@@ -346,8 +346,8 @@ class EnteringSphereInfTrack(Source):
         # calculate opening angle of cherenkov light and PMT direction
         # shape: [n_batch, 86, 60, 1]
         opening_angle = angles.get_angle(
-            tf.stack([0.0, 0.0, 1.0], axis=-1).astype(
-                config["float_precision"]
+            tf.cast(
+                tf.stack([0.0, 0.0, 1.0], axis=-1), config["float_precision"]
             ),
             tf.concat(
                 [
