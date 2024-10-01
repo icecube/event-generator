@@ -110,14 +110,13 @@ class Source(Model):
 
     @property
     def epsilon(self):
-        if "float_precision" in self.configuration.config["config"]:
-            model_precision = self.configuration.config["config"][
-                "float_precision"
-            ]
+        config = self.configuration.config["config"]
+        if "float_precision" in config:
+            model_precision = config["float_precision"]
 
-        elif "sources" in self.configuration.config:
+        elif "sources" in config:
             model_precisions = []
-            for source in self.configuration.config["sources"]:
+            for source in config["sources"]:
                 model_precisions.append(
                     self.sub_components[source].configuration.config["config"][
                         "float_precision"
@@ -134,7 +133,7 @@ class Source(Model):
                 model_precision = model_precisions[0]
         else:
             raise ValueError(
-                "No float precision found in configuration: {self.configuration.config}"
+                f"No float precision found in configuration: {config}"
             )
 
         if model_precision == "float32":
