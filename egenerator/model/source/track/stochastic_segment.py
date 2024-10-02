@@ -19,6 +19,11 @@ class StochasticTrackSegmentModel(Source):
         logger : logging.logger, optional
             The logger to use.
         """
+        raise NotImplementedError(
+            "This class has not been cross-checked. "
+            "It may require updates for newest egenerator version. "
+            "This is still a ToDo"
+        )
         self._logger = logger or logging.getLogger(__name__)
         super(StochasticTrackSegmentModel, self).__init__(logger=self._logger)
 
