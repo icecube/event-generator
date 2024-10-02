@@ -603,6 +603,7 @@ class DefaultCascadeModel(Source):
             tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
             tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
             tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
+            tw_latent_scale = tf.gather_nd(latent_scale, x_time_exclusions_ids)
 
             # ensure shapes
             tw_latent_mu = tf.ensure_shape(tw_latent_mu, [None, n_models])
@@ -610,6 +611,9 @@ class DefaultCascadeModel(Source):
                 tw_latent_sigma, [None, n_models]
             )
             tw_latent_r = tf.ensure_shape(tw_latent_r, [None, n_models])
+            tw_latent_scale = tf.ensure_shape(
+                tw_latent_scale, [None, n_models]
+            )
 
             # [n_tw, 1] * [n_tw, n_models] = [n_tw, n_models]
             tw_cdf_start = basis_functions.tf_asymmetric_gauss_cdf(
@@ -625,8 +629,14 @@ class DefaultCascadeModel(Source):
                 r=tw_latent_r,
             )
 
+            # shape: [n_tw, n_models]
             tw_cdf_exclusion = tf_helpers.safe_cdf_clip(
                 tw_cdf_stop - tw_cdf_start
+            )
+
+            # shape: [n_tw, 1]
+            tw_cdf_exclusion_reduced = tf.reduce_sum(
+                tw_cdf_exclusion * tw_latent_scale, axis=-1
             )
 
             # accumulate time window exclusions for each DOM and MM component
@@ -895,13 +905,23 @@ class DefaultCascadeModel(Source):
         if time_exclusions_exist:
 
             # Shape: [n_pulses, 1] -> squeeze -> [n_pulses]
-            pulse_cdf_exclusion = tf.squeeze(
+            pulse_cdf_exclusion_total = tf.squeeze(
                 tf.gather_nd(dom_cdf_exclusion_sum, pulses_ids), axis=1
             )
 
+            # subtract excluded regions from cdf values
+            pulse_cdf_exclusion = tf_helpers.get_pulse_cdf_exclusion(
+                x_pulses=pulses,
+                x_pulses_ids=pulses_ids,
+                x_time_exclusions=x_time_exclusions,
+                x_time_exclusions_ids=x_time_exclusions_ids,
+                tw_cdf_exclusion_reduced=tw_cdf_exclusion_reduced,
+            )
+            pulse_cdf_values -= pulse_cdf_exclusion
+
             # Shape: [n_pulses]
-            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion + self.epsilon
-            pulse_cdf_values /= 1.0 - pulse_cdf_exclusion + self.epsilon
+            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
+            pulse_cdf_values /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
 
         tensor_dict["pulse_pdf"] = pulse_pdf_values
         tensor_dict["pulse_cdf"] = pulse_cdf_values

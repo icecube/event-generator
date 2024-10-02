@@ -199,7 +199,8 @@ class DefaultNoiseModel(Source):
             )
 
             # some safety checks to make sure we aren't clipping too much
-            tw_cdf_exclusion = tf.clip_by_value(tw_cdf_exclusion, 0.0, 1.0)
+            tw_cdf_exclusion = tf_helpers.safe_cdf_clip(tw_cdf_exclusion)
+            tw_cdf_exclusion_reduced = tf.squeeze(tw_cdf_exclusion, axis=-1)
 
             # accumulate time window exclusions for each event
             # shape: [n_batch, 86, 60, 1]
@@ -267,11 +268,22 @@ class DefaultNoiseModel(Source):
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
             # shape: [n_pulses, 1] --> squeeze --> [n_pulses]
-            pulse_cdf_exclusion = tf.squeeze(
+            pulse_cdf_exclusion_total = tf.squeeze(
                 tf.gather_nd(dom_cdf_exclusion_sum, pulses_ids), axis=1
             )
-            pulse_pdf /= 1.0 - pulse_cdf_exclusion + self.epsilon
-            pulse_cdf /= 1.0 - pulse_cdf_exclusion + self.epsilon
+
+            # subtract excluded regions from cdf values
+            pulse_cdf_exclusion = tf_helpers.get_pulse_cdf_exclusion(
+                x_pulses=pulses,
+                x_pulses_ids=pulses_ids,
+                x_time_exclusions=x_time_exclusions,
+                x_time_exclusions_ids=x_time_exclusions_ids,
+                tw_cdf_exclusion_reduced=tw_cdf_exclusion_reduced,
+            )
+            pulse_cdf -= pulse_cdf_exclusion
+
+            pulse_pdf /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
+            pulse_cdf /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
 
         # add tensors to tensor dictionary
         tensor_dict["time_offsets"] = None
