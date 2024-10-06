@@ -194,18 +194,27 @@ class DefaultLossModule(BaseComponent):
 
         # cast to specified float precision
         precision = self.configuration.config["config"]["float_precision"]
-        data_batch_dict_cast = {
-            key: tf.cast(value, precision)
-            for key, value in data_batch_dict.items()
-            if tf.is_tensor(value)
-            and value.dtype in (tf.float16, tf.float32, tf.float64)
-        }
-        result_tensors_cast = {
-            key: tf.cast(value, precision)
-            for key, value in result_tensors.items()
-            if tf.is_tensor(value)
-            and value.dtype in (tf.float16, tf.float32, tf.float64)
-        }
+        data_batch_dict_cast = {}
+        for key, value in data_batch_dict.items():
+            if tf.is_tensor(value) and value.dtype in (
+                tf.float16,
+                tf.float32,
+                tf.float64,
+            ):
+                data_batch_dict_cast[key] = tf.cast(value, precision)
+            else:
+                data_batch_dict_cast[key] = value
+
+        result_tensors_cast = {}
+        for key, value in result_tensors.items():
+            if tf.is_tensor(value) and value.dtype in (
+                tf.float16,
+                tf.float32,
+                tf.float64,
+            ):
+                result_tensors_cast[key] = tf.cast(value, precision)
+            else:
+                result_tensors_cast[key] = value
 
         loss_terms = self.loss_function(
             data_batch_dict=data_batch_dict_cast,
