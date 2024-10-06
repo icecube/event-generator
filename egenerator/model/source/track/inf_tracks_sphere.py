@@ -694,17 +694,22 @@ class EnteringSphereInfTrack(Source):
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
+                dtype="float64",
             )
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1],
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
+                dtype="float64",
             )
 
             # shape: [n_tw, n_models]
             tw_cdf_exclusion = tf_helpers.safe_cdf_clip(
                 tw_cdf_stop - tw_cdf_start
+            )
+            tw_cdf_exclusion = tf.cast(
+                tw_cdf_exclusion, config["float_precision"]
             )
 
             # shape: [n_tw, 1]
@@ -843,14 +848,18 @@ class EnteringSphereInfTrack(Source):
             # shape: [n_batch, 86, 60, 1]
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
-                tf.math.log(
-                    basis_functions.tf_asymmetric_gauss(
-                        x=dom_charges_true,
-                        mu=dom_charges,
-                        sigma=dom_charges_sigma,
-                        r=dom_charges_r,
-                    )
-                    + self.epsilon
+                tf.cast(
+                    tf.math.log(
+                        basis_functions.tf_asymmetric_gauss(
+                            x=dom_charges_true,
+                            mu=dom_charges,
+                            sigma=dom_charges_sigma,
+                            r=dom_charges_r,
+                            dtype="float64",
+                        )
+                        + self.epsilon
+                    ),
+                    config["float_precision"],
                 ),
                 dom_charges_true * tf.math.log(dom_charges + self.epsilon)
                 - dom_charges,
@@ -897,6 +906,10 @@ class EnteringSphereInfTrack(Source):
                 x=dom_charges_true,
                 mu=dom_charges,
                 alpha=dom_charges_alpha,
+                dtype="float64",
+            )
+            dom_charges_llh = tf.cast(
+                dom_charges_llh, config["float_precision"]
             )
 
             # compute standard deviation
@@ -955,6 +968,7 @@ class EnteringSphereInfTrack(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
+                dtype="float64",
             )
             * pulse_latent_scale
         )
@@ -964,6 +978,7 @@ class EnteringSphereInfTrack(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
+                dtype="float64",
             )
             * pulse_latent_scale
         )
@@ -971,6 +986,10 @@ class EnteringSphereInfTrack(Source):
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
         pulse_cdf_values = tf.reduce_sum(pulse_cdf_values, axis=-1)
+
+        # cast back to specified float precision
+        pulse_pdf_values = tf.cast(pulse_pdf_values, config["float_precision"])
+        pulse_cdf_values = tf.cast(pulse_cdf_values, config["float_precision"])
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
