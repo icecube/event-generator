@@ -49,15 +49,6 @@ def safe_cdf_clip(cdf_values, tol=1e-5):
     return cdf_values
 
 
-@tf.function(
-    input_signature=[
-        tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
-        tf.TensorSpec(shape=(None, 3), dtype=tf.int32),
-        tf.TensorSpec(shape=(None, 2), dtype=tf.float32),
-        tf.TensorSpec(shape=(None, 3), dtype=tf.int32),
-        tf.TensorSpec(shape=(None, 1), dtype=tf.float32),
-    ]
-)
 def get_pulse_cdf_exclusion(
     x_pulses,
     x_pulses_ids,
