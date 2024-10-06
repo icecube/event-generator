@@ -192,9 +192,20 @@ class DefaultLossModule(BaseComponent):
                 "Sorting of loss terms is unnecessary when reducing to scalar"
             )
 
+        # cast to specified float precision
+        precision = self.configuration.config["config"]["float_precision"]
+        data_batch_dict_cast = {
+            key: tf.cast(value, precision)
+            for key, value in data_batch_dict.items()
+        }
+        result_tensors_cast = {
+            key: tf.cast(value, precision)
+            for key, value in result_tensors.items()
+        }
+
         loss_terms = self.loss_function(
-            data_batch_dict=data_batch_dict,
-            result_tensors=result_tensors,
+            data_batch_dict=data_batch_dict_cast,
+            result_tensors=result_tensors_cast,
             tensors=tensors,
             sort_loss_terms=sort_loss_terms,
         )
