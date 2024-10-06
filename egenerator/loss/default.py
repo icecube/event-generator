@@ -197,10 +197,12 @@ class DefaultLossModule(BaseComponent):
         data_batch_dict_cast = {
             key: tf.cast(value, precision)
             for key, value in data_batch_dict.items()
+            if value.dtype in (tf.float16, tf.float32, tf.float64)
         }
         result_tensors_cast = {
             key: tf.cast(value, precision)
             for key, value in result_tensors.items()
+            if value.dtype in (tf.float16, tf.float32, tf.float64)
         }
 
         loss_terms = self.loss_function(
