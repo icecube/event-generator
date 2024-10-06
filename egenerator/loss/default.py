@@ -4,6 +4,7 @@ import tensorflow as tf
 from egenerator import misc
 from egenerator.utils import basis_functions
 from egenerator.manager.component import BaseComponent, Configuration
+from egenerator.utils import tf_helpers
 
 
 class DefaultLossModule(BaseComponent):
@@ -362,15 +363,16 @@ class DefaultLossModule(BaseComponent):
             dom_charges_pred = dom_charges_pred * mask_valid
 
         # prevent log(zeros) issues
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
+        pulse_log_pdf_values = tf_helpers.safe_log(pulse_pdf_values)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
         time_log_likelihood = -pulse_charges * pulse_log_pdf_values
 
         # get poisson likelihood over total charge at a DOM for extendended LLH
-        llh_poisson = dom_charges_pred - dom_charges_true * tf.math.log(
-            dom_charges_pred + self.epsilon
+        llh_poisson = (
+            dom_charges_pred
+            - dom_charges_true * tf_helpers.safe_log(dom_charges_pred)
         )
 
         if sort_loss_terms:
@@ -467,7 +469,7 @@ class DefaultLossModule(BaseComponent):
             ), "Model must deal with time exclusions!"
 
         # prevent log(zeros) issues
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
+        pulse_log_pdf_values = tf_helpers.safe_log(pulse_pdf_values)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
@@ -613,12 +615,11 @@ class DefaultLossModule(BaseComponent):
         #   charge_i * pdf_i(t_0)^c_0 * (1 - cdf_i(t_0))^(charge_i - c_0)
         #   with t_0 and c_0 the first pulse time and charge at DOM i
         # Shape: [n_pulses_first]
-        eps = self.epsilon
         mpe_log_llh = (
-            tf.math.log(dom_charges_true_pulses + eps)
-            + pulse_charge_first * tf.math.log(pulse_pdf_value_first + eps)
-            + (dom_charges_true_pulses - pulse_charge_first + eps)
-            * tf.math.log(1 - pulse_cdf_value_first + eps)
+            tf_helpers.safe_log(dom_charges_true_pulses)
+            + pulse_charge_first * tf_helpers.safe_log(pulse_pdf_value_first)
+            + (dom_charges_true_pulses - pulse_charge_first)
+            * tf_helpers.safe_log(1 - pulse_cdf_value_first)
         )
         time_loss = -mpe_log_llh
 
@@ -746,7 +747,7 @@ class DefaultLossModule(BaseComponent):
             llh_charge = llh_charge * mask_valid
 
         # prevent log(zeros) issues
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
+        pulse_log_pdf_values = tf_helpers.safe_log(pulse_pdf_values)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( charge_i * log(pdf_d(t_i)) )
@@ -861,7 +862,7 @@ class DefaultLossModule(BaseComponent):
             )
 
         # prevent log(zeros) issues
-        pulse_log_pdf_values = tf.math.log(pulse_pdf_values + self.epsilon)
+        pulse_log_pdf_values = tf_helpers.safe_log(pulse_pdf_values)
 
         # compute unbinned negative likelihood over pulse times with given
         # time pdf: -sum( log(pdf_d(t_i)) )
@@ -1421,7 +1422,7 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         dom_pdf = hits_pred / (event_total + self.epsilon)
-        llh_dom = hits_true * tf.math.log(dom_pdf + self.epsilon)
+        llh_dom = hits_true * tf_helpers.safe_log(dom_pdf)
 
         if sort_loss_terms:
             loss_terms = [

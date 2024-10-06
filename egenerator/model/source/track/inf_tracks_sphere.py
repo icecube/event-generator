@@ -849,7 +849,7 @@ class EnteringSphereInfTrack(Source):
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
                 tf.cast(
-                    tf.math.log(
+                    tf_helpers.safe_log(
                         basis_functions.tf_asymmetric_gauss(
                             x=dom_charges_true,
                             mu=dom_charges,
@@ -857,11 +857,10 @@ class EnteringSphereInfTrack(Source):
                             r=dom_charges_r,
                             dtype="float64",
                         )
-                        + self.epsilon
                     ),
                     config["float_precision"],
                 ),
-                dom_charges_true * tf.math.log(dom_charges + self.epsilon)
+                dom_charges_true * tf_helpers.safe_log(dom_charges)
                 - dom_charges,
             )
 

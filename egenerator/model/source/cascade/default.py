@@ -772,16 +772,15 @@ class DefaultCascadeModel(Source):
             # shape: [n_batch, 86, 60, 1]
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
-                tf.math.log(
+                tf_helpers.safe_log(
                     basis_functions.tf_asymmetric_gauss(
                         x=dom_charges_true,
                         mu=dom_charges,
                         sigma=dom_charges_sigma,
                         r=dom_charges_r,
                     )
-                    + self.epsilon
                 ),
-                dom_charges_true * tf.math.log(dom_charges + self.epsilon)
+                dom_charges_true * tf_helpers.safe_log(dom_charges)
                 - dom_charges,
             )
 
