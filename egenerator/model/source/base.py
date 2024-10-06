@@ -405,6 +405,7 @@ class Source(Model):
         tw_exclusions_ids=None,
         strings=slice(None),
         doms=slice(None),
+        dtype="float64",
         **kwargs
     ):
         """Compute CDF values at x for given result_tensors
@@ -457,6 +458,9 @@ class Source(Model):
             The doms to slice the PDF for.
             If None, all doms are used.
             Shape: [n_doms]
+        dtype : str, optional
+            The data type of the output array.
+            Default: 'float64'
         **kwargs
             Keyword arguments.
 
@@ -474,7 +478,12 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-        eps = 1e-7
+        if dtype == "float64":
+            eps = 1e-15
+        elif dtype == "float32":
+            eps = 1e-7
+        else:
+            raise ValueError(f"Invalid dtype: {dtype}")
 
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -521,7 +530,11 @@ class Source(Model):
 
         # shape: [n_events, n_strings, n_doms, n_components, n_points]
         mixture_cdf = basis_functions.asymmetric_gauss_cdf(
-            x=x, mu=mu, sigma=sigma, r=r
+            x=x,
+            mu=mu,
+            sigma=sigma,
+            r=r,
+            dtype=dtype,
         )
 
         # uniformly scale up pdf values due to excluded regions
@@ -573,6 +586,7 @@ class Source(Model):
                             sigma[ids[0], ids[1], ids[2]], [1, 1, -1]
                         ),
                         r=np.reshape(r[ids[0], ids[1], ids[2]], [1, 1, -1]),
+                        dtype=dtype,
                     )
                     * np.reshape(scale[ids[0], ids[1], ids[2]], [1, 1, -1]),
                     axis=2,
@@ -585,7 +599,7 @@ class Source(Model):
 
                 cdf_values[ids[0], ids[1], ids[2]] -= cdf_excluded
 
-            eps = 1e-3
+            eps = 1e-6
             if (cdf_values < 0 - eps).any():
                 self._logger.warning(
                     "CDF values below zero: {}".format(
@@ -609,6 +623,7 @@ class Source(Model):
         tw_exclusions_ids=None,
         strings=slice(None),
         doms=slice(None),
+        dtype="float64",
         **kwargs
     ):
         """Compute PDF values at x for given result_tensors
@@ -678,7 +693,12 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-        eps = 1e-7
+        if dtype == "float64":
+            eps = 1e-15
+        elif dtype == "float32":
+            eps = 1e-7
+        else:
+            raise ValueError(f"Invalid dtype: {dtype}")
 
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -722,7 +742,11 @@ class Source(Model):
 
         # shape: [n_events, n_strings, n_doms, n_components, n_points]
         mixture_pdf = basis_functions.asymmetric_gauss(
-            x=x, mu=mu, sigma=sigma, r=r
+            x=x,
+            mu=mu,
+            sigma=sigma,
+            r=r,
+            dtype=dtype,
         )
 
         # uniformly scale up pdf values due to excluded regions
