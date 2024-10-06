@@ -961,6 +961,8 @@ class EnteringSphereInfTrack(Source):
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
 
+        pulse_latent_scale = tf.cast(pulse_latent_scale, "float64")
+
         # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
         pulse_pdf_values = (
             basis_functions.tf_asymmetric_gauss(
