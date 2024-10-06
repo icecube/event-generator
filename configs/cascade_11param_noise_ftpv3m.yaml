@@ -293,7 +293,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -307,7 +307,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -321,7 +321,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -335,7 +335,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -349,7 +349,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # define uniform priors
             'uniform_parameters': {
                 'cascade_Absorption': [0.913, 1.087],
