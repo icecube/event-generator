@@ -639,9 +639,9 @@ class EnteringSphereInfTrack(Source):
         latent_mu = dt_geometry + t_seed + factor_mu * latent_mu
 
         # force positive and min values
-        latent_scale = tf.math.exp(latent_scale)
-        latent_r = tf.math.exp(latent_r)
-        latent_sigma = tf.math.exp(latent_sigma) + 0.0001
+        latent_scale = tf.nn.elu(latent_scale) + 1.00001
+        latent_r = tf.nn.elu(latent_r) + 1.0001
+        latent_sigma = tf.nn.elu(latent_sigma) + 1.0001
 
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
