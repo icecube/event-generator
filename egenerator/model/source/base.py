@@ -116,11 +116,11 @@ class Source(Model):
 
         elif "sources" in config:
             model_precisions = []
-            for source in config["sources"]:
+            for _, base_source in config["sources"].items():
                 model_precisions.append(
-                    self.sub_components[source].configuration.config["config"][
-                        "float_precision"
-                    ]
+                    self.sub_components[base_source].configuration.config[
+                        "config"
+                    ]["float_precision"]
                 )
             model_precisions = np.unique(model_precisions)
             if len(model_precisions) > 1:
