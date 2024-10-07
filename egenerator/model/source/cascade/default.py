@@ -567,8 +567,8 @@ class DefaultCascadeModel(Source):
 
         # force positive and min values
         latent_scale = tf.nn.elu(latent_scale) + 1.00001
-        latent_r = tf.nn.elu(latent_r) + 1.001
-        latent_sigma = tf.nn.elu(latent_sigma) + 1.001
+        latent_r = tf.nn.elu(latent_r) + 1.0001
+        latent_sigma = tf.nn.elu(latent_sigma) + 1.0001
 
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
