@@ -694,14 +694,14 @@ class EnteringSphereInfTrack(Source):
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1],
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
 
             # shape: [n_tw, n_models]
@@ -855,7 +855,7 @@ class EnteringSphereInfTrack(Source):
                             mu=dom_charges,
                             sigma=dom_charges_sigma,
                             r=dom_charges_r,
-                            dtype="float64",
+                            dtype=config["float_precision_pdf_cdf"],
                         )
                     ),
                     config["float_precision"],
@@ -905,7 +905,7 @@ class EnteringSphereInfTrack(Source):
                 x=dom_charges_true,
                 mu=dom_charges,
                 alpha=dom_charges_alpha,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
             dom_charges_llh = tf.cast(
                 dom_charges_llh, config["float_precision"]
@@ -969,7 +969,7 @@ class EnteringSphereInfTrack(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
             * pulse_latent_scale
         )
@@ -979,7 +979,7 @@ class EnteringSphereInfTrack(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
             * pulse_latent_scale
         )

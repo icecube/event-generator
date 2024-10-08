@@ -621,14 +621,14 @@ class DefaultCascadeModel(Source):
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1],
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
 
             # shape: [n_tw, n_models]
@@ -784,7 +784,7 @@ class DefaultCascadeModel(Source):
                             mu=dom_charges,
                             sigma=dom_charges_sigma,
                             r=dom_charges_r,
-                            dtype="float64",
+                            dtype=config["float_precision_pdf_cdf"],
                         )
                     ),
                     dtype=config["float_precision"],
@@ -835,7 +835,7 @@ class DefaultCascadeModel(Source):
                     x=dom_charges_true,
                     mu=dom_charges,
                     alpha=dom_charges_alpha,
-                    dtype="float64",
+                    dtype=config["float_precision_pdf_cdf"],
                 ),
                 dtype=config["float_precision"],
             )
@@ -890,8 +890,7 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
 
         pulse_latent_scale = tf.cast(
-            pulse_latent_scale,
-            dtype="float64",
+            pulse_latent_scale, dtype=config["float_precision_pdf_cdf"]
         )
 
         # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
@@ -901,7 +900,7 @@ class DefaultCascadeModel(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
             * pulse_latent_scale
         )
@@ -911,7 +910,7 @@ class DefaultCascadeModel(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
-                dtype="float64",
+                dtype=config["float_precision_pdf_cdf"],
             )
             * pulse_latent_scale
         )
