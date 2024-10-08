@@ -890,7 +890,8 @@ class DefaultCascadeModel(Source):
         # -------------------------------------------
 
         pulse_latent_scale = tf.cast(
-            pulse_latent_scale, dtype=config["float_precision"]
+            pulse_latent_scale,
+            dtype="float64",
         )
 
         # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
