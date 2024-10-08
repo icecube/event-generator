@@ -500,6 +500,7 @@ model_settings: {
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
                 'float_precision': float32,
+                'float_precision_pdf_cdf': float64,
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,
