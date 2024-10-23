@@ -64,7 +64,7 @@ training_settings: {
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
-        'normalize_by_total_charge': True,
+        'normalize_by_total_charge': False,
     },
 }
 
@@ -274,7 +274,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -288,7 +288,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -302,7 +302,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -316,7 +316,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -330,7 +330,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -500,6 +500,7 @@ model_settings: {
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
                 'float_precision': float32,
+                'float_precision_pdf_cdf': float64,
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,

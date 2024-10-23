@@ -567,8 +567,8 @@ class DefaultCascadeModel(Source):
 
         # force positive and min values
         latent_scale = tf.nn.elu(latent_scale) + 1.00001
-        latent_r = tf.nn.elu(latent_r) + 1.001
-        latent_sigma = tf.nn.elu(latent_sigma) + 1.001
+        latent_r = tf.nn.elu(latent_r) + 1.0001
+        latent_sigma = tf.nn.elu(latent_sigma) + 1.0001
 
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
@@ -621,17 +621,22 @@ class DefaultCascadeModel(Source):
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
             )
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1],
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
             )
 
             # shape: [n_tw, n_models]
             tw_cdf_exclusion = tf_helpers.safe_cdf_clip(
                 tw_cdf_stop - tw_cdf_start
+            )
+            tw_cdf_exclusion = tf.cast(
+                tw_cdf_exclusion, dtype=config["float_precision"]
             )
 
             # shape: [n_tw, 1]
@@ -772,16 +777,19 @@ class DefaultCascadeModel(Source):
             # shape: [n_batch, 86, 60, 1]
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
-                tf.math.log(
-                    basis_functions.tf_asymmetric_gauss(
-                        x=dom_charges_true,
-                        mu=dom_charges,
-                        sigma=dom_charges_sigma,
-                        r=dom_charges_r,
-                    )
-                    + self.epsilon
+                tf.cast(
+                    tf_helpers.safe_log(
+                        basis_functions.tf_asymmetric_gauss(
+                            x=dom_charges_true,
+                            mu=dom_charges,
+                            sigma=dom_charges_sigma,
+                            r=dom_charges_r,
+                            dtype=config["float_precision_pdf_cdf"],
+                        )
+                    ),
+                    dtype=config["float_precision"],
                 ),
-                dom_charges_true * tf.math.log(dom_charges + self.epsilon)
+                dom_charges_true * tf_helpers.safe_log(dom_charges)
                 - dom_charges,
             )
 
@@ -822,10 +830,14 @@ class DefaultCascadeModel(Source):
             dom_charges_alpha = tf.nn.elu(alpha_trafo - 5) + 1.000001
 
             # compute log pdf
-            dom_charges_llh = basis_functions.tf_log_negative_binomial(
-                x=dom_charges_true,
-                mu=dom_charges,
-                alpha=dom_charges_alpha,
+            dom_charges_llh = tf.cast(
+                basis_functions.tf_log_negative_binomial(
+                    x=dom_charges_true,
+                    mu=dom_charges,
+                    alpha=dom_charges_alpha,
+                    dtype=config["float_precision_pdf_cdf"],
+                ),
+                dtype=config["float_precision"],
             )
 
             # compute standard deviation
@@ -877,6 +889,10 @@ class DefaultCascadeModel(Source):
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
 
+        pulse_latent_scale = tf.cast(
+            pulse_latent_scale, dtype=config["float_precision_pdf_cdf"]
+        )
+
         # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
         pulse_pdf_values = (
             basis_functions.tf_asymmetric_gauss(
@@ -884,6 +900,7 @@ class DefaultCascadeModel(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
             )
             * pulse_latent_scale
         )
@@ -893,6 +910,7 @@ class DefaultCascadeModel(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
             )
             * pulse_latent_scale
         )
@@ -900,6 +918,14 @@ class DefaultCascadeModel(Source):
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
         pulse_cdf_values = tf.reduce_sum(pulse_cdf_values, axis=-1)
+
+        # cast back to specified float precision
+        pulse_pdf_values = tf.cast(
+            pulse_pdf_values, dtype=config["float_precision"]
+        )
+        pulse_cdf_values = tf.cast(
+            pulse_cdf_values, dtype=config["float_precision"]
+        )
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
