@@ -659,7 +659,7 @@ class EnteringSphereInfTrack(Source):
         # features.
         t_seed = (
             np.r_[
-                [0, 100, 8000, 14000, 4000, 800, 300, 1000, 400, 2000],
+                [0, -100, 100, 8000, 4000, 800, 300, 1000, 400, 2000],
                 np.random.RandomState(42).uniform(0, 14000, max(1, n_models)),
             ][:n_models]
             * t_scale
