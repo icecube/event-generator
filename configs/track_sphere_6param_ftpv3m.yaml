@@ -380,7 +380,7 @@ data_handler_settings: {
 
     # settings for the data module
     'data_settings':{
-        'pulse_key': 'MCPulses',
+        'pulse_key': 'InIceDSTPulses_masked_doms_only',
         'event_id_key': 'LabelsMCTrackSphere',
         'dom_exclusions_key': BadDomsList,
         'time_exclusions_key': ,
@@ -488,7 +488,7 @@ model_settings: {
                 'keep_prob':,
                 'sphere_radius': 750.,
                 'add_anisotropy_angle': True,
-                'add_dom_angular_acceptance': False,
+                'add_dom_angular_acceptance': True,
                 'add_dom_coordinates': False,
                 'num_local_vars': 0,
                 'scale_charge': True,
@@ -509,7 +509,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [25, 100, 100, 100, 100, 42],
+                'num_filters_list' : [50, 200, 200, 200, 200, 42],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',
