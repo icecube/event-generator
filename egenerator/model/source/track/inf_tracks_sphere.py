@@ -241,6 +241,10 @@ class EnteringSphereInfTrack(Source):
         # Locals:
         #   - dx, dy, dz, dist, length_along_track [cherenkov]
         #   - opening angle cherenkov cone and PMT direction
+        #   - opening angle track direction and displacement vector
+        #   - x, y, y [closest approach point to DOM]
+        #   - closest approach distance
+        #   - dx, dy, dz [closest approach point to DOM]
         #
         # Note: we will try to keep the number of input features
         # to a minimum for now. One could test if adding more
@@ -302,6 +306,12 @@ class EnteringSphereInfTrack(Source):
         # shape: [n_batch, 86, 60, 1]
         distance_closest = tf.sqrt(dx_inf**2 + dy_inf**2 + dz_inf**2) + 1e-1
 
+        # normalize displacement vectors
+        # shape: [n_batch, 86, 60, 1]
+        dx_inf_normed = dx_inf / distance_closest
+        dy_inf_normed = dy_inf / distance_closest
+        dz_inf_normed = dz_inf / distance_closest
+
         # shift to cherenkov emission point
         # calculate distance on track of cherenkov position
         # shape: [n_batch, 86, 60, 1]
@@ -359,6 +369,13 @@ class EnteringSphereInfTrack(Source):
             ),
         )[..., tf.newaxis]
 
+        # calculate opening angle of track direction and displacement vector
+        # from the closest approach point to the DOM
+        opening_angle_closest = angles.get_angle(
+            tf.stack([dir_x, dir_y, dir_z], axis=-1),
+            tf.concat([dx_inf, dy_inf, dz_inf], axis=-1),
+        )[..., tf.newaxis]
+
         # compute t_geometry: time for photon to travel to DOM
         # Shape: [n_batch, 86, 60, 1]
         c_ice = 0.22103046286329384  # m/ns
@@ -369,6 +386,9 @@ class EnteringSphereInfTrack(Source):
         norm_const = self.data_trafo.data["norm_constant"]
 
         # transform distances and lengths in detector
+        distance_closest_tr = distance_closest / (
+            config["sphere_radius"] + norm_const
+        )
         distance_cherenkov_tr = distance_cherenkov / (
             config["sphere_radius"] + norm_const
         )
@@ -376,8 +396,16 @@ class EnteringSphereInfTrack(Source):
             config["sphere_radius"] + norm_const
         )
 
+        # transform coordinates by approximate size of IceCube
+        closest_x_tr = closest_x / (500.0 + norm_const)
+        closest_y_tr = closest_y / (500.0 + norm_const)
+        closest_z_tr = closest_z / (500.0 + norm_const)
+
         # transform angle
         opening_angle_traf = opening_angle / (norm_const + np.pi)
+        opening_angle_closest_traf = opening_angle_closest / (
+            norm_const + np.pi
+        )
 
         # ----------------------
         # Collect input features
@@ -412,6 +440,14 @@ class EnteringSphereInfTrack(Source):
             distance_cherenkov_tr,
             length_cherenkov_pos_tr,
             opening_angle_traf,
+            opening_angle_closest_traf,
+            closest_x_tr,
+            closest_y_tr,
+            closest_z_tr,
+            distance_closest_tr,
+            dx_inf_normed,
+            dy_inf_normed,
+            dz_inf_normed,
         ]
 
         if config["add_anisotropy_angle"]:
