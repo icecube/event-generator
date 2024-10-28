@@ -372,7 +372,7 @@ class EnteringSphereInfTrack(Source):
         # calculate opening angle of track direction and displacement vector
         # from the closest approach point to the DOM
         opening_angle_closest = angles.get_angle(
-            tf.stack([dir_x, dir_y, dir_z], axis=-1),
+            tf.concat([dir_x, dir_y, dir_z], axis=-1),
             tf.concat([dx_inf, dy_inf, dz_inf], axis=-1),
         )[..., tf.newaxis]
 
