@@ -80,7 +80,7 @@ class EnteringSphereInfTrack(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_inputs = 13 + num_snowstorm_params
+        num_inputs = 21 + num_snowstorm_params
 
         if config["add_anisotropy_angle"]:
             num_inputs += 2
