@@ -44,6 +44,7 @@ class PulseDataModule(BaseComponent):
         float_precision,
         add_charge_quantiles,
         discard_pulses_from_excluded_doms,
+        time_window_buffer,
     ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
@@ -75,6 +76,11 @@ class PulseDataModule(BaseComponent):
         discard_pulses_from_excluded_doms : bool, optional
             If True, pulses on excluded DOMs are discarded. The pulses are
             discarded after the charge at the DOM is collected.
+        time_window_buffer : float
+            The additional buffer time to add to the time window
+            on either side. The time window is defined as
+            [min(pulse_times) - buffer, max(pulse_times) + buffer].
+
 
         Returns
         -------
@@ -119,6 +125,9 @@ class PulseDataModule(BaseComponent):
         if not isinstance(pulse_key, str):
             msg = "Pulse key type: {!r} != str"
             raise TypeError(msg.format(type(pulse_key)))
+
+        if time_window_buffer < 0:
+            raise ValueError("Time window buffer must be >= 0")
 
         time_exclusions_exist = time_exclusions_key is not None
         dom_exclusions_exist = dom_exclusions_key is not None
@@ -214,6 +223,7 @@ class PulseDataModule(BaseComponent):
                 config_data=config_data,
                 float_precision=float_precision,
                 add_charge_quantiles=add_charge_quantiles,
+                time_window_buffer=time_window_buffer,
             ),
             mutable_settings=dict(
                 pulse_key=pulse_key,
@@ -391,6 +401,12 @@ class PulseDataModule(BaseComponent):
                 x_time_window[index, 1] = row.time
             if row.time < x_time_window[index, 0]:
                 x_time_window[index, 0] = row.time
+
+        # increase time window by buffer
+        buffer = self.configuration.config["time_window_buffer"]
+        if buffer > 0:
+            x_time_window[:, 0] -= buffer
+            x_time_window[:, 1] += buffer
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
@@ -623,6 +639,12 @@ class PulseDataModule(BaseComponent):
                     x_time_window[index, 1] = pulse.time
                 if pulse.time < x_time_window[index, 0]:
                     x_time_window[index, 0] = pulse.time
+
+        # increase time window by buffer
+        buffer = self.configuration.config["time_window_buffer"]
+        if buffer > 0:
+            x_time_window[:, 0] -= buffer
+            x_time_window[:, 1] += buffer
 
         x_pulses = np.array(x_pulses, dtype=self.data["np_float_precision"])
         x_pulses_ids = np.array(x_pulses_ids, dtype=np.int32)

@@ -635,7 +635,9 @@ class SourceManager(BaseModelManager):
             x_pulses_ids=tf.convert_to_tensor([[0, 0, 0, 0]]),
             x_dom_exclusions=tf.ones([0, 86, 60, 1], dtype=tf.bool),
             x_dom_charge=tf.ones([0, 86, 60, 1], dtype=param_dtype),
-            x_time_window=tf.convert_to_tensor([[9000, 9001]], dtype=tw_dtype),
+            x_time_window=tf.convert_to_tensor(
+                [[6000, 15000]], dtype=tw_dtype
+            ),
             x_time_exclusions=tf.convert_to_tensor(
                 [[0, 0]], dtype=t_exclusions_dtype
             ),
