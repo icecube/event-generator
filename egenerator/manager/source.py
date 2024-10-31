@@ -796,54 +796,6 @@ class SourceManager(BaseModelManager):
                 msg.format(param_tensor.shape[1], len(fit_parameter_list))
             )
 
-        # define helper function
-        def func(x, data_batch, seed):
-            # reshape and convert to proper
-            x = np.reshape(x, param_shape).astype(param_dtype)
-            seed = np.reshape(seed, param_shape_full).astype(param_dtype)
-            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
-            loss = loss.numpy().astype("float64")
-            grad = grad.numpy().astype("float64")
-
-            grad_flat = np.reshape(grad, [-1])
-            return loss, grad_flat
-
-        if hessian_function is not None:
-
-            def get_hessian(x, data_batch, seed):
-                # reshape and convert to tensor
-                x = np.reshape(x, param_shape).astype(param_dtype)
-                seed = np.reshape(seed, param_shape_full).astype(param_dtype)
-                hessian = hessian_function(x, data_batch, seed=seed)
-                hessian = hessian.numpy().astype("float64")
-                return hessian
-
-            kwargs["hess"] = get_hessian
-
-        # tolerance_func = None
-        # if tolerance_func is not None:
-        #     print('using tolerance_func')
-
-        #     class Callback:
-        #         def __init__(self, atol=10.1):
-        #             self._atol = atol
-        #             self._prev_loss = None
-
-        #         def __call__(self, xk):
-        #             this_loss, _ = func(xk, data_batch, seed)
-        #             if self._prev_loss is not None:
-        #                 print('self._prev_loss - this_loss',
-        #                       self._prev_loss - this_loss)
-        #                 if (self._prev_loss - this_loss) < self._atol:
-        #                     return True
-
-        #             self._prev_loss = this_loss
-        #             return False
-
-        #     tolerance_func = Callback()
-
-        #     kwargs['callback'] = tolerance_func
-
         # transform seed if minimization is performed in trafo space
         if isinstance(seed, str):
             seed_index = self.data_handler.tensors.get_index(seed)
@@ -877,14 +829,59 @@ class SourceManager(BaseModelManager):
             # get seed parameters
             x0 = seed_array_trafo[:, fit_parameter_list]
 
+        # define helper function
+        def func(x):
+            # reshape and convert to proper
+            x = np.reshape(x, param_shape).astype(param_dtype)
+            seed = np.reshape(seed_array, param_shape_full).astype(param_dtype)
+            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
+            loss = loss.numpy().astype("float64")
+            grad = grad.numpy().astype("float64")
+
+            grad_flat = np.reshape(grad, [-1])
+            return loss, grad_flat
+
+        if hessian_function is not None:
+
+            def get_hessian(x):
+                # reshape and convert to tensor
+                x = np.reshape(x, param_shape).astype(param_dtype)
+                seed = np.reshape(seed_array, param_shape_full).astype(
+                    param_dtype
+                )
+                hessian = hessian_function(x, data_batch, seed=seed)
+                hessian = hessian.numpy().astype("float64")
+                return hessian
+
+            kwargs["hess"] = get_hessian
+
+        # tolerance_func = None
+        # if tolerance_func is not None:
+        #     print('using tolerance_func')
+
+        #     class Callback:
+        #         def __init__(self, atol=10.1):
+        #             self._atol = atol
+        #             self._prev_loss = None
+
+        #         def __call__(self, xk):
+        #             this_loss, _ = func(xk, data_batch, seed)
+        #             if self._prev_loss is not None:
+        #                 print('self._prev_loss - this_loss',
+        #                       self._prev_loss - this_loss)
+        #                 if (self._prev_loss - this_loss) < self._atol:
+        #                     return True
+
+        #             self._prev_loss = this_loss
+        #             return False
+
+        #     tolerance_func = Callback()
+
+        #     kwargs['callback'] = tolerance_func
+
         x0_flat = np.reshape(x0, [-1])
         result = optimize.minimize(
-            fun=func,
-            x0=x0_flat,
-            jac=jac,
-            method=method,
-            args=(data_batch, seed_array),
-            **kwargs
+            fun=func, x0=x0_flat, jac=jac, method=method, **kwargs
         )
 
         best_fit = np.reshape(result.x, param_shape)
@@ -1121,31 +1118,6 @@ class SourceManager(BaseModelManager):
         minimizer_kwargs["jac"] = jac
         options["jac"] = jac
 
-        # define helper function
-        def func(x, data_batch, seed):
-            # reshape and convert to tensor
-            x = np.reshape(x, param_shape).astype(param_dtype)
-            seed = np.reshape(seed, param_shape_full).astype(param_dtype)
-            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
-            loss = loss.numpy().astype("float64")
-            grad = grad.numpy().astype("float64")
-
-            grad_flat = np.reshape(grad, [-1])
-            return loss, grad_flat
-
-        if hessian_function is not None:
-
-            def get_hessian(x, data_batch, seed):
-                # reshape and convert to tensor
-                x = np.reshape(x, param_shape).astype(param_dtype)
-                seed = np.reshape(seed, param_shape_full).astype(param_dtype)
-                hessian = hessian_function(x, data_batch, seed=seed)
-                hessian = hessian.numpy().astype("float64")
-                return hessian
-
-            minimizer_kwargs["hess"] = get_hessian
-            options["hess"] = get_hessian
-
         # get seed tensor
         if isinstance(seed, str):
             seed_index = self.data_handler.tensors.get_index(seed)
@@ -1166,6 +1138,33 @@ class SourceManager(BaseModelManager):
         assert minimize_in_trafo_space, "currently only for trafo space"
         bounds = np.concatenate((seed_array_trafo - 1, seed_array_trafo + 1)).T
 
+        # define helper function
+        def func(x):
+            # reshape and convert to tensor
+            x = np.reshape(x, param_shape).astype(param_dtype)
+            seed = np.reshape(seed_array, param_shape_full).astype(param_dtype)
+            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
+            loss = loss.numpy().astype("float64")
+            grad = grad.numpy().astype("float64")
+
+            grad_flat = np.reshape(grad, [-1])
+            return loss, grad_flat
+
+        if hessian_function is not None:
+
+            def get_hessian(x):
+                # reshape and convert to tensor
+                x = np.reshape(x, param_shape).astype(param_dtype)
+                seed = np.reshape(seed_array, param_shape_full).astype(
+                    param_dtype
+                )
+                hessian = hessian_function(x, data_batch, seed=seed)
+                hessian = hessian.numpy().astype("float64")
+                return hessian
+
+            minimizer_kwargs["hess"] = get_hessian
+            options["hess"] = get_hessian
+
         def callback(xk):
             print(xk)
 
@@ -1175,7 +1174,6 @@ class SourceManager(BaseModelManager):
             options=options,
             minimizer_kwargs=minimizer_kwargs,
             callback=callback,
-            args=(data_batch, seed_array),
             **kwargs
         )
 
@@ -1282,6 +1280,8 @@ class SourceManager(BaseModelManager):
             # convert to tensors
             loss, grad = loss_and_gradients_function(x, data_batch, seed_array)
             loss = tf.reshape(loss, [1])
+            loss = tf.cast(loss, param_tensor.dtype_tf)
+            grad = tf.cast(grad, param_tensor.dtype_tf)
             return loss, grad
 
         if hessian_function is not None:
