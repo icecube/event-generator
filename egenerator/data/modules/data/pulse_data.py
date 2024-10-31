@@ -404,6 +404,14 @@ class PulseDataModule(BaseComponent):
 
         # increase time window by buffer
         buffer = self.configuration.config["time_window_buffer"]
+
+        # non-finite values should only happen if there are no pulses
+        mask_infinite1 = ~np.isfinite(x_time_window[:, 0])
+        mask_infinite2 = ~np.isfinite(x_time_window[:, 1])
+        assert np.all(mask_infinite1 == mask_infinite2)
+        x_time_window[mask_infinite1, 0] = 0
+        x_time_window[mask_infinite1, 1] = 0
+
         if buffer > 0:
             x_time_window[:, 0] -= buffer
             x_time_window[:, 1] += buffer
@@ -642,6 +650,14 @@ class PulseDataModule(BaseComponent):
 
         # increase time window by buffer
         buffer = self.configuration.config["time_window_buffer"]
+
+        # non-finite values should only happen if there are no pulses
+        mask_infinite1 = ~np.isfinite(x_time_window[:, 0])
+        mask_infinite2 = ~np.isfinite(x_time_window[:, 1])
+        assert np.all(mask_infinite1 == mask_infinite2)
+        x_time_window[mask_infinite1, 0] = 0
+        x_time_window[mask_infinite1, 1] = 0
+
         if buffer > 0:
             x_time_window[:, 0] -= buffer
             x_time_window[:, 1] += buffer
