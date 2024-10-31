@@ -743,7 +743,10 @@ class SourceManager(BaseModelManager):
             method.
         loss_and_gradients_function : tf.function
             The tensorflow function:
-                f(parameters, data_batch, seed_tensor) -> loss, gradients
+                if jac=True:
+                    f(parameters, data_batch, seed_tensor) -> loss, gradients
+                else:
+                    f(parameters, data_batch, seed_tensor) -> loss
             Note: it is imperative that this function uses the same settings
             for trafo space!
         fit_parameter_list : bool or list of bool, optional
@@ -830,16 +833,34 @@ class SourceManager(BaseModelManager):
             x0 = seed_array_trafo[:, fit_parameter_list]
 
         # define helper function
-        def func(x):
-            # reshape and convert to proper
-            x = np.reshape(x, param_shape).astype(param_dtype)
-            seed = np.reshape(seed_array, param_shape_full).astype(param_dtype)
-            loss, grad = loss_and_gradients_function(x, data_batch, seed=seed)
-            loss = loss.numpy().astype("float64")
-            grad = grad.numpy().astype("float64")
+        if jac:
 
-            grad_flat = np.reshape(grad, [-1])
-            return loss, grad_flat
+            def func(x):
+                # reshape and convert to proper
+                x = np.reshape(x, param_shape).astype(param_dtype)
+                seed = np.reshape(seed_array, param_shape_full).astype(
+                    param_dtype
+                )
+                loss, grad = loss_and_gradients_function(
+                    x, data_batch, seed=seed
+                )
+                loss = loss.numpy().astype("float64")
+                grad = grad.numpy().astype("float64")
+
+                grad_flat = np.reshape(grad, [-1])
+                return loss, grad_flat
+
+        else:
+
+            def func(x):
+                # reshape and convert to proper
+                x = np.reshape(x, param_shape).astype(param_dtype)
+                seed = np.reshape(seed_array, param_shape_full).astype(
+                    param_dtype
+                )
+                loss = loss_and_gradients_function(x, data_batch, seed=seed)
+                loss = loss.numpy().astype("float64")
+                return loss
 
         if hessian_function is not None:
 
