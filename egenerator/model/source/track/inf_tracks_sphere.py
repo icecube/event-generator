@@ -263,9 +263,9 @@ class EnteringSphereInfTrack(Source):
 
         # calculate normalized vector to entry point
         # shape: [n_batch, 1, 1, 1]
-        e_dir_x = -tf.sin(e_zenith) * tf.cos(e_azimuth)
-        e_dir_y = -tf.sin(e_zenith) * tf.sin(e_azimuth)
-        e_dir_z = -tf.cos(e_zenith)
+        e_dir_x = tf.sin(e_zenith) * tf.cos(e_azimuth)
+        e_dir_y = tf.sin(e_zenith) * tf.sin(e_azimuth)
+        e_dir_z = tf.cos(e_zenith)
 
         # calculate entry position on a sphere of the given radius
         # shape: [n_batch, 1, 1, 1]
