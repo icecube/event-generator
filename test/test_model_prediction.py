@@ -77,7 +77,7 @@ class TestModelPrediction(unittest.TestCase):
             self.x_time_exclusions_ids.append([0, s - 1, d - 1])
 
             for i in range(n_pulses):
-                self.x_pulses_ids.append([0, s - 1, d - 1])
+                self.x_pulses_ids.append([0, s - 1, d - 1, i])
         self.x_time_window = np.array([[self.t_min, self.t_max]])
 
         # ----------

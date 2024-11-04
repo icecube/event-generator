@@ -166,11 +166,17 @@ class Reconstruction:
         # choose reconstruction method depending on the optimizer interface
         if reco_optimizer_interface.lower() == "scipy":
 
+            # choose function according to jac (default: True)
+            scipy_loss_function = loss_and_gradients_function
+            if "jac" in scipy_optimizer_settings:
+                if not scipy_optimizer_settings["jac"]:
+                    scipy_loss_function = self.parameter_loss_function
+
             def reconstruction_method(data_batch, seed_tensor):
                 return manager.reconstruct_events(
                     data_batch,
                     loss_module,
-                    loss_and_gradients_function=loss_and_gradients_function,
+                    loss_and_gradients_function=scipy_loss_function,
                     fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,

@@ -19,6 +19,11 @@ class StochasticTrackSegmentModel(Source):
         logger : logging.logger, optional
             The logger to use.
         """
+        raise NotImplementedError(
+            "This class has not been cross-checked. "
+            "It may require updates for newest egenerator version. "
+            "This is still a ToDo"
+        )
         self._logger = logger or logging.getLogger(__name__)
         super(StochasticTrackSegmentModel, self).__init__(logger=self._logger)
 
@@ -206,9 +211,9 @@ class StochasticTrackSegmentModel(Source):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
@@ -243,7 +248,7 @@ class StochasticTrackSegmentModel(Source):
         config = self.configuration.config["config"]
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict["x_pulses"]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
+        pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
         # shape: [n_batch, 86, 60, 1]
         dom_charges_true = data_batch_dict["x_dom_charge"]

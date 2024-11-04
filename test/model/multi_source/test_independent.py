@@ -38,7 +38,7 @@ class DummyDataTrafo(BaseComponent):
                     ),
                     DataTensor(
                         name="x_pulses_ids",
-                        shape=[7, 3],
+                        shape=[7, 4],
                         tensor_type="data",
                         dtype="int32",
                     ),
@@ -76,7 +76,10 @@ class TestIndependentMultiSource(unittest.TestCase):
             "cascade_00002_energy",
             "cascade_00002_time",
         ]
-        self.config_cascade = {"cascade_setting": 1337}
+        self.config_cascade = {
+            "cascade_setting": 1337,
+            "float_precision": "float32",
+        }
         self.base_sources = {
             "cascade": self.get_cascade_source(
                 config=self.config_cascade, data_trafo=self.data_trafo
@@ -514,7 +517,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         data_batch_dict = {
             "x_parameters": tf.ones([1, source.num_parameters]),
             "x_pulses": tf.ones([7, 2]),
-            "x_pulses_ids": tf.zeros([7, 3], dtype=tf.int32),
+            "x_pulses_ids": tf.zeros([7, 4], dtype=tf.int32),
         }
         result_tensors = self.source.get_tensors(data_batch_dict, True)
         self.assertTrue(result_tensors["dom_charges"].shape == [1, 86, 60, 1])

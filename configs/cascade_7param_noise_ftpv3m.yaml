@@ -64,7 +64,7 @@ training_settings: {
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
-        'normalize_by_total_charge': True,
+        'normalize_by_total_charge': False,
     },
 }
 
@@ -181,11 +181,11 @@ data_iterator_settings: {
         'num_add_files': 12,
         'num_repetitions': 5,
         'input_data': [
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
         ],
     },
 
@@ -200,11 +200,11 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
         ],
     },
 
@@ -221,11 +221,11 @@ data_iterator_settings: {
         'pick_random_files_forever': True,
         'input_data': [
             # Note: The validation data is the same as the training data. Do not pay attention to validation curve!
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
         ],
     },
 
@@ -243,31 +243,19 @@ data_iterator_settings: {
         'input_data': [
 
             # # validation data
-            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
-            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
-
-            # # MESE NuGen NuE l5 Benchmark Datasets
-            # # Spice3.2.1 variable
-            # # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99900/egenerator_99900_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
-            # # Spice3.2.1 const
-            # # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99901/egenerator_99901_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
-            # # SpiceLea variable
-            # # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99902/egenerator_99902_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
-            # # SpiceLea const
-            # # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99903/egenerator_99903_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
-            # # Spice3.2.1 variable no fourier
-            # # '/net/big-tank/POOL/users/mhuennefeld/data/egenerator/training_data/datasets/99911/egenerator_99911_step_3_pass2_get_pulses_py3_v4_1_0_IC86_pulses/*/00000-00999/*_0000000*.hdf5',
+            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
+            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
 
             # FTPv3m baseline
-            '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99915/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99915/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
             # # FTPv3m SnowStorm
-            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99916/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99916/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
             # # FTPv3m SnowStorm Absorption
-            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99917/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99917/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
             # # FTPv3m SnowStorm Scattering
-            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99918/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99918/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
             # # FTPv3m SnowStorm HoleIce
-            # '/cephfs/projects/ICECUBE/icecube/training_data/egenerator/egenerator-v1.1.0/datasets/99919/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99919/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
 
         ],
     },
@@ -282,10 +270,11 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -295,10 +284,11 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -308,10 +298,11 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -321,10 +312,11 @@ loss_module_settings: [
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -353,7 +345,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    'model_dir': '/cephfs/users/mhuennefeld/data/egenerator/trafo_models/trafo_model_cascade_7param_noise_ftpv3m',
+    'model_dir': '/data/user/mhuennefeld/data/egenerator/trafo_models/trafo_model_cascade_7param_noise_ftpv3m',
 }
 
 #----------------------
@@ -381,6 +373,7 @@ data_handler_settings: {
         'float_precision': 'float32',
         'add_charge_quantiles': False,
         'discard_pulses_from_excluded_doms': False,
+        'time_window_buffer': 100.,
     },
 
     # --------------------
@@ -488,6 +481,7 @@ model_settings: {
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
                 'float_precision': float32,
+                'float_precision_pdf_cdf': float64,
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,

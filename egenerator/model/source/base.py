@@ -108,6 +108,43 @@ class Source(Model):
         else:
             return None
 
+    @property
+    def epsilon(self):
+        config = self.configuration.config["config"]
+        if "float_precision" in config:
+            model_precision = config["float_precision"]
+
+        elif "sources" in config:
+            model_precisions = []
+            for _, base_source in config["sources"].items():
+                model_precisions.append(
+                    self.sub_components[base_source].configuration.config[
+                        "config"
+                    ]["float_precision"]
+                )
+            model_precisions = np.unique(model_precisions)
+            if len(model_precisions) > 1:
+                raise ValueError(
+                    "Multiple float precisions in model: {}".format(
+                        model_precisions
+                    )
+                )
+            else:
+                model_precision = model_precisions[0]
+        else:
+            raise ValueError(
+                f"No float precision found in configuration: {config}"
+            )
+
+        if model_precision == "float32":
+            return 1e-7
+        elif model_precision == "float64":
+            return 1e-15
+        else:
+            raise ValueError(
+                "Invalid float precision: {}".format(model_precision)
+            )
+
     def __init__(self, logger=None):
         """Instantiate Source class
 
@@ -368,6 +405,7 @@ class Source(Model):
         tw_exclusions_ids=None,
         strings=slice(None),
         doms=slice(None),
+        dtype="float64",
         **kwargs
     ):
         """Compute CDF values at x for given result_tensors
@@ -420,6 +458,9 @@ class Source(Model):
             The doms to slice the PDF for.
             If None, all doms are used.
             Shape: [n_doms]
+        dtype : str, optional
+            The data type of the output array.
+            Default: 'float64'
         **kwargs
             Keyword arguments.
 
@@ -437,6 +478,12 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
+        if dtype == "float64":
+            eps = 1e-15
+        elif dtype == "float32":
+            eps = 1e-7
+        else:
+            raise ValueError(f"Invalid dtype: {dtype}")
 
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -483,7 +530,11 @@ class Source(Model):
 
         # shape: [n_events, n_strings, n_doms, n_components, n_points]
         mixture_cdf = basis_functions.asymmetric_gauss_cdf(
-            x=x, mu=mu, sigma=sigma, r=r
+            x=x,
+            mu=mu,
+            sigma=sigma,
+            r=r,
+            dtype=dtype,
         )
 
         # uniformly scale up pdf values due to excluded regions
@@ -495,7 +546,7 @@ class Source(Model):
             ].numpy()[:, strings, doms, ..., np.newaxis]
 
             # shape: [n_events, n_strings, n_doms, 1, 1]
-            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
+            scale /= 1.0 - dom_cdf_exclusion_sum + eps
 
         # shape: [n_events, n_strings, n_doms, n_points]
         cdf_values = np.sum(mixture_cdf * scale, axis=3)
@@ -535,6 +586,7 @@ class Source(Model):
                             sigma[ids[0], ids[1], ids[2]], [1, 1, -1]
                         ),
                         r=np.reshape(r[ids[0], ids[1], ids[2]], [1, 1, -1]),
+                        dtype=dtype,
                     )
                     * np.reshape(scale[ids[0], ids[1], ids[2]], [1, 1, -1]),
                     axis=2,
@@ -547,7 +599,7 @@ class Source(Model):
 
                 cdf_values[ids[0], ids[1], ids[2]] -= cdf_excluded
 
-            eps = 1e-3
+            eps = 1e-6
             if (cdf_values < 0 - eps).any():
                 self._logger.warning(
                     "CDF values below zero: {}".format(
@@ -571,6 +623,7 @@ class Source(Model):
         tw_exclusions_ids=None,
         strings=slice(None),
         doms=slice(None),
+        dtype="float64",
         **kwargs
     ):
         """Compute PDF values at x for given result_tensors
@@ -640,6 +693,12 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
+        if dtype == "float64":
+            eps = 1e-15
+        elif dtype == "float32":
+            eps = 1e-7
+        else:
+            raise ValueError(f"Invalid dtype: {dtype}")
 
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -683,7 +742,11 @@ class Source(Model):
 
         # shape: [n_events, n_strings, n_doms, n_components, n_points]
         mixture_pdf = basis_functions.asymmetric_gauss(
-            x=x, mu=mu, sigma=sigma, r=r
+            x=x,
+            mu=mu,
+            sigma=sigma,
+            r=r,
+            dtype=dtype,
         )
 
         # uniformly scale up pdf values due to excluded regions
@@ -695,7 +758,7 @@ class Source(Model):
             ].numpy()[:, strings, doms, ..., np.newaxis]
 
             # shape: [n_events, n_strings, n_doms, 1, 1]
-            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
+            scale /= 1.0 - dom_cdf_exclusion_sum + eps
 
         # shape: [n_events, n_strings, n_doms, n_points]
         pdf_values = np.sum(mixture_pdf * scale, axis=3)

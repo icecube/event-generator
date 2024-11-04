@@ -6,7 +6,13 @@ from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector, basis_functions, angles, dom_acceptance
+from egenerator.utils import (
+    detector,
+    basis_functions,
+    angles,
+    dom_acceptance,
+    tf_helpers,
+)
 
 
 class EnteringSphereInfTrack(Source):
@@ -74,7 +80,7 @@ class EnteringSphereInfTrack(Source):
                 for i in range(num):
                     parameter_names.append(param_name.format(i))
 
-        num_inputs = 13 + num_snowstorm_params
+        num_inputs = 21 + num_snowstorm_params
 
         if config["add_anisotropy_angle"]:
             num_inputs += 2
@@ -144,9 +150,9 @@ class EnteringSphereInfTrack(Source):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
@@ -173,6 +179,11 @@ class EnteringSphereInfTrack(Source):
                     Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
+            Optional:
+
+                'pulse_cdf': The cumulative likelihood evaluated
+                             for each pulse
+                             Shape: [-1]
         """
         self.assert_configured(True)
 
@@ -182,7 +193,7 @@ class EnteringSphereInfTrack(Source):
         config = self.configuration.config["config"]
         parameters = data_batch_dict[parameter_tensor_name]
         pulses = data_batch_dict["x_pulses"]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
+        pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
         tensors = self.data_trafo.data["tensors"]
         if (
@@ -230,6 +241,10 @@ class EnteringSphereInfTrack(Source):
         # Locals:
         #   - dx, dy, dz, dist, length_along_track [cherenkov]
         #   - opening angle cherenkov cone and PMT direction
+        #   - opening angle track direction and displacement vector
+        #   - x, y, y [closest approach point to DOM]
+        #   - closest approach distance
+        #   - dx, dy, dz [closest approach point to DOM]
         #
         # Note: we will try to keep the number of input features
         # to a minimum for now. One could test if adding more
@@ -248,9 +263,9 @@ class EnteringSphereInfTrack(Source):
 
         # calculate normalized vector to entry point
         # shape: [n_batch, 1, 1, 1]
-        e_dir_x = -tf.sin(e_zenith) * tf.cos(e_azimuth)
-        e_dir_y = -tf.sin(e_zenith) * tf.sin(e_azimuth)
-        e_dir_z = -tf.cos(e_zenith)
+        e_dir_x = tf.sin(e_zenith) * tf.cos(e_azimuth)
+        e_dir_y = tf.sin(e_zenith) * tf.sin(e_azimuth)
+        e_dir_z = tf.cos(e_zenith)
 
         # calculate entry position on a sphere of the given radius
         # shape: [n_batch, 1, 1, 1]
@@ -290,6 +305,12 @@ class EnteringSphereInfTrack(Source):
         # distance from DOM to closest approach point
         # shape: [n_batch, 86, 60, 1]
         distance_closest = tf.sqrt(dx_inf**2 + dy_inf**2 + dz_inf**2) + 1e-1
+
+        # normalize displacement vectors
+        # shape: [n_batch, 86, 60, 1]
+        dx_inf_normed = dx_inf / distance_closest
+        dy_inf_normed = dy_inf / distance_closest
+        dz_inf_normed = dz_inf / distance_closest
 
         # shift to cherenkov emission point
         # calculate distance on track of cherenkov position
@@ -335,7 +356,9 @@ class EnteringSphereInfTrack(Source):
         # calculate opening angle of cherenkov light and PMT direction
         # shape: [n_batch, 86, 60, 1]
         opening_angle = angles.get_angle(
-            tf.stack([0.0, 0.0, 1.0], axis=-1),
+            tf.cast(
+                tf.stack([0.0, 0.0, 1.0], axis=-1), config["float_precision"]
+            ),
             tf.concat(
                 [
                     dx_cherenkov_normed,
@@ -344,6 +367,13 @@ class EnteringSphereInfTrack(Source):
                 ],
                 axis=-1,
             ),
+        )[..., tf.newaxis]
+
+        # calculate opening angle of track direction and displacement vector
+        # from the closest approach point to the DOM
+        opening_angle_closest = angles.get_angle(
+            tf.concat([dir_x, dir_y, dir_z], axis=-1),
+            tf.concat([dx_inf, dy_inf, dz_inf], axis=-1),
         )[..., tf.newaxis]
 
         # compute t_geometry: time for photon to travel to DOM
@@ -356,6 +386,9 @@ class EnteringSphereInfTrack(Source):
         norm_const = self.data_trafo.data["norm_constant"]
 
         # transform distances and lengths in detector
+        distance_closest_tr = distance_closest / (
+            config["sphere_radius"] + norm_const
+        )
         distance_cherenkov_tr = distance_cherenkov / (
             config["sphere_radius"] + norm_const
         )
@@ -363,8 +396,16 @@ class EnteringSphereInfTrack(Source):
             config["sphere_radius"] + norm_const
         )
 
+        # transform coordinates by approximate size of IceCube
+        closest_x_tr = closest_x / (500.0 + norm_const)
+        closest_y_tr = closest_y / (500.0 + norm_const)
+        closest_z_tr = closest_z / (500.0 + norm_const)
+
         # transform angle
         opening_angle_traf = opening_angle / (norm_const + np.pi)
+        opening_angle_closest_traf = opening_angle_closest / (
+            norm_const + np.pi
+        )
 
         # ----------------------
         # Collect input features
@@ -399,6 +440,14 @@ class EnteringSphereInfTrack(Source):
             distance_cherenkov_tr,
             length_cherenkov_pos_tr,
             opening_angle_traf,
+            opening_angle_closest_traf,
+            closest_x_tr,
+            closest_y_tr,
+            closest_z_tr,
+            distance_closest_tr,
+            dx_inf_normed,
+            dy_inf_normed,
+            dz_inf_normed,
         ]
 
         if config["add_anisotropy_angle"]:
@@ -610,7 +659,7 @@ class EnteringSphereInfTrack(Source):
         # features.
         t_seed = (
             np.r_[
-                [0, 100, 8000, 14000, 4000, 800, 300, 1000, 400, 2000],
+                [0, -100, 100, 8000, 4000, 800, 300, 1000, 400, 2000],
                 np.random.RandomState(42).uniform(0, 14000, max(1, n_models)),
             ][:n_models]
             * t_scale
@@ -627,8 +676,8 @@ class EnteringSphereInfTrack(Source):
 
         # force positive and min values
         latent_scale = tf.nn.elu(latent_scale) + 1.00001
-        latent_r = tf.nn.elu(latent_r) + 1.001
-        latent_sigma = tf.nn.elu(latent_sigma) + 1.001
+        latent_r = tf.nn.elu(latent_r) + 1.0001
+        latent_sigma = tf.nn.elu(latent_sigma) + 1.0001
 
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
@@ -663,6 +712,7 @@ class EnteringSphereInfTrack(Source):
             tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
             tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
             tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
+            tw_latent_scale = tf.gather_nd(latent_scale, x_time_exclusions_ids)
 
             # ensure shapes
             tw_latent_mu = tf.ensure_shape(tw_latent_mu, [None, n_models])
@@ -670,6 +720,9 @@ class EnteringSphereInfTrack(Source):
                 tw_latent_sigma, [None, n_models]
             )
             tw_latent_r = tf.ensure_shape(tw_latent_r, [None, n_models])
+            tw_latent_scale = tf.ensure_shape(
+                tw_latent_scale, [None, n_models]
+            )
 
             # [n_tw, 1] * [n_tw, n_models] = [n_tw, n_models]
             tw_cdf_start = basis_functions.tf_asymmetric_gauss_cdf(
@@ -677,42 +730,28 @@ class EnteringSphereInfTrack(Source):
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
             )
             tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
                 x=t_exclusions[:, 1],
                 mu=tw_latent_mu,
                 sigma=tw_latent_sigma,
                 r=tw_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
             )
 
-            tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
+            # shape: [n_tw, n_models]
+            tw_cdf_exclusion = tf_helpers.safe_cdf_clip(
+                tw_cdf_stop - tw_cdf_start
+            )
+            tw_cdf_exclusion = tf.cast(
+                tw_cdf_exclusion, config["float_precision"]
+            )
 
-            # some safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            tw_cdf_exclusion > -1e-4,
-                            ~tf.math.is_finite(tw_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade TW CDF < 0!", tf.reduce_min(tw_cdf_exclusion)],
-                )
+            # shape: [n_tw, 1]
+            tw_cdf_exclusion_reduced = tf.reduce_sum(
+                tw_cdf_exclusion * tw_latent_scale, axis=-1
             )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            tw_cdf_exclusion < 1.0001,
-                            ~tf.math.is_finite(tw_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade TW CDF > 1!", tf.reduce_max(tw_cdf_exclusion)],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                tw_cdf_exclusion = tf.clip_by_value(tw_cdf_exclusion, 0.0, 1.0)
 
             # accumulate time window exclusions for each DOM and MM component
             # shape: [None, 86, 60, n_models]
@@ -723,39 +762,7 @@ class EnteringSphereInfTrack(Source):
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
-            # limit to range [0., 1.]
-            # Note: we loose gradients if clipping is applied. Maybe
-            # tfp.math.clip_value_value_preserve_gradient is a better idea?
-            # these values should be close to 0 and 1, keeping gradients
-            # for values slightly outside should therefore be more correct
-            # add safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion > -1e-4,
-                            ~tf.math.is_finite(dom_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade DOM CDF < 0!", tf.reduce_min(dom_cdf_exclusion)],
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion < 1.0001,
-                            ~tf.math.is_finite(dom_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade DOM CDF > 1!", tf.reduce_max(dom_cdf_exclusion)],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion = tf.clip_by_value(
-                    dom_cdf_exclusion, 0.0, 1.0
-                )
+            dom_cdf_exclusion = tf_helpers.safe_cdf_clip(dom_cdf_exclusion)
 
             # Shape: [None, 86, 60, 1]
             dom_cdf_exclusion_sum = tf.reduce_sum(
@@ -763,40 +770,9 @@ class EnteringSphereInfTrack(Source):
             )
 
             # add safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion_sum > -1e-4,
-                            ~tf.math.is_finite(dom_cdf_exclusion_sum),
-                        )
-                    ),
-                    [
-                        "Cascade DOM CDF sum < 0!",
-                        tf.reduce_min(dom_cdf_exclusion_sum),
-                    ],
-                )
+            dom_cdf_exclusion_sum = tf_helpers.safe_cdf_clip(
+                dom_cdf_exclusion_sum
             )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion_sum < 1.0001,
-                            ~tf.math.is_finite(dom_cdf_exclusion_sum),
-                        )
-                    ),
-                    [
-                        "Cascade DOM CDF sum > 1!",
-                        tf.reduce_max(dom_cdf_exclusion_sum),
-                    ],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion_sum = tf.clip_by_value(
-                    dom_cdf_exclusion_sum, 0.0, 1.0
-                )
-
             tensor_dict["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
 
         # -------------------------------------------
@@ -854,10 +830,12 @@ class EnteringSphereInfTrack(Source):
 
         # apply time window exclusions if needed
         if time_exclusions_exist:
-            dom_charges = dom_charges * (1.0 - dom_cdf_exclusion_sum + 1e-3)
+            dom_charges = dom_charges * (
+                1.0 - dom_cdf_exclusion_sum + self.epsilon
+            )
 
         # add small constant to make sure dom charges are > 0:
-        dom_charges += 1e-7
+        dom_charges += self.epsilon
 
         tensor_dict["dom_charges"] = dom_charges
 
@@ -904,19 +882,21 @@ class EnteringSphereInfTrack(Source):
 
             # Apply Asymmetric Gaussian and/or Poisson Likelihood
             # shape: [n_batch, 86, 60, 1]
-            eps = 1e-7
             dom_charges_llh = tf.where(
                 dom_charges_true > charge_threshold,
-                tf.math.log(
-                    basis_functions.tf_asymmetric_gauss(
-                        x=dom_charges_true,
-                        mu=dom_charges,
-                        sigma=dom_charges_sigma,
-                        r=dom_charges_r,
-                    )
-                    + eps
+                tf.cast(
+                    tf_helpers.safe_log(
+                        basis_functions.tf_asymmetric_gauss(
+                            x=dom_charges_true,
+                            mu=dom_charges,
+                            sigma=dom_charges_sigma,
+                            r=dom_charges_r,
+                            dtype=config["float_precision_pdf_cdf"],
+                        )
+                    ),
+                    config["float_precision"],
                 ),
-                dom_charges_true * tf.math.log(dom_charges + eps)
+                dom_charges_true * tf_helpers.safe_log(dom_charges)
                 - dom_charges,
             )
 
@@ -926,7 +906,7 @@ class EnteringSphereInfTrack(Source):
                 # take mean of left and right side uncertainty
                 # Note: this might not be correct
                 dom_charges_sigma * ((1 + dom_charges_r) / 2.0),
-                tf.math.sqrt(dom_charges + eps),
+                tf.math.sqrt(dom_charges + self.epsilon),
             )
 
             # add tensors to tensor dictionary
@@ -954,13 +934,17 @@ class EnteringSphereInfTrack(Source):
 
             # create correct offset and force positive and min values
             # The over-dispersion parameterized by alpha must be greater zero
-            dom_charges_alpha = tf.nn.elu(alpha_trafo - 5) + 1.000001
+            dom_charges_alpha = tf.math.exp(alpha_trafo - 5) + 0.000001
 
             # compute log pdf
             dom_charges_llh = basis_functions.tf_log_negative_binomial(
                 x=dom_charges_true,
                 mu=dom_charges,
                 alpha=dom_charges_alpha,
+                dtype=config["float_precision_pdf_cdf"],
+            )
+            dom_charges_llh = tf.cast(
+                dom_charges_llh, config["float_precision"]
             )
 
             # compute standard deviation
@@ -1012,6 +996,8 @@ class EnteringSphereInfTrack(Source):
         # Apply Asymmetric Gaussian Mixture Model
         # -------------------------------------------
 
+        pulse_latent_scale = tf.cast(pulse_latent_scale, "float64")
+
         # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
         pulse_pdf_values = (
             basis_functions.tf_asymmetric_gauss(
@@ -1019,25 +1005,53 @@ class EnteringSphereInfTrack(Source):
                 mu=pulse_latent_mu,
                 sigma=pulse_latent_sigma,
                 r=pulse_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
+            )
+            * pulse_latent_scale
+        )
+        pulse_cdf_values = (
+            basis_functions.tf_asymmetric_gauss_cdf(
+                x=t_pdf,
+                mu=pulse_latent_mu,
+                sigma=pulse_latent_sigma,
+                r=pulse_latent_r,
+                dtype=config["float_precision_pdf_cdf"],
             )
             * pulse_latent_scale
         )
 
         # new shape: [n_pulses]
         pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
+        pulse_cdf_values = tf.reduce_sum(pulse_cdf_values, axis=-1)
+
+        # cast back to specified float precision
+        pulse_pdf_values = tf.cast(pulse_pdf_values, config["float_precision"])
+        pulse_cdf_values = tf.cast(pulse_cdf_values, config["float_precision"])
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
 
             # Shape: [n_pulses, 1] -> squeeze -> [n_pulses]
-            pulse_cdf_exclusion = tf.squeeze(
+            pulse_cdf_exclusion_total = tf.squeeze(
                 tf.gather_nd(dom_cdf_exclusion_sum, pulses_ids), axis=1
             )
 
+            # subtract excluded regions from cdf values
+            pulse_cdf_exclusion = tf_helpers.get_pulse_cdf_exclusion(
+                x_pulses=pulses,
+                x_pulses_ids=pulses_ids,
+                x_time_exclusions=x_time_exclusions,
+                x_time_exclusions_ids=x_time_exclusions_ids,
+                tw_cdf_exclusion_reduced=tw_cdf_exclusion_reduced,
+            )
+            pulse_cdf_values -= pulse_cdf_exclusion
+
             # Shape: [n_pulses]
-            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion + 1e-3
+            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
+            pulse_cdf_values /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
 
         tensor_dict["pulse_pdf"] = pulse_pdf_values
+        tensor_dict["pulse_cdf"] = pulse_cdf_values
         # ---------------------
 
         return tensor_dict

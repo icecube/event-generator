@@ -114,15 +114,23 @@ def build_loss_module(loss_module_settings):
     # A list of dictionaries is provided which each define a loss module
     else:
         loss_modules = []
+        loss_modules_weights = []
         for settings in loss_module_settings:
             LossModuleClass = misc.load_class(settings["loss_module"])
+            if "loss_module_weight" in settings:
+                loss_modules_weights.append(settings["loss_module_weight"])
+            else:
+                loss_modules_weights.append(1.0)
             loss_module_i = LossModuleClass()
             loss_module_i.configure(config=settings["config"])
             loss_modules.append(loss_module_i)
 
         # create a multi loss module from a list of given loss modules
         loss_module = MultiLossModule()
-        loss_module.configure(loss_modules=loss_modules)
+        loss_module.configure(
+            loss_modules=loss_modules,
+            loss_modules_weights=loss_modules_weights,
+        )
 
     return loss_module
 

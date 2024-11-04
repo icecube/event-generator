@@ -5,7 +5,7 @@ import numpy as np
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector
+from egenerator.utils import detector, tf_helpers
 
 
 class DefaultNoiseModel(Source):
@@ -85,9 +85,9 @@ class DefaultNoiseModel(Source):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
@@ -113,6 +113,11 @@ class DefaultNoiseModel(Source):
                     the predicted variance on the charge at each DOM.
                     Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
+                             Shape: [-1]
+            Optional:
+
+                'pulse_cdf': The cumulative likelihood evaluated
+                             for each pulse
                              Shape: [-1]
         """
         self.assert_configured(True)
@@ -142,7 +147,10 @@ class DefaultNoiseModel(Source):
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
         # shape: [n_pulses, 3]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
+        pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
+
+        # Shape: [n_pulses, 2] [charge, time]
+        pulses = data_batch_dict["x_pulses"]
 
         # shape: [n_batch, 2]
         time_window = data_batch_dict["x_time_window"]
@@ -191,37 +199,8 @@ class DefaultNoiseModel(Source):
             )
 
             # some safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_min(tw_cdf_exclusion) > -1e-4,
-                    [
-                        "Noise TW CDF < 0!",
-                        tf.reduce_min(tw_cdf_exclusion),
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                        x_time_exclusions,
-                        tw_reduced,
-                    ],
-                    summarize=100000,
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_max(tw_cdf_exclusion) < 1.0001,
-                    [
-                        "Noise TW CDF > 1!",
-                        tf.reduce_max(tw_cdf_exclusion),
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                        x_time_exclusions,
-                        tw_reduced,
-                    ],
-                    summarize=100000,
-                )
-            )
-            with tf.control_dependencies(asserts):
-                tw_cdf_exclusion = tf.clip_by_value(tw_cdf_exclusion, 0.0, 1.0)
+            tw_cdf_exclusion = tf_helpers.safe_cdf_clip(tw_cdf_exclusion)
+            tw_cdf_exclusion_reduced = tf.squeeze(tw_cdf_exclusion, axis=-1)
 
             # accumulate time window exclusions for each event
             # shape: [n_batch, 86, 60, 1]
@@ -232,37 +211,7 @@ class DefaultNoiseModel(Source):
             )
 
             # some safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_min(dom_cdf_exclusion) > -1e-4,
-                    [
-                        "Noise DOM CDF < 0!",
-                        tf.reduce_min(dom_cdf_exclusion),
-                        dom_cdf_exclusion,
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                    ],
-                    summarize=1000000,
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_max(dom_cdf_exclusion) < 1.0001,
-                    [
-                        "Noise DOM CDF > 1!",
-                        tf.reduce_max(dom_cdf_exclusion),
-                        dom_cdf_exclusion,
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                    ],
-                    summarize=1000000,
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion = tf.clip_by_value(
-                    dom_cdf_exclusion, 0.0, 1.0
-                )
+            dom_cdf_exclusion = tf_helpers.safe_cdf_clip(dom_cdf_exclusion)
 
             # we only have one model, so no need to actually sum up components
             # shape: [n_batch, 86, 60, 1]
@@ -291,10 +240,10 @@ class DefaultNoiseModel(Source):
 
         # scale by time exclusions
         if time_exclusions_exist:
-            dom_charges *= 1.0 - dom_cdf_exclusion_sum + 1e-3
+            dom_charges *= 1.0 - dom_cdf_exclusion_sum + self.epsilon
 
         # add small constant to make sure dom charges are > 0:
-        dom_charges += 1e-7
+        dom_charges += self.epsilon
 
         # compute standard deviation
         # std = sqrt(var) = sqrt(mu + alpha*mu**2)
@@ -308,13 +257,33 @@ class DefaultNoiseModel(Source):
         # shape: [n_pulses]
         pulse_pdf = tf.gather(dom_pdf_constant, indices=pulses_ids[:, 0])
 
+        # compute pulse cdf values
+        # shape: [n_pulses, 2]
+        pulse_tw = tf.gather(time_window, indices=pulses_ids[:, 0])
+        # shape: [n_pulses]
+        pulse_cdf = (pulses[:, 1] - pulse_tw[:, 0]) / (
+            pulse_tw[:, 1] - pulse_tw[:, 0]
+        )
+
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
             # shape: [n_pulses, 1] --> squeeze --> [n_pulses]
-            pulse_cdf_exclusion = tf.squeeze(
+            pulse_cdf_exclusion_total = tf.squeeze(
                 tf.gather_nd(dom_cdf_exclusion_sum, pulses_ids), axis=1
             )
-            pulse_pdf /= 1.0 - pulse_cdf_exclusion + 1e-3
+
+            # subtract excluded regions from cdf values
+            pulse_cdf_exclusion = tf_helpers.get_pulse_cdf_exclusion(
+                x_pulses=pulses,
+                x_pulses_ids=pulses_ids,
+                x_time_exclusions=x_time_exclusions,
+                x_time_exclusions_ids=x_time_exclusions_ids,
+                tw_cdf_exclusion_reduced=tw_cdf_exclusion_reduced,
+            )
+            pulse_cdf -= pulse_cdf_exclusion
+
+            pulse_pdf /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
+            pulse_cdf /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
 
         # add tensors to tensor dictionary
         tensor_dict["time_offsets"] = None
@@ -325,6 +294,7 @@ class DefaultNoiseModel(Source):
         tensor_dict["pdf_constant"] = dom_pdf_constant
         tensor_dict["pdf_time_window"] = time_window
         tensor_dict["pulse_pdf"] = pulse_pdf
+        tensor_dict["pulse_cdf"] = pulse_cdf
 
         if time_exclusions_exist:
             tensor_dict["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
@@ -405,7 +375,6 @@ class DefaultNoiseModel(Source):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -444,7 +413,7 @@ class DefaultNoiseModel(Source):
         cdf_values = (
             (t_end - time_window[..., 0])
             / livetime
-            / (1.0 - dom_cdf_exclusion_sum + 1e-3)
+            / (1.0 - dom_cdf_exclusion_sum + self.epsilon)
         )
 
         # apply time window exclusions:
@@ -486,7 +455,7 @@ class DefaultNoiseModel(Source):
                     / (
                         1.0
                         - dom_cdf_exclusion_sum[ids[0], ids[1], ids[2]]
-                        + 1e-3
+                        + self.epsilon
                     )
                 )
 
@@ -582,7 +551,6 @@ class DefaultNoiseModel(Source):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -614,7 +582,9 @@ class DefaultNoiseModel(Source):
         dom_cdf_exclusion_sum = dom_cdf_exclusion_sum[:, strings, doms]
 
         # Shape: [n_events, n_strings, n_doms, 1]
-        pdf_values = pdf_constant / (1.0 - dom_cdf_exclusion_sum + 1e-3)
+        pdf_values = pdf_constant / (
+            1.0 - dom_cdf_exclusion_sum + self.epsilon
+        )
 
         # Shape: [n_events, n_strings, n_doms, n_points]
         pdf_values = np.tile(pdf_values, reps=(1, 1, 1, n_points))
