@@ -459,7 +459,7 @@ class MultiSource(Source):
         # normalize time exclusion sum: divide by total charge at DOM
         if time_exclusions_exist:
             dom_cdf_exclusion_sum = tf_helpers.safe_cdf_clip(
-                dom_cdf_exclusion_sum / dom_charges
+                dom_cdf_exclusion_sum / (dom_charges + self.epsilon)
             )
 
             result_tensors["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum

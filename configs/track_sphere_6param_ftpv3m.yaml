@@ -64,7 +64,7 @@ training_settings: {
 
     # Additional keywords to the loss module used for training
     'additional_loss_module_kwargs': {
-        'normalize_by_total_charge': True,
+        'normalize_by_total_charge': False,
     },
 }
 
@@ -274,7 +274,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float32',
+            'float_precision': 'float64',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
@@ -288,7 +288,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -302,7 +302,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -316,7 +316,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -330,7 +330,7 @@ loss_module_settings: [
 
     #     config: {
     #         # the float precision to use
-    #         'float_precision': 'float32',
+    #         'float_precision': 'float64',
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
@@ -380,13 +380,14 @@ data_handler_settings: {
 
     # settings for the data module
     'data_settings':{
-        'pulse_key': 'MCPulses',
+        'pulse_key': 'InIceDSTPulses_masked_doms_only',
         'event_id_key': 'LabelsMCTrackSphere',
         'dom_exclusions_key': BadDomsList,
         'time_exclusions_key': ,
         'float_precision': 'float32',
         'add_charge_quantiles': False,
         'discard_pulses_from_excluded_doms': False,
+        'time_window_buffer': 100.,
     },
 
     # --------------------
@@ -488,7 +489,7 @@ model_settings: {
                 'keep_prob':,
                 'sphere_radius': 750.,
                 'add_anisotropy_angle': True,
-                'add_dom_angular_acceptance': False,
+                'add_dom_angular_acceptance': True,
                 'add_dom_coordinates': False,
                 'num_local_vars': 0,
                 'scale_charge': True,
@@ -500,6 +501,7 @@ model_settings: {
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
                 'float_precision': float32,
+                'float_precision_pdf_cdf': float64,
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,
@@ -508,7 +510,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [25, 100, 100, 100, 100, 42],
+                'num_filters_list' : [50, 200, 200, 200, 200, 42],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',

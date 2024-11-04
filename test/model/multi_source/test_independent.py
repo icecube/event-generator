@@ -76,7 +76,10 @@ class TestIndependentMultiSource(unittest.TestCase):
             "cascade_00002_energy",
             "cascade_00002_time",
         ]
-        self.config_cascade = {"cascade_setting": 1337}
+        self.config_cascade = {
+            "cascade_setting": 1337,
+            "float_precision": "float32",
+        }
         self.base_sources = {
             "cascade": self.get_cascade_source(
                 config=self.config_cascade, data_trafo=self.data_trafo

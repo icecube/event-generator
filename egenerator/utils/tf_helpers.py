@@ -1,6 +1,54 @@
 import tensorflow as tf
 
 
+def clip_logits(logits, eps=None):
+    """Clip logits to avoid numerical instabilities
+
+    Parameters
+    ----------
+    logits : tf.Tensor
+        The logits to clip.
+    eps : float, optional
+        The epsilon value to clip to, by default None.
+        If None the value will be clipped to 1e-37 for float32
+        and 1e-307 for float64.
+
+    Returns
+    -------
+    tf.Tensor
+        The clipped logits.
+    """
+    if eps is None:
+        # Up to these values, the log returns finite values
+        if logits.dtype == tf.float32:
+            eps = 1e-37
+        elif logits.dtype == tf.float64:
+            eps = 1e-307
+        else:
+            raise ValueError(f"Unknown dtype for logits: {logits.dtype}")
+    return tf.clip_by_value(logits, eps, float("inf"))
+
+
+def safe_log(logits, eps=None):
+    """Safe log operation
+
+    Parameters
+    ----------
+    logits : tf.Tensor
+        The logits to log.
+    eps : float, optional
+        The epsilon value to clip to, by default None.
+        If None the value will be clipped to 1e-37 for float32
+        and 1e-307 for float64.
+
+    Returns
+    -------
+    tf.Tensor
+        The safe log of the logits.
+    """
+    return tf.math.log(clip_logits(logits, eps=eps))
+
+
 def safe_cdf_clip(cdf_values, tol=1e-5):
     """Perform clipping of CDF values
 

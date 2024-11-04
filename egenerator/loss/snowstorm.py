@@ -195,6 +195,10 @@ class SnowstormPriorLossModule(BaseComponent):
         normalization = np.exp(exp_factor)
 
         def loss_excess(scaled_excess):
+            scaled_excess = tf.cast(
+                scaled_excess,
+                self.configuration.config["config"]["float_precision"],
+            )
             return tf.exp((scaled_excess + 1) * exp_factor) - normalization
 
         loss = tf.where(
@@ -314,6 +318,7 @@ class SnowstormPriorLossModule(BaseComponent):
                 fourier_values,
                 mu=tf.zeros_like(fourier_sigmas),
                 sigma=fourier_sigmas,
+                dtype=self.configuration.config["config"]["float_precision"],
             )
 
             # we will use the negative log likelihood as loss
