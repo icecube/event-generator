@@ -82,13 +82,6 @@ class Source(Model):
             return None
 
     @property
-    def name(self):
-        if self.untracked_data is not None and "name" in self.untracked_data:
-            return self.untracked_data["name"]
-        else:
-            return None
-
-    @property
     def parameter_names(self):
         if (
             self.untracked_data is not None

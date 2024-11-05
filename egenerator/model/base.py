@@ -49,6 +49,33 @@ class Model(tf.Module, BaseComponent):
     def num_variables(self):
         return self._count_number_of_variables()
 
+    @property
+    def name(self):
+        if self.untracked_data is not None and "name" in self.untracked_data:
+            return self.untracked_data["name"]
+        else:
+            return None
+
+    @property
+    def epsilon(self):
+        config = self.configuration.config["config"]
+        if "float_precision" in config:
+            model_precision = config["float_precision"]
+
+        else:
+            raise ValueError(
+                f"No float precision found in configuration: {config}"
+            )
+
+        if model_precision == "float32":
+            return 1e-7
+        elif model_precision == "float64":
+            return 1e-15
+        else:
+            raise ValueError(
+                "Invalid float precision: {}".format(model_precision)
+            )
+
     def __init__(self, name=None, logger=None):
         """Initializes Model object.
 
