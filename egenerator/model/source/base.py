@@ -4,29 +4,8 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.utils import basis_functions
-from egenerator.model.base import Model
+from egenerator.model.base import Model, InputTensorIndexer
 from egenerator.manager.component import Configuration
-
-
-class InputTensorIndexer(dict):
-    """A simple wrapper to easily obtain named tensor slices"""
-
-    def __init__(self, tensor, names):
-
-        # sanity check
-        if tensor.shape[-1] != len(names):
-            raise ValueError(
-                "Shapes do not match up: {!r} != {!r}".format(
-                    tensor.shape[-1], len(names)
-                )
-            )
-
-        dictionary = {}
-        for i, name in enumerate(names):
-            dictionary[name] = tensor[..., i]
-
-        dict.__init__(self, dictionary)
-        self.__dict__ = self
 
 
 class Source(Model):
@@ -78,26 +57,6 @@ class Source(Model):
             and "data_trafo" in self.sub_components
         ):
             return self.sub_components["data_trafo"]
-        else:
-            return None
-
-    @property
-    def parameter_names(self):
-        if (
-            self.untracked_data is not None
-            and "parameter_names" in self.untracked_data
-        ):
-            return self.untracked_data["parameter_names"]
-        else:
-            return None
-
-    @property
-    def num_parameters(self):
-        if (
-            self.untracked_data is not None
-            and "num_parameters" in self.untracked_data
-        ):
-            return self.untracked_data["num_parameters"]
         else:
             return None
 
@@ -246,16 +205,7 @@ class Source(Model):
 
         # get names of parameters
         self._untracked_data["name"] = name
-        self._untracked_data["num_parameters"] = len(parameter_names)
-        self._untracked_data["parameter_names"] = parameter_names
-        self._untracked_data["parameter_name_dict"] = {
-            name: index for index, name in enumerate(parameter_names)
-        }
-        self._untracked_data["parameter_index_dict"] = {
-            index: name for index, name in enumerate(parameter_names)
-        }
-
-        # Add parameter names to __dict__?
+        self._set_parameter_names(parameter_names)
 
         # create configuration object
         configuration = Configuration(

@@ -9,7 +9,8 @@ from datetime import datetime
 
 from egenerator import misc
 from egenerator.manager.component import Configuration, BaseComponent
-from egenerator.model.source.base import Source, InputTensorIndexer
+from egenerator.model.source.base import Source
+from egenerator.model.base import InputTensorIndexer
 from egenerator.settings.yaml import yaml_loader
 
 
@@ -134,7 +135,7 @@ class TestSourceBase(unittest.TestCase):
             "time",
         ]
 
-        config = {"dummysourcesetting": 1337}
+        config = {"dummysourcesetting": 1337, "float_precision": "float32"}
         self.source = self.get_dummy_source(
             config=config, data_trafo=self.data_trafo
         )

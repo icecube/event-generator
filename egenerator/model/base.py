@@ -10,6 +10,27 @@ from egenerator.settings.yaml import yaml_loader, yaml_dumper
 from egenerator.manager.component import BaseComponent, Configuration
 
 
+class InputTensorIndexer(dict):
+    """A simple wrapper to easily obtain named tensor slices"""
+
+    def __init__(self, tensor, names):
+
+        # sanity check
+        if tensor.shape[-1] != len(names):
+            raise ValueError(
+                "Shapes do not match up: {!r} != {!r}".format(
+                    tensor.shape[-1], len(names)
+                )
+            )
+
+        dictionary = {}
+        for i, name in enumerate(names):
+            dictionary[name] = tensor[..., i]
+
+        dict.__init__(self, dictionary)
+        self.__dict__ = self
+
+
 class Model(tf.Module, BaseComponent):
     """Model base class
 
@@ -57,15 +78,104 @@ class Model(tf.Module, BaseComponent):
             return None
 
     @property
-    def epsilon(self):
-        config = self.configuration.config["config"]
-        if "float_precision" in config:
-            model_precision = config["float_precision"]
-
+    def parameter_names(self):
+        if (
+            self.untracked_data is not None
+            and "parameter_names" in self.untracked_data
+        ):
+            return self.untracked_data["parameter_names"]
         else:
-            raise ValueError(
-                f"No float precision found in configuration: {config}"
-            )
+            return None
+
+    @property
+    def num_parameters(self):
+        if (
+            self.untracked_data is not None
+            and "num_parameters" in self.untracked_data
+        ):
+            return self.untracked_data["num_parameters"]
+        else:
+            return None
+
+    def _set_parameter_names(self, parameter_names):
+        """Set the names of the input parameters of the model
+
+        Parameters
+        ----------
+        parameter_names : list of str
+            The names of the input parameters of the model.
+        """
+        self.assert_configured(False)
+
+        self._untracked_data["num_parameters"] = len(parameter_names)
+        self._untracked_data["parameter_names"] = parameter_names
+        self._untracked_data["parameter_name_dict"] = {
+            name: index for index, name in enumerate(parameter_names)
+        }
+        self._untracked_data["parameter_index_dict"] = {
+            index: name for index, name in enumerate(parameter_names)
+        }
+
+    def get_index(self, param_name):
+        """Returns the index of a parameter name
+
+        Parameters
+        ----------
+        param_name : str
+            The name of the input parameter for which to return the index
+        """
+        self.assert_configured(True)
+        self.assert_paramerters_set()
+        return self._untracked_data["parameter_name_dict"][param_name]
+
+    def get_name(self, index):
+        """Returns the name of the input parameter input_parameters[..., index].
+
+        Parameters
+        ----------
+        index : int
+            The parameter input index for which to return the name.
+
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
+        self.assert_configured(True)
+        self.assert_paramerters_set()
+        return self._untracked_data["parameter_index_dict"][index]
+
+    def add_parameter_indexing(self, tensor, parameter_names=None):
+        """Add meta data to a tensor and allow easy indexing via names.
+
+        Parameters
+        ----------
+        tensor : tf.Tensor
+            The input parameter tensor for the Source.
+        """
+        if parameter_names is None:
+            self.assert_paramerters_set()
+            parameter_names = self.parameter_names
+
+        setattr(
+            tensor,
+            "params",
+            InputTensorIndexer(tensor, parameter_names),
+        )
+        return tensor
+
+    @property
+    def epsilon(self):
+        model_precision = None
+        if "float_precision" in self.configuration.config:
+            model_precision = self.configuration.config["float_precision"]
+        elif "config" in self.configuration.config:
+            config = self.configuration.config["config"]
+            if "float_precision" in config:
+                model_precision = config["float_precision"]
+
+        if model_precision is None:
+            return None
 
         if model_precision == "float32":
             return 1e-7
@@ -287,6 +397,11 @@ class Model(tf.Module, BaseComponent):
             [np.prod(x.get_shape().as_list()) for x in self.variables]
         )
         return num_trainable, num_total
+
+    def assert_paramerters_set(self):
+        """Check if the parameters of the model have been set."""
+        if "parameter_names" not in self._untracked_data:
+            raise ValueError("No parameter names have been set!")
 
     def assert_configured(self, configuration_state):
         """Checks the model's configuration state.

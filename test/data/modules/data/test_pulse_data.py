@@ -30,6 +30,12 @@ class TestPulseDataModule(unittest.TestCase):
 
         # time window is defined by time of first and last pulse
         self.time_windows = [[4481.0, 23764.0], [4080.0, 25258.0]]
+        self.time_windows_buffer = []
+        buffer = 100.0
+        for time_window in self.time_windows:
+            self.time_windows_buffer.append(
+                [time_window[0] - buffer, time_window[1] + buffer]
+            )
 
         self.times_0_to_9 = [
             6697.0,
@@ -192,6 +198,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float32",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
 
         with self.assertRaises(TypeError) as context:
@@ -223,6 +230,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float32",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -241,6 +249,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float32",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
 
@@ -265,6 +274,7 @@ class TestPulseDataModule(unittest.TestCase):
                     "float_precision": float_precision,
                     "add_charge_quantiles": False,
                     "discard_pulses_from_excluded_doms": False,
+                    "time_window_buffer": 0.0,
                 }
                 module = PulseDataModule()
                 module.configure(**config)
@@ -350,6 +360,7 @@ class TestPulseDataModule(unittest.TestCase):
                     "float_precision": float_precision,
                     "add_charge_quantiles": False,
                     "discard_pulses_from_excluded_doms": False,
+                    "time_window_buffer": 0.0,
                 }
                 module = PulseDataModule()
                 module.configure(**config)
@@ -365,6 +376,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float32",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -387,6 +399,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float32",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -448,6 +461,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float32",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -467,6 +481,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float64",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -488,6 +503,65 @@ class TestPulseDataModule(unittest.TestCase):
 
         # check the time windows
         self.assertTrue((data[6] == self.time_windows).all())
+
+        # check specific values for pulse times
+        self.assertListEqual(list(data[2][0:10, 1]), self.times_0_to_9)
+        self.assertListEqual(list(data[2][618:628, 1]), self.times_618_to_627)
+        self.assertListEqual(list(data[2][-5:, 1]), self.times_last_5)
+
+        # check specific values for pulse charges
+        self.assertListEqual(list(data[2][0:10, 0]), self.charges_0_to_9)
+        self.assertListEqual(
+            list(data[2][618:628, 0]), self.charges_618_to_627
+        )
+        self.assertListEqual(list(data[2][-5:, 0]), self.charges_last_5)
+
+        # check total event charge
+        event_sum = np.sum(data[0], axis=(1, 2, 3))
+        self.assertTrue(np.allclose(self.total_event_charge, event_sum))
+
+        # collect all pulses of an event and accumulate charge
+        pulses = data[2]
+        pulses_ids = data[3]
+        total_charge = [
+            np.sum(pulses[pulses_ids[:, 0] == 0][:, 0]),
+            np.sum(pulses[pulses_ids[:, 0] == 1][:, 0]),
+        ]
+        self.assertTrue(np.allclose(self.total_event_charge, total_charge))
+
+    def test_get_data_from_hdf_time_window(self):
+        """Test if loaded data is correct"""
+        config = {
+            "config_data": "dummy_data",
+            "pulse_key": "InIceDSTPulses",
+            "event_id_key": "LabelsDeepLearning",
+            "dom_exclusions_key": None,
+            "time_exclusions_key": None,
+            "float_precision": "float64",
+            "add_charge_quantiles": False,
+            "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 100.0,
+        }
+        module = PulseDataModule()
+        module.configure(**config)
+
+        # check if assumed order of data is correct
+        self.assertEqual(
+            len(module.data["data_tensors"].list),
+            len(self.assumed_tensor_order),
+        )
+        for i, tensor in enumerate(module.data["data_tensors"].list):
+            self.assertEqual(tensor.name, self.assumed_tensor_order[i])
+
+        num_events, data = module.get_data_from_hdf(self.file_path)
+        self.assertEqual(num_events, 2)
+        self.assertEqual(len(data), 7)
+        self.assertEqual(data[1], None)
+        self.assertEqual(data[4], None)
+        self.assertEqual(data[5], None)
+
+        # check the time windows
+        self.assertTrue((data[6] == self.time_windows_buffer).all())
 
         # check specific values for pulse times
         self.assertListEqual(list(data[2][0:10, 1]), self.times_0_to_9)
@@ -556,6 +630,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float64",
             "add_charge_quantiles": True,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -622,6 +697,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float64",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
@@ -682,6 +758,7 @@ class TestPulseDataModule(unittest.TestCase):
             "float_precision": "float64",
             "add_charge_quantiles": False,
             "discard_pulses_from_excluded_doms": False,
+            "time_window_buffer": 0.0,
         }
         module = PulseDataModule()
         module.configure(**config)
