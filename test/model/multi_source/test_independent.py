@@ -80,7 +80,7 @@ class TestIndependentMultiSource(unittest.TestCase):
             "cascade_setting": 1337,
             "float_precision": "float32",
         }
-        self.base_sources = {
+        self.base_models = {
             "cascade": self.get_cascade_source(
                 config=self.config_cascade, data_trafo=self.data_trafo
             )
@@ -92,10 +92,10 @@ class TestIndependentMultiSource(unittest.TestCase):
         self.config = {
             "sources": self.sources,
         }
-        self.sub_components = {"cascade": self.base_sources["cascade"]}
+        self.sub_components = {"cascade": self.base_models["cascade"]}
         self.source = self.get_muon(
             config=self.config,
-            base_sources=self.base_sources,
+            base_models=self.base_models,
         )
 
         class_string = "egenerator.model.multi_source.independent."
@@ -191,13 +191,13 @@ class TestIndependentMultiSource(unittest.TestCase):
         model = MultiSource()
 
         with self.assertRaises(NotImplementedError):
-            model.configure(config=self.config, base_sources=self.base_sources)
+            model.configure(config=self.config, base_models=self.base_models)
 
     def test_correct_configuration_name(self):
         """Test if the name passed in to the configuration is properly saved"""
         model = IndependentMultiSource()
         model.configure(
-            config=self.config, base_sources=self.base_sources, name="dummy"
+            config=self.config, base_models=self.base_models, name="dummy"
         )
         self.assertEqual(model.name, "dummy")
 
@@ -246,7 +246,7 @@ class TestIndependentMultiSource(unittest.TestCase):
                     "parameter_name_dict"
                 ],
                 "parameter_names": self.parameter_names,
-                "sources": self.sources,
+                "models_mapping": self.sources,
             },
         )
         self.assertEqual(self.source._sub_components, self.sub_components)
@@ -510,7 +510,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         """
         source = self.get_muon(
             config=self.config,
-            base_sources=self.base_sources,
+            base_models=self.base_models,
             data_trafo=self.data_trafo,
         )
 
@@ -529,10 +529,10 @@ class TestIndependentMultiSource(unittest.TestCase):
     #     of multiple MultSource objects
     #     """
     #     multi_source1 = self.get_muon(config=self.config,
-    #                                   base_sources=self.base_sources,
+    #                                   base_models=self.base_models,
     #                                   name='Muon1')
     #     multi_source2 = self.get_muon(config=self.config,
-    #                                   base_sources=self.base_sources,
+    #                                   base_models=self.base_models,
     #                                   name='Muon2')
 
     #     model = MultiSource()

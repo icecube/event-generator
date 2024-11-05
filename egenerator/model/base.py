@@ -398,6 +398,42 @@ class Model(tf.Module, BaseComponent):
         )
         return num_trainable, num_total
 
+    def _find_top_nodes(self, tensor, collect_name=None):
+        """Find top nodes of a tensor's computation graph.
+
+        Parameters
+        ----------
+        tensor : tf.Tensor
+            The tensor for which to return the top nodes.
+        collect_name : str, optional
+            Constant inputs are not collected, unless their names match this
+            string.
+
+        Returns
+        -------
+        set of tf.Tensor
+            A set of tensors which make up the top nodes of the tensor's
+            computation graph.
+        """
+        if len(tensor.op.inputs) == 0:
+
+            # ignore constant inputs unless they match the collect_name
+            if (
+                tensor.op.node_def.op == "Const"
+                and tensor.name == collect_name
+            ):
+                return set([tensor.name])
+            else:
+                return set()
+
+        tensor_list = set()
+        for in_tensor in tensor.op.inputs:
+            tensor_list = tensor_list.union(
+                self._find_top_nodes(in_tensor, collect_name=collect_name)
+            )
+
+        return tensor_list
+
     def assert_paramerters_set(self):
         """Check if the parameters of the model have been set."""
         if "parameter_names" not in self._untracked_data:

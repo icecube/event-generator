@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from egenerator import misc
 from egenerator.utils import basis_functions
-from egenerator.model.base import Model, InputTensorIndexer
+from egenerator.model.base import Model
 from egenerator.manager.component import Configuration
 
 
@@ -215,50 +215,6 @@ class Source(Model):
         )
 
         return configuration, {}, {"data_trafo": data_trafo}
-
-    def get_index(self, param_name):
-        """Returns the index of a parameter name
-
-        Parameters
-        ----------
-        param_name : str
-            The name of the input parameter for which to return the index
-        """
-        self.assert_configured(True)
-        return self._untracked_data["parameter_name_dict"][param_name]
-
-    def get_name(self, index):
-        """Returns the name of the input parameter input_parameters[:, index].
-
-        Parameters
-        ----------
-        index : int
-            The parameter input index for which to return the name.
-
-        Raises
-        ------
-        NotImplementedError
-            Description
-        """
-        self.assert_configured(True)
-        return self._untracked_data["parameter_index_dict"][index]
-
-    def add_parameter_indexing(self, tensor):
-        """Add meta data to a tensor and allow easy indexing via names.
-
-        Parameters
-        ----------
-        tensor : tf.Tensor
-            The input parameter tensor for the Source.
-        """
-        setattr(
-            tensor,
-            "params",
-            InputTensorIndexer(
-                tensor, self._untracked_data["parameter_names"]
-            ),
-        )
-        return tensor
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.

@@ -196,7 +196,7 @@ def main(config_files, reco_config_file=None, log_level="INFO", num_threads=0):
             SetupManager([config_file]).get_config(),
             restore=manager_config["restore_model"],
             modified_sub_components=deepcopy(modified_sub_components),
-            allow_rebuild_base_sources=not manager_config["restore_model"],
+            allow_rebuild_base_models=not manager_config["restore_model"],
         )
         models.extend(model_manger.models)
 
@@ -207,7 +207,7 @@ def main(config_files, reco_config_file=None, log_level="INFO", num_threads=0):
         models=models,
         data_handler=data_handler,
         data_transformer=data_transformer,
-        allow_rebuild_base_sources=False,
+        allow_rebuild_base_models=False,
     )
 
     # --------------------

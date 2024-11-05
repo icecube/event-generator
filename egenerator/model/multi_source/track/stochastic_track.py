@@ -17,7 +17,7 @@ class StochasticTrackModel(MultiSource):
         self._logger = logger or logging.getLogger(__name__)
         super(StochasticTrackModel, self).__init__(logger=self._logger)
 
-    def get_parameters_and_mapping(self, config, base_sources):
+    def get_parameters_and_mapping(self, config, base_models):
         """Get parameter names and their ordering as well as source mapping.
 
         This is a pure virtual method that must be implemented by
@@ -27,7 +27,7 @@ class StochasticTrackModel(MultiSource):
         ----------
         config : dict
             A dictionary of settings.
-        base_sources : dict of Source objects
+        base_models : dict of Source objects
             A dictionary of sources. These sources are used as a basis for
             the MultiSource object. The event hypothesis can be made up of
             multiple sources which may be created from one or more
@@ -50,9 +50,9 @@ class StochasticTrackModel(MultiSource):
         num_cascades = config["num_cascades"]
         self._untracked_data["num_cascades"] = num_cascades
 
-        if sorted(list(base_sources.keys())) != ["cascade", "track"]:
+        if sorted(list(base_models.keys())) != ["cascade", "track"]:
             msg = "Expected only ['cascade', 'track'] bases, but got {!r}"
-            raise ValueError(msg.format(base_sources.keys()))
+            raise ValueError(msg.format(base_models.keys()))
 
         # gather parameter names and sources
         sources = {"track": "track"}

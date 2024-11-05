@@ -136,7 +136,7 @@ def build_loss_module(loss_module_settings):
 
 
 def build_model(
-    model_settings, data_transformer, allow_rebuild_base_sources=False
+    model_settings, data_transformer, allow_rebuild_base_models=False
 ):
     """Build a Model object
 
@@ -148,8 +148,8 @@ def build_model(
         `multi_source_bases`.
     data_transformer : DataTransformer object
         The data transformer object to use for the model.
-    allow_rebuild_base_sources : bool, optional
-        If True, the base source model is allowed to be rebuild, otherwise it
+    allow_rebuild_base_models : bool, optional
+        If True, the base model is allowed to be rebuild, otherwise it
         will raise an error if a base model is not loaded, but attempted to
         be rebuild from scratch.
 
@@ -165,7 +165,7 @@ def build_model(
     """
 
     # check if base sources need to be built:
-    base_sources = {}
+    base_models = {}
     if "multi_source_bases" in model_settings:
 
         multi_source_bases = model_settings["multi_source_bases"]
@@ -183,9 +183,9 @@ def build_model(
 
             # configure model if we are not loading it new
             else:
-                if not allow_rebuild_base_sources:
+                if not allow_rebuild_base_models:
                     msg = "Model is not allowed to be rebuild! To change this "
-                    msg += "setting, set 'allow_rebuild_base_sources' to True."
+                    msg += "setting, set 'allow_rebuild_base_models' to True."
                     raise ValueError(msg)
 
                 # if this multi source base is a nested multi source
@@ -194,7 +194,7 @@ def build_model(
                     base_source = build_model(
                         model_settings=settings,
                         data_transformer=data_transformer,
-                        allow_rebuild_base_sources=allow_rebuild_base_sources,
+                        allow_rebuild_base_models=allow_rebuild_base_models,
                     )
                 else:
 
@@ -211,7 +211,7 @@ def build_model(
                         data_trafo=data_transformer_base,
                     )
 
-            base_sources[name] = base_source
+            base_models[name] = base_source
 
     ModelClass = misc.load_class(model_settings["model_class"])
     model = ModelClass()
@@ -219,8 +219,8 @@ def build_model(
     arguments = dict(
         config=model_settings["config"], data_trafo=data_transformer
     )
-    if base_sources != {}:
-        arguments["base_sources"] = base_sources
+    if base_models != {}:
+        arguments["base_models"] = base_models
 
     model.configure(**arguments)
     return model
@@ -233,7 +233,7 @@ def build_manager(
     data_transformer=None,
     models=None,
     modified_sub_components={},
-    allow_rebuild_base_sources=False,
+    allow_rebuild_base_models=False,
 ):
     """Build the Manager Component.
 
@@ -254,7 +254,7 @@ def build_manager(
     modified_sub_components : dict, optional
         A dictionary of modified sub-components that will be passed on to
         ModelManager load method.
-    allow_rebuild_base_sources : bool, optional
+    allow_rebuild_base_models : bool, optional
         If True, the model is allowed to be rebuild, otherwise it will raise
         an error if a model is not loaded, but rebuild from scratch.
 
@@ -307,7 +307,7 @@ def build_manager(
             model = build_model(
                 config["model_settings"],
                 data_transformer=data_transformer,
-                allow_rebuild_base_sources=allow_rebuild_base_sources,
+                allow_rebuild_base_models=allow_rebuild_base_models,
             )
             models = [model]
 

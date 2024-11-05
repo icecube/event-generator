@@ -19,7 +19,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
             logger=self._logger
         )
 
-    def get_parameters_and_mapping(self, config, base_sources):
+    def get_parameters_and_mapping(self, config, base_models):
         """Get parameter names and their ordering as well as source mapping.
 
         This is a pure virtual method that must be implemented by
@@ -29,7 +29,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
         ----------
         config : dict
             A dictionary of settings.
-        base_sources : dict of Source objects
+        base_models : dict of Source objects
             A dictionary of sources. These sources are used as a basis for
             the MultiSource object. The event hypothesis can be made up of
             multiple sources which may be created from one or more
@@ -51,9 +51,9 @@ class StartingVariableMultiCascadeModel(MultiSource):
         """
         self._untracked_data["num_cascades"] = config["num_cascades"]
 
-        if list(base_sources.keys()) != ["cascade"]:
+        if list(base_models.keys()) != ["cascade"]:
             msg = "Expected only 'cascade' base, but got {!r}"
-            raise ValueError(msg.format(base_sources.keys()))
+            raise ValueError(msg.format(base_models.keys()))
 
         sources = {"starting_cascade": "cascade"}
         parameters = ["x", "y", "z", "zenith", "azimuth", "energy", "time"]
@@ -99,7 +99,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
         dir_z = -tf.cos(zenith)
 
         source_parameter_dict = {}
-        for cascade in sorted(self._untracked_data["sources"].keys()):
+        for cascade in sorted(self._untracked_data["models_mapping"].keys()):
 
             if cascade == "starting_cascade":
                 source_parameter_dict[cascade] = tf.stack(

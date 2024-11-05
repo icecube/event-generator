@@ -19,7 +19,7 @@ class IndependentMultiSource(MultiSource):
         self._logger = logger or logging.getLogger(__name__)
         super(IndependentMultiSource, self).__init__(logger=self._logger)
 
-    def get_parameters_and_mapping(self, config, base_sources):
+    def get_parameters_and_mapping(self, config, base_models):
         """Get parameter names and their ordering as well as source mapping.
 
         This is a pure virtual method that must be implemented by
@@ -34,7 +34,7 @@ class IndependentMultiSource(MultiSource):
                     'independent_source1': base_source_name_a,
                     'independent_source2': base_source_name_b,
                 }
-        base_sources : dict of Source objects
+        base_models : dict of Source objects
             A dictionary of sources. These sources are used as a basis for
             the MultiSource object. The event hypothesis can be made up of
             multiple sources which may be created from one or more
@@ -59,7 +59,7 @@ class IndependentMultiSource(MultiSource):
         parameters = []
         for cascade in sorted(sources.keys()):
             base = sources[cascade]
-            for variable in base_sources[base].parameter_names:
+            for variable in base_models[base].parameter_names:
                 parameters.append(cascade + "_" + variable)
         return parameters, sources
 
@@ -83,8 +83,8 @@ class IndependentMultiSource(MultiSource):
         """
         source_parameter_dict = {}
         counter = 0
-        for cascade in sorted(self._untracked_data["sources"].keys()):
-            base = self._untracked_data["sources"][cascade]
+        for cascade in sorted(self._untracked_data["models_mapping"].keys()):
+            base = self._untracked_data["models_mapping"][cascade]
             num = self.sub_components[base].num_parameters
             source_parameter_dict[cascade] = parameters[
                 :, counter : counter + num

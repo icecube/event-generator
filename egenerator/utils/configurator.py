@@ -318,7 +318,7 @@ class ManagerConfigurator:
                 config_i,
                 restore=True,
                 modified_sub_components=modified_sub_components,
-                allow_rebuild_base_sources=False,
+                allow_rebuild_base_models=False,
             )
             models.extend(model_manger.models)
 
@@ -329,7 +329,7 @@ class ManagerConfigurator:
             models=models,
             data_handler=data_handler,
             data_transformer=data_transformer,
-            allow_rebuild_base_sources=False,
+            allow_rebuild_base_models=False,
         )
 
         # save manager
