@@ -91,6 +91,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         }
         self.config = {
             "sources": self.sources,
+            "float_precision": "float32",
         }
         self.sub_components = {"cascade": self.base_models["cascade"]}
         self.source = self.get_muon(

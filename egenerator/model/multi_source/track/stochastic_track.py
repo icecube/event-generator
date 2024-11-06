@@ -90,7 +90,7 @@ class StochasticTrackModel(MultiSource):
 
         return parameter_names, sources
 
-    def get_source_parameters(self, parameters):
+    def get_model_parameters(self, parameters):
         """Get the input parameters for the individual sources.
 
         Parameters
@@ -106,7 +106,7 @@ class StochasticTrackModel(MultiSource):
             Returns a dictionary of (name: input_parameters) pairs, where
             name is the name of the Source and input_parameters is a tf.Tensor
             for the input parameters of this Source.
-
+            Each input_parameters tensor has shape [..., num_parameters_i].
         """
         c = 0.299792458  # meter / ns
         distance = 500  # meter

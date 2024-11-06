@@ -60,43 +60,6 @@ class Source(Model):
         else:
             return None
 
-    @property
-    def epsilon(self):
-        config = self.configuration.config["config"]
-        if "float_precision" in config:
-            model_precision = config["float_precision"]
-
-        elif "sources" in config:
-            model_precisions = []
-            for _, base_source in config["sources"].items():
-                model_precisions.append(
-                    self.sub_components[base_source].configuration.config[
-                        "config"
-                    ]["float_precision"]
-                )
-            model_precisions = np.unique(model_precisions)
-            if len(model_precisions) > 1:
-                raise ValueError(
-                    "Multiple float precisions in model: {}".format(
-                        model_precisions
-                    )
-                )
-            else:
-                model_precision = model_precisions[0]
-        else:
-            raise ValueError(
-                f"No float precision found in configuration: {config}"
-            )
-
-        if model_precision == "float32":
-            return 1e-7
-        elif model_precision == "float64":
-            return 1e-15
-        else:
-            raise ValueError(
-                "Invalid float precision: {}".format(model_precision)
-            )
-
     def __init__(self, logger=None):
         """Instantiate Source class
 

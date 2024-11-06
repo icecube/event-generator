@@ -45,22 +45,24 @@ class MultiSource(NestedModel, Source):
             required: the cascade source. The mapping will then map all
             cascades in the hypothesis to this one base cascade source.
 
-    get_source_parameters(self, parameters):
-        Get the input parameters for the individual sources.
+    get_model_parameters(self, parameters):
+        Get the input parameters for the individual models.
 
         Parameters
         ----------
         parameters : tf.Tensor
-            The input parameters for the MultiSource object.
-            The input parameters of the individual Source objects are composed
+            The input parameters for the NestedModel object.
+            The input parameters of the individual Model objects are composed
             from these.
+            Shape: [..., num_parameters]
 
         Returns
         -------
         dict of tf.Tensor
             Returns a dictionary of (name: input_parameters) pairs, where
-            name is the name of the Source and input_parameters is a tf.Tensor
-            for the input parameters of this Source.
+            name is the name of the nested Model and input_parameters
+            is a tf.Tensor for the input parameters of that Model.
+            Each input_parameters tensor has shape [..., num_parameters_i].
 
     Attributes
     ----------
@@ -81,58 +83,6 @@ class MultiSource(NestedModel, Source):
         """
         self._logger = logger or logging.getLogger(__name__)
         super(MultiSource, self).__init__(logger=self._logger)
-
-    def get_parameters_and_mapping(self, config, base_models):
-        """Get parameter names and their ordering as well as source mapping.
-
-        This is a pure virtual method that must be implemented by
-        derived class.
-
-        Parameters
-        ----------
-        config : dict
-            A dictionary of settings.
-        base_models : dict of Source objects
-            A dictionary of sources. These sources are used as a basis for
-            the MultiSource object. The event hypothesis can be made up of
-            multiple sources which may be created from one or more
-            base source objects.
-
-        Returns
-        -------
-        list of str
-            A list of parameter names of the MultiSource object.
-        dict
-            This describes the sources which compose the event hypothesis.
-            The dictionary is a mapping from source_name (str) to
-            base_source (str). This mapping allows the reuse of a single
-            source component instance. For instance, a muon can be build up of
-            multiple cascades. However, all cascades should use the same
-            underlying model. Hence, in this case only one base_source is
-            required: the cascade source. The mapping will then map all
-            cascades in the hypothesis to this one base cascade source.
-        """
-        raise NotImplementedError()
-
-    def get_source_parameters(self, parameters):
-        """Get the input parameters for the individual sources.
-
-        Parameters
-        ----------
-        parameters : tf.Tensor
-            The input parameters for the MultiSource object.
-            The input parameters of the individual Source objects are composed
-            from these.
-
-        Returns
-        -------
-        dict of tf.Tensor
-            Returns a dictionary of (name: input_parameters) pairs, where
-            name is the name of the Source and input_parameters is a tf.Tensor
-            for the input parameters of this Source.
-
-        """
-        raise NotImplementedError()
 
     def _configure_derived_class(
         self, base_models, config, data_trafo=None, name=None
@@ -278,7 +228,7 @@ class MultiSource(NestedModel, Source):
         pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
         parameters = self.add_parameter_indexing(parameters)
-        source_parameters = self.get_source_parameters(parameters)
+        source_parameters = self.get_model_parameters(parameters)
 
         # check if time exclusions exist
         tensors = self.data_trafo.data["tensors"]

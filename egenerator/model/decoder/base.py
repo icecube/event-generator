@@ -145,7 +145,7 @@ class LatentToPDFDecoder(Model):
         self.assert_configured(False)
         raise NotImplementedError()
 
-    def pdf(self, x, latent_vars, *args, **kwargs):
+    def pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 
         Parameters
@@ -157,8 +157,6 @@ class LatentToPDFDecoder(Model):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., num_parameters]
-        *args
-            Additional arguments.
         **kwargs
             Additional keyword arguments.
 
@@ -170,7 +168,7 @@ class LatentToPDFDecoder(Model):
         self.assert_configured(True)
         raise NotImplementedError
 
-    def cdf(self, x, latent_vars, *args, **kwargs):
+    def cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.
 
         Parameters
@@ -182,8 +180,6 @@ class LatentToPDFDecoder(Model):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., num_parameters]
-        *args
-            Additional arguments.
         **kwargs
             Additional keyword arguments.
 
@@ -195,8 +191,8 @@ class LatentToPDFDecoder(Model):
         self.assert_configured(True)
         raise NotImplementedError
 
-    def ppf(self, q, latent_vars, *args, **kwargs):
-        """Evaluate the decoded PPF at p.
+    def ppf(self, q, latent_vars, **kwargs):
+        """Evaluate the decoded PPF at q.
 
         Parameters
         ----------
@@ -207,8 +203,6 @@ class LatentToPDFDecoder(Model):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., num_parameters]
-        *args
-            Additional arguments.
         **kwargs
             Additional keyword arguments.
 
@@ -219,3 +213,26 @@ class LatentToPDFDecoder(Model):
         """
         self.assert_configured(True)
         raise NotImplementedError
+
+    def sample(self, random_numbers, latent_vars, **kwargs):
+        """Get samples for provided uniform random numbers.
+
+        Parameters
+        ----------
+        random_numbers : tf.Tensor
+            The random_numbers in (0, 1) for which to sample.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (num_parameters).
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., num_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The sampled values for the provided random_numbers
+            and latent variables.
+        """
+        return self.ppf(random_numbers, latent_vars, **kwargs)

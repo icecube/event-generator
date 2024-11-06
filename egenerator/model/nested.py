@@ -1,5 +1,6 @@
 import os
 import logging
+import numpy as np
 import tensorflow as tf
 
 from egenerator import misc
@@ -83,6 +84,54 @@ class NestedModel(Model):
     parameter_names: list of str
         The names of the n_params number of parameters.
     """
+
+    @property
+    def epsilon(self):
+        model_precision = None
+
+        if "float_precision" in self.configuration.config:
+            model_precision = self.configuration.config["float_precision"]
+        elif "config" in self.configuration.config:
+            config = self.configuration.config["config"]
+            if "float_precision" in config:
+                model_precision = config["float_precision"]
+        elif "models_mapping" in self._untracked_data:
+            model_precisions = []
+            for _, base_source in config["models_mapping"].items():
+                model_precisions.append(
+                    self.sub_components[base_source].configuration.config[
+                        "config"
+                    ]["float_precision"]
+                )
+            model_precisions = np.unique(model_precisions)
+            if len(model_precisions) > 1:
+                raise ValueError(
+                    "Multiple float precisions in model: {}".format(
+                        model_precisions
+                    )
+                )
+            else:
+                if model_precision is None:
+                    model_precision = model_precisions[0]
+                elif model_precision != model_precisions[0]:
+                    raise ValueError(
+                        "Mismatched float precisions in model: {} and {}".format(
+                            model_precision, model_precisions[0]
+                        )
+                    )
+        else:
+            raise ValueError(
+                f"No float precision found in configuration: {config}"
+            )
+
+        if model_precision == "float32":
+            return 1e-7
+        elif model_precision == "float64":
+            return 1e-15
+        else:
+            raise ValueError(
+                "Invalid float precision: {}".format(model_precision)
+            )
 
     def __init__(self, logger=None):
         """Instantiate Model class
@@ -232,6 +281,30 @@ class NestedModel(Model):
         """
         if name is None:
             name = __name__
+
+        if "float_precision" in config:
+            for _, base_model in base_models.items():
+                base_config = base_model.configuration.config
+                if "float_precision" in base_config:
+                    base_precision = base_config["float_precision"]
+                elif (
+                    "config" in base_config
+                    and "float_precision" in base_config["config"]
+                ):
+                    base_precision = base_config["config"]["float_precision"]
+                else:
+                    raise ValueError(
+                        "No float precision found in configuration: {}".format(
+                            base_config
+                        )
+                    )
+                if base_precision != config["float_precision"]:
+                    raise ValueError(
+                        "Mismatched float precisions in model: {} and {}".format(
+                            base_precision,
+                            config["float_precision"],
+                        )
+                    )
 
         # # collect all tensorflow variables before creation
         # variables_before = set([

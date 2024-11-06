@@ -13,6 +13,11 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
 
     def setUp(self):
 
+        mu = np.array([1.0, 2.0, 3.0])
+        sigma = np.array([0.3, 3.0, 2.0])
+        r = np.array([1.0, 2.0, 3.0])
+        self.latent_vars = np.stack([mu, sigma, r], axis=-1)
+
         self.parameter_names = [
             "mu",
             "sigma",
@@ -38,66 +43,39 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
         """Check if the pdf method is correctly implemented"""
 
         x = np.array([-1.0, -0.36, 0.0, 0.56, 1.0]).reshape(-1, 1)
-        latent_vars = np.array(
-            [
-                [
-                    [1.0, 2.0, 3.0],  # mu
-                    [0.3, 3.0, 2.0],  # sigma
-                    [1.0, 2.0, 3.0],  # r
-                ]
-            ]
-        )
         pdf_np = basis_functions.asymmetric_gauss(
             x=x,
-            mu=latent_vars[..., 0],
-            sigma=latent_vars[..., 1],
-            r=latent_vars[..., 2],
+            mu=self.latent_vars[..., 0],
+            sigma=self.latent_vars[..., 1],
+            r=self.latent_vars[..., 2],
         )
-        pdf = self.decoder.pdf(x, latent_vars).numpy()
+        pdf = self.decoder.pdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(pdf, pdf_np))
 
     def test_correct_cdf(self):
         """Check if the cdf method is correctly implemented"""
 
         x = np.array([0.0, 0.56, 1.0]).reshape(-1, 1)
-        latent_vars = np.array(
-            [
-                [
-                    [1.0, 2.0, 3.0],  # mu
-                    [0.3, 3.0, 2.0],  # sigma
-                    [1.0, 2.0, 3.0],  # r
-                ]
-            ]
-        )
         cdf_np = basis_functions.asymmetric_gauss_cdf(
             x=x,
-            mu=latent_vars[..., 0],
-            sigma=latent_vars[..., 1],
-            r=latent_vars[..., 2],
+            mu=self.latent_vars[..., 0],
+            sigma=self.latent_vars[..., 1],
+            r=self.latent_vars[..., 2],
         )
-        cdf = self.decoder.cdf(x, latent_vars).numpy()
+        cdf = self.decoder.cdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(cdf, cdf_np))
 
     def test_correct_ppf(self):
         """Check if the ppf method is correctly implemented"""
 
         q = np.array([0.0, 0.56, 1.0]).reshape(-1, 1)
-        latent_vars = np.array(
-            [
-                [
-                    [1.0, 2.0, 3.0],  # mu
-                    [0.3, 3.0, 2.0],  # sigma
-                    [1.0, 2.0, 3.0],  # r
-                ]
-            ]
-        )
         cdf_np = basis_functions.asymmetric_gauss_ppf(
             q=q,
-            mu=latent_vars[..., 0],
-            sigma=latent_vars[..., 1],
-            r=latent_vars[..., 2],
+            mu=self.latent_vars[..., 0],
+            sigma=self.latent_vars[..., 1],
+            r=self.latent_vars[..., 2],
         )
-        cdf = self.decoder.ppf(q, latent_vars).numpy()
+        cdf = self.decoder.ppf(q, self.latent_vars).numpy()
         self.assertTrue(np.allclose(cdf, cdf_np))
 
     def test_correct_initialization(self):

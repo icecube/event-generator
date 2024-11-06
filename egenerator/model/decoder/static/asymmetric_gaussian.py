@@ -43,7 +43,7 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         self.assert_configured(False)
         return ["mu", "sigma", "r"]
 
-    def pdf(self, x, latent_vars, *args, **kwargs):
+    def pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 
         Parameters
@@ -55,8 +55,6 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., num_parameters]
-        *args
-            Additional arguments.
         **kwargs
             Additional keyword arguments.
 
@@ -74,7 +72,7 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             dtype=self.configuration.config["config"]["float_precision"],
         )
 
-    def cdf(self, x, latent_vars, *args, **kwargs):
+    def cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.
 
         Parameters
@@ -86,8 +84,6 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., num_parameters]
-        *args
-            Additional arguments.
         **kwargs
             Additional keyword arguments.
 
@@ -105,8 +101,8 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             dtype=self.configuration.config["config"]["float_precision"],
         )
 
-    def ppf(self, q, latent_vars, *args, **kwargs):
-        """Evaluate the decoded PPF at p.
+    def ppf(self, q, latent_vars, **kwargs):
+        """Evaluate the decoded PPF at q.
 
         Parameters
         ----------
@@ -117,8 +113,6 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., num_parameters]
-        *args
-            Additional arguments.
         **kwargs
             Additional keyword arguments.
 
