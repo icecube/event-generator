@@ -78,11 +78,11 @@ class TestMixtureModel(unittest.TestCase):
         self.x_np = self.x[..., np.newaxis]
 
         # shape: (1, 2, n_latent = n_components * num_parameters)
+        # mu, sigm, r, weight
         self.latent_vars = np.array(
             [
                 [
                     [
-                        # mu, sigm, r, weight
                         1.0,
                         0.3,
                         1.0,
@@ -97,7 +97,6 @@ class TestMixtureModel(unittest.TestCase):
                         3.0,
                     ],
                     [
-                        # mu, sigm, r, weight
                         4.2,
                         1.3,
                         2.0,
@@ -118,7 +117,6 @@ class TestMixtureModel(unittest.TestCase):
             [
                 [
                     [
-                        # mu, sigm, r, weight
                         0.0,
                         0.3,
                         1.0,
@@ -133,7 +131,6 @@ class TestMixtureModel(unittest.TestCase):
                         3.0,
                     ],
                     [
-                        # mu, sigm, r, weight
                         3.0,
                         1.3,
                         1.0,
