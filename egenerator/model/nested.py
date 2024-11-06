@@ -89,13 +89,16 @@ class NestedModel(Model):
     def epsilon(self):
         model_precision = None
 
-        if "float_precision" in self.configuration.config:
-            model_precision = self.configuration.config["float_precision"]
-        elif "config" in self.configuration.config:
-            config = self.configuration.config["config"]
-            if "float_precision" in config:
-                model_precision = config["float_precision"]
+        configuration = self.configuration.config
+        if "float_precision" in configuration:
+            model_precision = configuration["float_precision"]
+        elif (
+            "config" in configuration
+            and "float_precision" in configuration["config"]
+        ):
+            model_precision = configuration["config"]["float_precision"]
         elif "models_mapping" in self._untracked_data:
+            config = configuration["config"]
             model_precisions = []
             for _, base_source in config["models_mapping"].items():
                 model_precisions.append(
@@ -121,7 +124,7 @@ class NestedModel(Model):
                     )
         else:
             raise ValueError(
-                f"No float precision found in configuration: {config}"
+                f"No float precision found in configuration: {configuration}"
             )
 
         if model_precision == "float32":
