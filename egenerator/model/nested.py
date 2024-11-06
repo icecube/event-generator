@@ -98,9 +98,10 @@ class NestedModel(Model):
         ):
             model_precision = configuration["config"]["float_precision"]
         elif "models_mapping" in self._untracked_data:
-            config = configuration["config"]
             model_precisions = []
-            for _, base_source in config["models_mapping"].items():
+            for _, base_source in self._untracked_data[
+                "models_mapping"
+            ].items():
                 model_precisions.append(
                     self.sub_components[base_source].configuration.config[
                         "config"
