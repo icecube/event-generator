@@ -79,13 +79,13 @@ class IndependentMultiSource(MultiSource):
             Returns a dictionary of (name: input_parameters) pairs, where
             name is the name of the Source and input_parameters is a tf.Tensor
             for the input parameters of this Source.
-            Each input_parameters tensor has shape [..., num_parameters_i].
+            Each input_parameters tensor has shape [..., n_parameters_i].
         """
         source_parameter_dict = {}
         counter = 0
         for cascade in sorted(self._untracked_data["models_mapping"].keys()):
             base = self._untracked_data["models_mapping"][cascade]
-            num = self.sub_components[base].num_parameters
+            num = self.sub_components[base].n_parameters
             source_parameter_dict[cascade] = parameters[
                 :, counter : counter + num
             ]

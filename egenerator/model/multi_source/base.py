@@ -54,7 +54,7 @@ class MultiSource(NestedModel, Source):
             The input parameters for the NestedModel object.
             The input parameters of the individual Model objects are composed
             from these.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
 
         Returns
         -------
@@ -62,7 +62,7 @@ class MultiSource(NestedModel, Source):
             Returns a dictionary of (name: input_parameters) pairs, where
             name is the name of the nested Model and input_parameters
             is a tf.Tensor for the input parameters of that Model.
-            Each input_parameters tensor has shape [..., num_parameters_i].
+            Each input_parameters tensor has shape [..., n_parameters_i].
 
     Attributes
     ----------

@@ -66,7 +66,7 @@ class NestedModel(Model):
             The input parameters for the NestedModel object.
             The input parameters of the individual Model objects are composed
             from these.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
 
         Returns
         -------
@@ -74,7 +74,7 @@ class NestedModel(Model):
             Returns a dictionary of (name: input_parameters) pairs, where
             name is the name of the nested Model and input_parameters
             is a tf.Tensor for the input parameters of that Model.
-            Each input_parameters tensor has shape [..., num_parameters_i].
+            Each input_parameters tensor has shape [..., n_parameters_i].
 
     Attributes
     ----------
@@ -208,7 +208,7 @@ class NestedModel(Model):
             The input parameters for the NestedModel object.
             The input parameters of the individual Model objects are composed
             from these.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
 
         Returns
         -------
@@ -216,7 +216,7 @@ class NestedModel(Model):
             Returns a dictionary of (name: input_parameters) pairs, where
             name is the name of the nested Model and input_parameters
             is a tf.Tensor for the input parameters of that Model.
-            Each input_parameters tensor has shape [..., num_parameters_i].
+            Each input_parameters tensor has shape [..., n_parameters_i].
         """
         raise NotImplementedError()
 
@@ -545,9 +545,7 @@ class NestedModel(Model):
         """
 
         # create a dummy input tensor for the NestedModel
-        input_tensor = tf.ones(
-            [3, self.num_parameters], name="NestedModelInput"
-        )
+        input_tensor = tf.ones([3, self.n_parameters], name="NestedModelInput")
 
         # get model parameters
         input_tensor = self.add_parameter_indexing(input_tensor)
@@ -564,14 +562,14 @@ class NestedModel(Model):
             model_parameters_i = model_parameters[name]
 
             # check number of parameters
-            if model_parameters_i.shape[-1] != sub_component.num_parameters:
+            if model_parameters_i.shape[-1] != sub_component.n_parameters:
                 msg = "Model {!r} with base component {!r} expected {!r} "
                 msg += "number of parameters but got {!r}"
                 raise ValueError(
                     msg.format(
                         name,
                         base,
-                        sub_component.num_parameters,
+                        sub_component.n_parameters,
                         model_parameters_i.shape[-1],
                     )
                 )
@@ -585,7 +583,7 @@ class NestedModel(Model):
                 if top_nodes == set([input_tensor.name]):
                     continue
 
-                for i in range(sub_component.num_parameters):
+                for i in range(sub_component.n_parameters):
                     tensor_i = model_parameters_i[:, i]
 
                     # get parent tensor

@@ -121,7 +121,7 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
                 "checkpoint": self.decoder.checkpoint,
                 "variables": self.decoder.variables,
                 "step": self.decoder._untracked_data["step"],
-                "num_parameters": 3,
+                "n_parameters": 3,
                 "parameter_index_dict": self.decoder._untracked_data[
                     "parameter_index_dict"
                 ],

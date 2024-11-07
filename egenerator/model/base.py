@@ -88,12 +88,12 @@ class Model(tf.Module, BaseComponent):
             return None
 
     @property
-    def num_parameters(self):
+    def n_parameters(self):
         if (
             self.untracked_data is not None
-            and "num_parameters" in self.untracked_data
+            and "n_parameters" in self.untracked_data
         ):
-            return self.untracked_data["num_parameters"]
+            return self.untracked_data["n_parameters"]
         else:
             return None
 
@@ -107,7 +107,7 @@ class Model(tf.Module, BaseComponent):
         """
         self.assert_configured(False)
 
-        self._untracked_data["num_parameters"] = len(parameter_names)
+        self._untracked_data["n_parameters"] = len(parameter_names)
         self._untracked_data["parameter_names"] = parameter_names
         self._untracked_data["parameter_name_dict"] = {
             name: index for index, name in enumerate(parameter_names)

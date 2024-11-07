@@ -60,6 +60,16 @@ class Source(Model):
         else:
             return None
 
+    @property
+    def decoder(self):
+        if (
+            self.sub_components is not None
+            and "decoder" in self.sub_components
+        ):
+            return self.sub_components["decoder"]
+        else:
+            return None
+
     def __init__(self, logger=None):
         """Instantiate Source class
 
@@ -706,7 +716,7 @@ class Source(Model):
     #     TYPE
     #         Description
     #     """
-    #     parent_node = tf.constant(np.ones(shape=[1, self.num_parameters]))
+    #     parent_node = tf.constant(np.ones(shape=[1, self.n_parameters]))
     #     output = self._untracked_data['module'](parent_node)
     #     return _find_top_nodes(output)
 

@@ -51,11 +51,12 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         x : tf.Tensor
             The input tensor at which to evaluate the PDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -63,6 +64,7 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         -------
         tf.Tensor
             The PDF evaluated at x for the given latent variables.
+            Shape: [...]
         """
         self.assert_configured(True)
         return basis_functions.tf_asymmetric_gauss(
@@ -81,11 +83,12 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         x : tf.Tensor
             The input tensor at which to evaluate the CDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -111,11 +114,12 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         q : tf.Tensor
             The input tensor at which to evaluate the PPF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 

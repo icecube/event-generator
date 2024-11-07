@@ -549,7 +549,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
             The source hypothesis parameter tensor.
         """
         # create parameter array
-        parameters = np.empty([len(cascades), self.model.num_parameters])
+        parameters = np.empty([len(cascades), self.model.n_parameters])
 
         # Fill default values
         for name, value in self.default_values.items():

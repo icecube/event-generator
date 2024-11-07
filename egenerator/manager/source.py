@@ -1597,7 +1597,7 @@ class SourceManager(BaseModelManager):
         # get a list of parameters to fit
         fit_parameter_list = [
             reco_config["minimize_parameter_default_value"]
-            for i in range(self.models[0].num_parameters)
+            for i in range(self.models[0].n_parameters)
         ]
         for name, value in reco_config["minimize_parameter_dict"].items():
             fit_parameter_list[self.models[0].get_index(name)] = value
@@ -2032,13 +2032,13 @@ class SourceManager(BaseModelManager):
 
                 data_batch_seed = list(data_batch)
                 data_batch_seed[param_index] = np.reshape(
-                    cascade_seed, [-1, self.models[0].num_parameters]
+                    cascade_seed, [-1, self.models[0].n_parameters]
                 )
                 data_batch_seed = tuple(data_batch_seed)
 
                 data_batch_reco = list(data_batch)
                 data_batch_reco[param_index] = np.reshape(
-                    cascade_reco, [-1, self.models[0].num_parameters]
+                    cascade_reco, [-1, self.models[0].n_parameters]
                 )
                 data_batch_reco = tuple(data_batch_reco)
 

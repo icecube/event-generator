@@ -177,7 +177,7 @@ class LatentToPDFDecoder(Model):
         ----------
         latent_vars : tf.Tensor
             The latent variables.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
 
         Returns
         -------
@@ -205,10 +205,11 @@ class LatentToPDFDecoder(Model):
         x : tf.Tensor
             The input tensor at which to evaluate the PDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -229,11 +230,12 @@ class LatentToPDFDecoder(Model):
         x : tf.Tensor
             The input tensor at which to evaluate the PDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -252,10 +254,11 @@ class LatentToPDFDecoder(Model):
         x : tf.Tensor
             The input tensor at which to evaluate the CDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -276,11 +279,12 @@ class LatentToPDFDecoder(Model):
         x : tf.Tensor
             The input tensor at which to evaluate the CDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -299,10 +303,11 @@ class LatentToPDFDecoder(Model):
         q : tf.Tensor
             The input tensor at which to evaluate the PPF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -323,11 +328,12 @@ class LatentToPDFDecoder(Model):
         q : tf.Tensor
             The input tensor at which to evaluate the PPF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -346,10 +352,11 @@ class LatentToPDFDecoder(Model):
         random_numbers : tf.Tensor
             The random_numbers in (0, 1) for which to sample.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
+            Shape: [...]
         latent_vars : tf.Tensor
             The latent variables.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 

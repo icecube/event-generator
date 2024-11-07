@@ -183,7 +183,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         self.assertEqual(model.checkpoint, None)
         self.assertEqual(model.name, None)
         self.assertEqual(model.parameter_names, None)
-        self.assertEqual(model.num_parameters, None)
+        self.assertEqual(model.n_parameters, None)
 
     def test_configuration_of_abstract_class(self):
         """MultiSource is an abstract class with a pure virtual method.
@@ -236,7 +236,7 @@ class TestIndependentMultiSource(unittest.TestCase):
             self.source._untracked_data,
             {
                 "name": "egenerator.model.multi_source.base",
-                "num_parameters": 14,
+                "n_parameters": 14,
                 "checkpoint": self.source.checkpoint,
                 "step": self.source._untracked_data["step"],
                 "variables": self.source._untracked_data["variables"],
@@ -516,7 +516,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         )
 
         data_batch_dict = {
-            "x_parameters": tf.ones([1, source.num_parameters]),
+            "x_parameters": tf.ones([1, source.n_parameters]),
             "x_pulses": tf.ones([7, 2]),
             "x_pulses_ids": tf.zeros([7, 4], dtype=tf.int32),
         }

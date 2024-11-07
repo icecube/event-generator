@@ -115,7 +115,7 @@ class TestMixtureModel(unittest.TestCase):
         # shape: (5, 2, 1)
         self.x_np = self.x[..., np.newaxis]
 
-        # shape: (1, 2, n_latent = n_components * num_parameters)
+        # shape: (1, 2, n_latent = n_components * n_parameters)
         # mu, sigm, r, weight
         self.latent_vars = np.array(
             [
@@ -186,7 +186,7 @@ class TestMixtureModel(unittest.TestCase):
             ]
         )
 
-        # shape: (1, 2, n_components, num_parameters)
+        # shape: (1, 2, n_components, n_parameters)
         self.latent_vars_np = self.latent_vars.reshape((1, 2, 3, 4))
 
         def elu(x):
@@ -455,7 +455,7 @@ class TestMixtureModel(unittest.TestCase):
                 "checkpoint": self.mixture.checkpoint,
                 "variables": self.mixture.variables,
                 "step": self.mixture._untracked_data["step"],
-                "num_parameters": 12,
+                "n_parameters": 12,
                 "parameter_index_dict": self.mixture._untracked_data[
                     "parameter_index_dict"
                 ],

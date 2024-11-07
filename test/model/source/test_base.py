@@ -265,7 +265,7 @@ class TestSourceBase(unittest.TestCase):
                 "step": self.source._untracked_data["step"],
                 "dummy_var": self.source._untracked_data["dummy_var"],
                 "variables": self.source._untracked_data["variables"],
-                "num_parameters": 7,
+                "n_parameters": 7,
                 "parameter_index_dict": self.source._untracked_data[
                     "parameter_index_dict"
                 ],

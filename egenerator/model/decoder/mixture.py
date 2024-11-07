@@ -187,7 +187,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                     f"{decoder_name}_{name}_{i:03d}"
                     for name in base_decoder.parameter_names + ["weight"]
                 ]
-            n_parameters_per_decoder.append(base_decoder.num_parameters + 1)
+            n_parameters_per_decoder.append(base_decoder.n_parameters + 1)
             n_components_per_decoder.append(n_components)
             parameter_slice_per_decoder.append(
                 slice(
@@ -213,16 +213,22 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
 
         return parameter_names, models_mapping
 
-    def get_model_parameters(self, parameters):
+    def get_model_parameters(self, x, parameters):
         """Get the input parameters for the individual models.
 
         Parameters
         ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the MixtureModel.
+            Must be same rank as parameters or have one less.
+            If same rank, the last dimension must have the size
+            of the number of components in the mixture model.
+            Shape: [..., n_components] or [...]
         parameters : tf.Tensor
             The input parameters for the NestedModel object.
             The input parameters of the individual Model objects are composed
             from these.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
 
         Returns
         -------
@@ -230,7 +236,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             Returns a dictionary of (name: input_parameters) pairs, where
             name is the name of the nested Model and input_parameters
             is a tf.Tensor for the input parameters of that Model.
-            Each input_parameters tensor has shape [..., num_parameters_i].
+            Each input_parameters tensor has shape [..., n_parameters_i].
         """
         model_parameter_dict = {}
         for i, name in enumerate(self._untracked_data["decoder_names"]):
@@ -351,11 +357,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         x : tf.Tensor
             The input tensor at which to evaluate the PDF/CDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         func_name : str
             The name of the function to call.
             Can be either 'pdf' or 'cdf'.
@@ -387,10 +393,12 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         values = []
         total_weight = None
         for name in self._untracked_data["decoder_names"]:
+
+            # shape: [..., n_components_per_base, n_parameters]
             latent_vars_i = parameter_dict[name]
             weight = latent_vars_i[..., -1]
 
-            # shape: [..., n_components]
+            # shape: [..., n_components_per_base]
             func = getattr(self.sub_components[name], func_name)
             values_i = (
                 func(
@@ -418,7 +426,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             values = tf.add_n(values)
             values /= total_weight
         else:
-            # shape: [..., n_components * n_models]
+            # shape: [..., n_components_total]
             values = tf.concat(values, axis=-1)
             values /= total_weight[..., tf.newaxis]
 
@@ -432,11 +440,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         x : tf.Tensor
             The input tensor at which to evaluate the PDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         reduce_components : bool, optional
             If True, the PDFs of the individual components are summed up
             and returned as the final PDF. If False, the output shape will
@@ -466,11 +474,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         x : tf.Tensor
             The input tensor at which to evaluate the CDF.
             Broadcastable to the shape of the latent variables
-            without the last dimension (num_parameters).
+            without the last dimension (n_parameters).
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         reduce_components : bool, optional
             If True, the PDFs of the individual components are summed up
             and returned as the final PDF. If False, the output shape will
@@ -505,11 +513,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             component index, the second random number is used to sample
             the value from the selected component.
             Dimensions before that must be broadcastable to the shape of
-            the latent variables without the last dimension (num_parameters).
+            the latent variables without the last dimension (n_parameters).
             Shape: [..., 2]
         latent_vars : tf.Tensor
             The latent variables.
-            Shape: [..., num_parameters]
+            Shape: [..., n_parameters]
         **kwargs
             Additional keyword arguments.
 
@@ -530,11 +538,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         weights = []
         for name in self._untracked_data["decoder_names"]:
 
-            # shape: [..., n_components]
+            # shape: [..., n_components_per_base]
             weights_i = parameter_dict[name][..., -1]
             weights.append(weights_i)
 
-        # shape: [..., n_models * n_components]
+        # shape: [..., n_components_total]
         weights = tf.concat(weights, axis=-1)
         cum_weights = tf.math.cumsum(weights, axis=-1)
         cum_weights /= tf.reduce_sum(weights, axis=-1, keepdims=True)
@@ -559,7 +567,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         for name in self._untracked_data["decoder_names"]:
             latent_vars_i = parameter_dict[name]
 
-            # shape: [..., n_components]
+            # shape: [..., n_components_per_base]
             ppf_value = self.sub_components[name].ppf(
                 q=random_numbers[..., 1:],
                 latent_vars=latent_vars_i[..., :-1],
@@ -567,7 +575,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             )
             ppf_values.append(ppf_value)
 
-        # shape: [..., n_models * n_components]
+        # shape: [..., n_components_total]
         ppf_values = tf.concat(ppf_values, axis=-1)
 
         # choose ppf value based on model and component index

@@ -171,7 +171,7 @@ class TestDecoderBase(unittest.TestCase):
                 "step": self.decoder._untracked_data["step"],
                 "dummy_var": self.decoder._untracked_data["dummy_var"],
                 "variables": self.decoder._untracked_data["variables"],
-                "num_parameters": 4,
+                "n_parameters": 4,
                 "parameter_index_dict": self.decoder._untracked_data[
                     "parameter_index_dict"
                 ],
