@@ -135,8 +135,86 @@ def build_loss_module(loss_module_settings):
     return loss_module
 
 
+def build_decoder(decoder_settings, allow_rebuild_base_decoders=False):
+    """Build a Model object
+
+    Parameters
+    ----------
+    decoder_settings : dict
+        A dictionary containing the decoder settings. Must at
+        least contain `decoder_class`, `config` and if this is a
+        MixtureModel: `base_decoders`.
+    allow_rebuild_base_decoders : bool, optional
+        If True, the base decoders are allowed to be rebuild,
+        otherwise an error will be raised if a base decoder is
+        not loaded, but attempted to be rebuild from scratch.
+
+    Returns
+    -------
+    LatentToPDFDecoder object
+        The decoder object.
+
+    Raises
+    ------
+    ValueError
+        Description
+    """
+    if decoder_settings == {}:
+        return None
+
+    # check if base sources need to be built:
+    base_decoders = {}
+    if "base_decoders" in decoder_settings:
+
+        # loop through defined multi-source bases and create them
+        for name, settings in decoder_settings["base_decoders"].items():
+
+            # create base source
+            BaseDecoderClass = misc.load_class(settings["decoder_class"])
+            base_decoder = BaseDecoderClass()
+
+            # load decoder
+            if "load_dir" in settings and settings["load_dir"] is not None:
+                base_decoder.load(settings["load_dir"])
+
+            # configure decoder if we are not loading it new
+            else:
+                if not allow_rebuild_base_decoders:
+                    msg = "Model is not allowed to be rebuild! To change this "
+                    msg += (
+                        "setting, set 'allow_rebuild_base_decoders' to True."
+                    )
+                    raise ValueError(msg)
+
+                # if this multi source base is a nested multi source
+                # with sub sources, we need to recursively build them
+                if "base_decoders" in settings:
+                    base_decoder = build_decoder(
+                        decoder_settings=settings,
+                        allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+                    )
+                else:
+                    base_decoder.configure(config=settings["config"])
+
+            base_decoders[name] = base_decoder
+
+    DecoderClass = misc.load_class(decoder_settings["decoder_class"])
+    decoder = DecoderClass()
+
+    arguments = {"config": decoder_settings["config"]}
+    if base_decoders != {}:
+        arguments["base_decoders"] = base_decoders
+
+    decoder.configure(**arguments)
+    return decoder
+
+
 def build_model(
-    model_settings, data_transformer, allow_rebuild_base_models=False
+    model_settings,
+    data_transformer,
+    decoder=None,
+    allow_rebuild_base_models=False,
+    allow_rebuild_base_decoders=False,
 ):
     """Build a Model object
 
@@ -148,10 +226,18 @@ def build_model(
         `multi_source_bases`.
     data_transformer : DataTransformer object
         The data transformer object to use for the model.
+    decoder : LatentToPDFDecoder object, optional
+        The decoder object to use for the model.
+        This is an optional argument, if the model does
+        not require a decoder.
     allow_rebuild_base_models : bool, optional
         If True, the base model is allowed to be rebuild, otherwise it
         will raise an error if a base model is not loaded, but attempted to
         be rebuild from scratch.
+    allow_rebuild_base_decoders : bool, optional
+        If True, the base decoders are allowed to be rebuild,
+        otherwise an error will be raised if a base decoder is
+        not loaded, but attempted to be rebuild from scratch.
 
     Returns
     -------
@@ -194,7 +280,9 @@ def build_model(
                     base_source = build_model(
                         model_settings=settings,
                         data_transformer=data_transformer,
+                        decoder=decoder,
                         allow_rebuild_base_models=allow_rebuild_base_models,
+                        allow_rebuild_base_decoders=allow_rebuild_base_decoders,
                     )
                 else:
 
@@ -206,9 +294,20 @@ def build_model(
                         )
                     else:
                         data_transformer_base = data_transformer
+
+                    # check if the base model has its own decoder defined
+                    if "decoder_settings" in settings:
+                        decoder_base = build_decoder(
+                            decoder_settings=settings["decoder_settings"],
+                            allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+                        )
+                    else:
+                        decoder_base = decoder
+
                     base_source.configure(
                         config=settings["config"],
                         data_trafo=data_transformer_base,
+                        decoder=decoder_base,
                     )
 
             base_models[name] = base_source
@@ -217,7 +316,9 @@ def build_model(
     model = ModelClass()
 
     arguments = dict(
-        config=model_settings["config"], data_trafo=data_transformer
+        config=model_settings["config"],
+        data_trafo=data_transformer,
+        decoder=decoder,
     )
     if base_models != {}:
         arguments["base_models"] = base_models
@@ -231,9 +332,11 @@ def build_manager(
     restore,
     data_handler=None,
     data_transformer=None,
+    decoder=None,
     models=None,
     modified_sub_components={},
     allow_rebuild_base_models=False,
+    allow_rebuild_base_decoders=False,
 ):
     """Build the Manager Component.
 
@@ -247,6 +350,8 @@ def build_manager(
         A data handler object to use.
     data_transformer : DataTransformer object, optional
         A data transformer object to use.
+    decoder : LatentToPDFDecoder object, optional
+        A decoder object to use to convert latent variables to PDFs.
     models : List of Model objects, optional
         The model objects to use. If more than one model object is provided,
         an ensemble of models is created. Models must be compatible, define
@@ -257,6 +362,10 @@ def build_manager(
     allow_rebuild_base_models : bool, optional
         If True, the model is allowed to be rebuild, otherwise it will raise
         an error if a model is not loaded, but rebuild from scratch.
+    allow_rebuild_base_decoders : bool, optional
+        If True, the base decoders are allowed to be rebuild,
+        otherwise an error will be raised if a base decoder is
+        not loaded, but attempted to be rebuild from scratch.
 
     Returns
     -------
@@ -301,13 +410,24 @@ def build_manager(
             )
 
         # -----------------------
+        # create and load Decoder
+        # -----------------------
+        if decoder is None and "decoder_settings" in config:
+            decoder = build_decoder(
+                config["decoder_settings"],
+                allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+            )
+
+        # -----------------------
         # create and Model object
         # -----------------------
         if models is None:
             model = build_model(
                 config["model_settings"],
                 data_transformer=data_transformer,
+                decoder=decoder,
                 allow_rebuild_base_models=allow_rebuild_base_models,
+                allow_rebuild_base_decoders=allow_rebuild_base_decoders,
             )
             models = [model]
 

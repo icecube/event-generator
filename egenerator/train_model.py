@@ -112,7 +112,10 @@ def main(config_files, log_level, num_threads=0):
 
     # build manager object
     manager, model, data_handler, data_transformer = build_manager(
-        config, restore=restore, allow_rebuild_base_models=True
+        config,
+        restore=restore,
+        allow_rebuild_base_models=True,
+        allow_rebuild_base_decoders=True,
     )
 
     # --------------

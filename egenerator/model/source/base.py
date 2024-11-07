@@ -71,7 +71,13 @@ class Source(Model):
         self._logger = logger or logging.getLogger(__name__)
         super(Source, self).__init__(logger=self._logger)
 
-    def _configure_derived_class(self, config, data_trafo, name=None):
+    def _configure_derived_class(
+        self,
+        config,
+        data_trafo,
+        decoder=None,
+        name=None,
+    ):
         """Setup and configure the Source's architecture.
 
         After this function call, the sources's architecture (weights) must
@@ -84,6 +90,9 @@ class Source(Model):
             architecture and weights.
         data_trafo : DataTrafo
             A data trafo object.
+        decoder : LatentToPDFDecoder, optional
+            The decoder object. This is an optional object that can
+            be used to decode the latent variables into a PDF.
         name : str, optional
             The name of the source.
 
@@ -176,8 +185,11 @@ class Source(Model):
             settings=dict(config=config),
             mutable_settings=dict(name=name),
         )
+        sub_components = {"data_trafo": data_trafo}
+        if decoder is not None:
+            sub_components["decoder"] = decoder
 
-        return configuration, {}, {"data_trafo": data_trafo}
+        return configuration, {}, sub_components
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.

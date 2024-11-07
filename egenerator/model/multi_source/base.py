@@ -85,7 +85,7 @@ class MultiSource(NestedModel, Source):
         super(MultiSource, self).__init__(logger=self._logger)
 
     def _configure_derived_class(
-        self, base_models, config, data_trafo=None, name=None
+        self, base_models, config, data_trafo=None, decoder=None, name=None
     ):
         """Setup and configure the Source's architecture.
 
@@ -104,6 +104,9 @@ class MultiSource(NestedModel, Source):
             architecture and weights.
         data_trafo : DataTrafo
             A data trafo object.
+        decoder : LatentToPDFDecoder, optional
+            The decoder object. This is an optional object that can
+            be used to decode the latent variables into a PDF.
         name : str, optional
             The name of the source.
 
@@ -159,6 +162,9 @@ class MultiSource(NestedModel, Source):
 
         if data_trafo is not None:
             sub_components["data_trafo"] = data_trafo
+
+        if decoder is not None:
+            sub_components["decoder"] = decoder
 
         return configuration, data, sub_components
 
