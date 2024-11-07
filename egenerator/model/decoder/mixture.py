@@ -1,6 +1,7 @@
 import logging
 import tensorflow as tf
 
+from egenerator.utils import misc
 from egenerator.model.nested import NestedModel
 from egenerator.model.decoder.base import LatentToPDFDecoder
 
@@ -39,6 +40,18 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                 "AssymetricGaussian": ["AssymetricGaussian", 7],
                 "Gamma": ["Gamma", 3],
             },
+
+            # Define a mapping of latent variable to value range functions
+            "value_range_mapping": {
+                "weight": {
+                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                    "config": {
+                        "scale": 1.0,
+                        "offset": 1.0,
+                        "min_value": 0.00001
+                    },
+                },
+            },
         },
 
         # Define the decoder types that are used as components of the mixture
@@ -46,7 +59,35 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         base_decoders: {
             AssymetricGaussian: {
                 'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
-                'config': {},
+                'config': {
+
+                    # Define a mapping of latent variable to value range functions
+                    "value_range_mapping": {
+                        "mu": {
+                            "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                            "config": {
+                                "scale": 0.5,
+                                "offset": 0.0,
+                            },
+                        },
+                        "sigma": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": 2.0,
+                                "min_value": 0.0001,
+                            },
+                        },
+                        "r": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": 1.0,
+                                "min_value": 0.0001,
+                            },
+                        },
+                    },
+                },
 
                 # Define load_dir here if you want to load the model from a file
                 # This does not make sense for a paremeter-less model, but it
@@ -277,6 +318,25 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             name=name,
         )
 
+        # create value range object
+        self.value_range_mapping = {}
+        if "value_range_mapping" in config and config["value_range_mapping"]:
+            if list(config["value_range_mapping"].keys()) != ["weight"]:
+                raise ValueError(
+                    "The MixtureModel only modifies the weights to "
+                    "individual components. The value range mapping "
+                    "therefore should only contain the 'weight' key. "
+                    "For other parameters, the value range mapping "
+                    "should be defined in the base decoders."
+                    f"Provided keys: {config['value_range_mapping'].keys()}"
+                )
+            settings = config["value_range_mapping"]["weight"]
+            ValueClass = misc.load_class(settings["value_range_class"])
+            value_range_object = ValueClass(**settings["config"])
+            for key in self._untracked_data["decoder_names"]:
+                if key.startswith("weight_"):
+                    self.value_range_mapping[key] = value_range_object
+
         return configuration, data, sub_components
 
     def _pdf_or_cdf(
@@ -291,7 +351,8 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             Broadcastable to the shape of the latent variables
             without the last dimension (num_parameters).
         latent_vars : tf.Tensor
-            The latent variables.
+            The latent variables which have already been transformed
+            by the value range mapping.
             Shape: [..., num_parameters]
         func_name : str
             The name of the function to call.
@@ -361,7 +422,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
 
         return values
 
-    def pdf(self, x, latent_vars, reduce_components=True, **kwargs):
+    def _pdf(self, x, latent_vars, reduce_components=True, **kwargs):
         """Evaluate the decoded PDF at x.
 
         Parameters
@@ -371,7 +432,8 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             Broadcastable to the shape of the latent variables
             without the last dimension (num_parameters).
         latent_vars : tf.Tensor
-            The latent variables.
+            The latent variables which have already been transformed
+            by the value range mapping.
             Shape: [..., num_parameters]
         reduce_components : bool, optional
             If True, the PDFs of the individual components are summed up
@@ -394,7 +456,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             **kwargs
         )
 
-    def cdf(self, x, latent_vars, reduce_components=True, **kwargs):
+    def _cdf(self, x, latent_vars, reduce_components=True, **kwargs):
         """Evaluate the decoded CDF at x.
 
         Parameters
@@ -404,7 +466,8 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             Broadcastable to the shape of the latent variables
             without the last dimension (num_parameters).
         latent_vars : tf.Tensor
-            The latent variables.
+            The latent variables which have already been transformed
+            by the value range mapping.
             Shape: [..., num_parameters]
         reduce_components : bool, optional
             If True, the PDFs of the individual components are summed up
@@ -455,6 +518,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             and latent variables.
         """
         self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
         parameter_dict = self.get_model_parameters(latent_vars)
 
         if random_numbers.shape[-1] != 2:

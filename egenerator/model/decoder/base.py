@@ -1,5 +1,7 @@
 import logging
 
+import tensorflow as tf
+
 from egenerator import misc
 from egenerator.model.base import Model
 from egenerator.manager.component import Configuration
@@ -18,13 +20,13 @@ class LatentToPDFDecoder(Model):
         - _build_architecture:
             Set up and build architecture: create and save
             all model weights. Must return a list of latent variable names.
-        - pdf:
+        - _pdf:
             Evaluate the PDF at a given input tensor.
-        - cdf:
+        - _cdf:
             Evaluate the CDF at a given input tensor.
 
     Optionally, derived classes may implement the following methods:
-        - ppf:
+        - _ppf:
             Evaluate the percent point function at a given input tensor.
     """
 
@@ -110,6 +112,18 @@ class LatentToPDFDecoder(Model):
         self._untracked_data["name"] = name
         self._set_parameter_names(latent_names)
 
+        # create value range object
+        self.value_range_mapping = {}
+        if "value_range_mapping" in config:
+            for key, settings in config["value_range_mapping"].items():
+                assert (
+                    key in latent_names
+                ), f"Key {key} not in latent names {latent_names}"
+                ValueClass = misc.load_class(settings["value_range_class"])
+                self.value_range_mapping[key] = ValueClass(
+                    **settings["config"]
+                )
+
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
@@ -145,6 +159,33 @@ class LatentToPDFDecoder(Model):
         self.assert_configured(False)
         raise NotImplementedError()
 
+    def _apply_value_range(self, latent_vars):
+        """Apply value range function to latent variables.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., num_parameters]
+
+        Returns
+        -------
+        tf.Tensor
+            The latent variables after applying the value range mapping.
+        """
+        latent_vars_list = []
+        for key in self.parameter_names:
+            if key in self.value_range_mapping:
+                latent_vars_list.append(
+                    self.value_range_mapping[key](
+                        latent_vars[..., self.get_index(key)]
+                    )
+                )
+            else:
+                latent_vars_list.append(latent_vars[..., self.get_index(key)])
+
+        return tf.stack(latent_vars_list, axis=-1)
+
     def pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 
@@ -166,6 +207,30 @@ class LatentToPDFDecoder(Model):
             The PDF evaluated at x for the given latent variables.
         """
         self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._pdf(x, latent_vars, **kwargs)
+
+    def _pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (num_parameters).
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., num_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
         raise NotImplementedError
 
     def cdf(self, x, latent_vars, **kwargs):
@@ -189,6 +254,30 @@ class LatentToPDFDecoder(Model):
             The CDF evaluated at x for the given latent variables.
         """
         self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._cdf(x, latent_vars, **kwargs)
+
+    def _cdf(self, x, latent_vars, **kwargs):
+        """Evaluate the decoded CDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the CDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (num_parameters).
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., num_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The CDF evaluated at x for the given latent variables.
+        """
         raise NotImplementedError
 
     def ppf(self, q, latent_vars, **kwargs):
@@ -212,6 +301,30 @@ class LatentToPDFDecoder(Model):
             The PPF evaluated at q for the given latent variables.
         """
         self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._ppf(q, latent_vars, **kwargs)
+
+    def _ppf(self, q, latent_vars, **kwargs):
+        """Evaluate the decoded PPF at q.
+
+        Parameters
+        ----------
+        q : tf.Tensor
+            The input tensor at which to evaluate the PPF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (num_parameters).
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., num_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PPF evaluated at q for the given latent variables.
+        """
         raise NotImplementedError
 
     def sample(self, random_numbers, latent_vars, **kwargs):

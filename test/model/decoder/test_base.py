@@ -158,7 +158,7 @@ class TestDecoderBase(unittest.TestCase):
         )
 
         with self.assertRaises(NotImplementedError) as context:
-            decoder._is_configured = True
+            decoder.configure(config={})
             decoder.pdf(None, None)
 
     def test_parameter_indexing(self):

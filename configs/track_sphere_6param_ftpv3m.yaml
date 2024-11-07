@@ -497,7 +497,6 @@ model_settings: {
                 'scale_charge_by_global_dom_efficiency': False,
                 'scale_charge_by_angular_acceptance': True,
                 'scale_charge_by_relative_angular_acceptance': False,
-                'prevent_mixture_component_swapping': False,
                 'charge_distribution_type': 'negative_binomial',
                 'num_latent_models': 10,
                 'float_precision': float32,

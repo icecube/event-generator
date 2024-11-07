@@ -573,22 +573,6 @@ class DefaultCascadeModel(Source):
         # normalize scale to sum to 1
         latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
 
-        # Sort mixture model components in time if desired
-        if (
-            "prevent_mixture_component_swapping" in config
-            and config["prevent_mixture_component_swapping"]
-        ):
-
-            # swap latent variables of components, such that these are ordered
-            # in time. This puts a constrained on the model and reduces
-            # the permutation options and should thus facilitate training.
-            # We could keep the latent_mu in place and sort the other
-            # components accordingly. An equivalent alternative is to keep
-            # the other components in place and to simply sort the latent_mu.
-            latent_mu = tf.ensure_shape(
-                tf.sort(latent_mu, axis=-1), shape=[None, 86, 60, n_models]
-            )
-
         tensor_dict["latent_var_mu"] = latent_mu
         tensor_dict["latent_var_sigma"] = latent_sigma
         tensor_dict["latent_var_r"] = latent_r

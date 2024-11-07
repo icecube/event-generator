@@ -43,7 +43,7 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         self.assert_configured(False)
         return ["mu", "sigma", "r"]
 
-    def pdf(self, x, latent_vars, **kwargs):
+    def _pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 
         Parameters
@@ -53,7 +53,8 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             Broadcastable to the shape of the latent variables
             without the last dimension (num_parameters).
         latent_vars : tf.Tensor
-            The latent variables.
+            The latent variables which have already been transformed
+            by the value range mapping.
             Shape: [..., num_parameters]
         **kwargs
             Additional keyword arguments.
@@ -72,7 +73,7 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             dtype=self.configuration.config["config"]["float_precision"],
         )
 
-    def cdf(self, x, latent_vars, **kwargs):
+    def _cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.
 
         Parameters
@@ -82,7 +83,8 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             Broadcastable to the shape of the latent variables
             without the last dimension (num_parameters).
         latent_vars : tf.Tensor
-            The latent variables.
+            The latent variables which have already been transformed
+            by the value range mapping.
             Shape: [..., num_parameters]
         **kwargs
             Additional keyword arguments.
@@ -101,7 +103,7 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             dtype=self.configuration.config["config"]["float_precision"],
         )
 
-    def ppf(self, q, latent_vars, **kwargs):
+    def _ppf(self, q, latent_vars, **kwargs):
         """Evaluate the decoded PPF at q.
 
         Parameters
@@ -111,7 +113,8 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             Broadcastable to the shape of the latent variables
             without the last dimension (num_parameters).
         latent_vars : tf.Tensor
-            The latent variables.
+            The latent variables which have already been transformed
+            by the value range mapping.
             Shape: [..., num_parameters]
         **kwargs
             Additional keyword arguments.
