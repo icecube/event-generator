@@ -1,7 +1,7 @@
 import logging
 import tensorflow as tf
 
-from egenerator.utils import misc
+from egenerator import misc
 from egenerator.model.nested import NestedModel
 from egenerator.model.decoder.base import LatentToPDFDecoder
 
@@ -319,7 +319,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         )
 
         # create value range object
-        self.value_range_mapping = {}
+        self._untracked_data["value_range_mapping"] = {}
         if "value_range_mapping" in config and config["value_range_mapping"]:
             if list(config["value_range_mapping"].keys()) != ["weight"]:
                 raise ValueError(
@@ -333,9 +333,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             settings = config["value_range_mapping"]["weight"]
             ValueClass = misc.load_class(settings["value_range_class"])
             value_range_object = ValueClass(**settings["config"])
-            for key in self._untracked_data["decoder_names"]:
-                if key.startswith("weight_"):
-                    self.value_range_mapping[key] = value_range_object
+            for key in self.parameter_names:
+                if "_weight_" in key:
+                    self._untracked_data["value_range_mapping"][
+                        key
+                    ] = value_range_object
 
         return configuration, data, sub_components
 

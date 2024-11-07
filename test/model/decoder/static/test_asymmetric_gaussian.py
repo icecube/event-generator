@@ -133,6 +133,9 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
                     "sigma",
                     "r",
                 ],
+                "value_range_mapping": self.decoder._untracked_data[
+                    "value_range_mapping"
+                ],
             },
         )
         self.assertEqual(self.decoder._sub_components, {})

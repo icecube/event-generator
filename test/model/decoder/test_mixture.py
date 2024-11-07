@@ -33,14 +33,52 @@ class TestMixtureModel(unittest.TestCase):
                 "AssymetricGaussian": ["AssymetricGaussian", 3],
             },
             "float_precision": "float64",
-        }
-        self.config_single = {
-            "decoder_mapping": {
-                "AssymetricGaussian": ["AssymetricGaussian", 1],
+            "value_range_mapping": {
+                "weight": {
+                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                    "config": {
+                        "scale": 10.0,
+                        "offset": 1.0,
+                        "min_value": 0.00001,
+                    },
+                },
             },
-            "float_precision": "float64",
         }
-        self.ag = self.get_ag_decoder(config={"float_precision": "float64"})
+        self.ag = self.get_ag_decoder(
+            config={
+                "float_precision": "float64",
+                "value_range_mapping": {
+                    "mu": {
+                        "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                        "config": {
+                            "scale": 0.5,
+                            "offset": 0.0,
+                        },
+                    },
+                    "sigma": {
+                        "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                        "config": {
+                            "scale": 2.0,
+                            "offset": 2.0,
+                            "min_value": 0.0001,
+                        },
+                    },
+                    "r": {
+                        "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                        "config": {
+                            "scale": 1.0,
+                            "offset": 1.0,
+                            "min_value": 0.0001,
+                        },
+                    },
+                },
+            }
+        )
+        self.ag_no_mapping = self.get_ag_decoder(
+            config={
+                "float_precision": "float64",
+            }
+        )
 
         self.base_models = {
             "AssymetricGaussian": self.ag,
@@ -50,9 +88,9 @@ class TestMixtureModel(unittest.TestCase):
             config=self.config,
             base_models=self.base_models,
         )
-        self.mixture_single = self.get_mixture(
-            config=self.config_single,
-            base_models=self.base_models,
+        self.mixture_no_mapping = self.get_mixture(
+            config=self.config,
+            base_models={"AssymetricGaussian": self.ag_no_mapping},
         )
 
         class_string = misc.get_full_class_string_of_object(self.mixture)
@@ -151,9 +189,31 @@ class TestMixtureModel(unittest.TestCase):
         # shape: (1, 2, n_components, num_parameters)
         self.latent_vars_np = self.latent_vars.reshape((1, 2, 3, 4))
 
+        def elu(x):
+            return np.where(x > 0, x, np.exp(x) - 1)
+
+        self.latent_vars_np_trafo = np.array(self.latent_vars_np)
+        self.latent_vars_np_trafo[..., 0] = self.latent_vars_np[..., 0] * 0.5
+        self.latent_vars_np_trafo[..., 1] = (
+            elu(self.latent_vars_np[..., 1] * 2.0 + 2.0) + 1.0001
+        )
+        self.latent_vars_np_trafo[..., 2] = (
+            elu(self.latent_vars_np[..., 2] * 1.0 + 1.0) + 1.0001
+        )
+        self.latent_vars_np_trafo[..., 3] = (
+            elu(self.latent_vars_np[..., 3] * 10.0 + 1.0) + 1.00001
+        )
+
         # normalize weights for np, mixture model does this internally
+        self.latent_vars_np = np.array(self.latent_vars_np)
         self.latent_vars_np[..., -1] /= np.sum(
             self.latent_vars_np[..., -1] + self.mixture.epsilon,
+            axis=-1,
+            keepdims=True,
+        )
+        self.latent_vars_np_trafo_norm = np.array(self.latent_vars_np_trafo)
+        self.latent_vars_np_trafo_norm[..., -1] /= np.sum(
+            self.latent_vars_np_trafo_norm[..., -1] + self.mixture.epsilon,
             axis=-1,
             keepdims=True,
         )
@@ -169,40 +229,127 @@ class TestMixtureModel(unittest.TestCase):
         model.configure(base_models=base_models, **kwargs)
         return model
 
+    def test_value_range_mapping_keys(self):
+        """Test if the value range mapping contains the correct keys"""
+
+        self.assertEqual(
+            list(self.ag.value_range_mapping.keys()),
+            ["mu", "sigma", "r"],
+        )
+
+        self.assertEqual(
+            list(self.ag_no_mapping.value_range_mapping.keys()),
+            [],
+        )
+
+        self.assertEqual(
+            list(self.mixture.value_range_mapping.keys()),
+            [
+                "AssymetricGaussian_weight_000",
+                "AssymetricGaussian_weight_001",
+                "AssymetricGaussian_weight_002",
+            ],
+        )
+
+    def test_correct_value_range_mapping_of_mixture(self):
+        """Test if the value range mapping is correctly applied for mixture"""
+
+        latent_vars_mapped = self.mixture._apply_value_range(
+            self.latent_vars
+        ).numpy()
+        latent_vars_mapped = latent_vars_mapped.reshape(
+            self.latent_vars_np.shape
+        )
+
+        latent_weights = latent_vars_mapped[..., -1]
+        latent_weights_expected = self.latent_vars_np_trafo[..., -1]
+        self.assertTrue(np.allclose(latent_weights, latent_weights_expected))
+
+    def test_correct_value_range_mapping(self):
+        """Test if the value range mapping is correctly applied"""
+
+        # take everything but every 4th element
+        latent_vars = self.latent_vars[..., :3]
+        latent_vars_mapped = self.ag._apply_value_range(latent_vars).numpy()
+
+        latent_weights_expected = self.latent_vars_np_trafo[..., 0, :3]
+        self.assertTrue(
+            np.allclose(latent_vars_mapped, latent_weights_expected)
+        )
+
+    def test_correct_value_range_mapping_none_applied(self):
+        """Test if the value range mapping is correctly applied"""
+
+        # take everything but every 4th element
+        latent_vars = self.latent_vars[..., :3]
+        latent_vars_mapped = self.ag_no_mapping._apply_value_range(
+            latent_vars
+        ).numpy()
+
+        latent_weights_expected = self.latent_vars_np[..., 0, :3]
+        self.assertTrue(
+            np.allclose(latent_vars_mapped, latent_weights_expected)
+        )
+
     def test_correct_pdf_reduced(self):
         """Check if the pdf method is correctly implemented"""
 
-        pdf_np = np.sum(
+        pdf_np_ = np.sum(
             basis_functions.asymmetric_gauss(
                 x=self.x_np,
-                mu=self.latent_vars_np[..., 0],
-                sigma=self.latent_vars_np[..., 1],
-                r=self.latent_vars_np[..., 2],
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
             )
             * self.latent_vars_np[..., 3],
             axis=-1,
         )
+        pdf_np = np.sum(
+            basis_functions.asymmetric_gauss(
+                x=self.x_np,
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
+            )
+            * self.latent_vars_np_trafo_norm[..., 3],
+            axis=-1,
+        )
         pdf = self.mixture.pdf(self.x, self.latent_vars).numpy()
+        pdf_ = self.mixture._pdf(self.x, self.latent_vars).numpy()
 
         self.assertTrue(np.allclose(pdf, pdf_np))
+        self.assertTrue(np.allclose(pdf_, pdf_np_))
 
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 
-        pdf_np = (
+        pdf_np_ = (
             basis_functions.asymmetric_gauss(
                 x=self.x_np,
-                mu=self.latent_vars_np[..., 0],
-                sigma=self.latent_vars_np[..., 1],
-                r=self.latent_vars_np[..., 2],
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
             )
             * self.latent_vars_np[..., 3]
         )
+        pdf_np = (
+            basis_functions.asymmetric_gauss(
+                x=self.x_np,
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
+            )
+            * self.latent_vars_np_trafo_norm[..., 3]
+        )
+        pdf_ = self.mixture._pdf(
+            self.x, self.latent_vars, reduce_components=False
+        ).numpy()
         pdf = self.mixture.pdf(
             self.x, self.latent_vars, reduce_components=False
         ).numpy()
 
         self.assertTrue(np.allclose(pdf, pdf_np))
+        self.assertTrue(np.allclose(pdf_, pdf_np_))
 
     def test_correct_cdf_reduced(self):
         """Check if the cdf method is correctly implemented"""
@@ -210,11 +357,11 @@ class TestMixtureModel(unittest.TestCase):
         cdf_np = np.sum(
             basis_functions.asymmetric_gauss_cdf(
                 x=self.x_np,
-                mu=self.latent_vars_np[..., 0],
-                sigma=self.latent_vars_np[..., 1],
-                r=self.latent_vars_np[..., 2],
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
             )
-            * self.latent_vars_np[..., 3],
+            * self.latent_vars_np_trafo_norm[..., 3],
             axis=-1,
         )
         cdf = self.mixture.cdf(self.x, self.latent_vars).numpy()
@@ -227,11 +374,11 @@ class TestMixtureModel(unittest.TestCase):
         cdf_np = (
             basis_functions.asymmetric_gauss_cdf(
                 x=self.x_np,
-                mu=self.latent_vars_np[..., 0],
-                sigma=self.latent_vars_np[..., 1],
-                r=self.latent_vars_np[..., 2],
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
             )
-            * self.latent_vars_np[..., 3]
+            * self.latent_vars_np_trafo_norm[..., 3]
         )
         cdf = self.mixture.cdf(
             self.x, self.latent_vars, reduce_components=False
@@ -257,7 +404,7 @@ class TestMixtureModel(unittest.TestCase):
 
         random_numbers = np.arange(20).reshape(5, 2, 2) / 20.0
         random_numbers[..., 1] = 0.5
-        samples = self.mixture.sample(
+        samples = self.mixture_no_mapping.sample(
             random_numbers, self.latent_vars_mu
         ).numpy()
         self.assertTrue(np.allclose(samples[..., 0], 0.0))
@@ -323,6 +470,9 @@ class TestMixtureModel(unittest.TestCase):
                 "n_components_per_decoder": [3],
                 "parameter_slice_per_decoder": [slice(0, 12, None)],
                 "decoder_names": ["AssymetricGaussian"],
+                "value_range_mapping": self.mixture._untracked_data[
+                    "value_range_mapping"
+                ],
             },
         )
         self.assertEqual(self.mixture._sub_components, self.base_models)

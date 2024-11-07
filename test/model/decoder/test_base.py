@@ -1,4 +1,5 @@
 import unittest
+import numpy as np
 import tensorflow as tf
 
 from egenerator import misc
@@ -44,6 +45,38 @@ class TestDecoderBase(unittest.TestCase):
             config=config,
         )
 
+        config_mapping = {
+            "float_precision": 1337,
+            "value_range_mapping": {
+                "mu": {
+                    "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                    "config": {
+                        "scale": 0.5,
+                        "offset": 0.0,
+                    },
+                },
+                "sigma": {
+                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                    "config": {
+                        "scale": 2.0,
+                        "offset": 2.0,
+                        "min_value": 0.0001,
+                    },
+                },
+                "r": {
+                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                    "config": {
+                        "scale": 1.0,
+                        "offset": 1.0,
+                        "min_value": 0.0001,
+                    },
+                },
+            },
+        }
+        self.decoder_mapping = self.get_dummy_decoder(
+            config=config_mapping,
+        )
+
         class_string = misc.get_full_class_string_of_object(self.decoder)
         self.configuration = Configuration(
             class_string=class_string,
@@ -55,6 +88,36 @@ class TestDecoderBase(unittest.TestCase):
         model = DummyDecoderModel()
         model.configure(**kwargs)
         return model
+
+    def test_correct_value_range_mapping(self):
+        """Test if the value range mapping is correctly applied"""
+        latent_vars = np.array(
+            [
+                [-1000.0, -1000.0, -1000.0, -1000.0],
+                [-1.0, -1.0, -1.0, -1.0],
+                [0.0, 0.0, 0.0, 0.0],
+                [1.0, 1.0, 1.0, 1.0],
+                [2.0, 2.0, 2.0, 2.0],
+            ]
+        )
+        latent_vars_mapped = self.decoder_mapping._apply_value_range(
+            latent_vars
+        )
+
+        def elu(x):
+            return np.where(x > 0, x, np.exp(x) - 1)
+
+        latent_vars_mapped_expected = np.array(latent_vars)
+        latent_vars_mapped_expected[:, 0] = latent_vars[:, 0] * 0.5
+        latent_vars_mapped_expected[:, 1] = (
+            elu(latent_vars[:, 1] * 2.0 + 2.0) + 1.0001
+        )
+        latent_vars_mapped_expected[:, 2] = (
+            elu(latent_vars[:, 2] * 1.0 + 1.0) + 1.0001
+        )
+        self.assertTrue(
+            np.allclose(latent_vars_mapped, latent_vars_mapped_expected)
+        )
 
     def test_correct_initialization(self):
         """Check if member variables are correctly set when instantiating
@@ -120,6 +183,9 @@ class TestDecoderBase(unittest.TestCase):
                     "sigma",
                     "r",
                     "scale",
+                ],
+                "value_range_mapping": self.decoder._untracked_data[
+                    "value_range_mapping"
                 ],
             },
         )

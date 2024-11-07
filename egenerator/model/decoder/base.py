@@ -30,6 +30,17 @@ class LatentToPDFDecoder(Model):
             Evaluate the percent point function at a given input tensor.
     """
 
+    @property
+    def value_range_mapping(self):
+        """Get the value range mapping.
+
+        Returns
+        -------
+        dict
+            The value range mapping.
+        """
+        return self._untracked_data.get("value_range_mapping", None)
+
     def __init__(self, logger=None):
         """Instantiate Decoder class
 
@@ -113,14 +124,14 @@ class LatentToPDFDecoder(Model):
         self._set_parameter_names(latent_names)
 
         # create value range object
-        self.value_range_mapping = {}
+        self._untracked_data["value_range_mapping"] = {}
         if "value_range_mapping" in config:
             for key, settings in config["value_range_mapping"].items():
                 assert (
                     key in latent_names
                 ), f"Key {key} not in latent names {latent_names}"
                 ValueClass = misc.load_class(settings["value_range_class"])
-                self.value_range_mapping[key] = ValueClass(
+                self._untracked_data["value_range_mapping"][key] = ValueClass(
                     **settings["config"]
                 )
 
