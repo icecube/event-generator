@@ -473,6 +473,7 @@ class TestMixtureModel(unittest.TestCase):
                 "value_range_mapping": self.mixture._untracked_data[
                     "value_range_mapping"
                 ],
+                "n_components_total": 3,
             },
         )
         self.assertEqual(self.mixture._sub_components, self.base_models)

@@ -108,6 +108,23 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
 
     """
 
+    @property
+    def n_components_total(self):
+        """Get the total number of components in the mixture model.
+
+        Returns
+        -------
+        int
+            The total number of components in the mixture model.
+        """
+        if (
+            self._untracked_data is not None
+            and "n_components_total" in self._untracked_data
+        ):
+            return self._untracked_data["n_components_total"]
+        else:
+            return None
+
     def __init__(self, logger=None):
         """Instantiate Decoder class
 
@@ -156,6 +173,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         n_parameters_per_decoder = []
         parameter_slice_per_decoder = []
         n_components_per_decoder = []
+        n_components_total = 0
         models_mapping = {}
         current_index = 0
         for decoder_name in decoder_names:
@@ -179,6 +197,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                     f"The number of components '{n_components}' "
                     "must be greater than zero."
                 )
+            n_components_total += n_components
 
             # get the parameter names of the base model
             base_decoder = base_models[base_name]
@@ -210,11 +229,12 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             parameter_slice_per_decoder
         )
         self._untracked_data["decoder_names"] = decoder_names
+        self._untracked_data["n_components_total"] = n_components_total
 
         return parameter_names, models_mapping
 
-    def get_model_parameters(self, x, parameters):
-        """Get the input parameters for the individual models.
+    def get_model_inputs_x(self, x, x_is_per_component):
+        """Get the input tensor x for the individual components.
 
         Parameters
         ----------
@@ -224,6 +244,55 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             If same rank, the last dimension must have the size
             of the number of components in the mixture model.
             Shape: [..., n_components] or [...]
+        x_is_per_component : bool
+            If True, the inputs x is interpreted to have different
+            values for each component. In this case, the last dimension
+            of x must have the size of the total number of components
+            in the mixture model.
+
+        Returns
+        -------
+        dict of tf.Tensor
+            Returns a dictionary of {name: x} pairs, where
+            name is the name of the nested Model and x is the input
+            tensor at which to evaluate the Model.
+            Shape: [..., n_components] or [..., 1].
+        """
+        if x_is_per_component:
+            if not x.shape[-1] == self.n_components_total:
+                raise ValueError(
+                    "If `x_is_per_component` is True, the last dimension "
+                    "of x must have the size of the total number of "
+                    "components in the mixture model."
+                )
+        else:
+            x = x[..., tf.newaxis]
+
+        model_inputs_dict = {}
+        component_counter = 0
+        for i, name in enumerate(self._untracked_data["decoder_names"]):
+            n_components = self._untracked_data["n_components_per_decoder"][i]
+
+            # get the tensor at which to evaluate the base model
+            if x_is_per_component:
+                x_i = x[
+                    ..., component_counter : component_counter + n_components
+                ]
+            else:
+                x_i = x
+
+            model_inputs_dict[name] = x_i
+
+            # update the component counter
+            component_counter += n_components
+
+        return model_inputs_dict
+
+    def get_model_parameters(self, parameters):
+        """Get the input parameters for the individual models.
+
+        Parameters
+        ----------
         parameters : tf.Tensor
             The input parameters for the NestedModel object.
             The input parameters of the individual Model objects are composed
@@ -233,7 +302,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         Returns
         -------
         dict of tf.Tensor
-            Returns a dictionary of (name: input_parameters) pairs, where
+            Returns a dictionary of {name: input_parameters} pairs, where
             name is the name of the nested Model and input_parameters
             is a tf.Tensor for the input parameters of that Model.
             Each input_parameters tensor has shape [..., n_parameters_i].
@@ -355,9 +424,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         Parameters
         ----------
         x : tf.Tensor
-            The input tensor at which to evaluate the PDF/CDF.
-            Broadcastable to the shape of the latent variables
-            without the last dimension (n_parameters).
+            The input tensor at which to evaluate the MixtureModel.
+            Must be same rank as parameters or have one less.
+            If same rank, the last dimension must have the size
+            of the number of components in the mixture model.
+            Shape: [..., n_components] or [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
@@ -384,26 +455,38 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                 "Use either 'pdf' or 'cdf'."
             )
 
+        x_is_per_component = len(x.shape) == len(latent_vars.shape)
+        if x_is_per_component and not x.shape[-1] == self.n_components_total:
+            raise ValueError(
+                "If the input tensor is of the same rank as the "
+                "parameters tensor, the last dimension must be the "
+                "total number of components in the mixture model."
+            )
+
         self.assert_configured(True)
         parameter_dict = self.get_model_parameters(latent_vars)
-
-        # expand x to broadcast dimension for n_components
-        x_expanded = x[..., tf.newaxis]
+        inputs_dict = self.get_model_inputs_x(
+            x,
+            x_is_per_component=x_is_per_component,
+        )
 
         values = []
         total_weight = None
         for name in self._untracked_data["decoder_names"]:
 
+            # shape: [..., n_components_per_base]
+            x_i = inputs_dict[name]
+
             # shape: [..., n_components_per_base, n_parameters]
             latent_vars_i = parameter_dict[name]
+
+            # shape: [..., n_components_per_base]
             weight = latent_vars_i[..., -1]
 
             # shape: [..., n_components_per_base]
             func = getattr(self.sub_components[name], func_name)
             values_i = (
-                func(
-                    x=x_expanded, latent_vars=latent_vars_i[..., :-1], **kwargs
-                )
+                func(x=x_i, latent_vars=latent_vars_i[..., :-1], **kwargs)
                 * weight
             )
 
@@ -438,9 +521,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         Parameters
         ----------
         x : tf.Tensor
-            The input tensor at which to evaluate the PDF.
-            Broadcastable to the shape of the latent variables
-            without the last dimension (n_parameters).
+            The input tensor at which to evaluate the MixtureModel.
+            Must be same rank as parameters or have one less.
+            If same rank, the last dimension must have the size
+            of the number of components in the mixture model.
+            Shape: [..., n_components] or [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
@@ -472,9 +557,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         Parameters
         ----------
         x : tf.Tensor
-            The input tensor at which to evaluate the CDF.
-            Broadcastable to the shape of the latent variables
-            without the last dimension (n_parameters).
+            The input tensor at which to evaluate the MixtureModel.
+            Must be same rank as parameters or have one less.
+            If same rank, the last dimension must have the size
+            of the number of components in the mixture model.
+            Shape: [..., n_components] or [...]
         latent_vars : tf.Tensor
             The latent variables which have already been transformed
             by the value range mapping.
