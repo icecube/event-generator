@@ -168,19 +168,19 @@ class DefaultNoiseModel(Source):
         # shape: [n_batch]
         livetime = time_window[:, 1] - time_window[:, 0]
 
-        # shape: [n_batch, 1, 1]
+        # shape: [n_batch, 1, 1, 1]
         livetime_exp = tf.reshape(
-            time_window[:, 1] - time_window[:, 0], [-1, 1, 1]
+            time_window[:, 1] - time_window[:, 0], [-1, 1, 1, 1]
         )
 
         # compute the expected charge at each DOM based off of noise rate
-        # shape: [1, 86, 60]
+        # shape: [1, 86, 60, 1]
         dom_noise_rates = tf.reshape(
             detector.dom_noise_rates.astype(param_dtype_np),
-            shape=[1, 86, 60],
+            shape=[1, 86, 60, 1],
         )
 
-        # shape: [n_batch, 86, 60]
+        # shape: [n_batch, 86, 60, 1]
         dom_charges = dom_noise_rates * livetime_exp
 
         # shape: [n_batch]
@@ -212,7 +212,7 @@ class DefaultNoiseModel(Source):
             tw_cdf_exclusion = tf_helpers.safe_cdf_clip(tw_cdf_exclusion)
 
             # accumulate time window exclusions for each event
-            # shape: [n_batch, 86, 60]
+            # shape: [n_batch, 86, 60, 1]
             dom_cdf_exclusion = tf.tensor_scatter_nd_add(
                 tf.zeros_like(data_batch_dict["x_dom_charge"]),
                 indices=x_time_exclusions_ids,
@@ -300,7 +300,10 @@ class DefaultNoiseModel(Source):
         tensor_dict["pulse_cdf"] = pulse_cdf
 
         if time_exclusions_exist:
-            tensor_dict["dom_cdf_exclusion"] = dom_cdf_exclusion
+            tensor_dict["dom_cdf_exclusion"] = tf.squeeze(
+                dom_cdf_exclusion,
+                axis=-1,
+            )
         # -------------------------------------------
 
         return tensor_dict

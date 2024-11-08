@@ -17,7 +17,7 @@ from egenerator.utils.build_components import build_loss_module
 @click.option(
     "--log_level",
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
-    default="WARNING",
+    default="INFO",
 )
 @click.option(
     "--num_threads",
