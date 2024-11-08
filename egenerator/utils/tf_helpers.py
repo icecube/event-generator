@@ -97,14 +97,19 @@ def safe_cdf_clip(cdf_values, tol=1e-5):
     return cdf_values
 
 
-def get_pulse_cdf_exclusion(
+def get_prior_pulse_cdf_exclusion(
     x_pulses,
     x_pulses_ids,
     x_time_exclusions,
     x_time_exclusions_ids,
-    tw_cdf_exclusion_reduced,
+    tw_cdf_exclusion,
 ):
-    """Get CDF exclusion for each pulse
+    """Get prior CDF exclusion for each pulse
+
+    This function calculates the excluded CDF range
+    up to the pulse time of an individual pulse.
+    This calculatation is necessary when correcting the CDF
+    values to account for the time exclusions.
 
     Parameters
     ----------
@@ -120,9 +125,9 @@ def get_pulse_cdf_exclusion(
     x_time_exclusions_ids : tf.Tensor
         The time exclusion ids.
         Shape: [n_tw, 3]
-    tw_cdf_exclusion_reduced : tf.Tensor
+    tw_cdf_exclusion : tf.Tensor
         The (reduced) CDF exclusion for the entire model.
-        Shape: [n_tw, 1]
+        Shape: [n_tw]
 
     Returns
     -------
@@ -137,20 +142,34 @@ def get_pulse_cdf_exclusion(
         Parameters
         ----------
         elem_i : tuple
-            Tuple of x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion_reduced
+            Tuple of x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion
+            for a single time window.
+
+        Returns
+        -------
+        tf.Tensor
+            The CDF exclusion prior to the pulse time for each pulse.
+            Shape: [n_pulses]
         """
         (
-            x_time_exclusions_ids_i,
-            x_time_exclusions_i,
-            tw_cdf_exclusion_reduced_i,
+            x_time_exclusions_ids_i,  # shape: [3]
+            x_time_exclusions_i,  # shape: [2]
+            tw_cdf_exclusion_i,  # shape: []
         ) = elem_i
 
+        # select pulses in the same event, string, and dom
         mask = tf.reduce_all(x_pulses_ids == x_time_exclusions_ids_i, axis=1)
+
+        # of those pulses, select those that are after the time exclusion
+        # Only the CDF values of the pulses afterwards needs correction
         mask &= x_pulses[:, 1] > x_time_exclusions_i[0]
+
+        # return the excluded CDF time range up to the pulse time
+        # for each individual pulse
         return tf.where(
             mask,
-            tw_cdf_exclusion_reduced_i,
-            tf.zeros_like(tw_cdf_exclusion_reduced_i),
+            tw_cdf_exclusion_i,
+            tf.zeros_like(tw_cdf_exclusion_i),
         )
 
     # -------------------------
@@ -158,7 +177,7 @@ def get_pulse_cdf_exclusion(
     # -------------------------
     # pulse_cdf_exclusion = tf.map_fn(
     #     get_pulse_cdf_exclusion_per_tw,
-    #     elems=(x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion_reduced),
+    #     elems=(x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion),
     #     fn_output_signature=tf.TensorSpec(shape=x_pulses.shape[0], dtype=x_pulses.dtype),
     # )
     # pulse_cdf_exclusion = tf.reduce_sum(pulse_cdf_exclusion, axis=0)
@@ -169,7 +188,7 @@ def get_pulse_cdf_exclusion(
     # This implementation is faster than map_fn, but may require more memory
     pulse_cdf_exclusion = tf.vectorized_map(
         get_pulse_cdf_exclusion_per_tw,
-        (x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion_reduced),
+        (x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion),
     )
     pulse_cdf_exclusion = tf.reduce_sum(pulse_cdf_exclusion, axis=0)
 
@@ -181,7 +200,7 @@ def get_pulse_cdf_exclusion(
     #     mask = tf.reduce_all(x_pulses_ids == tw_exclusion_id, axis=1)
     #     mask &= x_pulses[:, 1] > x_time_exclusions[i, 0]
     #     pulse_cdf_exclusion = tf.where(
-    #         mask, pulse_cdf_exclusion + tw_cdf_exclusion_reduced[i], pulse_cdf_exclusion
+    #         mask, pulse_cdf_exclusion + tw_cdf_exclusion[i], pulse_cdf_exclusion
     #     )
     # -------------------------------------------------
 

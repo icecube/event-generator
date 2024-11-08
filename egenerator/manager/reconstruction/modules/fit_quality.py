@@ -296,20 +296,6 @@ class GoodnessOfFit:
         # dom_charges = self.rng.poisson(result_tensors['dom_charges'].numpy())
         event_charges = np.sum(dom_charges, axis=(1, 2, 3))
 
-        source_times = sampled_hypotheses[:, self.param_time_index]
-
-        # get cumuluative sum of mixture model contributions
-        cum_scale = np.cumsum(
-            result_tensors["latent_var_scale"].numpy(), axis=-1
-        )
-
-        latent_var_mu = result_tensors["latent_var_mu"].numpy()
-        latent_var_sigma = result_tensors["latent_var_sigma"].numpy()
-        latent_var_r = result_tensors["latent_var_r"].numpy()
-
-        # for numerical stability:
-        cum_scale[..., -1] = 1.00000001
-
         # ---------------------------------
         # Iterate through individual events
         # ---------------------------------
@@ -342,11 +328,10 @@ class GoodnessOfFit:
             x_pulses, x_pulses_ids = self.sample_event_pulses(
                 rng=self.rng,
                 dom_charges=dom_charges[event_id],
-                cum_scale=cum_scale[event_id],
-                source_time=source_times[event_id],
-                latent_mu=latent_var_mu[event_id],
-                latent_sigma=latent_var_sigma[event_id],
-                latent_r=latent_var_r[event_id],
+                latent_vars_time=result_tensors["latent_vars_time"][event_id],
+                time_offsets_per_dom=result_tensors["time_offsets_per_dom"][
+                    event_id
+                ],
                 add_charge_quantiles=add_charge_quantiles,
             )
 
@@ -584,11 +569,8 @@ class GoodnessOfFit:
         self,
         rng,
         dom_charges,
-        cum_scale,
-        source_time,
-        latent_mu,
-        latent_sigma,
-        latent_r,
+        latent_vars_time,
+        time_offsets_per_dom,
         add_charge_quantiles=False,
     ):
         """Sample pulses from PDF and create a I3RecoPulseSeriesMap
@@ -600,20 +582,12 @@ class GoodnessOfFit:
         dom_charges : array_like
             The sampled charges at each DOM.
             Shape: [86, 60, 1]
-        cum_scale : array_like
-            The cumulative sum of latent scales for each mixture model comp.
-            Shape: [86, 60]
-        source_time : float
-            The time of the source.
-        latent_mu : array_like
-            The latent mus of the AG mixture model.
-            Shape: [86, 60]
-        latent_sigma : array_like
-            The latent sigmas of the AG mixture model.
-            Shape: [86, 60]
-        latent_r : array_like
-            The latent rs of the AG mixture model.
-            Shape: [86, 60]
+        latent_vars_time : array_like
+            The latent variables for the time distribution.
+            Shape: [86, 60, n_latent]
+        time_offsets_per_dom : array_like
+            The time offsets for each DOM.
+            Shape: [86, 60, n_components]
         add_charge_quantiles : bool, optional
             If True, charge quantiles are added to the pulses.
 
@@ -652,23 +626,16 @@ class GoodnessOfFit:
                 # and at what time the pulse gets injected
                 rngs = rng.uniform(size=(num_pe, 2))
 
-                idx = np.searchsorted(cum_scale[string, om], rngs[:, 0])
-
-                # get parameters for chosen asymmetric gaussian
-                pulse_mu = latent_mu[string, om, idx]
-                pulse_sigma = latent_sigma[string, om, idx]
-                pulse_r = latent_r[string, om, idx]
-
-                # calculate time of pulse
-                pulse_times = basis_functions.asymmetric_gauss_ppf(
-                    rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r
+                # get pulse_times
+                # shape: [num_pe]
+                pulse_times = self.model.decoder.sample(
+                    random_numbers=rngs,
+                    latent_vars=latent_vars_time[string, om][tf.newaxis, :],
+                    offsets=time_offsets_per_dom[string, om],
                 )
 
                 # fix scale
-                pulse_times *= 1000.0
-
-                # fix offset
-                pulse_times += source_time
+                pulse_times *= self.model.time_unit_in_ns
 
                 # sort pulses in time
                 sorted_indices = np.argsort(pulse_times)

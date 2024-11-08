@@ -103,7 +103,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         class_string += "IndependentMultiSource"
         self.configuration = Configuration(
             class_string=class_string,
-            settings=dict(config=self.config),
+            settings=dict(config=self.config, decoder=None),
             mutable_settings=dict(name="egenerator.model.multi_source.base"),
         )
         self.configuration.add_sub_components(self.sub_components)

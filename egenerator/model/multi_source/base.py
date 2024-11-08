@@ -1,7 +1,9 @@
 import logging
 import tensorflow as tf
 
+from egenerator import misc
 from egenerator.model.nested import NestedModel, ConcreteFunctionCache
+from egenerator.manager.component import Configuration
 from egenerator.model.source.base import Source
 from egenerator.utils import tf_helpers
 
@@ -152,12 +154,25 @@ class MultiSource(NestedModel, Source):
         if name is None:
             name = __name__
 
-        configuration, data, sub_components = super(
+        _, data, sub_components = super(
             MultiSource, self
         )._configure_derived_class(
             base_models=base_models,
             config=config,
             name=name,
+        )
+
+        if decoder is None:
+            # add empty decoder to config to keep track of it
+            settings = dict(config=config, decoder=None)
+        else:
+            settings = dict(config=config)
+
+        # create configuration object
+        configuration = Configuration(
+            class_string=misc.get_full_class_string_of_object(self),
+            settings=settings,
+            mutable_settings=dict(name=name),
         )
 
         if data_trafo is not None:
@@ -216,16 +231,28 @@ class MultiSource(NestedModel, Source):
             A dictionary of output tensors.
             This  dictionary must at least contain:
 
-                'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
-                'pulse_pdf': The likelihood evaluated for each pulse
-                             Shape: [-1]
+                'dom_charges':
+                    The predicted charge at each DOM
+                    Shape: [n_events, 86, 60, 1]
+                'pulse_pdf':
+                    The likelihood evaluated for each pulse
+                    Shape: [n_pulses]
+                'time_offsets':
+                    The global time offsets for each event.
+                    Shape: [n_events]
 
-            Optional:
-
-                'pulse_cdf': The cumulative likelihood evaluated
-                             for each pulse
-                             Shape: [-1]
+            Other relevant optional tensors are:
+                'latent_vars_time':
+                    Shape: [n_events, 86, 60, n_latent]
+                'latent_vars_charge':
+                    Shape: [n_events, 86, 60, n_charge]
+                'time_offsets_per_dom':
+                    The time offsets per DOM (includes global offset).
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_cdf_exclusion':
+                    Shape: [n_events, 86, 60]
+                'pulse_cdf':
+                    Shape: [n_pulses]
 
         """
         self.assert_configured(True)
@@ -260,7 +287,7 @@ class MultiSource(NestedModel, Source):
 
         dom_charges = None
         dom_charges_variance = None
-        dom_cdf_exclusion_sum = None
+        dom_cdf_exclusion = None
         all_models_have_cdf_values = True
         pulse_pdf = None
         pulse_cdf = None
@@ -308,14 +335,14 @@ class MultiSource(NestedModel, Source):
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
             if time_exclusions_exist:
-                dom_cdf_exclusion_sum_i = result_tensors_i[
-                    "dom_cdf_exclusion_sum"
+                dom_cdf_exclusion_i = result_tensors_i["dom_cdf_exclusion"][
+                    ..., tf.newaxis
                 ]
-                if dom_cdf_exclusion_sum_i.shape[1:] != [86, 60, 1]:
+                if dom_cdf_exclusion_i.shape[1:] != [86, 60, 1]:
                     msg = "DOM exclusions of source {!r} ({!r}) have an  "
                     msg += "unexpected shape {!r}."
                     raise ValueError(
-                        msg.format(name, base, dom_cdf_exclusion_sum_i.shape)
+                        msg.format(name, base, dom_cdf_exclusion_i.shape)
                     )
 
                 # undo re-normalization of PDF for the individual source at
@@ -323,7 +350,7 @@ class MultiSource(NestedModel, Source):
                 # from all sources is there at a particular DOM.
                 # Shape: [n_pulses]
                 pulse_cdf_exclusion = tf.gather_nd(
-                    tf.squeeze(dom_cdf_exclusion_sum_i, axis=-1), pulses_ids
+                    tf.squeeze(dom_cdf_exclusion_i, axis=-1), pulses_ids
                 )
                 pulse_pdf_i *= 1.0 - pulse_cdf_exclusion + self.epsilon
                 if all_models_have_cdf_values:
@@ -335,16 +362,12 @@ class MultiSource(NestedModel, Source):
                 dom_charges = dom_charges_i
                 dom_charges_variance = dom_charges_variance_i
                 if time_exclusions_exist:
-                    dom_cdf_exclusion_sum = (
-                        dom_cdf_exclusion_sum_i * dom_charges_i
-                    )
+                    dom_cdf_exclusion = dom_cdf_exclusion_i * dom_charges_i
             else:
                 dom_charges += dom_charges_i
                 dom_charges_variance += dom_charges_variance_i
                 if time_exclusions_exist:
-                    dom_cdf_exclusion_sum += (
-                        dom_cdf_exclusion_sum_i * dom_charges_i
-                    )
+                    dom_cdf_exclusion += dom_cdf_exclusion_i * dom_charges_i
 
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
@@ -383,15 +406,17 @@ class MultiSource(NestedModel, Source):
 
         # normalize time exclusion sum: divide by total charge at DOM
         if time_exclusions_exist:
-            dom_cdf_exclusion_sum = tf_helpers.safe_cdf_clip(
-                dom_cdf_exclusion_sum / (dom_charges + self.epsilon)
+            dom_cdf_exclusion = tf_helpers.safe_cdf_clip(
+                dom_cdf_exclusion / (dom_charges + self.epsilon)
             )
 
-            result_tensors["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
+            result_tensors["dom_cdf_exclusion"] = tf.squeeze(
+                dom_cdf_exclusion, axis=-1
+            )
 
             # Also re-normalize PDF for exclusions if present
             pulse_cdf_exclusion = tf.gather_nd(
-                tf.squeeze(dom_cdf_exclusion_sum, axis=-1), pulses_ids
+                tf.squeeze(dom_cdf_exclusion, axis=-1), pulses_ids
             )
             result_tensors["pulse_pdf"] /= (
                 1.0 - pulse_cdf_exclusion + self.epsilon
@@ -469,10 +494,6 @@ class MultiSource(NestedModel, Source):
         on a provided `result_tensors`. This can be used to investigate
         the generated PDFs.
 
-        Note: this function only works for sources that use asymmetric
-        Gaussians to parameterize the PDF. The latent values of the AG
-        must be included in the `result_tensors`.
-
         Note: the PDF does not set values inside excluded time windows to zero,
         but it does adjust the normalization. It is assumed that pulses will
         already be masked before evaluated by Event-Generator. Therefore, an
@@ -537,6 +558,15 @@ class MultiSource(NestedModel, Source):
             A dictionary with the CDFs of the nested sources. See description
             of `output_nested_pdfs`.
         """
+        if tw_exclusions is not None or tw_exclusions_ids is None:
+            raise NotImplementedError(
+                "Time window exclusions are not supported for standalone "
+                "PDF and CDF computation for the MultiSource. "
+                "An alternative for now is to use the `get_tensors` method "
+                "by creating appropriate pulse times and pulse ids and then "
+                "extratcing the PDF and CDF values from the result tensors."
+            )
+
         # dict: {model_name: (base_source, result_tensors_i)}
         flattened_results = self._flatten_nested_results(result_tensors)
 
@@ -594,10 +624,6 @@ class MultiSource(NestedModel, Source):
         This is a numpy, i.e. not tensorflow, method to compute the PDF based
         on a provided `result_tensors`. This can be used to investigate
         the generated PDFs.
-
-        Note: this function only works for sources that use asymmetric
-        Gaussians to parameterize the PDF. The latent values of the AG
-        must be included in the `result_tensors`.
 
         Note: the PDF does not set values inside excluded time windows to zero,
         but it does adjust the normalization. It is assumed that pulses will
@@ -663,6 +689,15 @@ class MultiSource(NestedModel, Source):
             A dictionary with the PDFs of the nested sources. See description
             of `output_nested_pdfs`.
         """
+        if tw_exclusions is not None or tw_exclusions_ids is None:
+            raise NotImplementedError(
+                "Time window exclusions are not supported for standalone "
+                "PDF and CDF computation for the MultiSource. "
+                "An alternative for now is to use the `get_tensors` method "
+                "by creating appropriate pulse times and pulse ids and then "
+                "extracting the PDF and CDF values from the result tensors."
+            )
+
         # dict: {model_name: (base_source, result_tensors_i)}
         flattened_results = self._flatten_nested_results(result_tensors)
 

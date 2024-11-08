@@ -86,7 +86,7 @@ class NestedModel(Model):
     """
 
     @property
-    def epsilon(self):
+    def float_precision(self):
         model_precision = None
 
         configuration = self.configuration.config
@@ -102,11 +102,17 @@ class NestedModel(Model):
             for _, base_source in self._untracked_data[
                 "models_mapping"
             ].items():
-                model_precisions.append(
-                    self.sub_components[base_source].configuration.config[
-                        "config"
-                    ]["float_precision"]
-                )
+                component = self.sub_components[base_source]
+                if component.epsilon == 1e-7:
+                    model_precisions.append("float32")
+                elif component.epsilon == 1e-15:
+                    model_precisions.append("float64")
+                else:
+                    raise ValueError(
+                        "Invalid float precision: {} with {}".format(
+                            component, component.epsilon
+                        )
+                    )
             model_precisions = np.unique(model_precisions)
             if len(model_precisions) > 1:
                 raise ValueError(
@@ -127,15 +133,7 @@ class NestedModel(Model):
             raise ValueError(
                 f"No float precision found in configuration: {configuration}"
             )
-
-        if model_precision == "float32":
-            return 1e-7
-        elif model_precision == "float64":
-            return 1e-15
-        else:
-            raise ValueError(
-                "Invalid float precision: {}".format(model_precision)
-            )
+        return model_precision
 
     def __init__(self, logger=None):
         """Instantiate Model class

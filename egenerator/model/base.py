@@ -165,7 +165,7 @@ class Model(tf.Module, BaseComponent):
         return tensor
 
     @property
-    def epsilon(self):
+    def float_precision(self):
         model_precision = None
         if "float_precision" in self.configuration.config:
             model_precision = self.configuration.config["float_precision"]
@@ -173,17 +173,20 @@ class Model(tf.Module, BaseComponent):
             config = self.configuration.config["config"]
             if "float_precision" in config:
                 model_precision = config["float_precision"]
+        return model_precision
 
-        if model_precision is None:
+    @property
+    def epsilon(self):
+        if self.float_precision is None:
             return None
 
-        if model_precision == "float32":
+        if self.float_precision == "float32":
             return 1e-7
-        elif model_precision == "float64":
+        elif self.float_precision == "float64":
             return 1e-15
         else:
             raise ValueError(
-                "Invalid float precision: {}".format(model_precision)
+                f"Invalid float precision: {self.float_precision}"
             )
 
     def __init__(self, name=None, logger=None):

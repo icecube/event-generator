@@ -203,7 +203,7 @@ def build_decoder(decoder_settings, allow_rebuild_base_decoders=False):
 
     arguments = {"config": decoder_settings["config"]}
     if base_decoders != {}:
-        arguments["base_decoders"] = base_decoders
+        arguments["base_models"] = base_decoders
 
     decoder.configure(**arguments)
     return decoder

@@ -347,7 +347,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -465,7 +465,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # prevent log(zeros) issues
@@ -569,7 +569,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # shape: [n_pulses]
@@ -732,7 +732,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -849,7 +849,7 @@ class DefaultLossModule(BaseComponent):
                 "already been removed!"
             )
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -995,7 +995,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -1143,7 +1143,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -1256,7 +1256,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -1400,7 +1400,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions

@@ -411,14 +411,12 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
         dom_charges_total = np.sum(dom_charges, axis=0)  # sum over cascades
         num_cascades = dom_charges.shape[0]
 
-        cascade_times = cascade_sources.numpy()[
-            :, self.model.get_index(self._prefix + "time")
-        ]
+        decoder = self.model.decoder
 
         if self._prefix != "":
 
             # allow for max 1-depth of nested results for mixture model comp.
-            if "latent_var_scale" not in result_tensors:
+            if "latent_vars_time" not in result_tensors:
                 log_warn(
                     f"Using nested result tensors from '{self._prefix[:-1]}' model for time PDF. "
                     "This is potentially wrong, since this is not the complete time PDF! All models: "
@@ -427,16 +425,11 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                 result_tensors = result_tensors["nested_results"][
                     self._prefix[:-1]
                 ]
-
-        cum_scale = np.cumsum(
-            result_tensors["latent_var_scale"].numpy(), axis=-1
-        )
-
-        latent_var_mu = result_tensors["latent_var_mu"].numpy()
-        latent_var_sigma = result_tensors["latent_var_sigma"].numpy()
-        latent_var_r = result_tensors["latent_var_r"].numpy()
-        # for numerical stability:
-        cum_scale[..., -1] = 1.00000001
+                model_name = self._prefix[:-1]
+                # Todo: check if this is correct,
+                # probably need to use models_mapping
+                sub_compnent = self.model.sub_components[model_name]
+                decoder = sub_compnent.decoder
 
         pulse_series_map = dataclasses.I3RecoPulseSeriesMap()
 
@@ -471,23 +464,28 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
                     # and at what time the pulse gets injected
                     rngs = self.random_service.uniform(size=(num_pe, 2))
 
-                    idx = np.searchsorted(cum_scale[i, string, om], rngs[:, 0])
+                    # shape: [n_latent]
+                    latent_vars_time = result_tensors["latent_vars_time"][
+                        i, string, om
+                    ]
 
-                    # get parameters for chosen asymmetric gaussian
-                    pulse_mu = latent_var_mu[i, string, om, idx]
-                    pulse_sigma = latent_var_sigma[i, string, om, idx]
-                    pulse_r = latent_var_r[i, string, om, idx]
+                    # get per DOM time offsets
+                    # shape: [n_events, 86, 60, n_components]
+                    #   --> [n_components]
+                    t_offsets = result_tensors["time_offsets_per_dom"][
+                        i, string, om
+                    ]
 
-                    # calculate time of pulse
-                    pulse_times = basis_functions.asymmetric_gauss_ppf(
-                        rngs[:, 1], mu=pulse_mu, sigma=pulse_sigma, r=pulse_r
+                    # get pulse_times
+                    # shape: [num_pe]
+                    pulse_times = decoder.sample(
+                        random_numbers=rngs,
+                        latent_vars=latent_vars_time[tf.newaxis, :],
+                        offsets=t_offsets,
                     )
 
                     # fix scale
                     pulse_times *= self.model.time_unit_in_ns
-
-                    # fix offset
-                    pulse_times += cascade_times[i]
 
                     pulse_times_list.append(pulse_times)
                     pulse_charges_list.append(pulse_charges)

@@ -60,6 +60,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             AssymetricGaussian: {
                 'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
                 'config': {
+                    'float_precision': float64,
 
                     # Define a mapping of latent variable to value range functions
                     "value_range_mapping": {
@@ -97,7 +98,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             },
             Gamma: {
                 'decoder_class': 'egenerator.model.decoder.static.gamma.GammaDecoder',
-                'config': {},
+                'config': {'float_precision': float64},
             },
         },
     }
@@ -255,6 +256,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             tensor at which to evaluate the Model.
             Shape: [..., n_components] or [..., 1].
         """
+        x = tf.cast(x, self.float_precision)
         if x_is_per_component:
             if not x.shape[-1] == self.n_components_total:
                 raise ValueError(
@@ -304,6 +306,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             is a tf.Tensor for the input parameters of that Model.
             Each input_parameters tensor has shape [..., n_parameters_i].
         """
+        parameters = tf.cast(parameters, self.float_precision)
         model_parameter_dict = {}
         for i, name in enumerate(self._untracked_data["decoder_names"]):
             n_parameters = self._untracked_data["n_parameters_per_decoder"][i]
@@ -313,7 +316,10 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             # get the parameters for the base model
             model_parameter_dict[name] = tf.reshape(
                 parameters[..., slice_i],
-                parameters.shape[:-1] + (n_components, n_parameters),
+                tf.concat(
+                    [tf.shape(parameters)[:-1], (n_components, n_parameters)],
+                    axis=0,
+                ),
             )
 
         return model_parameter_dict
@@ -584,7 +590,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             **kwargs
         )
 
-    def sample(self, random_numbers, latent_vars, **kwargs):
+    def sample(self, random_numbers, latent_vars, offsets=None, **kwargs):
         """Get samples for provided uniform random numbers.
 
         Parameters
@@ -602,6 +608,9 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., n_parameters]
+        offsets : tf.Tensor, optional
+            Time offsets for each of the mixture components.
+            Shape: [..., n_components_total]
         **kwargs
             Additional keyword arguments.
 
@@ -670,4 +679,15 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             batch_dims=len(tf.shape(random_numbers)[:-1]),
             axis=-1,
         )
+
+        # add offsets
+        if offsets is not None:
+            offsets_chosen = tf.gather(
+                offsets,
+                component_idx,
+                batch_dims=len(tf.shape(random_numbers)[:-1]),
+                axis=-1,
+            )
+            ppf_values += offsets_chosen
+
         return ppf_values

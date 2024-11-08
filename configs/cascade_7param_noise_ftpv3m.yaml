@@ -478,7 +478,6 @@ model_settings: {
                 'scale_charge_by_angular_acceptance': True,
                 'scale_charge_by_relative_angular_acceptance': False,
                 'charge_distribution_type': 'negative_binomial',
-                'num_latent_models': 10,
                 'float_precision': float32,
                 'float_precision_pdf_cdf': float64,
 
@@ -503,6 +502,80 @@ model_settings: {
                 'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
                 'use_batch_norm_list' : False,
                 'use_residual_list' : [True, True, True, True, True, False]
+            },
+
+        # configuration of the decoder to transform the latent variables
+            # to the time arrival PDF
+            decoder_settings: {
+
+                # The decoder class to use
+                decoder_class: "egenerator.model.decoder.mixture.MixtureModel",
+
+                # configuration of the mixture model
+                config: {
+                    # Note that mapping here will just repeat the names,
+                    # but in other cases it could be used to reuse the
+                    # same base model multiple times (as for MultiSource objects)
+                    "decoder_mapping": {
+                        "AssymetricGaussian": ["AssymetricGaussian", 10],
+                    },
+
+                    # Define a mapping of latent variable to value range functions
+                    "value_range_mapping": {
+                        "weight": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": 1.0,
+                                "min_value": 0.00001
+                            },
+                        },
+                    },
+                },
+
+                # Define the decoder types that are used as components of the mixture
+                # model
+                base_decoders: {
+                    AssymetricGaussian: {
+                        'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
+                        'config': {
+                            'float_precision': float64,
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "mu": {
+                                    "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                                    "config": {
+                                        "scale": 0.5,
+                                        "offset": 0.0,
+                                    },
+                                },
+                                "sigma": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": 2.0,
+                                        "min_value": 0.0001,
+                                    },
+                                },
+                                "r": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": 1.0,
+                                        "min_value": 0.0001,
+                                    },
+                                },
+                            },
+                        },
+
+                        # Define load_dir here if you want to load the model from a file
+                        # This does not make sense for a paremeter-less model, but it
+                        # could be used for a model that has been trained and saved
+                        # previously such as a normalizing flow model.
+                        # 'load_dir': 'path/to/model',
+                    },
+                },
             },
         },
     },
