@@ -117,11 +117,8 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         int
             The total number of components in the mixture model.
         """
-        if (
-            self._untracked_data is not None
-            and "n_components_total" in self._untracked_data
-        ):
-            return self._untracked_data["n_components_total"]
+        if self._untracked_data is not None:
+            return self._untracked_data.get("n_components_total", None)
         else:
             return None
 

@@ -39,7 +39,10 @@ class LatentToPDFDecoder(Model):
         dict
             The value range mapping.
         """
-        return self._untracked_data.get("value_range_mapping", None)
+        if self._untracked_data is not None:
+            return self._untracked_data.get("value_range_mapping", None)
+        else:
+            return None
 
     def __init__(self, logger=None):
         """Instantiate Decoder class
