@@ -276,6 +276,41 @@ class Source(Model):
         self.assert_configured(True)
         raise NotImplementedError()
 
+    def _select_slice(self, values, strings, doms):
+        """Select subset of strings and doms from tensor
+
+        Parameters
+        ----------
+        values : np.array
+            The varlues to slice.
+            Shape: [n_events, 86, 60, ...]
+        strings : list of int
+            The strings to slice the tensor for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int
+            The doms to slice the tensor for.
+            If None, all doms are used.
+            Shape: [n_doms]
+
+        Returns
+        -------
+        np.array
+            The sliced values.
+            Shape: [n_events, n_strings, n_doms, ...]
+        """
+        # check if strings in a slice
+        if not isinstance(strings, slice):
+            strings = np.atleast_1d(strings)
+
+        values = values[:, strings, ...]
+
+        if not isinstance(doms, slice):
+            doms = np.atleast_1d(doms)
+
+        values = values[:, :, doms, ...]
+        return values
+
     def cdf(
         self,
         x,
@@ -365,14 +400,14 @@ class Source(Model):
             t_offsets = result_tensors["time_offsets"].numpy()
             # shape: [n_events, 1, 1, 1, 1]
             t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
-            # shape: [n_events, 86, 60, 1, n_components]
+            # shape: [n_events, 86, 60, 1, n_components_total]
             #       = [n_events, 1, 1, 1, 1]
-            #           + [n_events, 86, 60, 1, n_components]
-            t_offsets += np.reshape(
+            #           + [n_events, 86, 60, 1, n_components_total]
+            t_offsets = t_offsets + np.reshape(
                 result_tensors["time_offsets_per_dom"].numpy(),
-                [-1, 86, 60, 1, self.decoder.n_components],
+                [-1, 86, 60, 1, self.decoder.n_components_total],
             )
-            # shape: [n_events, 86, 60, n_points, n_components]
+            # shape: [n_events, 86, 60, n_points, n_components_total]
             x = x - t_offsets
         else:
             t_offsets = 0.0
@@ -382,11 +417,13 @@ class Source(Model):
 
         # select subset of strings and doms
         # shape: [n_events, n_strings, n_doms, n_points]
-        x = x[:, strings, doms, ...]
+        x = self._select_slice(x, strings, doms)
         # shape: [n_events, 86, 60, n_latent]
         latent_vars_time = result_tensors["latent_vars_time"].numpy()
         # shape: [n_events, n_strings, n_doms, 1, n_latent]
-        latent_vars_time = latent_vars_time[:, strings, doms, np.newaxis, :]
+        latent_vars_time = self._select_slice(latent_vars_time, strings, doms)[
+            :, :, :, np.newaxis, :
+        ]
 
         # evaluate the PDF
         # shape: [n_events, n_strings, n_doms, n_points]
@@ -400,9 +437,9 @@ class Source(Model):
         if "dom_cdf_exclusion" in result_tensors:
 
             # shape: [n_events, n_strings, n_doms, 1]
-            dom_cdf_exclusion = result_tensors["dom_cdf_exclusion"].numpy()[
-                :, strings, doms, np.newaxis
-            ]
+            dom_cdf_exclusion = self._select_slice(
+                result_tensors["dom_cdf_exclusion"].numpy(), strings, doms
+            )[:, :, :, np.newaxis]
 
             # shape: [n_events, n_strings, n_doms, 1]
             cdf_values /= 1.0 - dom_cdf_exclusion + self.epsilon
@@ -463,19 +500,19 @@ class Source(Model):
                 # shape: [1, 1, 1, n_points, 2, 1]
                 t_eval = np.reshape(t_eval, (1, 1, 1, -1, 2, 1))
 
-                # shape: [n_events, 86, 60, n_points, 2, n_components]
+                # shape: [n_events, 86, 60, n_points, 2, n_components_total]
                 #       = [1, 1, 1, n_points, 2, 1] -
-                #           [n_events, 86, 60, 1, 1, n_components]
+                #           [n_events, 86, 60, 1, 1, n_components_total]
                 t_eval_trafo = (
                     t_eval
                     - np.reshape(
                         t_offsets,
-                        [-1, 86, 60, 1, 1, self.decoder.n_components],
+                        [-1, 86, 60, 1, 1, self.decoder.n_components_total],
                     )
                 ) / self.time_unit_in_ns
 
                 # select subset of strings and doms based on exclusion ids
-                # shape: [n_points, 2, n_components]
+                # shape: [n_points, 2, n_components_total]
                 t_eval_trafo = t_eval_trafo[ids[0], ids[1], ids[2], ...]
                 # shape: [n_events, 86, 60, n_latent]
                 latent_vars_time = result_tensors["latent_vars_time"].numpy()
@@ -584,7 +621,7 @@ class Source(Model):
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
             Shape: [n_events, 86, 60, n_points] if all DOMs returned
-            Shape: [n_events, n_strings, n_doms] if DOMs specified
+            Shape: [n_events, n_strings, n_doms, n_points] if DOMs specified
 
         Raises
         ------
@@ -603,24 +640,26 @@ class Source(Model):
             t_offsets = result_tensors["time_offsets"].numpy()
             # shape: [n_events, 1, 1, 1, 1]
             t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
-            # shape: [n_events, 86, 60, 1, n_components]
+            # shape: [n_events, 86, 60, 1, n_components_total]
             #       = [n_events, 1, 1, 1, 1]
-            #           + [n_events, 86, 60, 1, n_components]
-            t_offsets += np.reshape(
+            #           + [n_events, 86, 60, 1, n_components_total]
+            t_offsets = t_offsets + np.reshape(
                 result_tensors["time_offsets_per_dom"].numpy(),
-                [-1, 86, 60, 1, self.decoder.n_components],
+                [-1, 86, 60, 1, self.decoder.n_components_total],
             )
-            # shape: [n_events, 86, 60, n_points, n_components]
+            # shape: [n_events, 86, 60, n_points, n_components_total]
             x = x - t_offsets
 
         # internally we are working with different time units
         x = x / self.time_unit_in_ns
 
         # select subset of strings and doms
-        x = x[:, strings, doms, ...]
-        latent_vars_time = result_tensors["latent_vars_time"].numpy()
-        latent_vars_time = latent_vars_time[:, strings, doms, ...]
-
+        # shape: [n_events, n_strings, n_doms, n_points, n_components_total]
+        x = self._select_slice(x, strings, doms)
+        # shape: [n_events, 86, 60, 1, n_latent]
+        latent_vars_time = self._select_slice(
+            result_tensors["latent_vars_time"].numpy(), strings, doms
+        )[:, :, :, np.newaxis, :]
         # evaluate the PDF
         # shape: [n_events, n_strings, n_doms, n_points]
         pdf_values = self.decoder.pdf(
@@ -633,9 +672,9 @@ class Source(Model):
         if "dom_cdf_exclusion" in result_tensors:
 
             # shape: [n_events, n_strings, n_doms, 1]
-            dom_cdf_exclusion = result_tensors["dom_cdf_exclusion"].numpy()[
-                :, strings, doms, np.newaxis
-            ]
+            dom_cdf_exclusion = self._select_slice(
+                result_tensors["dom_cdf_exclusion"].numpy(), strings, doms
+            )[:, :, :, np.newaxis]
 
             # shape: [n_events, n_strings, n_doms, 1]
             pdf_values /= 1.0 - dom_cdf_exclusion + self.epsilon

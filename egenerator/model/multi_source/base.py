@@ -560,7 +560,9 @@ class MultiSource(NestedModel, Source):
 
         nested_cdfs = {}
         cdf_values = None
-        dom_charges = result_tensors["dom_charges"].numpy()[:, strings, doms]
+        dom_charges = self._select_slice(
+            result_tensors["dom_charges"].numpy(), strings, doms
+        )
         for name, (base_source, result_tensors_i) in sorted(
             flattened_results.items()
         ):
@@ -576,9 +578,9 @@ class MultiSource(NestedModel, Source):
             )
 
             # shape: [n_events, n_strings, n_doms, 1]
-            dom_charges_i = result_tensors_i["dom_charges"].numpy()[
-                :, strings, doms
-            ]
+            dom_charges_i = self._select_slice(
+                result_tensors_i["dom_charges"].numpy(), strings, doms
+            )
 
             if cdf_values is None:
                 cdf_values = cdf_values_i * dom_charges_i
@@ -677,7 +679,7 @@ class MultiSource(NestedModel, Source):
             A dictionary with the PDFs of the nested sources. See description
             of `output_nested_pdfs`.
         """
-        if tw_exclusions is not None or tw_exclusions_ids is None:
+        if tw_exclusions is not None or tw_exclusions_ids is not None:
             raise NotImplementedError(
                 "Time window exclusions are not supported for standalone "
                 "PDF and CDF computation for the MultiSource. "
@@ -691,7 +693,9 @@ class MultiSource(NestedModel, Source):
 
         nested_pdfs = {}
         pdf_values = None
-        dom_charges = result_tensors["dom_charges"].numpy()[:, strings, doms]
+        dom_charges = self._select_slice(
+            result_tensors["dom_charges"].numpy(), strings, doms
+        )
         for name, (base_source, result_tensors_i) in sorted(
             flattened_results.items()
         ):
@@ -707,9 +711,9 @@ class MultiSource(NestedModel, Source):
             )
 
             # shape: [n_events, n_strings, n_doms, 1]
-            dom_charges_i = result_tensors_i["dom_charges"].numpy()[
-                :, strings, doms
-            ]
+            dom_charges_i = self._select_slice(
+                result_tensors_i["dom_charges"].numpy(), strings, doms
+            )
 
             if pdf_values is None:
                 pdf_values = pdf_values_i * dom_charges_i
