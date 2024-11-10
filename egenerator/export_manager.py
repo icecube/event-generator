@@ -32,7 +32,7 @@ from egenerator.utils.build_components import build_manager
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="WARNING",
 )
-def main(config_files, output_dir, reco_config_file=None, log_level="INFO"):
+def main(config_files, output_dir, reco_config_file=None, log_level="WARNING"):
     """Script to export model manager.
 
     Parameters

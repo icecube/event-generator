@@ -33,7 +33,9 @@ from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
     type=int,
     default=0,
 )
-def main(config_files, reco_config_file=None, log_level="INFO", num_threads=0):
+def main(
+    config_files, reco_config_file=None, log_level="WARNING", num_threads=0
+):
     """Script to train model.
 
     Parameters
