@@ -1,5 +1,3 @@
-import logging
-
 import tensorflow as tf
 
 from egenerator import misc
@@ -43,17 +41,6 @@ class LatentToPDFDecoder(Model):
             return self._untracked_data.get("value_range_mapping", None)
         else:
             return None
-
-    def __init__(self, logger=None):
-        """Instantiate Decoder class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(LatentToPDFDecoder, self).__init__(logger=self._logger)
 
     def _configure_derived_class(self, config, name=None):
         """Setup and configure the Decoder's architecture.

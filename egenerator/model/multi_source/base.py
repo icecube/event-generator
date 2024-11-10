@@ -1,4 +1,3 @@
-import logging
 import tensorflow as tf
 
 from egenerator import misc
@@ -74,17 +73,6 @@ class MultiSource(NestedModel, Source):
     parameter_names: list of str
         The names of the n_params number of parameters.
     """
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(MultiSource, self).__init__(logger=self._logger)
 
     def _configure_derived_class(
         self, base_models, config, data_trafo=None, decoder=None, name=None

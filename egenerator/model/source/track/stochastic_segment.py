@@ -1,4 +1,3 @@
-import logging
 import tensorflow as tf
 import numpy as np
 
@@ -24,8 +23,7 @@ class StochasticTrackSegmentModel(Source):
             "It will require updates for newest egenerator version. "
             "This is still a ToDo"
         )
-        self._logger = logger or logging.getLogger(__name__)
-        super(StochasticTrackSegmentModel, self).__init__(logger=self._logger)
+        super(StochasticTrackSegmentModel, self).__init__(logger=logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.

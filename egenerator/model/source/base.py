@@ -1,4 +1,3 @@
-import logging
 import numpy as np
 import tensorflow as tf
 
@@ -63,17 +62,6 @@ class Source(Model):
             return self.sub_components["decoder"]
         else:
             return None
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(Source, self).__init__(logger=self._logger)
 
     def _configure_derived_class(
         self,
@@ -147,7 +135,7 @@ class Source(Model):
                     so that they are found by tf.Module.variables
         """
         if name is None:
-            name = __name__
+            name = self.__class__.__name__
 
         # # collect all tensorflow variables before creation
         # variables_before = set([

@@ -1,5 +1,5 @@
-import os
 import logging
+import inspect
 import numpy as np
 import tensorflow as tf
 
@@ -134,17 +134,6 @@ class NestedModel(Model):
                 f"No float precision found in configuration: {configuration}"
             )
         return model_precision
-
-    def __init__(self, logger=None):
-        """Instantiate Model class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(NestedModel, self).__init__(logger=self._logger)
 
     def __call__(self, *args, **kwargs):
         """Call the model
@@ -344,156 +333,15 @@ class NestedModel(Model):
 
         return configuration, {}, sub_components
 
-    def save_weights(
-        self,
-        dir_path,
-        max_keep=3,
-        protected=False,
-        description=None,
-        num_training_steps=None,
-    ):
-        """Save the model weights.
+    def _rebuild_computation_graph(self):
+        """Rebuild the computation graph of the model.
 
-        Metadata on the checkpoints is stored in a model_checkpoints.yaml
-        in the output directory. If it does not exist yet, a new one will be
-        created. Otherwise, its values will be updated
-        The file contains meta data on the checkpoints and keeps track
-        of the most recents files. The structure  and content of meta data:
-
-            latest_checkpoint: int
-                The number of the latest checkpoint.
-
-            unprotected_checkpoints:
-                '{checkpoint_number}':
-                    'creation_date': str
-                        Time of model creation in human-readable format
-                    'time_stamp': int
-                        Time of model creation in seconds since
-                        1/1/1970 at midnight (time.time()).
-                    'file_basename': str
-                        Path to the model
-                    'description': str
-                        Optional description of the checkpoint.
-
-            protected_checkpoints:
-                (same as unprotected_checkpoints)
-
-        Parameters
-        ----------
-        dir_path : str
-            Path to the output directory.
-        max_keep : int, optional
-            The maximum number of unprotectd checkpoints to keep.
-            If there are more than this amount of unprotected checkpoints,
-            the oldest checkpoints will be deleted.
-        protected : bool, optional
-            If True, this checkpoint will not be considered for deletion
-            for max_keep.
-        description : str, optional
-            An optional description string that describes the checkpoint.
-            This will be saved in the checkpoints meta data.
-        num_training_steps : int, optional
-            The number of training steps with the current training settings.
-            This will be used to update the training_steps.yaml file to
-            account for the correct number of training steps for the most
-            recent training step.
-
-        Raises
-        ------
-        IOError
-            If the model checkpoint file already exists.
-        KeyError
-            If the model checkpoint meta data already exists.
-        ValueError
-            If the model has changed since it was configured.
-
+        When constructing the model via the BaseComponent.load() method,
+        the computation graph is not automatically created. This method
+        rebuilds the computation graph of the model.
+        It is therefore typically only needed when the model is loaded
+        via the BaseComponent.load() method.
         """
-        for name, sub_component in self.sub_components.items():
-
-            # get directory of sub component
-            sub_dir_path = os.path.join(dir_path, name)
-
-            if issubclass(type(sub_component), Model):
-                # save weights of Model sub component
-                sub_component.save_weights(
-                    dir_path=sub_dir_path,
-                    max_keep=max_keep,
-                    protected=protected,
-                    description=description,
-                    num_training_steps=num_training_steps,
-                )
-
-    def load_weights(self, dir_path, checkpoint_number=None):
-        """Load the model weights.
-
-        Parameters
-        ----------
-        dir_path : str
-            Path to the input directory.
-        checkpoint_number : None, optional
-            Optionally specify a certain checkpoint number that should be
-            loaded. If checkpoint_number is None (default), then the latest
-            checkpoint will be loaded.
-
-        Raises
-        ------
-        IOError
-            If the checkpoint meta data cannot be found in the input directory.
-        """
-        for name, sub_component in self.sub_components.items():
-
-            # get directory of sub component
-            sub_dir_path = os.path.join(dir_path, name)
-
-            if issubclass(type(sub_component), Model):
-                # load weights of Model sub component
-                sub_component.load_weights(
-                    dir_path=sub_dir_path, checkpoint_number=checkpoint_number
-                )
-
-    def _save(self, dir_path, **kwargs):
-        """Virtual method for additional save tasks by derived class
-
-        This is a virtual method that may be overwritten by derived class
-        to perform additional tasks necessary to save the component.
-        This can for instance be saving of tensorflow model weights.
-
-        The NestedModel only contains weights in its submodules which are
-        automatically saved via recursion. Therefore, it does not need
-        to explicitly save anything here.
-
-        Parameters
-        ----------
-        dir_path : str
-            The path to the output directory to which the component will be
-            saved.
-        **kwargs
-            Additional keyword arguments that may be used by the derived
-            class.
-        """
-        pass
-
-    def _load(self, dir_path, **kwargs):
-        """Virtual method for additional load tasks by derived class
-
-        This is a virtual method that may be overwritten by derived class
-        to perform additional tasks necessary to load the component.
-        This can for instance be loading of tensorflow model weights.
-
-        The NestedModel only contains weights in its submodules which are
-        automatically loaded via recursion. Therefore, it does not need
-        to explicitly load anything here.
-
-        Parameters
-        ----------
-        dir_path : str
-            The path to the input directory from which the component will be
-            loaded.
-        **kwargs
-            Additional keyword arguments that may be used by the derived
-            class.
-        """
-
         # rebuild the tensorflow graph if it does not exist yet
         if not self.is_configured:
 
@@ -506,18 +354,36 @@ class NestedModel(Model):
 
             # rebuild graph
             config_dict = self.configuration.config
-            if "data_trafo" in self._sub_components:
-                data_trafo = self._sub_components["data_trafo"]
-            else:
-                data_trafo = None
+
+            # sub components are eiher part of the base_models or
+            # directly passed in to _configure as a parameter.
+            # Here we will assume it is part of the base_models
+            # if we cannot find the name in the parameters or if
+            # it is not a part of the configuration.config.
+
+            # get the parameter signature of the _configure method
+            signature = inspect.signature(
+                self._configure_derived_class
+            ).parameters
+            direct_components = []
+            for key, default_value in signature.items():
+                if key in ["base_models", "config", "name"]:
+                    continue
+                if key in self._sub_components:
+                    config_dict[key] = self._sub_components[key]
+                    direct_components.append(key)
+                elif key not in config_dict:
+                    config_dict[key] = default_value.default
+
             base_models = {}
             for key, sub_component in self._sub_components.items():
-                if key != "data_trafo":
+                if key not in direct_components and key not in config_dict:
                     base_models[key] = sub_component
 
-            self._configure(
-                data_trafo=data_trafo, base_models=base_models, **config_dict
+            self._logger.debug(
+                f"[NestedModel] Rebuilding {self.__class__.__name__}"
             )
+            self._configure(base_models=base_models, **config_dict)
 
             # make sure that no additional class attributes are created
             # apart from untracked ones

@@ -240,6 +240,9 @@ class TestIndependentMultiSource(unittest.TestCase):
                 "checkpoint": self.source.checkpoint,
                 "step": self.source._untracked_data["step"],
                 "variables": self.source._untracked_data["variables"],
+                "variables_top_level": self.source._untracked_data[
+                    "variables_top_level"
+                ],
                 "parameter_index_dict": self.source._untracked_data[
                     "parameter_index_dict"
                 ],

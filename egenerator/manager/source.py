@@ -1,5 +1,4 @@
 import os
-import logging
 import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
@@ -13,17 +12,6 @@ from egenerator.manager.reconstruction.tray import ReconstructionTray
 
 
 class SourceManager(BaseModelManager):
-
-    def __init__(self, logger=None):
-        """Initializes ModelManager object.
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            A logging instance.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(SourceManager, self).__init__(logger=self._logger)
 
     def parameter_loss_function(
         self,

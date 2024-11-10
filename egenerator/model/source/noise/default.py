@@ -1,4 +1,3 @@
-import logging
 import tensorflow as tf
 import numpy as np
 
@@ -9,17 +8,6 @@ from egenerator.utils import detector, tf_helpers
 
 
 class DefaultNoiseModel(Source):
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(DefaultNoiseModel, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.

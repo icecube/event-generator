@@ -454,6 +454,9 @@ class TestMixtureModel(unittest.TestCase):
                 "name": "egenerator.model.decoder.mixture",
                 "checkpoint": self.mixture.checkpoint,
                 "variables": self.mixture.variables,
+                "variables_top_level": self.mixture._untracked_data[
+                    "variables_top_level"
+                ],
                 "step": self.mixture._untracked_data["step"],
                 "n_parameters": 12,
                 "parameter_index_dict": self.mixture._untracked_data[

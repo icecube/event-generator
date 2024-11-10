@@ -1,5 +1,4 @@
 import os
-import logging
 import tensorflow as tf
 import numpy as np
 import timeit
@@ -62,17 +61,6 @@ class BaseModelManager(Model):
             return self.untracked_data["models"]
         else:
             return None
-
-    def __init__(self, logger=None):
-        """Initializes ModelManager object.
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            A logging instance.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(BaseModelManager, self).__init__(logger=self._logger)
 
     def _configure(self, config, data_handler, models):
         """Configure the ModelManager component instance.
@@ -579,7 +567,7 @@ class BaseModelManager(Model):
                     tf.summary.scalar(
                         "loss_{:04d}".format(i),
                         loss_value,
-                        step=tf.cast(model.step, dtype=tf.int64),
+                        step=model.step,
                     )
                     if (
                         opt_config["l1_regularization"] > 0.0
@@ -588,7 +576,7 @@ class BaseModelManager(Model):
                         tf.summary.scalar(
                             "reg_loss_{:04d}".format(i),
                             reg_loss,
-                            step=tf.cast(model.step, dtype=tf.int64),
+                            step=model.step,
                         )
 
         return combined_loss

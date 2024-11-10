@@ -1,23 +1,9 @@
-import logging
 import tensorflow as tf
 
 from egenerator.model.multi_source.base import MultiSource
 
 
 class StartingVariableMultiCascadeModel(MultiSource):
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(StartingVariableMultiCascadeModel, self).__init__(
-            logger=self._logger
-        )
 
     def get_parameters_and_mapping(self, config, base_models):
         """Get parameter names and their ordering as well as source mapping.

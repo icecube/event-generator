@@ -251,20 +251,24 @@ class TestSourceBase(unittest.TestCase):
         )
         self.assertEqual(self.source.data, {})
         self.assertEqual(self.source.data_trafo, self.data_trafo)
-        self.assertEqual(self.source.name, "egenerator.model.source.base")
+        self.assertEqual(self.source.name, "DummySourceModel")
         self.assertEqual(self.source.parameter_names, self.parameter_names)
         self.assertTrue(
             self.source.configuration.is_compatible(self.configuration)
         )
 
+        self.maxDiff = None
         self.assertDictEqual(
             self.source._untracked_data,
             {
-                "name": "egenerator.model.source.base",
+                "name": "DummySourceModel",
                 "checkpoint": self.source.checkpoint,
                 "step": self.source._untracked_data["step"],
                 "dummy_var": self.source._untracked_data["dummy_var"],
                 "variables": self.source._untracked_data["variables"],
+                "variables_top_level": self.source._untracked_data[
+                    "variables_top_level"
+                ],
                 "n_parameters": 7,
                 "parameter_index_dict": self.source._untracked_data[
                     "parameter_index_dict"

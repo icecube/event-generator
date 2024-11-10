@@ -1,21 +1,8 @@
-import logging
-
 from egenerator.utils import basis_functions
 from egenerator.model.decoder.base import LatentToPDFDecoder
 
 
 class AsymmetricGaussianDecoder(LatentToPDFDecoder):
-
-    def __init__(self, logger=None):
-        """Instantiate Decoder class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(AsymmetricGaussianDecoder, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
