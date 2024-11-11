@@ -423,14 +423,34 @@ def tf_gamma_log_pdf(x, alpha, beta, dtype=None):
         The Gamma log PDF evaluated at x
     """
     x, alpha, beta, inf = tf_cast(dtype, x, alpha, beta, np.inf)
-    return tf.where(
-        x <= 0,
-        -inf,
-        alpha * tf.math.log(beta)
-        - tf.math.lgamma(alpha)
-        + (alpha - 1) * tf.math.log(x)
-        - beta * x,
-    )
+
+    if alpha.dtype == tf.float32:
+        eps = 1e-37
+    elif alpha.dtype == tf.float64:
+        eps = 1e-307
+    else:
+        raise ValueError(f"Unknown dtype for alpha: {alpha.dtype}")
+
+    # If the inputs to a tf.where function contains NaNs,
+    # the gradient will always be NaN, regardless whether
+    # the input is actually used or not. Here, a workaround
+    # is implemented to prevent the inputs from ever containing
+    # NaNs.
+
+    mask = x <= eps
+
+    # modify x to ensure that all values computed by Gamma are finite
+    x_zeros = tf.where(mask, tf.zeros_like(x) + eps, x)
+
+    # compute pdf values based on this modfiied x
+    # Note: the values computed for indices where x <= eps are incorrect
+    # here, but we will set them to zero later
+    pdf_values = tfp.distributions.Gamma(
+        concentration=alpha, rate=beta
+    ).log_prob(x_zeros)
+
+    # set pdf to zero for x <= 0, but avoid nan gradients
+    return tf.where(mask, tf.zeros_like(pdf_values), pdf_values)
 
 
 def tf_gamma_pdf(x, alpha, beta, dtype=None):
@@ -453,7 +473,33 @@ def tf_gamma_pdf(x, alpha, beta, dtype=None):
     tf.Tensor
         The Gamma PDF evaluated at x
     """
-    return tf.exp(tf_gamma_log_pdf(x, alpha, beta, dtype=dtype))
+    if alpha.dtype == tf.float32:
+        eps = 1e-37
+    elif alpha.dtype == tf.float64:
+        eps = 1e-307
+    else:
+        raise ValueError(f"Unknown dtype for alpha: {alpha.dtype}")
+
+    # If the inputs to a tf.where function contains NaNs,
+    # the gradient will always be NaN, regardless whether
+    # the input is actually used or not. Here, a workaround
+    # is implemented to prevent the inputs from ever containing
+    # NaNs.
+
+    mask = x <= eps
+
+    # modify x to ensure that all values computed by Gamma are finite
+    x_zeros = tf.where(mask, tf.zeros_like(x) + eps, x)
+
+    # compute pdf values based on this modfiied x
+    # Note: the values computed for indices where x <= eps are incorrect
+    # here, but we will set them to zero later
+    pdf_values = tfp.distributions.Gamma(concentration=alpha, rate=beta).prob(
+        x_zeros
+    )
+
+    # set pdf to zero for x <= 0, but avoid nan gradients
+    return tf.where(mask, tf.zeros_like(pdf_values), pdf_values)
 
 
 def gamma_pdf(x, alpha, beta, dtype=None):

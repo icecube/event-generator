@@ -636,7 +636,7 @@ class BaseModelManager(Model):
             remove_nan_gradients = False
         if remove_nan_gradients:
             gradients = [
-                tf.where(tf.is_nan(grad), tf.zeros_like(grad), grad)
+                tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad)
                 for grad in gradients
                 if grad is not None
             ]
