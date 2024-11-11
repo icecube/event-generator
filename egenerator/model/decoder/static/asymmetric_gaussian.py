@@ -53,7 +53,6 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             The PDF evaluated at x for the given latent variables.
             Shape: [...]
         """
-        self.assert_configured(True)
         return basis_functions.tf_asymmetric_gauss(
             x=x,
             mu=latent_vars[..., self.get_index("mu")],
@@ -84,7 +83,6 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         tf.Tensor
             The CDF evaluated at x for the given latent variables.
         """
-        self.assert_configured(True)
         return basis_functions.tf_asymmetric_gauss_cdf(
             x=x,
             mu=latent_vars[..., self.get_index("mu")],
@@ -115,7 +113,6 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         tf.Tensor
             The PPF evaluated at q for the given latent variables.
         """
-        self.assert_configured(True)
         return basis_functions.tf_asymmetric_gauss_ppf(
             q=q,
             mu=latent_vars[..., self.get_index("mu")],
