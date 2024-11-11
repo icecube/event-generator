@@ -556,8 +556,8 @@ class DefaultCascadeModel(Source):
                     n_latent_time + n_charge, config["num_filters_list"][-1]
                 )
             )
-        if n_components <= 1:
-            raise ValueError("{!r} !> 1".format(n_components))
+        if n_components < 1:
+            raise ValueError("{!r} !> 0".format(n_components))
 
         print("\t Charge method:", config["charge_distribution_type"])
         print("\t Time PDF mixture model components:")
