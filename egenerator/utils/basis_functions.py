@@ -538,8 +538,8 @@ def tf_gamma_cdf(x, alpha, beta, dtype=None):
     tf.Tensor
         The Gamma CDF evaluated at x
     """
-    x, alpha, beta = tf_cast(dtype, x, alpha, beta)
-    return tf.where(x <= 0, 0.0, tf.math.igamma(alpha, beta * x))
+    x, alpha, beta, zero = tf_cast(dtype, x, alpha, beta, 0.0)
+    return tf.where(x <= 0, zero, tf.math.igamma(alpha, beta * x))
 
 
 def gamma_cdf(x, alpha, beta, dtype=None):

@@ -37,7 +37,8 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             # same base model multiple times (as for MultiSource objects)
             "decoder_mapping": {
                 "AssymetricGaussian": ["AssymetricGaussian", 7],
-                "Gamma": ["Gamma", 3],
+                "GammaFunction": ["GammaFunction", 1],
+                "ShiftedGammaFunction": ["ShiftedGammaFunction", 2],
             },
 
             # Define a mapping of latent variable to value range functions
@@ -95,16 +96,75 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                 # previously such as a normalizing flow model.
                 # 'load_dir': 'path/to/model',
             },
-            Gamma: {
-                'decoder_class': 'egenerator.model.decoder.static.gamma.GammaDecoder',
-                'config': {'float_precision': float64},
+            GammaFunction: {
+                'decoder_class': 'egenerator.model.decoder.static.gamma.GammaFunctionDecoder',
+                'config': {
+                    'float_precision': float64,
+                    'offset': -0.005, # note that offset is in model time units
+
+                    # Define a mapping of latent variable to value range functions
+                    "value_range_mapping": {
+                        "alpha": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 0.3,
+                                "offset": 2.5,
+                                "min_value": 0.5,
+                            },
+                        },
+                        "beta": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": 10.0,
+                                "min_value": 1.0,
+                            },
+                        },
+                    },
+                },
+            },
+            ShiftedGammaFunction: {
+                'decoder_class': 'egenerator.model.decoder.static.gamma.ShiftedGammaFunctionDecoder',
+                'config': {
+                    'float_precision': float64,
+
+                    # Define a mapping of latent variable to value range functions
+                    "value_range_mapping": {
+                        "offset": {
+                            "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                            "config": {
+                                "scale": 0.001,
+                                "offset": -0.005,
+                            },
+                        },
+                        "alpha": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 0.3,
+                                "offset": 2.5,
+                                "min_value": 0.5,
+                            },
+                        },
+                        "beta": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": 10.0,
+                                "min_value": 1.0,
+                            },
+                        },
+                    },
+                },
             },
         },
     }
     '''
 
     In the above example, a mixture model is created with 7 components of
-    asymmetric Gaussian decoders and 3 components of Gamma decoders.
+    asymmetric Gaussian decoders and 1 component of a constant offset Gamma
+    decoder and 2 components of a shifted Gamma decoder.
+    Relevant value range mappings are also defined for the parameters of the
+    mixture model.
 
     """
 
