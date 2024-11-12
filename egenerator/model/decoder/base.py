@@ -1,6 +1,7 @@
 import tensorflow as tf
 
 from egenerator import misc
+from egenerator.utils import tf_helpers
 from egenerator.model.base import Model
 from egenerator.manager.component import Configuration
 
@@ -259,7 +260,7 @@ class LatentToPDFDecoder(Model):
         """
         self.assert_configured(True)
         latent_vars = self._apply_value_range(latent_vars)
-        return self._cdf(x, latent_vars, **kwargs)
+        return tf_helpers.safe_cdf_clip(self._cdf(x, latent_vars, **kwargs))
 
     def _cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.
