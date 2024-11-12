@@ -229,6 +229,12 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                 decoder_name
             ]
 
+            if weight_factor < 0:
+                raise ValueError(
+                    f"The weight factor '{weight_factor}' "
+                    "must be greater than or equal to zero."
+                )
+
             # some sanity checks
             if base_name not in base_models:
                 raise ValueError(
@@ -373,11 +379,6 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             ]
 
             parameters_i = parameters[..., slice_i]
-            # apply weight factor
-            if weight_factor != 1.0:
-                parameters_i = tf.unstack(parameters_i, axis=-1)
-                parameters_i[-1] *= weight_factor
-                parameters_i = tf.stack(parameters_i, axis=-1)
 
             # Ensure positive weights
             asserts = [
@@ -385,11 +386,11 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                     parameters_i[..., -1],
                     tf.zeros_like(parameters_i[..., -1]),
                     message="Negative weight.",
-                )
+                ),
             ]
             with tf.control_dependencies(asserts):
                 # get the parameters for the base model
-                model_parameter_dict[name] = tf.reshape(
+                parameters_i = tf.reshape(
                     parameters_i,
                     tf.concat(
                         [
@@ -399,6 +400,14 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                         axis=0,
                     ),
                 )
+
+            # apply weight factor
+            if weight_factor != 1.0:
+                parameters_i = tf.unstack(parameters_i, axis=-1)
+                parameters_i[-1] *= weight_factor
+                parameters_i = tf.stack(parameters_i, axis=-1)
+
+            model_parameter_dict[name] = parameters_i
 
         return model_parameter_dict
 
