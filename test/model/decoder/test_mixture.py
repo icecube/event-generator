@@ -31,8 +31,8 @@ class TestMixtureModel(unittest.TestCase):
         ]
         self.config_big = {
             "decoder_mapping": {
-                "AssymetricGaussian": ["AssymetricGaussian", 10],
-                "GammaFunction": ["GammaFunction", 10],
+                "AssymetricGaussian": ["AssymetricGaussian", 10, 1.0],
+                "GammaFunction": ["GammaFunction", 10, 1.4],
             },
             "float_precision": "float64",
             "value_range_mapping": {
@@ -48,7 +48,7 @@ class TestMixtureModel(unittest.TestCase):
         }
         self.config = {
             "decoder_mapping": {
-                "AssymetricGaussian": ["AssymetricGaussian", 3],
+                "AssymetricGaussian": ["AssymetricGaussian", 3, 1.0],
             },
             "float_precision": "float64",
             "value_range_mapping": {
@@ -559,6 +559,7 @@ class TestMixtureModel(unittest.TestCase):
                 ],
                 "n_parameters_per_decoder": [4],
                 "n_components_per_decoder": [3],
+                "weight_factor_per_decoder": [1.0],
                 "parameter_slice_per_decoder": [slice(0, 12, None)],
                 "decoder_names": ["AssymetricGaussian"],
                 "value_range_mapping": self.mixture._untracked_data[

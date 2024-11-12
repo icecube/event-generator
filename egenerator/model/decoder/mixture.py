@@ -36,9 +36,9 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             # but in other cases it could be used to reuse the
             # same base model multiple times (as for MultiSource objects)
             "decoder_mapping": {
-                "AssymetricGaussian": ["AssymetricGaussian", 7],
-                "GammaFunction": ["GammaFunction", 1],
-                "ShiftedGammaFunction": ["ShiftedGammaFunction", 2],
+                "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
+                "GammaFunction": ["GammaFunction", 1, 1.0],
+                "ShiftedGammaFunction": ["ShiftedGammaFunction", 2, 1.0],
             },
 
             # Define a mapping of latent variable to value range functions
@@ -219,11 +219,14 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         n_parameters_per_decoder = []
         parameter_slice_per_decoder = []
         n_components_per_decoder = []
+        weight_factor_per_decoder = []
         n_components_total = 0
         models_mapping = {}
         current_index = 0
         for decoder_name in decoder_names:
-            base_name, n_components = config["decoder_mapping"][decoder_name]
+            base_name, n_components, weight_factor = config["decoder_mapping"][
+                decoder_name
+            ]
 
             # some sanity checks
             if base_name not in base_models:
@@ -254,6 +257,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                 ]
             n_parameters_per_decoder.append(base_decoder.n_parameters + 1)
             n_components_per_decoder.append(n_components)
+            weight_factor_per_decoder.append(weight_factor)
             parameter_slice_per_decoder.append(
                 slice(
                     current_index,
@@ -270,6 +274,9 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         )
         self._untracked_data["n_components_per_decoder"] = (
             n_components_per_decoder
+        )
+        self._untracked_data["weight_factor_per_decoder"] = (
+            weight_factor_per_decoder
         )
         self._untracked_data["parameter_slice_per_decoder"] = (
             parameter_slice_per_decoder
@@ -360,8 +367,16 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             n_parameters = self._untracked_data["n_parameters_per_decoder"][i]
             n_components = self._untracked_data["n_components_per_decoder"][i]
             slice_i = self._untracked_data["parameter_slice_per_decoder"][i]
+            weight_factor = self._untracked_data["weight_factor_per_decoder"][
+                i
+            ]
 
             parameters_i = parameters[..., slice_i]
+            # apply weight factor
+            if weight_factor != 1.0:
+                parameters_i = tf.unstack(parameters_i, axis=-1)
+                parameters_i[-1] *= weight_factor
+                parameters_i = tf.stack(parameters_i, axis=-1)
 
             # Ensure positive weights
             asserts = [
