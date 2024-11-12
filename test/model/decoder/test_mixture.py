@@ -6,6 +6,7 @@ from egenerator import misc
 from egenerator.manager.component import Configuration
 from egenerator.model.decoder.mixture import MixtureModel
 from egenerator.model.decoder import AsymmetricGaussianDecoder
+from egenerator.model.decoder import GammaFunctionDecoder
 from egenerator.utils import basis_functions
 
 
@@ -28,6 +29,23 @@ class TestMixtureModel(unittest.TestCase):
             "AssymetricGaussian_r_002",
             "AssymetricGaussian_weight_002",
         ]
+        self.config_big = {
+            "decoder_mapping": {
+                "AssymetricGaussian": ["AssymetricGaussian", 10],
+                "GammaFunction": ["GammaFunction", 10],
+            },
+            "float_precision": "float64",
+            "value_range_mapping": {
+                "weight": {
+                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                    "config": {
+                        "scale": 10.0,
+                        "offset": 1.0,
+                        "min_value": 0.00001,
+                    },
+                },
+            },
+        }
         self.config = {
             "decoder_mapping": {
                 "AssymetricGaussian": ["AssymetricGaussian", 3],
@@ -80,13 +98,25 @@ class TestMixtureModel(unittest.TestCase):
             }
         )
 
+        self.gamma_decoder = self.get_gamma_decoder(
+            config={"float_precision": "float64"}
+        )
+
         self.base_models = {
             "AssymetricGaussian": self.ag,
+        }
+        self.base_models_big = {
+            "AssymetricGaussian": self.ag,
+            "GammaFunction": self.gamma_decoder,
         }
 
         self.mixture = self.get_mixture(
             config=self.config,
             base_models=self.base_models,
+        )
+        self.mixture_big = self.get_mixture(
+            config=self.config_big,
+            base_models=self.base_models_big,
         )
         self.mixture_no_mapping = self.get_mixture(
             config=self.config,
@@ -219,6 +249,11 @@ class TestMixtureModel(unittest.TestCase):
         )
         # ----------------
 
+    def get_gamma_decoder(self, **kwargs):
+        model = GammaFunctionDecoder()
+        model.configure(**kwargs)
+        return model
+
     def get_ag_decoder(self, **kwargs):
         model = AsymmetricGaussianDecoder()
         model.configure(**kwargs)
@@ -250,6 +285,25 @@ class TestMixtureModel(unittest.TestCase):
                 "AssymetricGaussian_weight_002",
             ],
         )
+
+    def test_value_range_of_cdf(self):
+        """Check if cdf values are within [0, 1]"""
+
+        rng = np.random.default_rng(42)
+
+        n_points = 100000
+        x = rng.uniform(-10, 10, n_points)
+        latent_vars = rng.uniform(
+            -10, 10, (n_points, self.mixture_big.n_parameters)
+        )
+
+        cdf = self.mixture.cdf(x, latent_vars).numpy()
+        self.assertTrue(np.all(cdf >= 0.0))
+        self.assertTrue(np.all(cdf <= 1.0))
+
+        cdf = self.mixture.cdf(x, latent_vars, reduce_components=False).numpy()
+        self.assertTrue(np.all(cdf >= 0.0))
+        self.assertTrue(np.all(cdf <= 1.0))
 
     def test_correct_value_range_mapping_of_mixture(self):
         """Test if the value range mapping is correctly applied for mixture"""

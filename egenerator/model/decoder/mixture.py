@@ -361,14 +361,28 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             n_components = self._untracked_data["n_components_per_decoder"][i]
             slice_i = self._untracked_data["parameter_slice_per_decoder"][i]
 
-            # get the parameters for the base model
-            model_parameter_dict[name] = tf.reshape(
-                parameters[..., slice_i],
-                tf.concat(
-                    [tf.shape(parameters)[:-1], (n_components, n_parameters)],
-                    axis=0,
-                ),
-            )
+            parameters_i = parameters[..., slice_i]
+
+            # Ensure positive weights
+            asserts = [
+                tf.debugging.assert_greater_equal(
+                    parameters_i[..., -1],
+                    tf.zeros_like(parameters_i[..., -1]),
+                    message="Negative weight.",
+                )
+            ]
+            with tf.control_dependencies(asserts):
+                # get the parameters for the base model
+                model_parameter_dict[name] = tf.reshape(
+                    parameters_i,
+                    tf.concat(
+                        [
+                            tf.shape(parameters)[:-1],
+                            (n_components, n_parameters),
+                        ],
+                        axis=0,
+                    ),
+                )
 
         return model_parameter_dict
 
