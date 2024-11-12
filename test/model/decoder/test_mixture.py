@@ -99,7 +99,27 @@ class TestMixtureModel(unittest.TestCase):
         )
 
         self.gamma_decoder = self.get_gamma_decoder(
-            config={"float_precision": "float64"}
+            config={
+                "float_precision": "float64",
+                "value_range_mapping": {
+                    "alpha": {
+                        "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                        "config": {
+                            "scale": 0.3,
+                            "offset": 2.5,
+                            "min_value": 0.5,
+                        },
+                    },
+                    "beta": {
+                        "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                        "config": {
+                            "scale": 1.0,
+                            "offset": 10.0,
+                            "min_value": 1.0,
+                        },
+                    },
+                },
+            },
         )
 
         self.base_models = {
@@ -286,6 +306,18 @@ class TestMixtureModel(unittest.TestCase):
             ],
         )
 
+    def test_correct_slices(self):
+        """Test if the slices are correctly set"""
+
+        self.assertEqual(
+            self.mixture._untracked_data["parameter_slice_per_decoder"],
+            [slice(0, 12, None)],
+        )
+        self.assertEqual(
+            self.mixture_big._untracked_data["parameter_slice_per_decoder"],
+            [slice(0, 40, None), slice(40, 70, None)],
+        )
+
     def test_value_range_of_cdf(self):
         """Check if cdf values are within [0, 1]"""
 
@@ -297,11 +329,13 @@ class TestMixtureModel(unittest.TestCase):
             -10, 10, (n_points, self.mixture_big.n_parameters)
         )
 
-        cdf = self.mixture.cdf(x, latent_vars).numpy()
+        cdf = self.mixture_big.cdf(x, latent_vars).numpy()
         self.assertTrue(np.all(cdf >= 0.0))
         self.assertTrue(np.all(cdf <= 1.0))
 
-        cdf = self.mixture.cdf(x, latent_vars, reduce_components=False).numpy()
+        cdf = self.mixture_big.cdf(
+            x, latent_vars, reduce_components=False
+        ).numpy()
         self.assertTrue(np.all(cdf >= 0.0))
         self.assertTrue(np.all(cdf <= 1.0))
 

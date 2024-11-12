@@ -263,7 +263,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             )
             models_mapping[decoder_name] = base_name
 
-            current_index += n_parameters_per_decoder[-1]
+            current_index += n_parameters_per_decoder[-1] * n_components
 
         self._untracked_data["n_parameters_per_decoder"] = (
             n_parameters_per_decoder
