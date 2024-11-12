@@ -565,7 +565,8 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             weight = latent_vars_i[..., -1]
 
             # shape: [..., n_components_per_base]
-            func = getattr(self.sub_components[name], func_name)
+            base_name = self._untracked_data["models_mapping"][name]
+            func = getattr(self.sub_components[base_name], func_name)
             values_i = (
                 func(x=x_i, latent_vars=latent_vars_i[..., :-1], **kwargs)
                 * weight
