@@ -670,8 +670,8 @@ class EnteringSphereInfTrack(Source):
         print("\t Charge method:", config["charge_distribution_type"])
         print("\t Time PDF mixture model components:")
         decoder_config = self.decoder.configuration.config["config"]
-        for name, num in decoder_config["decoder_mapping"].values():
-            print(f"\t\t {name}: {num}")
+        for name, num, weight in decoder_config["decoder_mapping"].values():
+            print(f"\t\t {name}: {num} [w={weight}]")
 
         # shape: [n_batch, 86, 60, n_charge + n_latent_time]
         latent_vars = conv_hex3d_layers[-1]

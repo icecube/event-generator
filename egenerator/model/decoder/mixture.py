@@ -35,6 +35,7 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
             # Note that mapping here will just repeat the names,
             # but in other cases it could be used to reuse the
             # same base model multiple times (as for MultiSource objects)
+            # Structure is: [name, n_components, weight_factor]
             "decoder_mapping": {
                 "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
                 "GammaFunction": ["GammaFunction", 1, 1.0],
