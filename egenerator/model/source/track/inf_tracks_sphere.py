@@ -666,7 +666,7 @@ class EnteringSphereInfTrack(Source):
         print("\t Time PDF mixture model components:")
         decoder_config = self.decoder.configuration.config["config"]
         counter = 0
-        for name in self._untracked_data["decoder_names"]:
+        for name in self.decoder._untracked_data["decoder_names"]:
             base_name, num, weight = decoder_config["decoder_mapping"][name]
             if "mixture_component_t_seeds" in config:
                 t_seed_i = config["mixture_component_t_seeds"][
