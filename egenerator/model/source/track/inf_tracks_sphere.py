@@ -577,12 +577,7 @@ class EnteringSphereInfTrack(Source):
                     f"components {n_components}"
                 )
         else:
-            t_seed = np.r_[
-                [0, -100, 100, 8000, 4000, 800, 300, 1000, 400, 2000],
-                np.random.RandomState(42).uniform(
-                    0, 14000, max(1, n_components)
-                ),
-            ][:n_components]
+            t_seed = np.zeros(n_components)
         t_seed = np.reshape(t_seed, [1, 1, 1, n_components])
 
         # per DOM offset to shift to t_geometry
@@ -670,8 +665,17 @@ class EnteringSphereInfTrack(Source):
         print("\t Charge method:", config["charge_distribution_type"])
         print("\t Time PDF mixture model components:")
         decoder_config = self.decoder.configuration.config["config"]
-        for name, num, weight in decoder_config["decoder_mapping"].values():
-            print(f"\t\t {name}: {num} [w={weight}]")
+        counter = 0
+        for name in self._untracked_data["decoder_names"]:
+            base_name, num, weight = decoder_config["decoder_mapping"][name]
+            if "mixture_component_t_seeds" in config:
+                t_seed_i = config["mixture_component_t_seeds"][
+                    counter : counter + num
+                ]
+            else:
+                t_seed_i = np.zeros(num)
+            counter += num
+            print(f"\t\t {base_name}: {num} [w={weight}, t_seeds={t_seed_i}]")
 
         # shape: [n_batch, 86, 60, n_charge + n_latent_time]
         latent_vars = conv_hex3d_layers[-1]

@@ -480,6 +480,7 @@ model_settings: {
                 'charge_distribution_type': 'negative_binomial',
                 'float_precision': float32,
                 'float_precision_pdf_cdf': float64,
+                'mixture_component_t_seeds': [0, 100, 8000, 14000, 4000, 800, 300, 1000, 400, 2000],
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,
