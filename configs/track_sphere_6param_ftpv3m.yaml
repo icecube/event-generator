@@ -500,7 +500,7 @@ model_settings: {
                 'charge_distribution_type': 'negative_binomial',
                 'float_precision': float32,
                 'float_precision_pdf_cdf': float64,
-                'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, 1000, 400, 0],
+                'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, 0, 0, 0],
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,
@@ -509,7 +509,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [50, 200, 200, 200, 200, 41],
+                'num_filters_list' : [50, 200, 200, 200, 200, 39],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',
@@ -533,8 +533,8 @@ model_settings: {
                     # but in other cases it could be used to reuse the
                     # same base model multiple times (as for MultiSource objects)
                     "decoder_mapping": {
-                        "AssymetricGaussian": ["AssymetricGaussian", 9, 1.0],
-                        "GammaFunction": ["GammaFunction", 1, 10.0],
+                        "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
+                        "GammaFunction": ["GammaFunction", 3, 10.0],
                     },
 
                     # Define a mapping of latent variable to value range functions
