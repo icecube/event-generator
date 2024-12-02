@@ -190,6 +190,12 @@ class EnteringSphereInfTrack(Source):
 
         config = self.configuration.config["config"]
         parameters = data_batch_dict[parameter_tensor_name]
+
+        # ensure energy is greater or equal zero
+        parameters = tf.unstack(parameters, axis=-1)
+        parameters[3] = tf.clip_by_value(parameters[3], 0.0, float("inf"))
+        parameters = tf.stack(parameters, axis=-1)
+
         pulses = data_batch_dict["x_pulses"]
         pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
