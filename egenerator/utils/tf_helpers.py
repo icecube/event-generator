@@ -26,7 +26,18 @@ def clip_logits(logits, eps=None):
             eps = 1e-307
         else:
             raise ValueError(f"Unknown dtype for logits: {logits.dtype}")
-    return tf.clip_by_value(logits, eps, float("inf"))
+
+    # some safety checks to make sure we aren't clipping too much
+    asserts = []
+    asserts.append(
+        tf.debugging.Assert(
+            tf.reduce_all(logits > -1e-7),
+            ["Values < 0!", tf.reduce_min(logits)],
+        )
+    )
+    with tf.control_dependencies(asserts):
+        clipped_logits = tf.clip_by_value(logits, eps, float("inf"))
+    return clipped_logits
 
 
 def safe_log(logits, eps=None):

@@ -378,36 +378,40 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                 i
             ]
 
-            parameters_i = parameters[..., slice_i]
-
-            # Ensure positive weights
-            asserts = [
-                tf.debugging.assert_greater_equal(
-                    parameters_i[..., -1],
-                    tf.zeros_like(parameters_i[..., -1]),
-                    message="Negative weight.",
+            # get the parameters for the base model
+            # shape: [..., n_components_per_base, n_parameters]
+            parameters_i = tf.reshape(
+                parameters[..., slice_i],
+                tf.concat(
+                    [
+                        tf.shape(parameters)[:-1],
+                        (n_components, n_parameters),
+                    ],
+                    axis=0,
                 ),
-            ]
+            )
+
+            # apply weight factor and ensure positive weights
+            parameters_i = tf.unstack(parameters_i, axis=-1)
+            if weight_factor != 1.0:
+                parameters_i[-1] *= weight_factor
+
+            # some safety checks to make sure we aren't clipping too much
+            asserts = []
+            asserts.append(
+                tf.debugging.Assert(
+                    tf.reduce_all(parameters_i[-1] > -self.epsilon),
+                    ["Weights < 0!", tf.reduce_min(parameters_i[-1])],
+                )
+            )
             with tf.control_dependencies(asserts):
-                # get the parameters for the base model
-                parameters_i = tf.reshape(
-                    parameters_i,
-                    tf.concat(
-                        [
-                            tf.shape(parameters)[:-1],
-                            (n_components, n_parameters),
-                        ],
-                        axis=0,
-                    ),
+                parameters_i[-1] = tf.clip_by_value(
+                    parameters_i[-1],
+                    0.0,
+                    float("inf"),
                 )
 
-            # apply weight factor
-            if weight_factor != 1.0:
-                parameters_i = tf.unstack(parameters_i, axis=-1)
-                parameters_i[-1] *= weight_factor
-                parameters_i = tf.stack(parameters_i, axis=-1)
-
-            model_parameter_dict[name] = parameters_i
+            model_parameter_dict[name] = tf.stack(parameters_i, axis=-1)
 
         return model_parameter_dict
 

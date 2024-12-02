@@ -571,7 +571,7 @@ class SourceManager(BaseModelManager):
 
     def get_model_tensors_function(self, model_index=0):
         """Get a tf function that returns the model tensors
-        for a set of paraparameters_trafometers.
+        for a set of parameters.
 
         Parameters
         ----------
