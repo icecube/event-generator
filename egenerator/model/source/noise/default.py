@@ -292,10 +292,7 @@ class DefaultNoiseModel(Source):
         tensor_dict["pulse_cdf"] = pulse_cdf
 
         if time_exclusions_exist:
-            tensor_dict["dom_cdf_exclusion"] = tf.squeeze(
-                dom_cdf_exclusion,
-                axis=-1,
-            )
+            tensor_dict["dom_cdf_exclusion"] = dom_cdf_exclusion
         # -------------------------------------------
 
         return tensor_dict
