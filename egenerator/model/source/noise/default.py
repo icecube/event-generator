@@ -200,9 +200,11 @@ class DefaultNoiseModel(Source):
             tw_cdf_exclusion = tf_helpers.safe_cdf_clip(tw_cdf_exclusion)
 
             # accumulate time window exclusions for each event
-            # shape: [n_batch, 86, 60, 1]
+            # shape: [n_batch, 86, 60]
             dom_cdf_exclusion = tf.tensor_scatter_nd_add(
-                tf.zeros_like(data_batch_dict["x_dom_charge"]),
+                tf.zeros_like(
+                    tf.squeeze(data_batch_dict["x_dom_charge"], axis=3)
+                ),
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
@@ -230,7 +232,9 @@ class DefaultNoiseModel(Source):
 
         # scale by time exclusions
         if time_exclusions_exist:
-            dom_charges *= 1.0 - dom_cdf_exclusion + self.epsilon
+            dom_charges *= (
+                1.0 - dom_cdf_exclusion[..., tf.newaxis] + self.epsilon
+            )
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += self.epsilon
