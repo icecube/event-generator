@@ -186,6 +186,13 @@ class SnowstormPriorLossModule(BaseComponent):
         TYPE
             Description
         """
+        float_precision = self.configuration.config["config"][
+            "float_precision"
+        ]
+        values = tf.cast(values, float_precision)
+        low = tf.cast(low, float_precision)
+        high = tf.cast(high, float_precision)
+
         if high <= low:
             msg = "Upper bound [{}] must be greater than lower bound [{}]"
             raise ValueError(msg.format(high, low))
@@ -195,10 +202,6 @@ class SnowstormPriorLossModule(BaseComponent):
         normalization = np.exp(exp_factor)
 
         def loss_excess(scaled_excess):
-            scaled_excess = tf.cast(
-                scaled_excess,
-                self.configuration.config["config"]["float_precision"],
-            )
             return tf.exp((scaled_excess + 1) * exp_factor) - normalization
 
         loss = tf.where(
