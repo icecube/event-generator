@@ -686,7 +686,7 @@ class DefaultCascadeModel(Source):
         # apply time window exclusions if needed
         if time_exclusions_exist:
             dom_charges = dom_charges * (
-                1.0 - dom_cdf_exclusion + self.epsilon
+                1.0 - dom_cdf_exclusion[..., tf.newaxis] + self.epsilon
             )
 
         # add small constant to make sure dom charges are > 0:
