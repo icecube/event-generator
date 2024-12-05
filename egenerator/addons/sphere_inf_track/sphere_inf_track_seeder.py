@@ -104,7 +104,7 @@ class SphereInfTrackI3ParticleConverter(icetray.I3ConditionalModule):
         """
 
         particle = dataclasses.I3Particle()
-        particle.time = frame[self._labels_key]["entry_time"]
+        particle.time = frame[self._labels_key]["entry_t"]
         particle.pos = dataclasses.I3Position(
             frame[self._labels_key]["entry_x"],
             frame[self._labels_key]["entry_y"],
