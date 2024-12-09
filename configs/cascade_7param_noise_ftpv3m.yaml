@@ -480,7 +480,7 @@ model_settings: {
                 'charge_distribution_type': 'negative_binomial',
                 'float_precision': float32,
                 'float_precision_pdf_cdf': float64,
-                'mixture_component_t_seeds': [0, 100, 8000, 14000, 4000, 800, 300, 1000, 400, 2000],
+                'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,
@@ -494,7 +494,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [25, 100, 100, 100, 100, 42],
+                'num_filters_list' : [50, 200, 200, 200, 200, 45],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',
@@ -505,7 +505,7 @@ model_settings: {
                 'use_residual_list' : [True, True, True, True, True, False]
             },
 
-        # configuration of the decoder to transform the latent variables
+            # configuration of the decoder to transform the latent variables
             # to the time arrival PDF
             decoder_settings: {
 
@@ -518,7 +518,8 @@ model_settings: {
                     # but in other cases it could be used to reuse the
                     # same base model multiple times (as for MultiSource objects)
                     "decoder_mapping": {
-                        "AssymetricGaussian": ["AssymetricGaussian", 10],
+                        "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
+                        "GammaFunction": ["GammaFunction", 5, 10.0],
                     },
 
                     # Define a mapping of latent variable to value range functions
@@ -575,6 +576,33 @@ model_settings: {
                         # could be used for a model that has been trained and saved
                         # previously such as a normalizing flow model.
                         # 'load_dir': 'path/to/model',
+                    },
+                    GammaFunction: {
+                        'decoder_class': 'egenerator.model.decoder.static.gamma.GammaFunctionDecoder',
+                        'config': {
+                            'float_precision': float64,
+                            'offset': 0.0, # note that offset is in model time units
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "alpha": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 0.3,
+                                        "offset": 2.5,
+                                        "min_value": 0.5,
+                                    },
+                                },
+                                "beta": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": 10.0,
+                                        "min_value": 1.0,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             },
