@@ -587,7 +587,7 @@ class EnteringSphereInfTrack(Source):
         t_seed = np.reshape(t_seed, [1, 1, 1, n_components])
 
         # per DOM offset to shift to t_geometry
-        # Note that the pulse times are already offset by the cascade vertex
+        # Note that the pulse times are already offset by the vertex
         # time. So we now only need to add dt_geometry.
         # shape: [n_batch, 86, 60, n_components] =
         #       [n_batch, 86, 60, 1] + [1, 1, 1, n_components]
