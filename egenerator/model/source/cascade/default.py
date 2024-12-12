@@ -479,7 +479,7 @@ class DefaultCascadeModel(Source):
         tensor_dict["time_offsets_per_dom"] = dt_geometry + t_seed
 
         # shape: [n_events]
-        cascade_time = parameter_list[6]
+        cascade_time = parameters[:, 6]
         tensor_dict["time_offsets"] = cascade_time
 
         # offset PDF evaluation times with cascade vertex time
