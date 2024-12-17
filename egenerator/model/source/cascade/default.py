@@ -200,6 +200,12 @@ class DefaultCascadeModel(Source):
 
         config = self.configuration.config["config"]
         parameters = data_batch_dict[parameter_tensor_name]
+
+        # ensure energy is greater or equal zero
+        parameters = tf.unstack(parameters, axis=-1)
+        parameters[5] = tf.clip_by_value(parameters[5], 0.0, float("inf"))
+        parameters = tf.stack(parameters, axis=-1)
+
         pulses = data_batch_dict["x_pulses"]
         pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
@@ -650,10 +656,7 @@ class DefaultCascadeModel(Source):
         # scale charges by cascade energy
         if config["scale_charge"]:
             # make sure cascade energy does not turn negative
-            cascade_energy = tf.clip_by_value(
-                parameter_list[5], 0.0, float("inf")
-            )
-            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 1000.0
+            scale_factor = tf.expand_dims(parameter_list[5], axis=-1) / 1000.0
             dom_charges *= scale_factor
 
         # scale charges by relative DOM efficiency
