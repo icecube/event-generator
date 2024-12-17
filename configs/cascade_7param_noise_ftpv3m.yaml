@@ -281,20 +281,20 @@ loss_module_settings: [
             'loss_function_name': 'unbinned_pulse_time_llh',
         },
     },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
-        'loss_module_weight': 1.0,
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    #     'loss_module_weight': 1.0,
 
-        config: {
-            # the float precision to use
-            'float_precision': 'float64',
-            # Add normalization terms to llh if True
-            'add_normalization_term': True,
-            # choose the loss function to use
-            'loss_function_name': 'normalized_dom_charge_pdf',
-        },
-    },
+    #     config: {
+    #         # the float precision to use
+    #         'float_precision': 'float64',
+    #         # Add normalization terms to llh if True
+    #         'add_normalization_term': True,
+    #         # choose the loss function to use
+    #         'loss_function_name': 'normalized_dom_charge_pdf',
+    #     },
+    # },
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -309,20 +309,20 @@ loss_module_settings: [
             'loss_function_name': 'negative_binomial_charge_pdf',
         },
     },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
-        'loss_module_weight': 1.0,
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    #     'loss_module_weight': 1.0,
 
-        config: {
-            # the float precision to use
-            'float_precision': 'float64',
-            # Add normalization terms to llh if True
-            'add_normalization_term': True,
-            # choose the loss function to use
-            'loss_function_name': 'negative_binomial_event_charge_pdf',
-        },
-    },
+    #     config: {
+    #         # the float precision to use
+    #         'float_precision': 'float64',
+    #         # Add normalization terms to llh if True
+    #         'add_normalization_term': True,
+    #         # choose the loss function to use
+    #         'loss_function_name': 'negative_binomial_event_charge_pdf',
+    #     },
+    # },
 ]
 
 #---------------------------
@@ -494,7 +494,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [50, 200, 200, 200, 200, 45],
+                'num_filters_list' : [50, 100, 100, 100, 100, 45],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',
