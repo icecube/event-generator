@@ -63,6 +63,18 @@ class BaseModelManager(Model):
         else:
             return None
 
+    @tf.function
+    def _compile_optimizer(self):
+        """Compile the optimizer by running it with zero gradients."""
+        variables = []
+        for model in self.models:
+            variables.extend(model.trainable_variables)
+        zero_grads = [tf.zeros_like(w) for w in variables]
+
+        self._untracked_data["optimizer"].apply_gradients(
+            zip(zero_grads, variables)
+        )
+
     def _set_optimizer(self, opt_config):
         """Get the optimizer object.
 
@@ -103,6 +115,10 @@ class BaseModelManager(Model):
         self._untracked_data["optimizer"] = getattr(
             tf.optimizers, opt_config["optimizer_name"]
         )(**optimizer_settings)
+
+        # run optimizer with zero gradients to create optimizer variables
+        if self.models is not None:
+            self._compile_optimizer()
 
         # create a tensorflow checkpoint object and keep track of variables
         checkpoint_vars = {
@@ -185,7 +201,7 @@ class BaseModelManager(Model):
 
         # create step counter for this object
         self._untracked_data["step"] = tf.Variable(
-            1, trainable=False, dtype=tf.int64, name=name + "_step"
+            0, trainable=False, dtype=tf.int64, name=name + "_step"
         )
 
         # create a tensorflow optimizer and checkpoint object
@@ -218,6 +234,54 @@ class BaseModelManager(Model):
         )
 
         return configuration, {}, sub_components
+
+    def _rebuild_computation_graph(self):
+        """Rebuild the computation graph of the model.
+
+        When constructing the model via the BaseComponent.load() method,
+        the computation graph is not automatically created. This method
+        rebuilds the computation graph of the model.
+        It is therefore typically only needed when the model is loaded
+        via the BaseComponent.load() method.
+        """
+        # rebuild the tensorflow graph if it does not exist yet
+        if not self.is_configured:
+
+            # save temporary values to make sure these aren't modified
+            configuration_id = id(self.configuration)
+            sub_components_id = id(self.sub_components)
+            configuration = Configuration(**self.configuration.dict)
+            data = dict(self.data)
+            sub_components = dict(self.sub_components)
+
+            # rebuild graph
+            config_dict = self.configuration.config
+
+            models = []
+            for name in sorted(sub_components.keys()):
+                if name.startswith("models_"):
+                    models.append(sub_components[name])
+                else:
+                    config_dict[name] = sub_components[name]
+            config_dict["models"] = models
+
+            self._logger.debug(f"[Model] Rebuilding {self.__class__.__name__}")
+
+            self._configure(**config_dict)
+
+            # make sure that no additional class attributes are created
+            # apart from untracked ones
+            self._check_member_attributes()
+
+            # make sure the other values weren't overwritten
+            if (
+                not configuration.is_compatible(self.configuration)
+                or configuration_id != id(self.configuration)
+                or data != self.data
+                or sub_components != self.sub_components
+                or sub_components_id != id(self.sub_components)
+            ):
+                raise ValueError("Tracked components were changed!")
 
     def _check_model_ensemble_compatibility(self, models):
         """Check compatibility of models in an ensemble.
@@ -595,11 +659,6 @@ class BaseModelManager(Model):
             )
             asserts.append(assert_finite)
         with tf.control_dependencies(asserts):
-            tf.print(
-                "Current step and LR:",
-                self.optimizer.iterations,
-                self.optimizer._decayed_lr(),
-            )
             self.optimizer.apply_gradients(zip(capped_gradients, variables))
 
         return combined_loss
@@ -625,8 +684,8 @@ class BaseModelManager(Model):
         """
 
         @tf.function(input_signature=input_signature)
-        def concrete_function(data_batch):
-            return function(data_batch, **fixed_objects)
+        def concrete_function(data_batch, **kwargs):
+            return function(data_batch, **kwargs, **fixed_objects)
 
         return concrete_function
 
@@ -685,9 +744,7 @@ class BaseModelManager(Model):
 
         # check if we got a different optimizer definition
         opt_config = config["training_settings"]
-        self_opt_config = self.configuration.config["config"][
-            "training_settings"
-        ]
+        self_opt_config = self.configuration.config["opt_config"]
         is_new_optimizer = False
         if opt_config["optimizer_name"] != self_opt_config["optimizer_name"]:
             is_new_optimizer = True
@@ -697,15 +754,24 @@ class BaseModelManager(Model):
         ):
             is_new_optimizer = True
         if is_new_optimizer:
-            misc.print_warning(
+            self._logger.warning(
                 "Found new optimizer settings. Reconfiguring optimizer. "
                 "Note that no checks for compatibility are performed! "
                 "Training with an incompatible change in optimizer settings "
-                "will result in unability to load saved checkpoints."
+                "will result in unability to load saved checkpoints. "
             )
 
             # create a tensorflow optimizer and checkpoint object
             self._set_optimizer(opt_config)
+            self.optimizer.iterations.assign(self.step)
+            file_path = self.retreive_weight_file_path(
+                dir_path=self.configuration.config["config"]["manager_dir"],
+                checkpoint_number=None,
+            )
+            self._logger.debug(f"[Model] Loading checkpoint: {file_path}")
+            self._untracked_data["checkpoint"].read(
+                file_path
+            ).assert_consumed()
 
         # save new training step to model
         training_components = {"loss_module": loss_module}
@@ -758,7 +824,6 @@ class BaseModelManager(Model):
             loss_module=loss_module,
             opt_config=opt_config,
             is_training=False,
-            summary_writer=training_writer,
             **opt_config["additional_loss_module_kwargs"]
         )
 
@@ -781,14 +846,15 @@ class BaseModelManager(Model):
         #       - save model weights
         start_time = timeit.default_timer()
         validation_time = start_time
-        for step in range(num_training_iterations):
+        num_training_steps = 0
+        for step in range(self.step.numpy() + 1, num_training_iterations + 1):
             # --------------------------
             # perform one training step
             # --------------------------
 
             # increment step counter
-            for model in self.models:
-                model.step.assign_add(1)
+            self.increment_step()
+            num_training_steps += 1
 
             # get new batch of training data
             training_data_batch = next(train_dataset)
@@ -862,7 +928,10 @@ class BaseModelManager(Model):
             # save model
             # ----------
             if step % opt_config["save_frequency"] == 0 and step != 0:
-                self.save_weights(dir_path=save_dir, num_training_steps=step)
+                self.save_weights(
+                    dir_path=save_dir,
+                    num_training_steps=num_training_steps,
+                )
 
             # -----------------------
             # Profile steps 90 to 100
@@ -878,7 +947,7 @@ class BaseModelManager(Model):
         # save model
         self.save_weights(
             dir_path=save_dir,
-            num_training_steps=step,
+            num_training_steps=num_training_steps,
             description="End of training step",
             protected=True,
         )
