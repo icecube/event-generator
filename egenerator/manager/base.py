@@ -6,6 +6,7 @@ import timeit
 from egenerator import misc
 from egenerator.manager.component import Configuration
 from egenerator.model.base import Model
+from egenerator.utils import tf_helpers
 
 
 class BaseModelManager(Model):
@@ -62,6 +63,56 @@ class BaseModelManager(Model):
         else:
             return None
 
+    def _set_optimizer(self, opt_config):
+        """Get the optimizer object.
+
+        Creates the optimizer object from the optimizer config
+        and sets it as an untracked data variable. Also (re-)creates
+        a checkpoint object to keep track of the optimizer variables.
+
+        Parameters
+        ----------
+        opt_config : dict
+            The optimization config defining the settings.
+            Must contain the following keys:
+                optimizer_name : str
+                    The name of the optimizer to use.
+                optimizer_settings : dict
+                    The settings for the optimizer.
+        """
+
+        # create a tensorflow optimizer object
+        optimizer_settings = dict(opt_config["optimizer_settings"])
+
+        # create learning rate schedule if learning rate is a dict
+        if "learning_rate" in optimizer_settings:
+            if isinstance(optimizer_settings["learning_rate"], dict):
+
+                # assume that the learning rate dictionary defines a schedule
+                # In this case the dictionary must have the following keys:
+                #   full_class_string: str
+                #       The full class string of the scheduler class to use.
+                #   settings: dict
+                #       keyword arguments that are passed on to the scheduler
+                #       class.
+                lr_cfg = optimizer_settings.pop("learning_rate")
+                scheduler_class = misc.load_class(lr_cfg["full_class_string"])
+                scheduler = scheduler_class(**lr_cfg["settings"])
+                optimizer_settings["learning_rate"] = scheduler
+
+        self._untracked_data["optimizer"] = getattr(
+            tf.optimizers, opt_config["optimizer_name"]
+        )(**optimizer_settings)
+
+        # create a tensorflow checkpoint object and keep track of variables
+        checkpoint_vars = {
+            "step": self._untracked_data["step"],
+            "optimizer": self._untracked_data["optimizer"],
+        }
+        self._untracked_data["checkpoint"] = tf.train.Checkpoint(
+            **checkpoint_vars
+        )
+
     def _configure(self, config, data_handler, models):
         """Configure the ModelManager component instance.
 
@@ -110,6 +161,12 @@ class BaseModelManager(Model):
             Return None if no dependent sub components exist.
         """
 
+        # get name of model
+        if "name" in self._untracked_data:
+            name = self._untracked_data["name"]
+        else:
+            name = self.__class__.__name__
+
         sub_components = {
             "data_handler": data_handler,
         }
@@ -123,6 +180,33 @@ class BaseModelManager(Model):
         # check if all models define the same hypothesis and use the same
         # data transformation object
         self._check_model_ensemble_compatibility(models)
+
+        # create step counter for this object
+        self._untracked_data["step"] = tf.Variable(
+            1, trainable=False, dtype=tf.int64, name=name + "_step"
+        )
+
+        # create a tensorflow optimizer and checkpoint object
+        self._set_optimizer(config["config"]["training_settings"])
+
+        # collect any variables from sub_components if they aren't already
+        all_variables = list(self.variables)
+        for name, sub_component in sorted(sub_components.items()):
+            if issubclass(type(sub_component), tf.Module):
+                all_variables.extend(
+                    [
+                        v
+                        for v in sub_component.variables
+                        if not tf_helpers.is_in(v, all_variables)
+                    ]
+                )
+        self._untracked_data["variables"] = tuple(all_variables)
+
+        num_vars, num_total_vars = self._count_number_of_variables()
+        msg = f"\nNumber of Model Variables for {name}:\n"
+        msg = f"\tFree: {num_vars}\n"
+        msg += f"\tTotal: {num_total_vars}"
+        self._logger.info(msg)
 
         # create configuration object
         configuration = Configuration(
@@ -278,165 +362,6 @@ class BaseModelManager(Model):
 
         self._check_sub_component_compatibility(self.sub_components)
 
-    def save_weights(
-        self,
-        dir_path,
-        max_keep=3,
-        protected=False,
-        description=None,
-        num_training_steps=None,
-    ):
-        """Save the model weights.
-
-        Metadata on the checkpoints is stored in a model_checkpoints.yaml
-        in the output directory. If it does not exist yet, a new one will be
-        created. Otherwise, its values will be updated
-        The file contains meta data on the checkpoints and keeps track
-        of the most recents files. The structure  and content of meta data:
-
-            latest_checkpoint: int
-                The number of the latest checkpoint.
-
-            unprotected_checkpoints:
-                '{checkpoint_number}':
-                    'creation_date': str
-                        Time of model creation in human-readable format
-                    'time_stamp': int
-                        Time of model creation in seconds since
-                        1/1/1970 at midnight (time.time()).
-                    'file_basename': str
-                        Path to the model
-                    'description': str
-                        Optional description of the checkpoint.
-
-            protected_checkpoints:
-                (same as unprotected_checkpoints)
-
-        Parameters
-        ----------
-        dir_path : str
-            Path to the output directory.
-        max_keep : int, optional
-            The maximum number of unprotectd checkpoints to keep.
-            If there are more than this amount of unprotected checkpoints,
-            the oldest checkpoints will be deleted.
-        protected : bool, optional
-            If True, this checkpoint will not be considered for deletion
-            for max_keep.
-        description : str, optional
-            An optional description string that describes the checkpoint.
-            This will be saved in the checkpoints meta data.
-        num_training_steps : int, optional
-            The number of training steps with the current training settings.
-            This will be used to update the training_steps.yaml file to
-            account for the correct number of training steps for the most
-            recent training step.
-
-        Raises
-        ------
-        IOError
-            If the model checkpoint file already exists.
-        KeyError
-            If the model checkpoint meta data already exists.
-        ValueError
-            If the model has changed since it was configured.
-
-        """
-        for name, sub_component in self.sub_components.items():
-
-            # get directory of sub component
-            sub_dir_path = os.path.join(dir_path, name)
-
-            if issubclass(type(sub_component), Model):
-                # save weights of Model sub component
-                sub_component.save_weights(
-                    dir_path=sub_dir_path,
-                    max_keep=max_keep,
-                    protected=protected,
-                    description=description,
-                    num_training_steps=num_training_steps,
-                )
-
-    def save_training_settings(self, dir_path, new_training_settings):
-        """Save a new training step with its components and settings.
-
-        Parameters
-        ----------
-        dir_path : str
-            Path to the output directory.
-        new_training_settings : dict, optional
-            If provided, a training step will be created.
-            A dictionary containing the settings of the new training step.
-            This dictionary must contain the following keys:
-
-                config: dict
-                    The configuration settings used to train.
-                components: dict
-                    The components used during training. These typically
-                    include the Loss and Evaluation components.
-        """
-        for name, sub_component in self.sub_components.items():
-
-            # get directory of sub component
-            sub_dir_path = os.path.join(dir_path, name)
-
-            if issubclass(type(sub_component), Model):
-                # save weights of Model sub component
-                sub_component.save_training_settings(
-                    dir_path=sub_dir_path,
-                    new_training_settings=new_training_settings,
-                )
-
-    def load_weights(self, dir_path, checkpoint_number=None):
-        """Load the model weights.
-
-        Parameters
-        ----------
-        dir_path : str
-            Path to the input directory.
-        checkpoint_number : None, optional
-            Optionally specify a certain checkpoint number that should be
-            loaded. If checkpoint_number is None (default), then the latest
-            checkpoint will be loaded.
-
-        Raises
-        ------
-        IOError
-            If the checkpoint meta data cannot be found in the input directory.
-        """
-        for name, sub_component in self.sub_components.items():
-
-            # get directory of sub component
-            sub_dir_path = os.path.join(dir_path, name)
-
-            if issubclass(type(sub_component), Model):
-                # load weights of Model sub component
-                sub_component.load_weights(
-                    dir_path=sub_dir_path, checkpoint_number=checkpoint_number
-                )
-
-    def _save(self, dir_path, **kwargs):
-        """Virtual method for additional save tasks by derived class
-
-        This is a virtual method that may be overwritten by derived class
-        to perform additional tasks necessary to save the component.
-        This can for instance be saving of tensorflow model weights.
-
-        The MultiSource only contains weights in its submodules which are
-        automatically saved via recursion. Therefore, it does not need
-        to explicitly save anything here.
-
-        Parameters
-        ----------
-        dir_path : str
-            The path to the output directory to which the component will be
-            saved.
-        **kwargs
-            Additional keyword arguments that may be used by the derived
-            class.
-        """
-        pass
-
     def _load(self, dir_path, **kwargs):
         """Virtual method for additional load tasks by derived class
 
@@ -460,6 +385,8 @@ class BaseModelManager(Model):
 
         # check for compatibilities of sub components
         self._check_sub_component_compatibility(self.sub_components)
+
+        super()._load(dir_path, **kwargs)
 
     def regularization_loss(self, variables, opt_config):
         """Get L1 and L2 regularization terms.
@@ -748,30 +675,29 @@ class BaseModelManager(Model):
         val_log_dir = os.path.join(save_dir, "logs/validation")
         eval_log_dir = os.path.join(save_dir, "logs/evaluation")
 
-        # create optimizer from config
+        # check if we got a different optimizer definition
         opt_config = config["training_settings"]
-        optimizer_settings = dict(opt_config["optimizer_settings"])
+        self_opt_config = self.configuration.config["config"][
+            "training_settings"
+        ]
+        is_new_optimizer = False
+        if opt_config["optimizer_name"] != self_opt_config["optimizer_name"]:
+            is_new_optimizer = True
+        elif (
+            opt_config["optimizer_settings"]
+            != self_opt_config["optimizer_settings"]
+        ):
+            is_new_optimizer = True
+        if is_new_optimizer:
+            misc.print_warning(
+                "Found new optimizer settings. Reconfiguring optimizer. "
+                "Note that no checks for compatibility are performed! "
+                "Training with an incompatible change in optimizer settings "
+                "will result in unability to load saved checkpoints."
+            )
 
-        # create learning rate schedule if learning rate is a dict
-        if "learning_rate" in optimizer_settings:
-            if isinstance(optimizer_settings["learning_rate"], dict):
-
-                # assume that the learning rate dictionary defines a schedule
-                # In this case the dictionary must have the following keys:
-                #   full_class_string: str
-                #       The full class string of the scheduler class to use.
-                #   settings: dict
-                #       keyword arguments that are passed on to the scheduler
-                #       class.
-                lr_cfg = optimizer_settings.pop("learning_rate")
-                scheduler_class = misc.load_class(lr_cfg["full_class_string"])
-                scheduler = scheduler_class(**lr_cfg["settings"])
-                optimizer_settings["learning_rate"] = scheduler
-
-        optimizer = getattr(tf.optimizers, opt_config["optimizer_name"])(
-            **optimizer_settings
-        )
-        self._untracked_data["optimizer"] = optimizer
+            # create a tensorflow optimizer and checkpoint object
+            self._set_optimizer(opt_config)
 
         # save new training step to model
         training_components = {"loss_module": loss_module}

@@ -7,6 +7,7 @@ import time
 
 from egenerator.settings.yaml import yaml_loader, yaml_dumper
 from egenerator.manager.component import BaseComponent, Configuration
+from egenerator.utils import tf_helpers
 
 
 class InputTensorIndexer(dict):
@@ -261,22 +262,11 @@ class Model(tf.Module, BaseComponent):
             self._configure_derived_class(**kwargs)
         )
 
-        def is_in(variable, variable_list):
-            """Check if a tensorflow variable is in a list
-
-            Checks if a variable references the same memory location
-            as another variable in a list.
-            """
-            for variable_i in variable_list:
-                if variable_i is variable:
-                    return True
-            return False
-
         # get newly created variables
         self._untracked_data["variables_top_level"] = [
             v
             for v in self.variables
-            if not is_in(v, variables_of_sub_components)
+            if not tf_helpers.is_in(v, variables_of_sub_components)
         ]
 
         # create step counter for this object
@@ -285,7 +275,6 @@ class Model(tf.Module, BaseComponent):
         )
 
         # create a tensorflow checkpoint object and keep track of variables
-
         checkpoint_vars = {"step": self._untracked_data["step"]}
         if len(self._untracked_data["variables_top_level"]) > 0:
             checkpoint_vars["model"] = self._untracked_data[
@@ -303,16 +292,16 @@ class Model(tf.Module, BaseComponent):
                     [
                         v
                         for v in sub_component.variables
-                        if not is_in(v, all_variables)
+                        if not tf_helpers.is_in(v, all_variables)
                     ]
                 )
         self._untracked_data["variables"] = tuple(all_variables)
 
         num_vars, num_total_vars = self._count_number_of_variables()
-        msg = "\nNumber of Model Variables:\n"
-        msg = "\tFree: {}\n"
-        msg += "\tTotal: {}"
-        self._logger.info(msg.format(num_vars, num_total_vars))
+        msg = f"\nNumber of Model Variables for {name}:\n"
+        msg = f"\tFree: {num_vars}\n"
+        msg += f"\tTotal: {num_total_vars}"
+        self._logger.info(msg)
 
         return configuration, component_data, sub_components
 

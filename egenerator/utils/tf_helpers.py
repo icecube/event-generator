@@ -1,6 +1,18 @@
 import tensorflow as tf
 
 
+def is_in(variable, variable_list):
+    """Check if a tensorflow variable is in a list
+
+    Checks if a variable references the same memory location
+    as another variable in a list.
+    """
+    for variable_i in variable_list:
+        if variable_i is variable:
+            return True
+    return False
+
+
 def clip_logits(logits, eps=None):
     """Clip logits to avoid numerical instabilities
 
