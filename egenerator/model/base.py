@@ -7,6 +7,7 @@ import time
 
 from egenerator.settings.yaml import yaml_loader, yaml_dumper
 from egenerator.manager.component import BaseComponent, Configuration
+from egenerator.utils import tf_helpers
 
 
 class InputTensorIndexer(dict):
@@ -261,31 +262,19 @@ class Model(tf.Module, BaseComponent):
             self._configure_derived_class(**kwargs)
         )
 
-        def is_in(variable, variable_list):
-            """Check if a tensorflow variable is in a list
-
-            Checks if a variable references the same memory location
-            as another variable in a list.
-            """
-            for variable_i in variable_list:
-                if variable_i is variable:
-                    return True
-            return False
-
         # get newly created variables
         self._untracked_data["variables_top_level"] = [
             v
             for v in self.variables
-            if not is_in(v, variables_of_sub_components)
+            if not tf_helpers.is_in(v, variables_of_sub_components)
         ]
 
         # create step counter for this object
         self._untracked_data["step"] = tf.Variable(
-            1, trainable=False, dtype=tf.int64, name=name + "_step"
+            0, trainable=False, dtype=tf.int64, name=name + "_step"
         )
 
         # create a tensorflow checkpoint object and keep track of variables
-
         checkpoint_vars = {"step": self._untracked_data["step"]}
         if len(self._untracked_data["variables_top_level"]) > 0:
             checkpoint_vars["model"] = self._untracked_data[
@@ -303,16 +292,16 @@ class Model(tf.Module, BaseComponent):
                     [
                         v
                         for v in sub_component.variables
-                        if not is_in(v, all_variables)
+                        if not tf_helpers.is_in(v, all_variables)
                     ]
                 )
         self._untracked_data["variables"] = tuple(all_variables)
 
         num_vars, num_total_vars = self._count_number_of_variables()
-        msg = "\nNumber of Model Variables:\n"
-        msg = "\tFree: {}\n"
-        msg += "\tTotal: {}"
-        self._logger.info(msg.format(num_vars, num_total_vars))
+        msg = f"\nNumber of Model Variables for {name}:\n"
+        msg = f"\tFree: {num_vars}\n"
+        msg += f"\tTotal: {num_total_vars}"
+        self._logger.info(msg)
 
         return configuration, component_data, sub_components
 
@@ -509,6 +498,14 @@ class Model(tf.Module, BaseComponent):
             if self.is_configured:
                 raise ValueError("Model is already set up!")
 
+    def increment_step(self):
+        """Increment the step counter of the model."""
+        self.step.assign_add(1)
+
+        for sub_component in self.sub_components.values():
+            if issubclass(type(sub_component), Model):
+                sub_component.increment_step()
+
     def save_weights(
         self,
         dir_path,
@@ -627,7 +624,8 @@ class Model(tf.Module, BaseComponent):
         # update number of training steps
         if num_training_steps is not None:
             self.update_num_training_steps(
-                dir_path=dir_path, num_training_steps=num_training_steps
+                dir_path=dir_path,
+                num_training_steps=num_training_steps,
             )
 
         # update latest checkpoint index
@@ -706,8 +704,11 @@ class Model(tf.Module, BaseComponent):
         ----------
         dir_path : str
             Path to the output directory.
-        num_training_steps : TYPE
-            Description
+        num_training_steps : int
+            The number of training steps with the current training settings.
+            This will be used to update the training_steps.yaml file to
+            account for the correct number of training steps for the most
+            recent training step.
         """
         training_dir = os.path.join(dir_path, "training")
         yaml_file = os.path.join(training_dir, "training_steps.yaml")
@@ -728,6 +729,9 @@ class Model(tf.Module, BaseComponent):
         meta_data["training_steps"][current_step][
             "num_training_steps"
         ] = num_training_steps
+        meta_data["training_steps"][current_step][
+            "num_total_training_steps"
+        ] = int(self.step.numpy())
 
         # save new meta data
         with open(yaml_file, "w") as stream:
@@ -800,6 +804,7 @@ class Model(tf.Module, BaseComponent):
             "creation_date": dt_string,
             "time_stamp": time.time(),
             "num_training_steps": 0,
+            "num_total_training_steps": int(self.step.numpy()),
         }
         meta_data["training_steps"][training_index] = training_meta_data
 
@@ -919,6 +924,47 @@ class Model(tf.Module, BaseComponent):
             ):
                 raise ValueError("Tracked components were changed!")
 
+    def retrieve_weight_file_path(self, dir_path, checkpoint_number=None):
+        """Retrieve the file path of the model weights.
+
+        Parameters
+        ----------
+        dir_path : str
+            Path to the input directory.
+        checkpoint_number : None, optional
+            Optionally specify a certain checkpoint number that should be
+            loaded. If checkpoint_number is None (default), then the latest
+            checkpoint will be loaded.
+
+        Returns
+        -------
+        str
+            The file path of the model weights.
+        """
+        # Load the model_checkpoints.yaml
+        yaml_file = os.path.join(dir_path, "model_checkpoint.yaml")
+        if os.path.exists(yaml_file):
+
+            # load checkpoint meta data
+            with open(yaml_file, "r") as stream:
+                meta_data = yaml_loader.load(stream)
+        else:
+            msg = "Could not find checkpoints meta data {!r}"
+            raise IOError(msg.format(yaml_file))
+
+        # retrieve meta data of checkpoint that will be loaded
+        if checkpoint_number is None:
+            checkpoint_number = meta_data["latest_checkpoint"]
+
+        if checkpoint_number in meta_data["unprotected_checkpoints"]:
+            info = meta_data["unprotected_checkpoints"][checkpoint_number]
+            file_basename = info["file_basename"]
+        else:
+            info = meta_data["protected_checkpoints"][checkpoint_number]
+            file_basename = info["file_basename"]
+
+        return os.path.join(dir_path, file_basename)
+
     def load_weights(self, dir_path, checkpoint_number=None, recursive=True):
         """Load the model weights.
 
@@ -964,29 +1010,10 @@ class Model(tf.Module, BaseComponent):
         # BaseComponent.load() method and not via the configure() method.
         self._rebuild_computation_graph()
 
-        # Load the model_checkpoints.yaml
-        yaml_file = os.path.join(dir_path, "model_checkpoint.yaml")
-        if os.path.exists(yaml_file):
-
-            # load checkpoint meta data
-            with open(yaml_file, "r") as stream:
-                meta_data = yaml_loader.load(stream)
-        else:
-            msg = "Could not find checkpoints meta data {!r}"
-            raise IOError(msg.format(yaml_file))
-
-        # retrieve meta data of checkpoint that will be loaded
-        if checkpoint_number is None:
-            checkpoint_number = meta_data["latest_checkpoint"]
-
-        if checkpoint_number in meta_data["unprotected_checkpoints"]:
-            info = meta_data["unprotected_checkpoints"][checkpoint_number]
-            file_basename = info["file_basename"]
-        else:
-            info = meta_data["protected_checkpoints"][checkpoint_number]
-            file_basename = info["file_basename"]
-
-        file_path = os.path.join(dir_path, file_basename)
+        file_path = self.retrieve_weight_file_path(
+            dir_path=dir_path,
+            checkpoint_number=checkpoint_number,
+        )
         self._logger.debug(f"[Model] Loading checkpoint: {file_path}")
         self._untracked_data["checkpoint"].read(file_path).assert_consumed()
 

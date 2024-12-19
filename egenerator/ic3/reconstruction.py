@@ -399,10 +399,10 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         for model in self.manager.models:
             num_vars, num_total_vars = model.num_variables
-            msg = "\nNumber of Model Variables:\n"
-            msg += "\tFree: {}\n"
-            msg += "\tTotal: {}"
-            log_info(msg.format(num_vars, num_total_vars))
+            msg = f"\nNumber of Model Variables for {model.name}:\n"
+            msg += f"\tFree: {num_vars}\n"
+            msg += f"\tTotal: {num_total_vars}"
+            log_info(msg)
 
         # ------------------------------
         # Gather Reconstruction Settings
