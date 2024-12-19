@@ -343,8 +343,10 @@ class ModuleDataHandler(BaseDataHandler):
             assert isinstance(file_or_frame, str), "Expected file path string"
 
             num_data, data = self.data_module.get_data_from_hdf(
-                file_or_frame, *args, **kwargs
-            )
+                file_or_frame, *args,
+                label_key=self.label_module.configuration.config["label_key"],
+                **kwargs)
+
             num_labels, labels = self.label_module.get_data_from_hdf(
                 file_or_frame, *args, **kwargs
             )

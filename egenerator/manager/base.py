@@ -641,10 +641,7 @@ class BaseModelManager(Model):
         gradients = tape.gradient(combined_loss, variables)
 
         # remove nans in gradients and replace these with zeros
-        if "remove_nan_gradients" in opt_config:
-            remove_nan_gradients = opt_config["remove_nan_gradients"]
-        else:
-            remove_nan_gradients = False
+        remove_nan_gradients = opt_config.get("remove_nan_gradients", False)
         if remove_nan_gradients:
             gradients = [
                 tf.where(tf.is_nan(grad), tf.zeros_like(grad), grad)
@@ -652,10 +649,7 @@ class BaseModelManager(Model):
                 if grad is not None
             ]
 
-        if "clip_gradients_value" in opt_config:
-            clip_gradients_value = opt_config["clip_gradients_value"]
-        else:
-            clip_gradients_value = None
+        clip_gradients_value = opt_config.get("clip_gradients_value", None)
         if clip_gradients_value is not None:
             capped_gradients, _ = tf.clip_by_global_norm(
                 gradients, clip_gradients_value
@@ -675,6 +669,7 @@ class BaseModelManager(Model):
                 ],
             )
             asserts.append(assert_finite)
+
         with tf.control_dependencies(asserts):
             self.optimizer.apply_gradients(zip(capped_gradients, variables))
 
@@ -778,10 +773,8 @@ class BaseModelManager(Model):
                 scheduler_class = misc.load_class(lr_cfg["full_class_string"])
                 scheduler = scheduler_class(**lr_cfg["settings"])
                 optimizer_settings["learning_rate"] = scheduler
-
-        optimizer = getattr(tf.optimizers, opt_config["optimizer_name"])(
-            **optimizer_settings
-        )
+        
+        optimizer = getattr(tf.optimizers, opt_config["optimizer_name"])(**optimizer_settings)
         self._untracked_data["optimizer"] = optimizer
 
         # save new training step to model
@@ -866,7 +859,6 @@ class BaseModelManager(Model):
             # increment step counter
             for model in self.models:
                 model.step.assign_add(1)
-
             # get new batch of training data
             training_data_batch = next(train_dataset)
 
@@ -876,7 +868,7 @@ class BaseModelManager(Model):
             # --------------------------
             # evaluate on validation set
             # --------------------------
-            if step % opt_config["validation_frequency"] == 0:
+            if step % opt_config["validation_frequency"] == 0 and step:  # not validate on the fist iteration
                 new_validation_time = timeit.default_timer()
                 time_diff = new_validation_time - validation_time
                 validation_time = new_validation_time

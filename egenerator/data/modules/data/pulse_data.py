@@ -45,6 +45,7 @@ class PulseDataModule(BaseComponent):
         float_precision,
         add_charge_quantiles,
         discard_pulses_from_excluded_doms,
+        pulse_is_mcpe=False,
     ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
@@ -72,6 +73,9 @@ class PulseDataModule(BaseComponent):
         discard_pulses_from_excluded_doms : bool, optional
             If True, pulses on excluded DOMs are discarded. The pulses are
             discarded after the charge at the DOM is collected.
+        pulse_is_mcpe : bool, optional
+            If True, train on MCPE pulses instead of RecoPulses. This setting
+            changes how the charge is read out of the hdf5 files. (Default: False)
 
         Returns
         -------
@@ -214,6 +218,7 @@ class PulseDataModule(BaseComponent):
             ),
             mutable_settings=dict(
                 pulse_key=pulse_key,
+                pulse_is_mcpe=pulse_is_mcpe,
                 dom_exclusions_key=dom_exclusions_key,
                 time_exclusions_key=time_exclusions_key,
                 discard_pulses_from_excluded_doms=(
@@ -247,12 +252,13 @@ class PulseDataModule(BaseComponent):
         if not self.is_configured:
             raise ValueError("Module not configured yet!")
 
-        # open file
-        f = pd.HDFStore(file, "r")
+        charge_str = "npe" if self.configuration.config["pulse_is_mcpe"] else "charge"
 
+        # open file
+        f = pd.HDFStore(file, 'r')
         try:
             pulses = f[self.configuration.config["pulse_key"]]
-            _labels = f["LabelsDeepLearning"]
+            _labels = f[kwargs["label_key"]]
             if self.data["dom_exclusions_exist"]:
                 try:
                     dom_exclusions = f[
@@ -293,11 +299,13 @@ class PulseDataModule(BaseComponent):
 
         # create Dictionary with event IDs
         size = len(_labels["Event"])
+
+        if not size:
+            raise ValueError("Label length is 0.")
+
         event_dict = {}
-        for idx, row in _labels.iterrows():
-            event_dict[
-                (row.iloc[0], row.iloc[1], row.iloc[2], row.iloc[3])
-            ] = idx
+        for row in _labels.itertuples():
+            event_dict[(row[1:5])] = row[0]
 
         # create empty array for DOM charges
         x_dom_charge = np.zeros(
@@ -351,21 +359,22 @@ class PulseDataModule(BaseComponent):
                     "skipping pulse: {} {}".format(string, dom)
                 )
                 continue
+
             index = event_dict[(row[1:5])]
 
             # accumulate charge in DOMs
-            x_dom_charge[index, string - 1, dom - 1, 0] += row.charge
+            x_dom_charge[index, string - 1, dom - 1, 0] += getattr(row, charge_str)
 
             # gather pulses
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
                 cum_charge = float(x_dom_charge[index, string - 1, dom - 1, 0])
-                x_pulses[pulse_index] = [row.charge, row.time, cum_charge]
+                x_pulses[pulse_index] = [getattr(row, charge_str), row.time, cum_charge]
 
             else:
                 # (charge, time)
-                x_pulses[pulse_index] = [row.charge, row.time]
+                x_pulses[pulse_index] = [getattr(row, charge_str), row.time]
 
             # gather pulse ids (batch index, string, dom)
             x_pulses_ids[pulse_index] = [index, string - 1, dom - 1]
@@ -408,7 +417,7 @@ class PulseDataModule(BaseComponent):
                     continue
                 index = event_dict[(row[1:5])]
 
-                # t_start (pulse time): row[10], t_end (pulse width): row[11]
+                # t_start (pulse time): row.time, t_end (pulse width): row[11]
 
                 # (t_start, t_end)
                 x_time_exclusions[tw_index] = [row.time, row.width]
@@ -577,7 +586,6 @@ class PulseDataModule(BaseComponent):
             for pulse in pulse_list:
                 index = 0
 
-                # pulse charge: row[12], time: row[10]
                 # accumulate charge in DOMs
                 x_dom_charge[index, string - 1, dom - 1, 0] += pulse.charge
 

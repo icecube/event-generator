@@ -34,6 +34,9 @@ class CascadeGeneratorLabelModule(BaseComponent):
         trafo_log,
         float_precision,
         label_key="LabelsDeepLearning",
+        parameter_names=["cascade_x", "cascade_y", "cascade_z",
+                         "cascade_zenith", "cascade_azimuth",
+                         "cascade_energy", "cascade_t"],
     ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
@@ -51,10 +54,12 @@ class CascadeGeneratorLabelModule(BaseComponent):
             If a single bool is given, this applies to all labels. Otherwise
             a list of bools corresponds to the labels in the order:
                 x, y, z, zenith, azimuth, energy, time
-        label_key : str, optional
-            The name of the key under which the labels are saved.
         float_precision : str
             The float precision as a str.
+        label_key : str, optional
+            The name of the key under which the labels are saved.
+        parameter_names : list of str, optional
+            Name of the parameters (e.g, the columns in the hdf5 Dataset `label_key`)
 
         Returns
         -------
@@ -129,6 +134,7 @@ class CascadeGeneratorLabelModule(BaseComponent):
                 trafo_log=trafo_log,
                 float_precision=float_precision,
                 label_key=label_key,
+                parameter_names=parameter_names,
             ),
         )
         return configuration, data, {}
@@ -163,16 +169,8 @@ class CascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
-            for label in [
-                "cascade_x",
-                "cascade_y",
-                "cascade_z",
-                "cascade_zenith",
-                "cascade_azimuth",
-                "cascade_energy",
-                "cascade_t",
-            ]:
-                cascade_parameters.append(_labels[label])
+            for par in self.configuration.config["parameter_names"]:
+                cascade_parameters.append(_labels[par])
 
         except Exception as e:
             self._logger.warning(e)
@@ -223,16 +221,8 @@ class CascadeGeneratorLabelModule(BaseComponent):
         cascade_parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
-            for label in [
-                "cascade_x",
-                "cascade_y",
-                "cascade_z",
-                "cascade_zenith",
-                "cascade_azimuth",
-                "cascade_energy",
-                "cascade_t",
-            ]:
-                cascade_parameters.append(np.atleast_1d(_labels[label]))
+            for par in self.configuration.config["parameter_names"]:
+                cascade_parameters.append(np.atleast_1d(_labels[par]))
 
         except Exception as e:
             self._logger.warning(e)
