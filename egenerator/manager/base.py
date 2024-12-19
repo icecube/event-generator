@@ -113,13 +113,15 @@ class BaseModelManager(Model):
             **checkpoint_vars
         )
 
-    def _configure(self, config, data_handler, models):
+    def _configure(self, config, opt_config, data_handler, models):
         """Configure the ModelManager component instance.
 
         Parameters
         ----------
         config : dict
             Configuration of the ModelManager object.
+        opt_config : dict
+            Configuration defining the settings for the optimizer.
         data_handler : DataHandler object
             The data handler object.
         models : List of Models
@@ -187,7 +189,7 @@ class BaseModelManager(Model):
         )
 
         # create a tensorflow optimizer and checkpoint object
-        self._set_optimizer(config["config"]["training_settings"])
+        self._set_optimizer(opt_config=opt_config)
 
         # collect any variables from sub_components if they aren't already
         all_variables = list(self.variables)
@@ -212,6 +214,7 @@ class BaseModelManager(Model):
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(config=config),
+            mutable_settings=dict(opt_config=opt_config),
         )
 
         return configuration, {}, sub_components
@@ -592,6 +595,11 @@ class BaseModelManager(Model):
             )
             asserts.append(assert_finite)
         with tf.control_dependencies(asserts):
+            tf.print(
+                "Current step and LR:",
+                self.optimizer.iterations,
+                self.optimizer._decayed_lr(),
+            )
             self.optimizer.apply_gradients(zip(capped_gradients, variables))
 
         return combined_loss

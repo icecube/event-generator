@@ -436,6 +436,7 @@ def build_manager(
         # -----------------------
         manager.configure(
             config=manager_config["config"],
+            opt_config=config["training_settings"],
             data_handler=data_handler,
             models=models,
         )
