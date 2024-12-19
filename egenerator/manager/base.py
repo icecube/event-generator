@@ -824,6 +824,7 @@ class BaseModelManager(Model):
             loss_module=loss_module,
             opt_config=opt_config,
             is_training=False,
+            summary_writer=training_writer,
             **opt_config["additional_loss_module_kwargs"]
         )
 
