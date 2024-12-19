@@ -684,8 +684,8 @@ class BaseModelManager(Model):
         """
 
         @tf.function(input_signature=input_signature)
-        def concrete_function(data_batch, **kwargs):
-            return function(data_batch, **kwargs, **fixed_objects)
+        def concrete_function(data_batch):
+            return function(data_batch, **fixed_objects)
 
         return concrete_function
 
