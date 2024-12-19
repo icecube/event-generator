@@ -764,7 +764,7 @@ class BaseModelManager(Model):
             # create a tensorflow optimizer and checkpoint object
             self._set_optimizer(opt_config)
             self.optimizer.iterations.assign(self.step)
-            file_path = self.retreive_weight_file_path(
+            file_path = self.retrieve_weight_file_path(
                 dir_path=self.configuration.config["config"]["manager_dir"],
                 checkpoint_number=None,
             )
