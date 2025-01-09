@@ -281,13 +281,27 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'unbinned_pulse_time_llh',
         },
     },
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    #     'loss_module_weight': 1.0,
+
+    #     config: {
+    #         # the float precision to use
+    #         'float_precision': 'float32',
+    #         # Add normalization terms to llh if True
+    #         'add_normalization_term': True,
+    #         # choose the loss function to use
+    #         'loss_function_name': 'normalized_dom_charge_pdf',
+    #     },
+    # },
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -295,41 +309,27 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
-            # Add normalization terms to llh if True
-            'add_normalization_term': True,
-            # choose the loss function to use
-            'loss_function_name': 'normalized_dom_charge_pdf',
-        },
-    },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
-        'loss_module_weight': 1.0,
-
-        config: {
-            # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
             'loss_function_name': 'negative_binomial_charge_pdf',
         },
     },
-    {
-        # The loss module class to use
-        'loss_module': 'egenerator.loss.default.DefaultLossModule',
-        'loss_module_weight': 1.0,
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    #     'loss_module_weight': 1.0,
 
-        config: {
-            # the float precision to use
-            'float_precision': 'float64',
-            # Add normalization terms to llh if True
-            'add_normalization_term': True,
-            # choose the loss function to use
-            'loss_function_name': 'negative_binomial_event_charge_pdf',
-        },
-    },
+    #     config: {
+    #         # the float precision to use
+    #         'float_precision': 'float32',
+    #         # Add normalization terms to llh if True
+    #         'add_normalization_term': True,
+    #         # choose the loss function to use
+    #         'loss_function_name': 'negative_binomial_event_charge_pdf',
+    #     },
+    # },
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.snowstorm.SnowstormPriorLossModule',
@@ -337,7 +337,7 @@ loss_module_settings: [
 
         config: {
             # the float precision to use
-            'float_precision': 'float64',
+            'float_precision': 'float32',
             # define uniform priors
             'uniform_parameters': {
                 'cascade_Absorption': [0.913, 1.087],
@@ -504,7 +504,7 @@ model_settings: {
                 'scale_charge_by_relative_angular_acceptance': False,
                 'charge_distribution_type': 'negative_binomial',
                 'float_precision': float32,
-                'float_precision_pdf_cdf': float64,
+                'float_precision_pdf_cdf': float32,
                 'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
 
                 # Baseline DOM Angular acceptance
@@ -526,7 +526,7 @@ model_settings: {
 
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [50, 200, 200, 200, 200, 45],
+                'num_filters_list' : [50, 100, 100, 100, 100, 45],
                 'method_list' : ['locally_connected',
                                  'convolution', 'convolution', 'convolution',
                                  'convolution', 'convolution',
@@ -573,7 +573,7 @@ model_settings: {
                     AssymetricGaussian: {
                         'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
                         'config': {
-                            'float_precision': float64,
+                            'float_precision': float32,
 
                             # Define a mapping of latent variable to value range functions
                             "value_range_mapping": {
@@ -612,7 +612,7 @@ model_settings: {
                     GammaFunction: {
                         'decoder_class': 'egenerator.model.decoder.static.gamma.GammaFunctionDecoder',
                         'config': {
-                            'float_precision': float64,
+                            'float_precision': float32,
                             'offset': 0.0, # note that offset is in model time units
 
                             # Define a mapping of latent variable to value range functions
