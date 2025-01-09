@@ -41,6 +41,16 @@ class TestGammaFunctionDecoder(unittest.TestCase):
         model.configure(**kwargs)
         return model
 
+    def test_correct_expectation(self):
+        """Check if the expectation method is correctly implemented"""
+
+        expectation_np = basis_functions.gamma_expectation(
+            alpha=self.latent_vars[..., 0],
+            beta=self.latent_vars[..., 1],
+        )
+        expectation = self.decoder.expectation(self.latent_vars).numpy()
+        self.assertTrue(np.allclose(expectation, expectation_np))
+
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 

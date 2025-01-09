@@ -39,6 +39,17 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
         model.configure(**kwargs)
         return model
 
+    def test_correct_expectation(self):
+        """Check if the expectation method is correctly implemented"""
+
+        expectation_np = basis_functions.asymmetric_gauss_expectation(
+            mu=self.latent_vars[..., 0],
+            sigma=self.latent_vars[..., 1],
+            r=self.latent_vars[..., 2],
+        )
+        expectation = self.decoder.expectation(self.latent_vars).numpy()
+        self.assertTrue(np.allclose(expectation, expectation_np))
+
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 

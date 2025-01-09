@@ -37,6 +37,35 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
         self.assert_configured(False)
         return ["alpha", "beta"]
 
+    def _expectation(self, latent_vars, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...]
+        """
+        expectation = basis_functions.tf_gamma_expectation(
+            alpha=latent_vars[..., self.get_index("alpha")],
+            beta=latent_vars[..., self.get_index("beta")],
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
+
+        if "offset" in self.configuration.config["config"]:
+            expectation += self.configuration.config["config"]["offset"]
+
+        return expectation
+
     def _pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 

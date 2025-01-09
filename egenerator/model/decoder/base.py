@@ -188,6 +188,47 @@ class LatentToPDFDecoder(Model):
 
         return tf.stack(latent_vars_list, axis=-1)
 
+    def expectation(self, latent_vars, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...]
+        """
+        self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._expectation(latent_vars, **kwargs)
+
+    def _expectation(self, latent_vars, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...]
+        """
+        raise NotImplementedError
+
     def pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 

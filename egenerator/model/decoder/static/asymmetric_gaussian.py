@@ -30,6 +30,31 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         self.assert_configured(False)
         return ["mu", "sigma", "r"]
 
+    def _expectation(self, latent_vars, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...]
+        """
+        return basis_functions.tf_asymmetric_gauss_expectation(
+            mu=latent_vars[..., self.get_index("mu")],
+            sigma=latent_vars[..., self.get_index("sigma")],
+            r=latent_vars[..., self.get_index("r")],
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
+
     def _pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 

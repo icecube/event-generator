@@ -402,6 +402,58 @@ def asymmetric_gauss_ppf(q, mu, sigma, r, dtype=None):
     )
 
 
+def tf_asymmetric_gauss_expectation(mu, sigma, r, dtype=None):
+    """Asymmetric Gaussian: Expectation value
+
+    Parameters
+    ----------
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+    r : tf.Tensor
+        The asymmetry of the Gaussian.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The expectation value of the asymmetric Gaussian
+    """
+    mu, sigma, r = tf_cast(dtype, mu, sigma, r)
+    expectation = mu + (2 * sigma * (r - 1)) / np.sqrt(2 * np.pi)
+
+    return expectation
+
+
+def asymmetric_gauss_expectation(mu, sigma, r, dtype=None):
+    """Asymmetric Gaussian: Expectation value
+
+    Parameters
+    ----------
+    mu : array_like
+        Mu parameter of Gaussian.
+    sigma : array_like
+        Sigma parameter of Gaussian.
+    r : array_like
+        The asymmetry of the Gaussian.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The expectation value of the asymmetric Gaussian
+    """
+    mu, sigma, r = cast(dtype, mu, sigma, r)
+    expectation = mu + (2 * sigma * (r - 1)) / np.sqrt(2 * np.pi)
+
+    return expectation
+
+
 def _tf_evaluate_gamma(func_name, x, alpha, beta, replacement_value=0.0):
     """Evaluate the Gamma distribution function
 
@@ -656,6 +708,44 @@ def gamma_ppf(q, alpha, beta, dtype=None):
     """
     q, alpha, beta = cast(dtype, q, alpha, beta)
     return special.gammaincinv(alpha, q) / beta
+
+
+def tf_gamma_expectation(alpha, beta, dtype=None):
+    """Gamma: Expectation value
+
+    Parameters
+    ----------
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    tf.Tensor
+        The expectation value of the Gamma distribution
+    """
+    alpha, beta = tf_cast(dtype, alpha, beta)
+    return alpha / beta
+
+
+def gamma_expectation(alpha, beta, dtype=None):
+    """Gamma: Expectation value
+
+    Parameters
+    ----------
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    array_like
+        The expectation value of the Gamma distribution
+    """
+    alpha, beta = cast(dtype, alpha, beta)
+    return alpha / beta
 
 
 def tf_log_negative_binomial(

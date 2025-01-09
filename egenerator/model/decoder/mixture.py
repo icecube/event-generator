@@ -510,6 +510,75 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
 
         return configuration, data, sub_components
 
+    def _expectation(self, latent_vars, reduce_components=True, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., n_parameters]
+        reduce_components : bool, optional
+            If True, the contributions of the individual components
+            to the overall expectation value are summed up and returned.
+            If False, the output shape will be [..., n_components] where
+            n_components is the number of components in the mixture model.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...] or [..., n_components]
+        """
+        parameter_dict = self.get_model_parameters(latent_vars)
+
+        values = []
+        total_weight = None
+        for name in self._untracked_data["decoder_names"]:
+
+            # shape: [..., n_components_per_base, n_parameters]
+            latent_vars_i = parameter_dict[name]
+
+            # shape: [..., n_components_per_base]
+            weight = latent_vars_i[..., -1]
+
+            # shape: [..., n_components_per_base]
+            base_name = self._untracked_data["models_mapping"][name]
+            values_i = (
+                self.sub_components[base_name].expectation(
+                    latent_vars=latent_vars_i[..., :-1], **kwargs
+                )
+                * weight
+            )
+
+            # shape: [...]
+            if total_weight is None:
+                total_weight = tf.reduce_sum(weight, axis=-1)
+            else:
+                total_weight += tf.reduce_sum(weight, axis=-1)
+
+            if reduce_components:
+                # shape: [...]
+                values_i = tf.reduce_sum(values_i, axis=-1)
+
+            values.append(values_i)
+
+        # shape: [...]
+        total_weight += self.epsilon
+
+        if reduce_components:
+            values = tf.add_n(values)
+            values /= total_weight
+        else:
+            # shape: [..., n_components_total]
+            values = tf.concat(values, axis=-1)
+            values /= total_weight[..., tf.newaxis]
+
+        return values
+
     def _pdf_or_cdf(
         self, x, latent_vars, func_name, reduce_components=True, **kwargs
     ):

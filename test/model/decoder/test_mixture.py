@@ -379,6 +379,62 @@ class TestMixtureModel(unittest.TestCase):
             np.allclose(latent_vars_mapped, latent_weights_expected)
         )
 
+    def test_correct_expectation_reduced(self):
+        """Check if the expectation method is correctly implemented"""
+
+        expectation_np_ = np.sum(
+            basis_functions.asymmetric_gauss_expectation(
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
+            )
+            * self.latent_vars_np[..., 3],
+            axis=-1,
+        )
+        expectation_np = np.sum(
+            basis_functions.asymmetric_gauss_expectation(
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
+            )
+            * self.latent_vars_np_trafo_norm[..., 3],
+            axis=-1,
+        )
+        expectation = self.mixture.expectation(self.latent_vars).numpy()
+        expectation_ = self.mixture._expectation(self.latent_vars).numpy()
+
+        self.assertTrue(np.allclose(expectation, expectation_np))
+        self.assertTrue(np.allclose(expectation_, expectation_np_))
+
+    def test_correct_expectation(self):
+        """Check if the expectation method is correctly implemented"""
+
+        expectation_np_ = (
+            basis_functions.asymmetric_gauss_expectation(
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
+            )
+            * self.latent_vars_np[..., 3]
+        )
+        expectation_np = (
+            basis_functions.asymmetric_gauss_expectation(
+                mu=self.latent_vars_np_trafo_norm[..., 0],
+                sigma=self.latent_vars_np_trafo_norm[..., 1],
+                r=self.latent_vars_np_trafo_norm[..., 2],
+            )
+            * self.latent_vars_np_trafo_norm[..., 3]
+        )
+        expectation_ = self.mixture._expectation(
+            self.latent_vars, reduce_components=False
+        ).numpy()
+        expectation = self.mixture.expectation(
+            self.latent_vars, reduce_components=False
+        ).numpy()
+
+        self.assertTrue(np.allclose(expectation, expectation_np))
+        self.assertTrue(np.allclose(expectation_, expectation_np_))
+
     def test_correct_pdf_reduced(self):
         """Check if the pdf method is correctly implemented"""
 
