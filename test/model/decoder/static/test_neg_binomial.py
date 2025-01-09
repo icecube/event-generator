@@ -5,22 +5,22 @@ import tensorflow as tf
 from egenerator import misc
 from egenerator.utils import basis_functions
 from egenerator.manager.component import Configuration
-from egenerator.model.decoder import GammaFunctionDecoder
+from egenerator.model.decoder import NegativeBinomialDecoder
 
 
-class TestGammaFunctionDecoder(unittest.TestCase):
-    """Test GammaFunctionDecoder class"""
+class TestNegativeBinomialDecoder(unittest.TestCase):
+    """Test NegativeBinomialDecoder class"""
 
     def setUp(self):
 
-        self.offset = 0.5
-        alpha = np.array([1.0, 2.0, 3.0])
-        beta = np.array([0.3, 3.0, 2.0])
-        self.latent_vars = np.stack([alpha, beta], axis=-1)
+        self.offset = 3.0
+        mu = np.array([10.0, 20.0, 30.0])
+        alpha = np.array([0.001, 0.2, 3.0])
+        self.latent_vars = np.stack([mu, alpha], axis=-1)
 
         self.parameter_names = [
+            "mu",
             "alpha",
-            "beta",
         ]
 
         config = {"float_precision": "float64"}
@@ -37,28 +37,28 @@ class TestGammaFunctionDecoder(unittest.TestCase):
         self.decoder_offset = self.get_decoder(config=config)
 
     def get_decoder(self, **kwargs):
-        model = GammaFunctionDecoder()
+        model = NegativeBinomialDecoder()
         model.configure(**kwargs)
         return model
 
     def test_correct_expectation(self):
         """Check if the expectation method is correctly implemented"""
 
-        expectation_np = basis_functions.gamma_expectation(
-            alpha=self.latent_vars[..., 0],
-            beta=self.latent_vars[..., 1],
-        )
+        mu = self.latent_vars[..., 0]
         expectation = self.decoder.expectation(self.latent_vars).numpy()
-        self.assertTrue(np.allclose(expectation, expectation_np))
+        self.assertTrue(np.allclose(expectation, mu))
 
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 
-        x = np.array([-1.0, -0.36, 0.0, 0.56, 1.0]).reshape(-1, 1)
-        pdf_np = basis_functions.gamma_pdf(
-            x=x,
-            alpha=self.latent_vars[..., 0],
-            beta=self.latent_vars[..., 1],
+        x = np.array([-1.0, 0.0, 5.6, 10.0, 200]).reshape(-1, 1)
+        pdf_np = np.exp(
+            basis_functions.log_negative_binomial(
+                x=x,
+                mu=self.latent_vars[..., 0],
+                alpha=self.latent_vars[..., 1],
+                add_normalization_term=True,
+            )
         )
         pdf = self.decoder.pdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(pdf, pdf_np))
@@ -69,11 +69,14 @@ class TestGammaFunctionDecoder(unittest.TestCase):
     def test_correct_pdf_offset(self):
         """Check if the pdf with offset is correctly implemented"""
 
-        x = np.array([-1.0, -0.36, 0.0, 0.56, 1.0]).reshape(-1, 1)
-        pdf_np = basis_functions.gamma_pdf(
-            x=x - self.offset,
-            alpha=self.latent_vars[..., 0],
-            beta=self.latent_vars[..., 1],
+        x = np.array([-1.0, 0.0, 5.6, 10.0, 200]).reshape(-1, 1)
+        pdf_np = np.exp(
+            basis_functions.log_negative_binomial(
+                x=x - self.offset,
+                mu=self.latent_vars[..., 0],
+                alpha=self.latent_vars[..., 1],
+                add_normalization_term=True,
+            )
         )
         pdf = self.decoder_offset.pdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(pdf, pdf_np))
@@ -83,73 +86,11 @@ class TestGammaFunctionDecoder(unittest.TestCase):
         )
         self.assertTrue(np.allclose(pdf, exp_log_pdf))
 
-    def test_correct_cdf(self):
-        """Check if the cdf method is correctly implemented"""
-
-        x = np.array([0.0, 0.56, 1.0]).reshape(-1, 1)
-        cdf_np = basis_functions.gamma_cdf(
-            x=x,
-            alpha=self.latent_vars[..., 0],
-            beta=self.latent_vars[..., 1],
-        )
-        cdf = self.decoder.cdf(x, self.latent_vars).numpy()
-        self.assertTrue(np.allclose(cdf, cdf_np))
-
-    def test_correct_cdf_offset(self):
-        """Check if the cdf with offset is correctly implemented"""
-
-        x = np.array([0.0, 0.5, 0.56, 1.5]).reshape(-1, 1)
-        cdf_np = basis_functions.gamma_cdf(
-            x=x - self.offset,
-            alpha=self.latent_vars[..., 0],
-            beta=self.latent_vars[..., 1],
-        )
-        cdf = self.decoder_offset.cdf(x, self.latent_vars).numpy()
-        self.assertTrue(np.allclose(cdf, cdf_np))
-
-    def test_correct_ppf(self):
-        """Check if the ppf method is correctly implemented"""
-
-        q = np.array([0.0, 0.56, 1.0]).reshape(-1, 1)
-        cdf_np = basis_functions.gamma_ppf(
-            q=q,
-            alpha=self.latent_vars[..., 0],
-            beta=self.latent_vars[..., 1],
-        )
-        cdf = self.decoder.ppf(q, self.latent_vars).numpy()
-        self.assertTrue(np.allclose(cdf, cdf_np))
-
-    def test_correct_ppf_offset(self):
-        """Check if the ppf method is correctly implemented"""
-
-        q = np.array([0.0, 0.56, 1.0]).reshape(-1, 1)
-        cdf_np = basis_functions.gamma_ppf(
-            q=q,
-            alpha=self.latent_vars[..., 0],
-            beta=self.latent_vars[..., 1],
-        )
-        cdf_np += self.offset
-        cdf = self.decoder_offset.ppf(q, self.latent_vars).numpy()
-        self.assertTrue(
-            np.allclose(
-                q,
-                basis_functions.gamma_cdf(
-                    x=cdf_np - self.offset,
-                    alpha=self.latent_vars[..., 0],
-                    beta=self.latent_vars[..., 1],
-                ),
-            )
-        )
-        self.assertTrue(
-            np.allclose(q, self.decoder_offset.cdf(cdf, self.latent_vars))
-        )
-        self.assertTrue(np.allclose(cdf, cdf_np))
-
     def test_correct_initialization(self):
         """Check if member variables are correctly set when instantiating
         a Model object.
         """
-        model = GammaFunctionDecoder()
+        model = NegativeBinomialDecoder()
         self.assertEqual(model._is_configured, False)
         self.assertEqual(model.data, None)
         self.assertEqual(model.configuration, None)
@@ -161,7 +102,7 @@ class TestGammaFunctionDecoder(unittest.TestCase):
 
     def test_correct_configuration_name(self):
         """Test if the name passed in to the configuration is properly saved"""
-        model = GammaFunctionDecoder()
+        model = NegativeBinomialDecoder()
         model.configure(config={}, name="dummy")
         self.assertEqual(model.name, "dummy")
 
@@ -199,8 +140,8 @@ class TestGammaFunctionDecoder(unittest.TestCase):
                     "parameter_name_dict"
                 ],
                 "parameter_names": [
+                    "mu",
                     "alpha",
-                    "beta",
                 ],
                 "value_range_mapping": self.decoder._untracked_data[
                     "value_range_mapping"
@@ -211,7 +152,7 @@ class TestGammaFunctionDecoder(unittest.TestCase):
 
     def test_method_assert_configured(self):
         """Check the method assert_configured()"""
-        model = GammaFunctionDecoder()
+        model = NegativeBinomialDecoder()
         model.assert_configured(False)
         with self.assertRaises(ValueError) as context:
             model.assert_configured(True)
@@ -236,7 +177,7 @@ class TestGammaFunctionDecoder(unittest.TestCase):
     def test_parameter_indexing(self):
         tensor = tf.constant(self.parameter_names)
         self.decoder.add_parameter_indexing(tensor)
-        self.assertEqual(tensor.params.beta, "beta")
+        self.assertEqual(tensor.params.mu, "mu")
 
 
 if __name__ == "__main__":

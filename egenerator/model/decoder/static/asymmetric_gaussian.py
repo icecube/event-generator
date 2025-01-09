@@ -86,6 +86,35 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
             dtype=self.configuration.config["config"]["float_precision"],
         )
 
+    def _log_pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the logarithm of the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (n_parameters).
+            Shape: [...]
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
+        return basis_functions.tf_log_asymmetric_gauss(
+            x=x,
+            mu=latent_vars[..., self.get_index("mu")],
+            sigma=latent_vars[..., self.get_index("sigma")],
+            r=latent_vars[..., self.get_index("r")],
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
+
     def _cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.
 

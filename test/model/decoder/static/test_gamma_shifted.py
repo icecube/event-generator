@@ -51,6 +51,9 @@ class TestShiftedGammaFunctionDecoder(unittest.TestCase):
         pdf = self.decoder.pdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(pdf, pdf_np))
 
+        exp_log_pdf = np.exp(self.decoder.log_pdf(x, self.latent_vars).numpy())
+        self.assertTrue(np.allclose(pdf, exp_log_pdf))
+
     def test_correct_cdf(self):
         """Check if the cdf method is correctly implemented"""
 

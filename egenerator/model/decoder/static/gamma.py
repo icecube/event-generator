@@ -99,6 +99,37 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
             dtype=self.configuration.config["config"]["float_precision"],
         )
 
+    def _log_pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the logarithm of the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (n_parameters).
+            Shape: [...]
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
+        if "offset" in self.configuration.config["config"]:
+            x = x - self.configuration.config["config"]["offset"]
+
+        return basis_functions.tf_gamma_log_pdf(
+            x=x,
+            alpha=latent_vars[..., self.get_index("alpha")],
+            beta=latent_vars[..., self.get_index("beta")],
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
+
     def _cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.
 
@@ -222,6 +253,30 @@ class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
         """
         offset = latent_vars[..., self.get_index("offset")]
         return super()._pdf(x - offset, latent_vars, **kwargs)
+
+    def _log_pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the logarithm of the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (n_parameters).
+            Shape: [...]
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
+        offset = latent_vars[..., self.get_index("offset")]
+        return super()._log_pdf(x - offset, latent_vars, **kwargs)
 
     def _cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.

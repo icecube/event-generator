@@ -5,6 +5,8 @@ from scipy import special
 from scipy import stats
 from scipy.integrate import quad
 
+from egenerator.utils import tf_helpers
+
 
 def cast(dtype, *args):
     """Cast all input arguments to the provided data type.
@@ -482,24 +484,13 @@ def _tf_evaluate_gamma(func_name, x, alpha, beta, replacement_value=0.0):
     else:
         raise ValueError(f"Unknown dtype for alpha: {alpha.dtype}")
 
-    # If the inputs to a tf.where function contains NaNs,
-    # the gradient will always be NaN, regardless whether
-    # the input is actually used or not. Here, a workaround
-    # is implemented to prevent the inputs from ever containing
-    # NaNs. For the Gamma distribution, this happens for x <= eps.
-    mask = x <= eps
-
-    # modify x to ensure that all values computed by Gamma are finite
-    x_zeros = tf.where(mask, tf.zeros_like(x) + eps, x)
-
-    # compute pdf values based on this modfiied x
-    # Note: the values computed for indices where x <= eps are incorrect
-    # here, but we will set them to zero later
     distribution = tfp.distributions.Gamma(concentration=alpha, rate=beta)
-    result_values = getattr(distribution, func_name)(x_zeros)
-
-    # set pdf to zero for x <= 0, but avoid nan gradients
-    return tf.where(mask, replacement_value, result_values)
+    return tf_helpers.double_where_trick_greater_zero(
+        function=getattr(distribution, func_name),
+        x=x,
+        cut_x_min=eps,
+        replacement_value=replacement_value,
+    )
 
 
 def tf_gamma_log_pdf(x, alpha, beta, dtype=None):
@@ -746,6 +737,136 @@ def gamma_expectation(alpha, beta, dtype=None):
     """
     alpha, beta = cast(dtype, alpha, beta)
     return alpha / beta
+
+
+def tf_poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Poisson PDF evaluated at x
+    """
+    x, mu = tf_cast(dtype, x, mu)
+
+    def function(x):
+        result = tf.exp(-mu) * mu**x
+        if add_normalization_term:
+            result /= tf.exp(tf.math.lgamma(x + 1))
+        return result
+
+    # avoid non-finite values in the gradient
+    result = tf_helpers.double_where_trick_greater_zero(
+        function=function,
+        x=x,
+        cut_x_min=0,
+        replacement_value=0.0,
+    )
+    return result
+
+
+def poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson PDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    mu : array_like
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Poisson PDF evaluated at x
+    """
+    x, mu = cast(dtype, x, mu)
+    result = np.exp(-mu) * mu**x
+    if add_normalization_term:
+        result /= np.exp(special.gammaln(x + 1))
+
+    result = np.where(x < 0, 0.0, result)
+    return result
+
+
+def tf_poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson log PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Poisson log PDF evaluated at x
+    """
+    x, mu = tf_cast(dtype, x, mu)
+
+    def function(x):
+        result = -mu + x * tf.math.log(mu)
+        if add_normalization_term:
+            result -= tf.math.lgamma(x + 1)
+        return result
+
+    result = tf_helpers.double_where_trick_greater_zero(
+        function=function, x=x, cut_x_min=0, replacement_value=-np.inf
+    )
+    return result
+
+
+def poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson log PDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    mu : array_like
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Poisson log PDF evaluated at x
+    """
+    x, mu = cast(dtype, x, mu)
+    result = -mu + x * np.log(mu)
+    if add_normalization_term:
+        result -= special.gammaln(x + 1)
+
+    result = np.where(x < 0, -np.inf, result)
+    return result
 
 
 def tf_log_negative_binomial(

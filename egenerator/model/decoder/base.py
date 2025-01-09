@@ -278,6 +278,54 @@ class LatentToPDFDecoder(Model):
         """
         raise NotImplementedError
 
+    def log_pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the logarithm of the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (n_parameters).
+            Shape: [...]
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
+        self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._log_pdf(x, latent_vars, **kwargs)
+
+    def _log_pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the logarithm of the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (n_parameters).
+            Shape: [...]
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
+        return tf.math.log(self._pdf(x, latent_vars, **kwargs))
+
     def cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.
 
