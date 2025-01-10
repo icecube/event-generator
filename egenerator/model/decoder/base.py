@@ -43,6 +43,24 @@ class LatentToPDFDecoder(Model):
         else:
             return None
 
+    @property
+    def loc_parameters(self):
+        """Get the location parameters.
+
+        The location parameters are the names of the latent variables
+        that affect the expectation value of the PDF.
+        Not all decoders have location parameters.
+
+        Returns
+        -------
+        list of str
+            The location parameters.
+        """
+        if self._untracked_data is not None:
+            return self._untracked_data.get("loc_parameters", None)
+        else:
+            return None
+
     def _configure_derived_class(self, config, name=None):
         """Setup and configure the Decoder's architecture.
 
@@ -108,11 +126,15 @@ class LatentToPDFDecoder(Model):
 
         # build architecture: create and save model weights (if any)
         # and return the names of the latent variables
-        latent_names = self._build_architecture(config, name=name)
+        latent_names, loc_parameters = self._build_architecture(
+            config,
+            name=name,
+        )
 
         # get names of latent variables
         self._untracked_data["name"] = name
         self._set_parameter_names(latent_names)
+        self._untracked_data["loc_parameters"] = loc_parameters
 
         # create value range object
         self._untracked_data["value_range_mapping"] = {}
@@ -225,6 +247,46 @@ class LatentToPDFDecoder(Model):
         -------
         tf.Tensor
             The expectation value of the PDF.
+            Shape: [...]
+        """
+        raise NotImplementedError
+
+    def variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._variance(latent_vars, **kwargs)
+
+    def _variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
             Shape: [...]
         """
         raise NotImplementedError

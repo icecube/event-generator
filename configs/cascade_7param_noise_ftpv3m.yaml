@@ -281,20 +281,6 @@ loss_module_settings: [
             'loss_function_name': 'unbinned_pulse_time_llh',
         },
     },
-    # {
-    #     # The loss module class to use
-    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
-    #     'loss_module_weight': 1.0,
-
-    #     config: {
-    #         # the float precision to use
-    #         'float_precision': 'float32',
-    #         # Add normalization terms to llh if True
-    #         'add_normalization_term': True,
-    #         # choose the loss function to use
-    #         'loss_function_name': 'normalized_dom_charge_pdf',
-    #     },
-    # },
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -306,9 +292,23 @@ loss_module_settings: [
             # Add normalization terms to llh if True
             'add_normalization_term': True,
             # choose the loss function to use
-            'loss_function_name': 'negative_binomial_charge_pdf',
+            'loss_function_name': 'dom_charge_pdf',
         },
     },
+    # # {
+    # #     # The loss module class to use
+    # #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    # #     'loss_module_weight': 1.0,
+
+    # #     config: {
+    # #         # the float precision to use
+    # #         'float_precision': 'float32',
+    # #         # Add normalization terms to llh if True
+    # #         'add_normalization_term': True,
+    # #         # choose the loss function to use
+    # #         'loss_function_name': 'normalized_dom_charge_pdf',
+    # #     },
+    # # },
     # {
     #     # The loss module class to use
     #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -320,7 +320,7 @@ loss_module_settings: [
     #         # Add normalization terms to llh if True
     #         'add_normalization_term': True,
     #         # choose the loss function to use
-    #         'loss_function_name': 'negative_binomial_event_charge_pdf',
+    #         'loss_function_name': 'negative_binomial_charge_pdf',
     #     },
     # },
 ]
@@ -477,10 +477,14 @@ model_settings: {
                 'scale_charge_by_global_dom_efficiency': False,
                 'scale_charge_by_angular_acceptance': True,
                 'scale_charge_by_relative_angular_acceptance': False,
-                'charge_distribution_type': 'negative_binomial',
                 'float_precision': float32,
-                'float_precision_pdf_cdf': float32,
                 'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
+
+                # define names of charge latent vars that should be
+                # scaled internally by the model (e.g. by the energy, eff.)
+                # Note: the decoder should not add additional value
+                # range mapping for these indices!
+                'charge_scale_tensors': ["mu"],
 
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,
@@ -503,6 +507,38 @@ model_settings: {
                 'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
                 'use_batch_norm_list' : False,
                 'use_residual_list' : [True, True, True, True, True, False]
+            },
+
+            # configuration for the charge decoder to transform the latent
+            # variables to the expected charge PDF.
+            decoder_charge_settings: {
+                # The decoder class to use
+                decoder_class: "egenerator.model.decoder.static.NegativeBinomialDecoder",
+
+                # configuration of the negative binomial model
+                'config': {
+                    'float_precision': float32,
+
+                    # Define a mapping of latent variable to value range functions
+                    "value_range_mapping": {
+                        "mu": {
+                            "value_range_class": "egenerator.utils.value_range.ExpValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": 0.0,
+                                "min_value": 0.0000001,
+                            },
+                        },
+                        "alpha": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": -5.0,
+                                "min_value": 0.000001,
+                            },
+                        },
+                    },
+                },
             },
 
             # configuration of the decoder to transform the latent variables

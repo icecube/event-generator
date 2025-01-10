@@ -48,6 +48,15 @@ class TestNegativeBinomialDecoder(unittest.TestCase):
         expectation = self.decoder.expectation(self.latent_vars).numpy()
         self.assertTrue(np.allclose(expectation, mu))
 
+    def test_correct_variance(self):
+        """Check if the variance method is correctly implemented"""
+
+        mu = self.latent_vars[..., 0]
+        alpha = self.latent_vars[..., 1]
+        variance_np = mu + (mu**2) * alpha
+        variance = self.decoder.variance(self.latent_vars).numpy()
+        self.assertTrue(np.allclose(variance, variance_np))
+
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 
@@ -143,6 +152,7 @@ class TestNegativeBinomialDecoder(unittest.TestCase):
                     "mu",
                     "alpha",
                 ],
+                "loc_parameters": ["mu"],
                 "value_range_mapping": self.decoder._untracked_data[
                     "value_range_mapping"
                 ],

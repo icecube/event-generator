@@ -150,6 +150,7 @@ class TestShiftedGammaFunctionDecoder(unittest.TestCase):
                     "beta",
                     "offset",
                 ],
+                "loc_parameters": [],
                 "value_range_mapping": self.decoder._untracked_data[
                     "value_range_mapping"
                 ],

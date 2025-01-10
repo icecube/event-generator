@@ -5,6 +5,13 @@ from egenerator.model.decoder.base import LatentToPDFDecoder
 
 
 class NegativeBinomialDecoder(LatentToPDFDecoder):
+    """Continuous Negative Binomial distribution.
+
+    The parameterization chosen here is defined by the mean mu and
+    the over-dispersion factor alpha.
+
+        Var(x) = mu + alpha*mu**2
+    """
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -24,13 +31,18 @@ class NegativeBinomialDecoder(LatentToPDFDecoder):
         -------
         list of str
             A list of parameter names. These parameters describe the names
-            of the latent variables used as input to thd decoder.
+            of the latent variables used as input to the decoder.
             These name must be in the same order as the latent variables
             in the last dimension of the input tensor
             passed to the pdf, cdf, and ppf methods.
+        list of str
+            A list of location parameters that directly
+            shift the expectation value of the PDF.
+            Note: this does not directly exist for all distributions.
+            The charge scaling will be applied to these laten variables.
         """
         self.assert_configured(False)
-        return ["mu", "alpha"]
+        return ["mu", "alpha"], ["mu"]
 
     def _expectation(self, latent_vars, **kwargs):
         """Calculate the expectation value of the PDF.
@@ -57,6 +69,31 @@ class NegativeBinomialDecoder(LatentToPDFDecoder):
         if "offset" in self.configuration.config["config"]:
             expectation += self.configuration.config["config"]["offset"]
         return expectation
+
+    def _variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        mu = latent_vars[..., self.get_index("mu")]
+        alpha = latent_vars[..., self.get_index("alpha")]
+        variance = tf.cast(
+            mu + alpha * mu**2,
+            self.configuration.config["config"]["float_precision"],
+        )
+        return variance
 
     def _pdf(self, x, latent_vars, add_normalization_term=True, **kwargs):
         """Evaluate the decoded PDF at x.
@@ -159,13 +196,18 @@ class PoissonDecoder(LatentToPDFDecoder):
         -------
         list of str
             A list of parameter names. These parameters describe the names
-            of the latent variables used as input to thd decoder.
+            of the latent variables used as input to the decoder.
             These name must be in the same order as the latent variables
             in the last dimension of the input tensor
             passed to the pdf, cdf, and ppf methods.
+        list of str
+            A list of location parameters that directly
+            shift the expectation value of the PDF.
+            Note: this does not directly exist for all distributions.
+            The charge scaling will be applied to these laten variables.
         """
         self.assert_configured(False)
-        return ["mu"]
+        return ["mu"], ["mu"]
 
     def _expectation(self, latent_vars, **kwargs):
         """Calculate the expectation value of the PDF.
@@ -192,6 +234,29 @@ class PoissonDecoder(LatentToPDFDecoder):
         if "offset" in self.configuration.config["config"]:
             expectation += self.configuration.config["config"]["offset"]
         return expectation
+
+    def _variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        variance = tf.cast(
+            latent_vars[..., self.get_index("mu")],
+            self.configuration.config["config"]["float_precision"],
+        )
+        return variance
 
     def _pdf(self, x, latent_vars, add_normalization_term=True, **kwargs):
         """Evaluate the decoded PDF at x.

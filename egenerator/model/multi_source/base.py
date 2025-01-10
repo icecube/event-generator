@@ -274,6 +274,7 @@ class MultiSource(NestedModel, Source):
         # -----------------------------------------------
 
         dom_charges = None
+        dom_charges_pdf = None
         dom_charges_variance = None
         dom_cdf_exclusion = None
         all_models_have_cdf_values = True
@@ -305,6 +306,7 @@ class MultiSource(NestedModel, Source):
             nested_results[name] = result_tensors_i
 
             dom_charges_i = result_tensors_i["dom_charges"]
+            dom_charges_pdf_i = result_tensors_i["dom_charges_pdf"]
             dom_charges_variance_i = result_tensors_i["dom_charges_variance"]
             pulse_pdf_i = result_tensors_i["pulse_pdf"]
             if "pulse_cdf" in result_tensors_i:
@@ -316,6 +318,12 @@ class MultiSource(NestedModel, Source):
                 msg = "DOM charges of source {!r} ({!r}) have an unexpected "
                 msg += "shape {!r}."
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
+
+            if dom_charges_pdf_i.shape[1:] != [86, 60]:
+                raise ValueError(
+                    f"DOM charges PDF of source {name} ({base}) have an "
+                    f"unexpected shape {dom_charges_pdf_i.shape}."
+                )
 
             if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
                 msg = "DOM charge variances of source {!r} ({!r}) have an "
@@ -374,6 +382,15 @@ class MultiSource(NestedModel, Source):
                 else:
                     pulse_cdf += pulse_cdf_i * pulse_weight_i
 
+            # shape: [n_events, 86, 60, 1]
+            if dom_charges_pdf is None:
+                dom_charges_pdf = dom_charges_pdf_i * pulse_weight_i
+            else:
+                dom_charges_pdf += dom_charges_pdf_i * pulse_weight_i
+
+        # normalize charge pdf values: divide by total charge at DOM
+        dom_charges_pdf /= dom_charges + self.epsilon
+
         # normalize pulse_pdf values: divide by total charge at DOM
         pulse_weight_total = tf.gather_nd(
             tf.squeeze(dom_charges, axis=3), pulses_ids
@@ -385,6 +402,7 @@ class MultiSource(NestedModel, Source):
 
         result_tensors = {
             "dom_charges": dom_charges,
+            "dom_charges_pdf": dom_charges_pdf,
             "dom_charges_variance": dom_charges_variance,
             "pulse_pdf": pulse_pdf,
             "nested_results": nested_results,

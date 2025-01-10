@@ -29,13 +29,18 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
         -------
         list of str
             A list of parameter names. These parameters describe the names
-            of the latent variables used as input to thd decoder.
+            of the latent variables used as input to the decoder.
             These name must be in the same order as the latent variables
             in the last dimension of the input tensor
             passed to the pdf, cdf, and ppf methods.
+        list of str
+            A list of location parameters that directly
+            shift the expectation value of the PDF.
+            Note: this does not directly exist for all distributions.
+            The charge scaling will be applied to these laten variables.
         """
         self.assert_configured(False)
-        return ["alpha", "beta"]
+        return ["alpha", "beta"], []
 
     def _expectation(self, latent_vars, **kwargs):
         """Calculate the expectation value of the PDF.
@@ -65,6 +70,30 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
             expectation += self.configuration.config["config"]["offset"]
 
         return expectation
+
+    def _variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        variance = basis_functions.tf_gamma_variance(
+            alpha=latent_vars[..., self.get_index("alpha")],
+            beta=latent_vars[..., self.get_index("beta")],
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
+        return variance
 
     def _pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
@@ -220,13 +249,18 @@ class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
         -------
         list of str
             A list of parameter names. These parameters describe the names
-            of the latent variables used as input to thd decoder.
+            of the latent variables used as input to the decoder.
             These name must be in the same order as the latent variables
             in the last dimension of the input tensor
             passed to the pdf, cdf, and ppf methods.
+        list of str
+            A list of location parameters that directly
+            shift the expectation value of the PDF.
+            Note: this does not directly exist for all distributions.
+            The charge scaling will be applied to these laten variables.
         """
         self.assert_configured(False)
-        return ["alpha", "beta", "offset"]
+        return ["alpha", "beta", "offset"], []
 
     def _pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.

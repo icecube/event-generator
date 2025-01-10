@@ -29,6 +29,12 @@ class TestMixtureModel(unittest.TestCase):
             "AssymetricGaussian_r_002",
             "AssymetricGaussian_weight_002",
         ]
+        self.loc_parameters = [
+            "AssymetricGaussian_mu_000",
+            "AssymetricGaussian_mu_001",
+            "AssymetricGaussian_mu_002",
+        ]
+
         self.config_big = {
             "decoder_mapping": {
                 "AssymetricGaussian": ["AssymetricGaussian", 10, 1.0],
@@ -610,6 +616,7 @@ class TestMixtureModel(unittest.TestCase):
                     "parameter_name_dict"
                 ],
                 "parameter_names": self.parameter_names,
+                "loc_parameters": self.loc_parameters,
                 "models_mapping": self.mixture._untracked_data[
                     "models_mapping"
                 ],

@@ -4,7 +4,7 @@ import numpy as np
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector, tf_helpers
+from egenerator.utils import detector, tf_helpers, basis_functions
 
 
 class DefaultNoiseModel(Source):
@@ -98,6 +98,9 @@ class DefaultNoiseModel(Source):
                 'dom_charges':
                     The predicted charge at each DOM
                     Shape: [n_events, 86, 60, 1]
+                'dom_charges_pdf':
+                    The charge likelihood evaluated for each DOM.
+                    Shape: [n_events, 86, 60]
                 'pulse_pdf':
                     The likelihood evaluated for each pulse
                     Shape: [n_pulses]
@@ -242,7 +245,13 @@ class DefaultNoiseModel(Source):
         # compute standard deviation
         # std = sqrt(var) = sqrt(mu + alpha*mu**2)
         dom_charges_variance = dom_charges + dom_charges_alpha * dom_charges**2
-        dom_charges_unc = tf.sqrt(dom_charges_variance)
+
+        dom_charges_pdf = basis_functions.tf_log_negative_binomial(
+            x=tf.squeeze(data_batch_dict["x_dom_charge"], axis=3),
+            mu=dom_charges,
+            alpha=dom_charges_alpha,
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
 
         # Compute Log Likelihood for pulses
         # PDF is a uniform distribution in the specified time window.
@@ -283,8 +292,7 @@ class DefaultNoiseModel(Source):
         # add tensors to tensor dictionary
         tensor_dict["time_offsets"] = None
         tensor_dict["dom_charges"] = dom_charges
-        tensor_dict["dom_charges_alpha"] = dom_charges_alpha
-        tensor_dict["dom_charges_unc"] = dom_charges_unc
+        tensor_dict["dom_charges_pdf"] = dom_charges_pdf
         tensor_dict["dom_charges_variance"] = dom_charges_variance
         tensor_dict["pdf_constant"] = dom_pdf_constant
         tensor_dict["pdf_time_window"] = time_window

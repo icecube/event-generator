@@ -150,6 +150,7 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
                     "sigma",
                     "r",
                 ],
+                "loc_parameters": ["mu"],
                 "value_range_mapping": self.decoder._untracked_data[
                     "value_range_mapping"
                 ],

@@ -51,6 +51,16 @@ class TestGammaFunctionDecoder(unittest.TestCase):
         expectation = self.decoder.expectation(self.latent_vars).numpy()
         self.assertTrue(np.allclose(expectation, expectation_np))
 
+    def test_correct_variance(self):
+        """Check if the variance method is correctly implemented"""
+
+        variance_np = basis_functions.gamma_variance(
+            alpha=self.latent_vars[..., 0],
+            beta=self.latent_vars[..., 1],
+        )
+        variance = self.decoder.variance(self.latent_vars).numpy()
+        self.assertTrue(np.allclose(variance, variance_np))
+
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 
@@ -202,6 +212,7 @@ class TestGammaFunctionDecoder(unittest.TestCase):
                     "alpha",
                     "beta",
                 ],
+                "loc_parameters": [],
                 "value_range_mapping": self.decoder._untracked_data[
                     "value_range_mapping"
                 ],

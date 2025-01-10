@@ -739,8 +739,80 @@ def gamma_expectation(alpha, beta, dtype=None):
     return alpha / beta
 
 
+def tf_gamma_variance(alpha, beta, dtype=None):
+    """Gamma: Variance
+
+    Parameters
+    ----------
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    tf.Tensor
+        The variance of the Gamma distribution
+    """
+    alpha, beta = tf_cast(dtype, alpha, beta)
+    return alpha / beta**2
+
+
+def gamma_variance(alpha, beta, dtype=None):
+    """Gamma: Variance
+
+    Parameters
+    ----------
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    array_like
+        The variance of the Gamma distribution
+    """
+    alpha, beta = cast(dtype, alpha, beta)
+    return alpha / beta**2
+
+
+def tf_log_faculty(x):
+    """Continuous log faculty approximation via gamma distribution
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The tensor for which to compute the log faculty approximation.
+
+    Returns
+    -------
+    tf.Tensor
+        The log faculty approximation assuming x is a continuous variable.
+    """
+    return tf.math.lgamma(tf.clip_by_value(x + 1, 2, float("inf")))
+
+
+def log_faculty(x):
+    """Continuous log faculty approximation via gamma distribution
+
+    Parameters
+    ----------
+    x : array_like
+        The tensor for which to compute the log faculty approximation.
+
+    Returns
+    -------
+    array_like
+        The log faculty approximation assuming x is a continuous variable.
+    """
+    return special.gammaln(np.clip(x + 1, 2, np.inf))
+
+
 def tf_poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
     """Poisson PDF
+
+    Note that this is an approximation for continuous values of x.
 
     Parameters
     ----------
@@ -764,7 +836,7 @@ def tf_poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
     def function(x):
         result = tf.exp(-mu) * mu**x
         if add_normalization_term:
-            result /= tf.exp(tf.math.lgamma(x + 1))
+            result /= tf.exp(tf_log_faculty(x))
         return result
 
     # avoid non-finite values in the gradient
@@ -779,6 +851,8 @@ def tf_poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
 
 def poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
     """Poisson PDF
+
+    Note that this is an approximation for continuous values of x.
 
     Parameters
     ----------
@@ -800,7 +874,7 @@ def poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
     x, mu = cast(dtype, x, mu)
     result = np.exp(-mu) * mu**x
     if add_normalization_term:
-        result /= np.exp(special.gammaln(x + 1))
+        result /= np.exp(log_faculty(x))
 
     result = np.where(x < 0, 0.0, result)
     return result
@@ -808,6 +882,8 @@ def poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
 
 def tf_poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
     """Poisson log PDF
+
+    Note that this is an approximation for continuous values of x.
 
     Parameters
     ----------
@@ -831,7 +907,7 @@ def tf_poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
     def function(x):
         result = -mu + x * tf.math.log(mu)
         if add_normalization_term:
-            result -= tf.math.lgamma(x + 1)
+            result -= tf_log_faculty(x)
         return result
 
     result = tf_helpers.double_where_trick_greater_zero(
@@ -842,6 +918,8 @@ def tf_poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
 
 def poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
     """Poisson log PDF
+
+    Note that this is an approximation for continuous values of x.
 
     Parameters
     ----------
@@ -863,7 +941,7 @@ def poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
     x, mu = cast(dtype, x, mu)
     result = -mu + x * np.log(mu)
     if add_normalization_term:
-        result -= special.gammaln(x + 1)
+        result -= log_faculty(x)
 
     result = np.where(x < 0, -np.inf, result)
     return result
@@ -917,7 +995,7 @@ def tf_log_negative_binomial(
     gamma_terms = tf.math.lgamma(x + inv_alpha) - tf.math.lgamma(inv_alpha)
 
     if add_normalization_term:
-        gamma_terms -= tf.math.lgamma(x + 1.0)
+        gamma_terms -= tf_log_faculty(x)
 
     term1 = -inv_alpha * tf.math.log(1.0 + alpha_mu)
     term2 = x * tf.math.log(alpha_mu / (1.0 + alpha_mu))
@@ -980,7 +1058,7 @@ def log_negative_binomial(
     gamma_terms = special.gammaln(x + inv_alpha) - special.gammaln(inv_alpha)
 
     if add_normalization_term:
-        gamma_terms -= special.gammaln(x + 1.0)
+        gamma_terms -= log_faculty(x)
 
     term1 = -inv_alpha * np.log(1.0 + alpha_mu)
     term2 = x * np.log(alpha_mu / (1.0 + alpha_mu))
