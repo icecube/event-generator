@@ -790,7 +790,7 @@ def tf_log_faculty(x):
     tf.Tensor
         The log faculty approximation assuming x is a continuous variable.
     """
-    return tf.math.lgamma(tf.clip_by_value(x + 1, 2, float("inf")))
+    return tf.math.lgamma(tf.clip_by_value(x + 1, 1, float("inf")))
 
 
 def log_faculty(x):
@@ -806,7 +806,7 @@ def log_faculty(x):
     array_like
         The log faculty approximation assuming x is a continuous variable.
     """
-    return special.gammaln(np.clip(x + 1, 2, np.inf))
+    return special.gammaln(np.clip(x + 1, 1, np.inf))
 
 
 def tf_poisson_pdf(x, mu, add_normalization_term=False, dtype=None):

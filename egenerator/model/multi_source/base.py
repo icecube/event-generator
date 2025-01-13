@@ -4,7 +4,6 @@ from egenerator import misc
 from egenerator.model.nested import NestedModel, ConcreteFunctionCache
 from egenerator.manager.component import Configuration
 from egenerator.model.source.base import Source
-from egenerator.model.decoder import NegativeBinomialDecoder, PoissonDecoder
 from egenerator.utils import tf_helpers, basis_functions
 
 
@@ -165,15 +164,12 @@ class MultiSource(NestedModel, Source):
         # as their charge PDF
         for base_model in base_models.values():
             if base_model.decoder_charge is not None:
-                if not isinstance(
-                    base_model.decoder_charge,
-                    (PoissonDecoder, NegativeBinomialDecoder),
-                ):
+                if not base_model.is_charge_decoder():
                     raise ValueError(
-                        "The charge decoder of base model {!r} is not a Poisson "
-                        "or NegativeBinomial decoder. "
-                        "All base models must have a Poisson or NegativeBinomial "
-                        "charge decoder.".format(base_model.name)
+                        f"Expected charge decoder of base model {base_model} "
+                        f"to be either Poisson or NegativeBinomial, or"
+                        f"mixture of these, but got "
+                        f"{base_model.decoder_charge}."
                     )
 
         if decoder is None:

@@ -35,6 +35,16 @@ class AsymmetricGaussianDecoder(LatentToPDFDecoder):
         self.assert_configured(False)
         return ["mu", "sigma", "r"], ["mu"]
 
+    def is_charge_decoder(self):
+        """Check if the decoder is a charge decoder.
+
+        Returns
+        -------
+        bool
+            True if the decoder is a charge decoder, False otherwise.
+        """
+        return False
+
     def _expectation(self, latent_vars, **kwargs):
         """Calculate the expectation value of the PDF.
 

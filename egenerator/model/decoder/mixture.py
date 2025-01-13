@@ -183,6 +183,19 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         else:
             return None
 
+    def is_charge_decoder(self):
+        """Check if the decoder is a charge decoder.
+
+        Returns
+        -------
+        bool or None
+            True if the decoder is a charge decoder, False otherwise.
+        """
+        for base_name in self._untracked_data["models_mapping"].values():
+            if not self.sub_components[base_name].is_charge_decoder:
+                return False
+        return True
+
     def get_parameters_and_mapping(self, config, base_models):
         """Get parameter names of the model input tensor models mapping.
 

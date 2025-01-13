@@ -29,6 +29,16 @@ class LatentToPDFDecoder(Model):
             Evaluate the percent point function at a given input tensor.
     """
 
+    def is_charge_decoder(self):
+        """Check if the decoder is a charge decoder.
+
+        Returns
+        -------
+        bool
+            True if the decoder is a charge decoder, False otherwise.
+        """
+        raise NotImplementedError
+
     @property
     def value_range_mapping(self):
         """Get the value range mapping.
