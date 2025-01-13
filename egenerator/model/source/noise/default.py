@@ -159,19 +159,19 @@ class DefaultNoiseModel(Source):
         # shape: [n_batch]
         livetime = time_window[:, 1] - time_window[:, 0]
 
-        # shape: [n_batch, 1, 1, 1]
+        # shape: [n_batch, 1, 1]
         livetime_exp = tf.reshape(
-            time_window[:, 1] - time_window[:, 0], [-1, 1, 1, 1]
+            time_window[:, 1] - time_window[:, 0], [-1, 1, 1]
         )
 
         # compute the expected charge at each DOM based off of noise rate
-        # shape: [1, 86, 60, 1]
-        dom_noise_rates = tf.reshape(
+        # shape: [1, 86, 60]
+        dom_noise_rates = np.reshape(
             detector.dom_noise_rates.astype(param_dtype_np),
-            shape=[1, 86, 60, 1],
+            [1, 86, 60],
         )
 
-        # shape: [n_batch, 86, 60, 1]
+        # shape: [n_batch, 86, 60]
         dom_charges = dom_noise_rates * livetime_exp
 
         # shape: [n_batch]
@@ -235,9 +235,7 @@ class DefaultNoiseModel(Source):
 
         # scale by time exclusions
         if time_exclusions_exist:
-            dom_charges *= (
-                1.0 - dom_cdf_exclusion[..., tf.newaxis] + self.epsilon
-            )
+            dom_charges *= 1.0 - dom_cdf_exclusion + self.epsilon
 
         # add small constant to make sure dom charges are > 0:
         dom_charges += self.epsilon
@@ -246,11 +244,14 @@ class DefaultNoiseModel(Source):
         # std = sqrt(var) = sqrt(mu + alpha*mu**2)
         dom_charges_variance = dom_charges + dom_charges_alpha * dom_charges**2
 
-        dom_charges_pdf = basis_functions.tf_log_negative_binomial(
-            x=tf.squeeze(data_batch_dict["x_dom_charge"], axis=3),
-            mu=dom_charges,
-            alpha=dom_charges_alpha,
-            dtype=self.configuration.config["config"]["float_precision"],
+        dom_charges_pdf = tf.math.exp(
+            basis_functions.tf_log_negative_binomial(
+                x=tf.squeeze(data_batch_dict["x_dom_charge"], axis=3),
+                mu=dom_charges,
+                alpha=dom_charges_alpha,
+                add_normalization_term=True,
+                dtype=self.configuration.config["config"]["float_precision"],
+            )
         )
 
         # Compute Log Likelihood for pulses
@@ -292,8 +293,12 @@ class DefaultNoiseModel(Source):
         # add tensors to tensor dictionary
         tensor_dict["time_offsets"] = None
         tensor_dict["dom_charges"] = dom_charges
+        tensor_dict["dom_charges_component"] = dom_charges[..., tf.newaxis]
         tensor_dict["dom_charges_pdf"] = dom_charges_pdf
         tensor_dict["dom_charges_variance"] = dom_charges_variance
+        tensor_dict["dom_charges_variance_component"] = dom_charges_variance[
+            ..., tf.newaxis
+        ]
         tensor_dict["pdf_constant"] = dom_pdf_constant
         tensor_dict["pdf_time_window"] = time_window
         tensor_dict["pulse_pdf"] = pulse_pdf

@@ -488,7 +488,7 @@ def _tf_evaluate_gamma(func_name, x, alpha, beta, replacement_value=0.0):
     return tf_helpers.double_where_trick_greater_zero(
         function=getattr(distribution, func_name),
         x=x,
-        cut_x_min=eps,
+        cut_x_min=tf.cast(eps, dtype=x.dtype),
         replacement_value=replacement_value,
     )
 
@@ -565,7 +565,7 @@ def gamma_pdf(x, alpha, beta, dtype=None):
     """
     x, alpha, beta = cast(dtype, x, alpha, beta)
     return np.where(
-        x <= 0,
+        x < 0,
         0.0,
         beta**alpha
         / special.gamma(alpha)
@@ -596,7 +596,7 @@ def gamma_log_pdf(x, alpha, beta, dtype=None):
     """
     x, alpha, beta = cast(dtype, x, alpha, beta)
     return np.where(
-        x <= 0,
+        x < 0,
         -np.inf,
         alpha * np.log(beta)
         - special.gammaln(alpha)
@@ -650,7 +650,7 @@ def gamma_cdf(x, alpha, beta, dtype=None):
         The Gamma CDF evaluated at x
     """
     x, alpha, beta = cast(dtype, x, alpha, beta)
-    return np.where(x <= 0, 0.0, special.gammainc(alpha, beta * x))
+    return np.where(x < 0, 0.0, special.gammainc(alpha, beta * x))
 
 
 def tf_gamma_ppf(q, alpha, beta, dtype=None):
@@ -843,7 +843,7 @@ def tf_poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
     result = tf_helpers.double_where_trick_greater_zero(
         function=function,
         x=x,
-        cut_x_min=0,
+        cut_x_min=tf.cast(0, dtype=x.dtype),
         replacement_value=0.0,
     )
     return result
@@ -911,7 +911,10 @@ def tf_poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
         return result
 
     result = tf_helpers.double_where_trick_greater_zero(
-        function=function, x=x, cut_x_min=0, replacement_value=-np.inf
+        function=function,
+        x=x,
+        cut_x_min=tf.cast(0, dtype=x.dtype),
+        replacement_value=-np.inf,
     )
     return result
 
@@ -1000,7 +1003,9 @@ def tf_log_negative_binomial(
     term1 = -inv_alpha * tf.math.log(1.0 + alpha_mu)
     term2 = x * tf.math.log(alpha_mu / (1.0 + alpha_mu))
 
-    return gamma_terms + term1 + term2
+    result = tf.where(x < 0, -np.inf, gamma_terms + term1 + term2)
+
+    return result
 
 
 def log_negative_binomial(
@@ -1063,7 +1068,9 @@ def log_negative_binomial(
     term1 = -inv_alpha * np.log(1.0 + alpha_mu)
     term2 = x * np.log(alpha_mu / (1.0 + alpha_mu))
 
-    return gamma_terms + term1 + term2
+    result = np.where(x < 0, -np.inf, gamma_terms + term1 + term2)
+
+    return result
 
 
 def convert_neg_binomial_params(mu, alpha_or_var, param_is_alpha):

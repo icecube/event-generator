@@ -171,7 +171,17 @@ class DefaultCascadeModel(Source):
 
                 'dom_charges':
                     The predicted charge at each DOM
-                    Shape: [n_events, 86, 60, 1]
+                    Shape: [n_events, 86, 60]
+                'dom_charges_component':
+                    The predicted charge at each DOM for each component
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_charges_variance':
+                    The predicted charge variance at each DOM
+                    Shape: [n_events, 86, 60]
+                'dom_charges_variance_component':
+                    The predicted charge variance at each DOM for each
+                    component of the mixture model.
+                    Shape: [n_events, 86, 60, n_components]
                 'dom_charges_pdf':
                     The charge likelihood evaluated for each DOM.
                     Shape: [n_events, 86, 60]
@@ -428,8 +438,6 @@ class DefaultCascadeModel(Source):
 
             # extend to correct batch shape:
             dom_coords = tf.ones_like(dx_normed) * dom_coords
-
-            print("\t dom_coords", dom_coords)
             input_list.append(dom_coords)
 
         if config["num_local_vars"] > 0:
@@ -438,8 +446,6 @@ class DefaultCascadeModel(Source):
             local_vars = (
                 tf.ones_like(dx_normed) * self._untracked_data["local_vars"]
             )
-            print("\t local_vars", local_vars)
-
             input_list.append(local_vars)
 
         x_doms_input = tf.concat(input_list, axis=-1)
@@ -550,7 +556,19 @@ class DefaultCascadeModel(Source):
         if n_components < 1:
             raise ValueError("{!r} !> 0".format(n_components))
 
-        print("\t Charge method:", config["charge_distribution_type"])
+        # print out information about the mixture model components
+        print("\t Charge PDF mixture model components:")
+        decoder_config = self.decoder_charge.configuration.config["config"]
+        if "decoder_names" in self.decoder_charge._untracked_data:
+            counter = 0
+            for name in self.decoder_charge._untracked_data["decoder_names"]:
+                base_name, num, weight = decoder_config["decoder_mapping"][
+                    name
+                ]
+                print(f"\t\t {base_name}: {num} [w={weight}]")
+        else:
+            print(f"\t\t Decoder name: {self.decoder_charge.name}")
+
         print("\t Time PDF mixture model components:")
         decoder_config = self.decoder.configuration.config["config"]
         counter = 0
@@ -666,17 +684,19 @@ class DefaultCascadeModel(Source):
 
         # check that things are spelled correctly
         for param_name in config["charge_scale_tensors"]:
-            if param_name not in self.decoder.loc_parameters:
+            if param_name not in self.decoder_charge.loc_parameters:
                 raise ValueError(
                     f"Charge scale tensor {param_name} not found in "
-                    f"decoder loc_parameters: {self.decoder.loc_parameters}!"
+                    f"decoder loc_parameters: {self.decoder_charge.loc_parameters}!"
                 )
 
         # transform charge scale tensors
         latent_vars_charge_scaled = []
         for idx, param_name in enumerate(self.decoder_charge.parameter_names):
 
-            charge_tensor = latent_vars_charge[..., idx]
+            charge_tensor = tf.expand_dims(
+                latent_vars_charge[..., idx], axis=-1
+            )
 
             if param_name in self.decoder_charge.loc_parameters:
 
@@ -695,11 +715,7 @@ class DefaultCascadeModel(Source):
                 # clip value range for more stability during training
                 # apply exponential which also forces positive values
                 charge_tensor = tf.exp(
-                    tf.clip_by_value(
-                        tf.expand_dims(charge_tensor, axis=-1),
-                        -20.0,
-                        15,
-                    )
+                    tf.clip_by_value(charge_tensor, -20.0, 15)
                 )
 
                 if param_name in config["charge_scale_tensors"]:
@@ -719,18 +735,28 @@ class DefaultCascadeModel(Source):
         latent_vars_charge = tf.concat(latent_vars_charge_scaled, axis=-1)
         tensor_dict["latent_vars_charge"] = latent_vars_charge
 
+        tensor_dict["dom_charges_component"] = self.decoder_charge.expectation(
+            latent_vars=latent_vars_charge,
+            reduce_components=False,
+        )
         tensor_dict["dom_charges"] = self.decoder_charge.expectation(
             latent_vars=latent_vars_charge,
+            reduce_components=True,
+        )
+        tensor_dict["dom_charges_variance_component"] = (
+            self.decoder_charge.variance(
+                latent_vars=latent_vars_charge, reduce_components=False
+            )
         )
         tensor_dict["dom_charges_variance"] = self.decoder_charge.variance(
-            latent_vars=latent_vars_charge,
+            latent_vars=latent_vars_charge, reduce_components=True
         )
 
         # -------------------------
         # Compute charge PDF values
         # -------------------------
         dom_charges_pdf = self.decoder_charge.pdf(
-            x=dom_charges_true,
+            x=tf.squeeze(dom_charges_true, axis=3),
             latent_vars=latent_vars_charge,
             reduce_components=True,
         )

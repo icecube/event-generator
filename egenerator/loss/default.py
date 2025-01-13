@@ -145,7 +145,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         tensors : DataTensorList
@@ -283,7 +283,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         tensors : DataTensorList
@@ -322,7 +322,7 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         dom_charges_true = tf.squeeze(hits_true, axis=-1)
-        dom_charges_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
+        dom_charges_pred = result_tensors["dom_charges"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -664,7 +664,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'dom_charges_pdf': charge likelihood evaluated for each DOM
                                Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
@@ -1016,7 +1016,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'dom_charges_variance':
                     the predicted variance on the charge at each DOM.
                     This assumes the underlying distribution is a negative
@@ -1049,10 +1049,8 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
-        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
-        dom_charges_variance = tf.squeeze(
-            result_tensors["dom_charges_variance"], axis=-1
-        )
+        hits_pred = result_tensors["dom_charges"]
+        dom_charges_variance = result_tensors["dom_charges_variance"]
 
         # compute over-dispersion factor alpha
         # var = mu + alpha*mu**2
@@ -1151,7 +1149,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'dom_charges_variance':
                     the predicted variance on the charge at each DOM.
                     This assumes the underlying distribution is a negative
@@ -1184,10 +1182,8 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
-        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
-        dom_charges_variance = tf.squeeze(
-            result_tensors["dom_charges_variance"], axis=-1
-        )
+        hits_pred = result_tensors["dom_charges"]
+        dom_charges_variance = result_tensors["dom_charges_variance"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -1299,7 +1295,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
         tensors : DataTensorList
             The data tensor list describing the input data
         sort_loss_terms : bool, optional
@@ -1326,7 +1322,7 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
-        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
+        hits_pred = result_tensors["dom_charges"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and

@@ -445,6 +445,7 @@ model_settings: {
 
     # configuration settings for DefaultMultiCascadeModel object
     config: {
+        'float_precision': float32,
         'sources': {
             'noise': 'noise',
             'cascade': 'cascade',
@@ -483,7 +484,7 @@ model_settings: {
                 # define names of charge latent vars that should be
                 # scaled internally by the model (e.g. by the energy, eff.)
                 # Note: the decoder should not add additional value
-                # range mapping for these indices!
+                # range mapping for these tensors!
                 'charge_scale_tensors': ["mu"],
 
                 # Baseline DOM Angular acceptance
@@ -513,7 +514,7 @@ model_settings: {
             # variables to the expected charge PDF.
             decoder_charge_settings: {
                 # The decoder class to use
-                decoder_class: "egenerator.model.decoder.static.NegativeBinomialDecoder",
+                decoder_class: "egenerator.model.decoder.NegativeBinomialDecoder",
 
                 # configuration of the negative binomial model
                 'config': {
@@ -521,14 +522,6 @@ model_settings: {
 
                     # Define a mapping of latent variable to value range functions
                     "value_range_mapping": {
-                        "mu": {
-                            "value_range_class": "egenerator.utils.value_range.ExpValueRange",
-                            "config": {
-                                "scale": 1.0,
-                                "offset": 0.0,
-                                "min_value": 0.0000001,
-                            },
-                        },
                         "alpha": {
                             "value_range_class": "egenerator.utils.value_range.EluValueRange",
                             "config": {
@@ -575,7 +568,7 @@ model_settings: {
                 # model
                 base_decoders: {
                     AssymetricGaussian: {
-                        'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
+                        'decoder_class': 'egenerator.model.decoder.AsymmetricGaussianDecoder',
                         'config': {
                             'float_precision': float32,
 
@@ -614,7 +607,7 @@ model_settings: {
                         # 'load_dir': 'path/to/model',
                     },
                     GammaFunction: {
-                        'decoder_class': 'egenerator.model.decoder.static.gamma.GammaFunctionDecoder',
+                        'decoder_class': 'egenerator.model.decoder.GammaFunctionDecoder',
                         'config': {
                             'float_precision': float32,
                             'offset': 0.0, # note that offset is in model time units

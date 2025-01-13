@@ -185,7 +185,6 @@ class Source(Model):
             settings = dict(config=config, decoder=None)
         if decoder_charge is not None:
             sub_components["decoder_charge"] = decoder_charge
-            settings["decoder_charge"] = decoder_charge
         else:
             # add empty decoder to config to keep track of it
             settings["decoder_charge"] = None
