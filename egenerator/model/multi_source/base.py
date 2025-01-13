@@ -164,7 +164,7 @@ class MultiSource(NestedModel, Source):
         # as their charge PDF
         for base_model in base_models.values():
             if base_model.decoder_charge is not None:
-                if not base_model.is_charge_decoder():
+                if not base_model.decoder_charge.is_charge_decoder():
                     raise ValueError(
                         f"Expected charge decoder of base model {base_model} "
                         f"to be either Poisson or NegativeBinomial, or"
@@ -466,6 +466,12 @@ class MultiSource(NestedModel, Source):
 
         # re-compute PDF values for all sources
         # Shape: [n_events, 86, 60, n_components_accumulated]
+        # should already be normalized, but just to be sure
+        component_weights /= tf.reduce_sum(
+            component_weights,
+            axis=3,
+            keepdims=True,
+        )
         component_alpha = (component_var - component_mu) / component_mu**2
         component_alpha = tf.clip_by_value(component_alpha, 1e-6, float("inf"))
         component_log_pdf = basis_functions.tf_log_negative_binomial(

@@ -458,7 +458,77 @@ model_settings: {
         noise: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
-            config: {'float_precision': float32},
+
+            config: {
+                'float_precision': float32,
+                'num_local_vars': 9,
+
+                # define names of charge latent vars that should be
+                # scaled internally by the model (e.g. by the energy, eff.)
+                # Note: the decoder should not add additional value
+                # range mapping for these tensors!
+                'charge_scale_tensors': [
+                    "NegativeBinomial_mu_000",
+                    "NegativeBinomial_mu_001",
+                    "NegativeBinomial_mu_002",
+                ],
+            },
+
+            # configuration for the charge decoder to transform the latent
+            # variables to the expected charge PDF.
+            decoder_charge_settings: {
+
+                # The decoder class to use
+                decoder_class: "egenerator.model.decoder.mixture.MixtureModel",
+
+                # configuration of the mixture model
+                config: {
+                    # Note that mapping here will just repeat the names,
+                    # but in other cases it could be used to reuse the
+                    # same base model multiple times (as for MultiSource objects)
+                    "decoder_mapping": {
+                        "NegativeBinomial": ["NegativeBinomial", 3, 1.0],
+                    },
+
+                    # Define a mapping of latent variable to value range functions
+                    "value_range_mapping": {
+                        "weight": {
+                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                            "config": {
+                                "scale": 1.0,
+                                "offset": 1.0,
+                                "min_value": 0.000001
+                            },
+                        },
+                    },
+                },
+
+                # Define the decoder types that are used as components of the mixture
+                # model
+                base_decoders: {
+                    "NegativeBinomial": {
+                        # The decoder class to use
+                        decoder_class: "egenerator.model.decoder.NegativeBinomialDecoder",
+
+                        # configuration of the negative binomial model
+                        'config': {
+                            'float_precision': float32,
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "alpha": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": -5.0,
+                                        "min_value": 0.000001,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
         },
 
         cascade: {
