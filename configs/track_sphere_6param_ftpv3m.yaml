@@ -572,6 +572,12 @@ model_settings: {
                 'float_precision': float32,
                 'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
 
+                # define names of charge latent vars that should be
+                # scaled internally by the model (e.g. by the energy, eff.)
+                # Note: the decoder should not add additional value
+                # range mapping for these tensors!
+                'charge_scale_tensors': ["mu"],
+
                 # Baseline DOM Angular acceptance
                 'use_constant_baseline_hole_ice': True,
                 'baseline_hole_ice_p0': 0.25,
