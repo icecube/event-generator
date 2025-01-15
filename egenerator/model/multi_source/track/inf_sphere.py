@@ -57,7 +57,7 @@ class InfSphereTrackEquidistantCascadeModel(MultiSource):
             raise ValueError(msg.format(base_models.keys()))
 
         # gather parameter names and sources
-        sources = {}
+        sources = {"track": "track"}
         parameter_names = [
             "entry_zenith",
             "entry_azimuth",
@@ -95,8 +95,9 @@ class InfSphereTrackEquidistantCascadeModel(MultiSource):
         c = 0.299792458  # meter / ns
         d_thresh = 700  # meter
 
-        sphere_radius = self.configuration.config["sphere_radius"]
-        cascade_spacing = self.configuration.config["cascade_spacing"]
+        config = self.configuration.config["config"]
+        sphere_radius = config["sphere_radius"]
+        cascade_spacing = config["cascade_spacing"]
 
         e_zenith = parameters.params["entry_zenith"]
         e_azimuth = parameters.params["entry_azimuth"]
@@ -125,7 +126,8 @@ class InfSphereTrackEquidistantCascadeModel(MultiSource):
                     e_energy,
                     zenith,
                     azimuth,
-                ]
+                ],
+                axis=1,
             )
         }
 
