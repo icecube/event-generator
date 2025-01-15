@@ -805,7 +805,7 @@ class EnteringSphereInfTrack(Source):
                     )
                 else:
                     print(
-                        f"Applying charge scale to {param_name} at index {idx}"
+                        f"\t Applying charge scale to {param_name} at index {idx}"
                     )
 
                 # clip value range for more stability during training
