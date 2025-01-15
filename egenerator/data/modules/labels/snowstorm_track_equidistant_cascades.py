@@ -31,8 +31,9 @@ class SnowstormTrackEquidistantCascadesLabelModule(GeneralLabelModule):
         config_data,
         trafo_log,
         float_precision,
-        num_cascades=5,
-        label_key="MCLabelsMuonEnergyLossesInCylinder",
+        num_cascades,
+        label_key="LabelsMCTrackSphere",
+        additional_labels=None,
         snowstorm_key="SnowstormParameterDict",
         snowstorm_parameters=[],
     ):
@@ -44,16 +45,12 @@ class SnowstormTrackEquidistantCascadesLabelModule(GeneralLabelModule):
         config_data : None, str, or DataTensorList
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
-        trafo_log : None or bool or list of bool
-            Whether or not to apply logarithm on parameters.
-            If a single bool is given, this applies to all labels. Otherwise
+        trafo_log : list of bool
+            Whether or not to apply logarithm on the track parameters.
+            The logarithm for the energy losses is taken for each cascade.
             a list of bools corresponds to the labels in the order:
-                track_anchor_x, track_anchor_y, track_anchor_z,
-                zenith, azimuth,
-                track_anchor_time,
-                cascade_energy_losses,
-            The value defined for `cascade_energy_losses` will be applied to
-            all energy losses.
+                "entry_zenith", "entry_azimuth", "entry_t", "entry_energy",
+                "zenith", "azimuth", "energy_loss"
             Snowstorm parameters must not be defined here. No logarithm will be
             applied to the snowstorm parameters.
         float_precision : str
@@ -62,6 +59,9 @@ class SnowstormTrackEquidistantCascadesLabelModule(GeneralLabelModule):
             Number of cascades along the track.
         label_key : str, optional
             The name of the key under which the labels are saved.
+        additional_labels : list, optional
+            A list of additional labels to load from the label_key.
+            These labels are added before the snowstorm keys if provided.
         snowstorm_key : str, optional
             The name of the key under which the snowstorm parameters are saved.
             If `snowstorm_key` is None, no snowstorm parameters will be loaded.
@@ -116,17 +116,20 @@ class SnowstormTrackEquidistantCascadesLabelModule(GeneralLabelModule):
                 "Num cascades {} must be > 0!".format(num_cascades)
             )
 
+        assert len(trafo_log) == 7, trafo_log
+        trafo_log = trafo_log[:6] + [trafo_log[6]] * num_cascades
+
         # create list of parameter names which is needed for data loading
         parameter_names = [
-            "track_anchor_x",
-            "track_anchor_y",
-            "track_anchor_z",
+            "entry_zenith",
+            "entry_azimuth",
+            "entry_t",
+            "entry_energy",
             "zenith",
             "azimuth",
-            "track_anchor_time",
         ]
         for i in range(num_cascades):
-            parameter_names.append("EnergyLoss_{:05d}".format(i))
+            parameter_names.append(f"energy_loss_{i:04d}")
 
         _, data, _ = super(
             SnowstormTrackEquidistantCascadesLabelModule, self
@@ -136,6 +139,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(GeneralLabelModule):
             float_precision=float_precision,
             parameter_names=parameter_names,
             label_key=label_key,
+            additional_labels=additional_labels,
             snowstorm_key=snowstorm_key,
             snowstorm_parameters=snowstorm_parameters,
         )
@@ -148,6 +152,7 @@ class SnowstormTrackEquidistantCascadesLabelModule(GeneralLabelModule):
                 float_precision=float_precision,
                 num_cascades=num_cascades,
                 label_key=label_key,
+                additional_labels=additional_labels,
                 snowstorm_key=snowstorm_key,
                 snowstorm_parameters=snowstorm_parameters,
             ),
