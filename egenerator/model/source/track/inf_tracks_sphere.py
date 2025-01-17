@@ -831,19 +831,25 @@ class EnteringSphereInfTrack(Source):
         latent_vars_charge = tf.concat(latent_vars_charge_scaled, axis=-1)
         tensor_dict["latent_vars_charge"] = latent_vars_charge
 
-        tensor_dict["dom_charges_component"] = self.decoder_charge.expectation(
+        dom_charges_component = self.decoder_charge.expectation(
             latent_vars=latent_vars_charge,
             reduce_components=False,
         )
+        if dom_charges_component.shape[1:] == [86, 60]:
+            dom_charges_component = dom_charges_component[..., tf.newaxis]
+        tensor_dict["dom_charges_component"] = dom_charges_component
+
         tensor_dict["dom_charges"] = self.decoder_charge.expectation(
             latent_vars=latent_vars_charge,
             reduce_components=True,
         )
-        tensor_dict["dom_charges_variance_component"] = (
-            self.decoder_charge.variance(
-                latent_vars=latent_vars_charge, reduce_components=False
-            )
+        variance_component = self.decoder_charge.variance(
+            latent_vars=latent_vars_charge, reduce_components=False
         )
+        if variance_component.shape[1:] == [86, 60]:
+            variance_component = variance_component[..., tf.newaxis]
+        tensor_dict["dom_charges_variance_component"] = variance_component
+
         tensor_dict["dom_charges_variance"] = self.decoder_charge.variance(
             latent_vars=latent_vars_charge, reduce_components=True
         )
