@@ -593,9 +593,6 @@ model_settings: {
                 'num_cascades': 10,
                 'config_cascade': {
 
-                    # The cascade source model class to use
-                    'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
-
                     config: {
                         'keep_prob':,
                         'shift_cascade_vertex': True,
@@ -607,7 +604,7 @@ model_settings: {
                         'scale_charge': True,
                         'scale_charge_by_relative_dom_efficiency': True,
                         'scale_charge_by_global_dom_efficiency': False,
-                        'scale_charge_by_angular_acceptance': True,
+                        'scale_charge_by_angular_acceptance': False,
                         'scale_charge_by_relative_angular_acceptance': False,
                         'float_precision': float32,
                         'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
@@ -622,11 +619,6 @@ model_settings: {
                         'use_constant_baseline_hole_ice': True,
                         'baseline_hole_ice_p0': 0.25,
                         'baseline_hole_ice_p1': -0.06,
-
-                        # This is a list of labels in addition to
-                        # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
-                        'additional_label_names' : [
-                        ],
 
                         # First convolutions
                         'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
