@@ -434,6 +434,11 @@ class EnteringSphereInfTrackMultiCascade(Source):
         # Shape: [None, n_sel, 86, 60]
         parameter_list = tf.unstack(parameters, axis=-1)
 
+        # make sure energy is >= 0
+        parameter_list[5] = tf.clip_by_value(
+            parameter_list[5], 0.0, float("inf")
+        )
+
         # shift cascade vertex to shower maximum
         if config["shift_cascade_vertex"]:
             x, y, z, t = shift_to_maximum(
