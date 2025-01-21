@@ -127,7 +127,12 @@ reconstruction_settings: {
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
-
+        "track_entry_zenith": True,
+        "track_entry_azimuth": True,
+        "track_entry_t": True,
+        "track_entry_energy": True,
+        "track_zenith": True,
+        "track_azimuth": True,
     },
 }
 
@@ -173,7 +178,7 @@ data_iterator_settings: {
 
     # The training data iterator
     'training': {
-        'batch_size': 32,
+        'batch_size': 8,
         'num_splits': ,
         'file_capacity': 5,
         'batch_capacity': 500,
