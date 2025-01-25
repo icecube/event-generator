@@ -178,7 +178,7 @@ data_iterator_settings: {
 
     # The training data iterator
     'training': {
-        'batch_size': 8,
+        'batch_size': 4,
         'num_splits': ,
         'file_capacity': 5,
         'batch_capacity': 500,
@@ -224,7 +224,7 @@ data_iterator_settings: {
 
     # The validation data iterator
     'validation': {
-        'batch_size': 32,
+        'batch_size': 4,
         'num_splits': ,
         'file_capacity': 1,
         'batch_capacity': 10,
@@ -595,7 +595,7 @@ model_settings: {
 
                 # define the cascade setup
                 'cascade_spacing': 10.,
-                'num_cascades': 10,
+                'num_cascades': 30,
                 'config_cascade': {
 
                     config: {
@@ -612,7 +612,7 @@ model_settings: {
                         'scale_charge_by_angular_acceptance': False,
                         'scale_charge_by_relative_angular_acceptance': False,
                         'float_precision': float32,
-                        'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
+                        'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, -20, -5],
 
                         # define names of charge latent vars that should be
                         # scaled internally by the model (e.g. by the energy, eff.)
@@ -626,16 +626,15 @@ model_settings: {
                         'baseline_hole_ice_p1': -0.06,
 
                         # First convolutions
-                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                        'num_filters_list' : [50, 100, 100, 100, 100, 45],
+                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1]],
+                        'num_filters_list' : [30, 100, 100, 28],
                         'method_list' : ['locally_connected',
                                         'convolution', 'convolution', 'convolution',
-                                        'convolution', 'convolution',
                                         ],
                         'use_dropout_list' : False,
-                        'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
+                        'activation_list' : ['elu', 'elu', 'elu', ''],
                         'use_batch_norm_list' : False,
-                        'use_residual_list' : [True, True, True, True, True, False]
+                        'use_residual_list' : [True, True, True, False]
                     },
 
                     # configuration for the charge decoder to transform the latent
@@ -675,8 +674,8 @@ model_settings: {
                             # but in other cases it could be used to reuse the
                             # same base model multiple times (as for MultiSource objects)
                             "decoder_mapping": {
-                                "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
-                                "GammaFunction": ["GammaFunction", 5, 10.0],
+                                "AssymetricGaussian": ["AssymetricGaussian", 5, 1.0],
+                                "GammaFunction": ["GammaFunction", 2, 10.0],
                             },
 
                             # Define a mapping of latent variable to value range functions

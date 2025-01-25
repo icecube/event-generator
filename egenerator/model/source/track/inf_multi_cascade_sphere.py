@@ -870,7 +870,6 @@ class EnteringSphereInfTrackMultiCascade(Source):
 
         # scale charges by cascade energy
         if config["scale_charge"]:
-            # make sure cascade energy does not turn negative
             # Shape:[n_batch, n_sel, 86, 60]
             e_scale = parameter_list[5] / 1000.0
 
