@@ -593,6 +593,9 @@ model_settings: {
                     # The cascade source model class to use
                     'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
+                    # The directory from which this base source will be loaded
+                    'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/cascade_7param_noise_ftpv3m/manager/models_0000/',
+
                     config: {
                         'keep_prob':,
                         'shift_cascade_vertex': True,
