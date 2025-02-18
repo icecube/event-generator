@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'track_sphere_6param_ftpv3m'
+unique_name: 'track_sphere_6param_ftpv3m_quantile'
 
 #------------------
 # Training settings
