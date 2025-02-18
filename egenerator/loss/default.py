@@ -566,6 +566,15 @@ class DefaultLossModule(BaseComponent):
         # Shape: [n_pulses, 4] # [batch, string, dom, pulse_number]
         mask_first = data_batch_dict["x_pulses_ids"][:, 3] == 0
 
+        # add pulses up to the defined quantile
+        if "mpe_quantile" in self.configuration.config["config"]:
+            mpe_quantile = self.configuration.config["config"]["mpe_quantile"]
+            pulse_quantiles = data_batch_dict["x_pulses"][:, 2]
+            mask_first = tf.math.logical_and(
+                mask_first, pulse_quantiles <= mpe_quantile
+            )
+            print(f"Using quantile {mpe_quantile} for MPE loss")
+
         # Shape: [n_pulses_first]
         pulses_ids_first = data_batch_dict["x_pulses_ids"][:, :3][mask_first]
         pulse_pdf_value_first = pulse_pdf_values[mask_first]

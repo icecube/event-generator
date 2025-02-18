@@ -377,6 +377,7 @@ class PulseDataModule(BaseComponent):
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
+                # Note: assumes pulses are sorted in time
                 cum_charge = float(x_dom_charge[index, string - 1, dom - 1, 0])
                 x_pulses[pulse_index] = [row.charge, row.time, cum_charge]
 
