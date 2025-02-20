@@ -570,7 +570,7 @@ class DefaultLossModule(BaseComponent):
         if "mpe_quantile" in self.configuration.config["config"]:
             mpe_quantile = self.configuration.config["config"]["mpe_quantile"]
             pulse_quantiles = data_batch_dict["x_pulses"][:, 2]
-            mask_first = tf.math.logical_and(
+            mask_first = tf.math.logical_or(
                 mask_first, pulse_quantiles <= mpe_quantile
             )
             print(f"Using quantile {mpe_quantile} for MPE loss")
