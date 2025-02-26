@@ -3,10 +3,10 @@ __author_email__ = "mirco.huennefeld@tu-dortmund.de"
 __description__ = "IceCube Event-Generator"
 __url__ = "https://github.com/icecube/event-generator"
 
-__version_major__ = 1
-__version_minor__ = 1
+__version_major__ = 2
+__version_minor__ = 0
 __version_patch__ = 0
-__version_info__ = "-dev"
+__version_info__ = ""
 
 __version__ = "{}.{}.{}{}".format(
     __version_major__,
@@ -39,7 +39,16 @@ __version__ = "{}.{}.{}{}".format(
 #     }],
 # }
 __version_compatibility__ = {
-    "1.1.0": [
+    "2.0.0": [
+        {
+            "Description": (
+                "Major code restructuring and refactoring. "
+                "Introduction of LatentToPDF mixture models for charge "
+                "and time distributions. Overall code cleanup. "
+                "This is not backwards compatible with previous versions."
+            ),
+            "type": "global",
+        },
         {
             "Description": (
                 "Bugfix: Fixed a bug in the re-normalization for time "
