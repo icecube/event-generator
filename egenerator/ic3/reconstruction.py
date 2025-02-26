@@ -352,6 +352,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     "config": {
                         "sigmas": [],
                         "uniform_parameters": self.parameter_boundaries,
+                        "float_precision": "float64",
                     },
                 }
             ]
@@ -398,10 +399,10 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
 
         for model in self.manager.models:
             num_vars, num_total_vars = model.num_variables
-            msg = "\nNumber of Model Variables:\n"
-            msg += "\tFree: {}\n"
-            msg += "\tTotal: {}"
-            log_info(msg.format(num_vars, num_total_vars))
+            msg = f"\nNumber of Model Variables for {model.name}:\n"
+            msg += f"\tFree: {num_vars}\n"
+            msg += f"\tTotal: {num_total_vars}"
+            log_info(msg)
 
         # ------------------------------
         # Gather Reconstruction Settings
@@ -416,7 +417,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
         # get a list of parameters to fit
         fit_parameter_list = [
             self.minimize_parameter_default_value
-            for i in range(self.manager.models[0].num_parameters)
+            for i in range(self.manager.models[0].n_parameters)
         ]
         for name, value in self.minimize_parameter_dict.items():
             fit_parameter_list[self.manager.models[0].get_index(name)] = value

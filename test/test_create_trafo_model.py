@@ -91,9 +91,10 @@ class TestCreateTrafoModel(unittest.TestCase):
                 "float_precision": "float32",
                 "add_charge_quantiles": False,
                 "discard_pulses_from_excluded_doms": False,
+                "time_window_buffer": 0.0,
             },
             # settings for the label module
-            "label_module": "cascades.CascadeGeneratorLabelModule",
+            "label_module": "snowstorm_cascades.SnowstormCascadeGeneratorLabelModule",
             "label_settings": {
                 # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
                 "trafo_log": [False, False, False, False, False, False, False],

@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 import logging
 import numpy as np
 import pandas as pd
@@ -152,6 +150,7 @@ class GeneralLabelModule(BaseComponent):
                 config_data=config_data,
                 trafo_log=trafo_log,
                 float_precision=float_precision,
+                parameter_names=parameter_names,
                 label_key=label_key,
                 snowstorm_key=snowstorm_key,
                 snowstorm_parameters=snowstorm_parameters,

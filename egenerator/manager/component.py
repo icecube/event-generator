@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 import os
 import pickle
 import logging
@@ -188,7 +186,9 @@ class Configuration(object):
         if event_generator_uncommitted_changes is None:
             event_generator_uncommitted_changes = uncommitted_changes
 
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or logging.getLogger(
+            misc.get_full_class_string_of_object(self)
+        )
         self._dict = {
             "event_generator_version": egenerator.__version__,
             "event_generator_git_sha": event_generator_git_sha,
@@ -524,7 +524,9 @@ class BaseComponent(object):
         logger : logging.logger, optional
             The logger instance to use.
         """
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or logging.getLogger(
+            misc.get_full_class_string_of_object(self)
+        )
         self._is_configured = False
         self._configuration = None
         self._data = None

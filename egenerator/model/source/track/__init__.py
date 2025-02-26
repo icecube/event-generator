@@ -1,7 +1,7 @@
-from egenerator.model.source.track.stochastic_segment import (
-    StochasticTrackSegmentModel,
+from egenerator.model.source.track.inf_tracks_sphere import (
+    EnteringSphereInfTrack,
 )
 
 __all__ = [
-    "StochasticTrackSegmentModel",
+    "EnteringSphereInfTrack",
 ]

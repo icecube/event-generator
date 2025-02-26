@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 from egenerator import misc
 from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList
