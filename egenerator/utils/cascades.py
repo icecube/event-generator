@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 
 def get_dist_to_shower_max(ref_energy, eps=1e-6):
@@ -30,7 +29,7 @@ def get_dist_to_shower_max(ref_energy, eps=1e-6):
     """
     if tf.is_tensor(ref_energy):
         log_func = tf.math.log
-        clip_func = tfp.math.clip_by_value_preserve_gradient
+        clip_func = tf.clip_by_value
     else:
         log_func = np.log
         clip_func = np.clip

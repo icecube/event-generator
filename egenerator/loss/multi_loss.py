@@ -1,4 +1,3 @@
-from __future__ import division, print_function
 import logging
 
 from egenerator import misc
@@ -25,13 +24,17 @@ class MultiLossModule(BaseComponent):
         self._logger = logger or logging.getLogger(__name__)
         super(MultiLossModule, self).__init__(logger=self._logger)
 
-    def _configure(self, loss_modules):
+    def _configure(self, loss_modules, loss_modules_weights):
         """Configure the MultiLossModule component instance.
 
         Parameters
         ----------
         loss_modules : list of loss modules
             A list of loss module components.
+        loss_modules_weights : list of float
+            A list of weights for the loss modules.
+            The loss of each loss module will be multiplied by the
+            corresponding weight.
 
         Returns
         -------
@@ -66,16 +69,22 @@ class MultiLossModule(BaseComponent):
         """
 
         dependent_sub_components = {}
+        weight_dict = {}
         for i, module in enumerate(loss_modules):
-            dependent_sub_components["loss_modules_{:04d}".format(i)] = module
+            dependent_sub_components[f"loss_modules_{i:04d}"] = module
+            weight_dict[f"loss_modules_{i:04d}"] = loss_modules_weights[i]
 
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(),
+            mutable_settings=dict(loss_modules_weights=loss_modules_weights),
         )
+        data = {
+            "weight_dict": weight_dict,
+        }
 
-        return configuration, {}, dependent_sub_components
+        return configuration, data, dependent_sub_components
 
     def get_loss(
         self,
@@ -150,6 +159,7 @@ class MultiLossModule(BaseComponent):
         loss_terms = []
         loss = None
         for key in sorted(self.sub_components.keys()):
+            weight_i = self.data["weight_dict"][key]
             loss_module = self.sub_components[key]
             loss_i = loss_module.get_loss(
                 data_batch_dict=data_batch_dict,
@@ -165,7 +175,7 @@ class MultiLossModule(BaseComponent):
                 if loss is None:
                     loss = loss_i
                 else:
-                    loss += loss_i
+                    loss += loss_i * weight_i
             else:
                 if sort_loss_terms:
                     assert len(loss_i) == 3, (loss_module, loss_i)
@@ -174,8 +184,11 @@ class MultiLossModule(BaseComponent):
                         loss_terms = loss_i
                     else:
                         for term_index in range(3):
-                            loss_terms[term_index] += loss_i[term_index]
+                            loss_terms[term_index] += (
+                                loss_i[term_index] * weight_i
+                            )
                 else:
+                    loss_i = [loss_i_i * weight_i for loss_i_i in loss_i]
                     loss_terms.extend(loss_i)
 
         if reduce_to_scalar:

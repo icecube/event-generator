@@ -9,7 +9,8 @@ from datetime import datetime
 
 from egenerator import misc
 from egenerator.manager.component import Configuration, BaseComponent
-from egenerator.model.source.base import Source, InputTensorIndexer
+from egenerator.model.source.base import Source
+from egenerator.model.base import InputTensorIndexer
 from egenerator.settings.yaml import yaml_loader
 
 
@@ -134,7 +135,7 @@ class TestSourceBase(unittest.TestCase):
             "time",
         ]
 
-        config = {"dummysourcesetting": 1337}
+        config = {"dummysourcesetting": 1337, "float_precision": "float32"}
         self.source = self.get_dummy_source(
             config=config, data_trafo=self.data_trafo
         )
@@ -142,7 +143,7 @@ class TestSourceBase(unittest.TestCase):
         class_string = misc.get_full_class_string_of_object(self.source)
         self.configuration = Configuration(
             class_string=class_string,
-            settings=dict(config=config),
+            settings=dict(config=config, decoder=None, decoder_charge=None),
             mutable_settings=dict(name="egenerator.model.source.base"),
         )
         self.configuration.add_sub_components({"data_trafo": self.data_trafo})
@@ -250,21 +251,25 @@ class TestSourceBase(unittest.TestCase):
         )
         self.assertEqual(self.source.data, {})
         self.assertEqual(self.source.data_trafo, self.data_trafo)
-        self.assertEqual(self.source.name, "egenerator.model.source.base")
+        self.assertEqual(self.source.name, "DummySourceModel")
         self.assertEqual(self.source.parameter_names, self.parameter_names)
         self.assertTrue(
             self.source.configuration.is_compatible(self.configuration)
         )
 
+        self.maxDiff = None
         self.assertDictEqual(
             self.source._untracked_data,
             {
-                "name": "egenerator.model.source.base",
+                "name": "DummySourceModel",
                 "checkpoint": self.source.checkpoint,
                 "step": self.source._untracked_data["step"],
                 "dummy_var": self.source._untracked_data["dummy_var"],
                 "variables": self.source._untracked_data["variables"],
-                "num_parameters": 7,
+                "variables_top_level": self.source._untracked_data[
+                    "variables_top_level"
+                ],
+                "n_parameters": 7,
                 "parameter_index_dict": self.source._untracked_data[
                     "parameter_index_dict"
                 ],

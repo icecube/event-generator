@@ -66,5 +66,37 @@ __version_compatibility__ = {
             ),
             "type": "global",
         },
+        {
+            "Description": (
+                "The cascade default model was modified to change the "
+                "charge scaling. The asymmetric Gaussian components "
+                "are now offset by the time it takes for the first photon"
+                "to reach the DOM from the cascade vertex. This change is "
+                "not backwards compatible with previous versions. "
+                "In addition, a number of naming changes were made to "
+                "various modules and components in event-generator. "
+            ),
+            "type": "global",
+        },
+        {
+            "Description": (
+                "The label modules were restructured to reduce code "
+                "duplication. This change is not backwards compatible "
+                "with previous versions."
+            ),
+            "type": "global",
+        },
+        {
+            "Description": (
+                "The x_pulses_ids now also includes the pulse number at "
+                "the given DOM. This allows for easy selection of the "
+                "first pulses at a DOM, for instance. "
+                "A result of this change is that the tensor changed "
+                "its shape from [n_pulses, 3] to [n_pulses, 4]. This "
+                "breaks backwards compatibility and may also require "
+                "updates in dependen user code."
+            ),
+            "type": "global",
+        },
     ],
 }

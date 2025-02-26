@@ -1,27 +1,11 @@
-from __future__ import division, print_function
-import logging
 import tensorflow as tf
-import tensorflow_probability as tfp
 
 from egenerator.model.multi_source.base import MultiSource
 
 
 class StartingVariableMultiCascadeModel(MultiSource):
 
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(StartingVariableMultiCascadeModel, self).__init__(
-            logger=self._logger
-        )
-
-    def get_parameters_and_mapping(self, config, base_sources):
+    def get_parameters_and_mapping(self, config, base_models):
         """Get parameter names and their ordering as well as source mapping.
 
         This is a pure virtual method that must be implemented by
@@ -31,7 +15,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
         ----------
         config : dict
             A dictionary of settings.
-        base_sources : dict of Source objects
+        base_models : dict of Source objects
             A dictionary of sources. These sources are used as a basis for
             the MultiSource object. The event hypothesis can be made up of
             multiple sources which may be created from one or more
@@ -53,9 +37,9 @@ class StartingVariableMultiCascadeModel(MultiSource):
         """
         self._untracked_data["num_cascades"] = config["num_cascades"]
 
-        if list(base_sources.keys()) != ["cascade"]:
+        if list(base_models.keys()) != ["cascade"]:
             msg = "Expected only 'cascade' base, but got {!r}"
-            raise ValueError(msg.format(base_sources.keys()))
+            raise ValueError(msg.format(base_models.keys()))
 
         sources = {"starting_cascade": "cascade"}
         parameters = ["x", "y", "z", "zenith", "azimuth", "energy", "time"]
@@ -67,7 +51,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
 
         return parameters, sources
 
-    def get_source_parameters(self, parameters):
+    def get_model_parameters(self, parameters):
         """Get the input parameters for the individual sources.
 
         Parameters
@@ -83,7 +67,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
             Returns a dictionary of (name: input_parameters) pairs, where
             name is the name of the Source and input_parameters is a tf.Tensor
             for the input parameters of this Source.
-
+            Each input_parameters tensor has shape [..., n_parameters_i].
         """
         c = 0.299792458  # meter / ns
 
@@ -101,7 +85,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
         dir_z = -tf.cos(zenith)
 
         source_parameter_dict = {}
-        for cascade in sorted(self._untracked_data["sources"].keys()):
+        for cascade in sorted(self._untracked_data["models_mapping"].keys()):
 
             if cascade == "starting_cascade":
                 source_parameter_dict[cascade] = tf.stack(
@@ -120,7 +104,7 @@ class StartingVariableMultiCascadeModel(MultiSource):
                 cascade_time = time + dist / c
 
                 # make sure cascade energy does not turn negative
-                cascade_energy = tfp.math.clip_by_value_preserve_gradient(
+                cascade_energy = tf.clip_by_value(
                     cascade_energy, 0.0, float("inf")
                 )
 

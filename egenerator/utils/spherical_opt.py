@@ -11,8 +11,6 @@ Note:
 """
 
 
-from __future__ import absolute_import, division, print_function
-
 __author__ = "P. Eller"
 __license__ = """Copyright 2019 Philipp Eller
 

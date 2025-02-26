@@ -1,12 +1,56 @@
 import os
 import logging
 import tensorflow as tf
+from copy import deepcopy
 
 from egenerator import misc
+from egenerator.settings.yaml import yaml_loader
 from egenerator.settings.setup_manager import SetupManager
 from egenerator.utils.build_components import build_manager
+from egenerator.utils.build_components import build_data_transformer
 from egenerator.utils.build_components import build_loss_module
+from egenerator.data.tensor import DataTensorList
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
+
+
+def find_dependent_structure(config, name, fill_value="Object"):
+    """Finds a nested structure for dependent objects
+
+    Recursion stops at found object, i.e. additional objects
+    nested deeper within the found object are not considered.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration dictionary
+    name : str
+        The name of the object to find
+    fill_value : str, optional
+        The value to fill the found object with
+        in the nested structure.
+
+    Returns
+    -------
+    dict
+        The nested structure of the dependent objects.
+    """
+    if len(config["dependent_sub_components"]) == 0:
+        return {}
+
+    structure = {}
+    for sub_component in config["dependent_sub_components"]:
+        if sub_component == name:
+            structure[sub_component] = fill_value
+        else:
+            structure_sub = find_dependent_structure(
+                config["sub_component_configurations"][sub_component],
+                name=name,
+                fill_value=fill_value,
+            )
+            if structure_sub:
+                structure[sub_component] = structure_sub
+
+    return structure
 
 
 class ManagerConfigurator:
@@ -223,12 +267,59 @@ class ManagerConfigurator:
                 "manager_dir"
             ] = manager_dir
 
+            # update data transformer
+            if "data_handler" in modified_sub_components:
+
+                with open(
+                    os.path.join(manager_dir, "configuration.yaml"), "r"
+                ) as stream:
+                    manager_configuration = yaml_loader.load(stream)
+
+                # update directory of data_trafo to choose the trafo
+                # object of the first model
+                # (they have to be compatible across models)
+                data_trafo_settings = deepcopy(config_i["data_trafo_settings"])
+                data_trafo_settings["model_dir"] = os.path.join(
+                    manager_dir, "models_0000/data_trafo/"
+                )
+
+                # get updated data transformer with modified tensors
+                tensors = []
+                for key, module in modified_sub_components[
+                    "data_handler"
+                ].items():
+                    tensors.extend(
+                        module.data[
+                            f"{key.replace('_module', '')}_tensors"
+                        ].list
+                    )
+                data_transformer = build_data_transformer(
+                    data_trafo_settings,
+                    modified_tensors=DataTensorList(tensors),
+                )
+
+                # find and update all modules depending on the
+                # data_transformer
+                structure = find_dependent_structure(
+                    config=manager_configuration,
+                    name="data_trafo",
+                    fill_value=data_transformer,
+                )
+                for key, value in structure.items():
+                    if key in modified_sub_components:
+                        raise NotImplementedError(
+                            f"Implement proper recursive update: {key}"
+                        )
+                    else:
+                        modified_sub_components[key] = value
+
             # load manager objects and extract models and a data_handler
             model_manger, _, data_handler, data_transformer = build_manager(
                 config_i,
                 restore=True,
                 modified_sub_components=modified_sub_components,
-                allow_rebuild_base_sources=False,
+                allow_rebuild_base_models=False,
+                allow_rebuild_base_decoders=False,
             )
             models.extend(model_manger.models)
 
@@ -239,7 +330,8 @@ class ManagerConfigurator:
             models=models,
             data_handler=data_handler,
             data_transformer=data_transformer,
-            allow_rebuild_base_sources=False,
+            allow_rebuild_base_models=False,
+            allow_rebuild_base_decoders=False,
         )
 
         # save manager

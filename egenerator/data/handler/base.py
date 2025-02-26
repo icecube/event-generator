@@ -1277,7 +1277,6 @@ class BaseDataHandler(BaseComponent):
         for process in self._untracked_data["mp_processes"]:
             process.terminate()
 
-        time.sleep(0.1)
         for process in self._untracked_data["mp_processes"]:
             process.join(timeout=1.0)
 
