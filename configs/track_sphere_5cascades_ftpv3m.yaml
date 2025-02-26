@@ -90,11 +90,11 @@ reconstruction_settings: {
     'seed_parameter_names': [
         'entry_zenith', 'entry_azimuth', 'entry_t',
         'entry_energy', 'zenith', 'azimuth',
-        'cascade_0000_energy', cascade_0000_distance,
-        'cascade_0001_energy', cascade_0001_distance,
-        'cascade_0002_energy', cascade_0002_distance,
-        'cascade_0003_energy', cascade_0003_distance,
-        'cascade_0004_energy', cascade_0004_distance,
+        'cascade_0000_energy', 'cascade_0000_distance',
+        'cascade_0001_energy', 'cascade_0001_distance',
+        'cascade_0002_energy', 'cascade_0002_distance',
+        'cascade_0003_energy', 'cascade_0003_distance',
+        'cascade_0004_energy', 'cascade_0004_distance',
     ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
@@ -305,20 +305,20 @@ loss_module_settings: [
     #         'loss_function_name': 'unbinned_pulse_time_llh',
     #     },
     # },
-    # {
-    #     # The loss module class to use
-    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
-    #     'loss_module_weight': 1.0,
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
-    #     config: {
-    #         # the float precision to use
-    #         'float_precision': 'float32',
-    #         # Add normalization terms to llh if True
-    #         'add_normalization_term': True,
-    #         # choose the loss function to use
-    #         'loss_function_name': 'dom_charge_pdf',
-    #     },
-    # },
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'dom_charge_pdf',
+        },
+    },
     # {
     #     # The loss module class to use
     #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -594,7 +594,7 @@ model_settings: {
                     'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
                     # The directory from which this base source will be loaded
-                    'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/cascade_7param_noise_ftpv3m/manager/models_0000/',
+                    'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/cascade_7param_noise_ftpv3m/manager/models_0000/cascade/',
 
                     config: {
                         'keep_prob':,

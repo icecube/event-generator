@@ -445,7 +445,7 @@ model_settings: {
 
     config: {
         'keep_prob':,
-        'shift_cascade_vertex': False,
+        'shift_cascade_vertex': True,
         'add_anisotropy_angle': True,
         'add_opening_angle': True,
         'add_dom_angular_acceptance': False,
