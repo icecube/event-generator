@@ -28,7 +28,14 @@ from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="WARNING",
 )
-def main(config_files, reco_config_file=None, log_level="INFO"):
+@click.option(
+    "--num_threads",
+    type=int,
+    default=0,
+)
+def main(
+    config_files, reco_config_file=None, log_level="WARNING", num_threads=0
+):
     """Script to train model.
 
     Parameters
@@ -42,6 +49,10 @@ def main(config_files, reco_config_file=None, log_level="INFO"):
         If None, then the first provided config file will be used.
     log_level : str, optional
         The logging level.
+    num_threads : int, optional
+        Number of threads to use for tensorflow settings
+        `intra_op_parallelism_threads` and `inter_op_parallelism_threads`.
+        If zero (default), the system picks an appropriate number.
 
     Raises
     ------
@@ -61,6 +72,10 @@ def main(config_files, reco_config_file=None, log_level="INFO"):
     gpu_devices = tf.config.list_physical_devices("GPU")
     for device in gpu_devices:
         tf.config.experimental.set_memory_growth(device, True)
+
+    # limit number of CPU threads
+    tf.config.threading.set_intra_op_parallelism_threads(num_threads)
+    tf.config.threading.set_inter_op_parallelism_threads(num_threads)
 
     # read in reconstruction config file
     setup_manager = SetupManager(reco_config_file)
@@ -183,7 +198,8 @@ def main(config_files, reco_config_file=None, log_level="INFO"):
             SetupManager([config_file]).get_config(),
             restore=manager_config["restore_model"],
             modified_sub_components=deepcopy(modified_sub_components),
-            allow_rebuild_base_sources=not manager_config["restore_model"],
+            allow_rebuild_base_models=not manager_config["restore_model"],
+            allow_rebuild_base_decoders=not manager_config["restore_model"],
         )
         models.extend(model_manger.models)
 
@@ -194,7 +210,8 @@ def main(config_files, reco_config_file=None, log_level="INFO"):
         models=models,
         data_handler=data_handler,
         data_transformer=data_transformer,
-        allow_rebuild_base_sources=False,
+        allow_rebuild_base_models=False,
+        allow_rebuild_base_decoders=False,
     )
 
     # --------------------

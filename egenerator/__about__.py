@@ -78,5 +78,25 @@ __version_compatibility__ = {
             ),
             "type": "global",
         },
+        {
+            "Description": (
+                "The label modules were restructured to reduce code "
+                "duplication. This change is not backwards compatible "
+                "with previous versions."
+            ),
+            "type": "global",
+        },
+        {
+            "Description": (
+                "The x_pulses_ids now also includes the pulse number at "
+                "the given DOM. This allows for easy selection of the "
+                "first pulses at a DOM, for instance. "
+                "A result of this change is that the tensor changed "
+                "its shape from [n_pulses, 3] to [n_pulses, 4]. This "
+                "breaks backwards compatibility and may also require "
+                "updates in dependen user code."
+            ),
+            "type": "global",
+        },
     ],
 }

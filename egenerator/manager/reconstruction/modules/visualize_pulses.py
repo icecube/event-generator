@@ -263,7 +263,7 @@ class VisualizePulseLikelihood:
             A dictionary with event meta information.
         reco_result : array_like
             The reconstruction result.
-            Shape: [1, num_parameters]
+            Shape: [1, n_parameters]
         event_charge : None, optional
             If provided, the total event charge will be displayed.
         max_params : int, optional
@@ -348,7 +348,7 @@ class VisualizePulseLikelihood:
         ----------
         reco_result : array_like
             The reconstruction result.
-            Shape: [1, num_parameters]
+            Shape: [1, n_parameters]
         data_batch_dict : dict or tf.Tensor
             The data batch dictionary.
         result_tensors : dict of tf.tensor
@@ -620,7 +620,7 @@ class VisualizePulseLikelihood:
         ----------
         reco_result : array_like
             The reconstruction result.
-            Shape: [1, num_parameters]
+            Shape: [1, n_parameters]
         data_batch_dict : dict or tf.Tensor
             The data batch dictionary.
         result_tensors : dict of tf.tensor

@@ -32,6 +32,7 @@ class TestModuleDataHandler(unittest.TestCase):
                     "float_precision": "float32",
                     "add_charge_quantiles": False,
                     "discard_pulses_from_excluded_doms": False,
+                    "time_window_buffer": 0.0,
                 },
                 # settings for the label module
                 "label_module": "snowstorm_cascades.SnowstormCascadeGeneratorLabelModule",
@@ -237,6 +238,7 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
                 "float_precision": "float32",
                 "add_charge_quantiles": False,
                 "discard_pulses_from_excluded_doms": False,
+                "time_window_buffer": 0.0,
             },
             # settings for the label module
             "label_module": "snowstorm_cascades.SnowstormCascadeGeneratorLabelModule",
