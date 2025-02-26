@@ -1,5 +1,4 @@
 import os
-import logging
 import tensorflow as tf
 import tensorflow_probability as tfp
 import numpy as np
@@ -13,17 +12,6 @@ from egenerator.manager.reconstruction.tray import ReconstructionTray
 
 
 class SourceManager(BaseModelManager):
-
-    def __init__(self, logger=None):
-        """Initializes ModelManager object.
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            A logging instance.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(SourceManager, self).__init__(logger=self._logger)
 
     def parameter_loss_function(
         self,
@@ -583,7 +571,7 @@ class SourceManager(BaseModelManager):
 
     def get_model_tensors_function(self, model_index=0):
         """Get a tf function that returns the model tensors
-        for a set of paraparameters_trafometers.
+        for a set of parameters.
 
         Parameters
         ----------
@@ -1597,7 +1585,7 @@ class SourceManager(BaseModelManager):
         # get a list of parameters to fit
         fit_parameter_list = [
             reco_config["minimize_parameter_default_value"]
-            for i in range(self.models[0].num_parameters)
+            for i in range(self.models[0].n_parameters)
         ]
         for name, value in reco_config["minimize_parameter_dict"].items():
             fit_parameter_list[self.models[0].get_index(name)] = value
@@ -2032,13 +2020,13 @@ class SourceManager(BaseModelManager):
 
                 data_batch_seed = list(data_batch)
                 data_batch_seed[param_index] = np.reshape(
-                    cascade_seed, [-1, self.models[0].num_parameters]
+                    cascade_seed, [-1, self.models[0].n_parameters]
                 )
                 data_batch_seed = tuple(data_batch_seed)
 
                 data_batch_reco = list(data_batch)
                 data_batch_reco[param_index] = np.reshape(
-                    cascade_reco, [-1, self.models[0].num_parameters]
+                    cascade_reco, [-1, self.models[0].n_parameters]
                 )
                 data_batch_reco = tuple(data_batch_reco)
 
@@ -2050,7 +2038,7 @@ class SourceManager(BaseModelManager):
                 msg = "\t{:6s} {:>10s} {:>10s} {:>10s} {:>10s}".format(
                     "Fitted", "True", "Seed", "Reco", "Diff"
                 )
-                pattern = "\n\t{:6s} {:10.2f} {:10.2f} {:10.2f} {:10.2f} [{}]"
+                pattern = "\n\t{:6s} {:10.2f} {:10.2f} {:10.2f} {:10.3f} [{}]"
                 msg += pattern.format(
                     "",
                     loss_true,

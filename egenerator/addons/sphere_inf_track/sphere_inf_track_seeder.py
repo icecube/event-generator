@@ -1,5 +1,5 @@
 import math
-from icecube import icetray
+from icecube import icetray, dataclasses
 
 from ic3_labels.labels.modules.event_generator.muon_track_labels import (
     get_sphere_inf_track_geometry_values,
@@ -17,7 +17,7 @@ class SphereInfTrackSeedConverter(icetray.I3ConditionalModule):
         )
         self.AddParameter(
             "output_key",
-            "The output frame key to which the clusters will be written.",
+            "The output frame key to which the seed labels will be written.",
             None,
         )
         self.AddParameter(
@@ -68,4 +68,57 @@ class SphereInfTrackSeedConverter(icetray.I3ConditionalModule):
                 geometry_values[key] = value
 
         frame[self._output_key] = geometry_values
+        self.PushFrame(frame)
+
+
+class SphereInfTrackI3ParticleConverter(icetray.I3ConditionalModule):
+    """Class to convert sphere inf track labels to I3Particle"""
+
+    def __init__(self, context):
+        icetray.I3ConditionalModule.__init__(self, context)
+        self.AddParameter(
+            "labels_key",
+            "The labels which will be used to create the I3Particle.",
+        )
+        self.AddParameter(
+            "output_key",
+            "The output frame key to which the I3Particle will be written.",
+            None,
+        )
+
+    def Configure(self):
+        """Configure"""
+        self._labels_key = self.GetParameter("labels_key")
+        self._output_key = self.GetParameter("output_key")
+
+        if self._output_key is None:
+            self._output_key = self._labels_key + "_I3Particle"
+
+    def Physics(self, frame):
+        """Convert sphere inf track labels to I3Particle
+
+        Parameters
+        ----------
+        frame : I3Frame
+            The current I3frame.
+        """
+
+        particle = dataclasses.I3Particle()
+        particle.time = frame[self._labels_key]["entry_t"]
+        particle.pos = dataclasses.I3Position(
+            frame[self._labels_key]["entry_x"],
+            frame[self._labels_key]["entry_y"],
+            frame[self._labels_key]["entry_z"],
+        )
+        particle.dir = dataclasses.I3Direction(
+            frame[self._labels_key]["zenith"],
+            frame[self._labels_key]["azimuth"],
+        )
+        particle.energy = frame[self._labels_key]["entry_energy"]
+        particle.length = frame[self._labels_key]["finite_length"]
+
+        particle.shape = dataclasses.I3Particle.InfiniteTrack
+        particle.fit_status = dataclasses.I3Particle.FitStatus.OK
+
+        frame[self._output_key] = particle
         self.PushFrame(frame)

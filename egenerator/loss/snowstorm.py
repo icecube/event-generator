@@ -175,7 +175,7 @@ class SnowstormPriorLossModule(BaseComponent):
             The values at which to evaluate the loss.
         low : float
             The lower limit of the uniform prior.
-        high : TYPE
+        high : float
             The upper limit of the uniform prior.
         eps : float, optional
             This defines the amount before low/high at which the penalty will
@@ -186,6 +186,10 @@ class SnowstormPriorLossModule(BaseComponent):
         TYPE
             Description
         """
+        values = tf.cast(
+            values, self.configuration.config["config"]["float_precision"]
+        )
+
         if high <= low:
             msg = "Upper bound [{}] must be greater than lower bound [{}]"
             raise ValueError(msg.format(high, low))
@@ -195,10 +199,6 @@ class SnowstormPriorLossModule(BaseComponent):
         normalization = np.exp(exp_factor)
 
         def loss_excess(scaled_excess):
-            scaled_excess = tf.cast(
-                scaled_excess,
-                self.configuration.config["config"]["float_precision"],
-            )
             return tf.exp((scaled_excess + 1) * exp_factor) - normalization
 
         loss = tf.where(

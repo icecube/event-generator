@@ -1,6 +1,67 @@
 import tensorflow as tf
 
 
+def is_in(variable, variable_list):
+    """Check if a tensorflow variable is in a list
+
+    Checks if a variable references the same memory location
+    as another variable in a list.
+    """
+    for variable_i in variable_list:
+        if variable_i is variable:
+            return True
+    return False
+
+
+def double_where_trick_greater_zero(
+    function,
+    x,
+    cut_x_min,
+    replacement_value=0.0,
+):
+    """Apply a function to a tensor, but avoid NaNs in the gradient
+
+    This double where trick can be applied to functions which would
+    result in NaNs if the input is less than or equal to zero.
+
+    Parameters
+    ----------
+    function : callable
+        The function to apply to the tensor.
+    x : tf.tensor
+        The input tensor.
+    cut_x_min : float
+        The minimum value for x. Output values corresponding
+        to inputs of x below this threshold will be replaced
+        by the replacement value.
+    replacement_value : float, optional
+        The value to replace NaNs with, by default 0.0.
+
+    Returns
+    -------
+    tf.tensor
+        The evaluated function.
+    """
+    # If the inputs to a tf.where function contains NaNs,
+    # the gradient will always be NaN, regardless whether
+    # the input is actually used or not. Here, a workaround
+    # is implemented to prevent the inputs from ever containing
+    # NaNs. Here we assume this happens for
+    # `function` if x <= cut_x_min.
+    mask = x < cut_x_min
+
+    # ensure that all values computed by `function` are finite
+    x_zeros = tf.where(mask, tf.zeros_like(x) + cut_x_min, x)
+
+    # compute result values based on this modfiied x
+    # Note: the values computed for indices where x <= eps are incorrect
+    # here, but we will set them to the replacement value later
+    result_values = function(x_zeros)
+
+    # set pdf to zero for x <= 0, but avoid nan gradients
+    return tf.where(mask, replacement_value, result_values)
+
+
 def clip_logits(logits, eps=None):
     """Clip logits to avoid numerical instabilities
 
@@ -26,7 +87,18 @@ def clip_logits(logits, eps=None):
             eps = 1e-307
         else:
             raise ValueError(f"Unknown dtype for logits: {logits.dtype}")
-    return tf.clip_by_value(logits, eps, float("inf"))
+
+    # some safety checks to make sure we aren't clipping too much
+    asserts = []
+    asserts.append(
+        tf.debugging.Assert(
+            tf.reduce_all(logits > -1e-7),
+            ["Values < 0!", tf.reduce_min(logits)],
+        )
+    )
+    with tf.control_dependencies(asserts):
+        clipped_logits = tf.clip_by_value(logits, eps, float("inf"))
+    return clipped_logits
 
 
 def safe_log(logits, eps=None):
@@ -97,14 +169,19 @@ def safe_cdf_clip(cdf_values, tol=1e-5):
     return cdf_values
 
 
-def get_pulse_cdf_exclusion(
+def get_prior_pulse_cdf_exclusion(
     x_pulses,
     x_pulses_ids,
     x_time_exclusions,
     x_time_exclusions_ids,
-    tw_cdf_exclusion_reduced,
+    tw_cdf_exclusion,
 ):
-    """Get CDF exclusion for each pulse
+    """Get prior CDF exclusion for each pulse
+
+    This function calculates the excluded CDF range
+    up to the pulse time of an individual pulse.
+    This calculatation is necessary when correcting the CDF
+    values to account for the time exclusions.
 
     Parameters
     ----------
@@ -120,9 +197,9 @@ def get_pulse_cdf_exclusion(
     x_time_exclusions_ids : tf.Tensor
         The time exclusion ids.
         Shape: [n_tw, 3]
-    tw_cdf_exclusion_reduced : tf.Tensor
+    tw_cdf_exclusion : tf.Tensor
         The (reduced) CDF exclusion for the entire model.
-        Shape: [n_tw, 1]
+        Shape: [n_tw]
 
     Returns
     -------
@@ -137,20 +214,34 @@ def get_pulse_cdf_exclusion(
         Parameters
         ----------
         elem_i : tuple
-            Tuple of x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion_reduced
+            Tuple of x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion
+            for a single time window.
+
+        Returns
+        -------
+        tf.Tensor
+            The CDF exclusion prior to the pulse time for each pulse.
+            Shape: [n_pulses]
         """
         (
-            x_time_exclusions_ids_i,
-            x_time_exclusions_i,
-            tw_cdf_exclusion_reduced_i,
+            x_time_exclusions_ids_i,  # shape: [3]
+            x_time_exclusions_i,  # shape: [2]
+            tw_cdf_exclusion_i,  # shape: []
         ) = elem_i
 
+        # select pulses in the same event, string, and dom
         mask = tf.reduce_all(x_pulses_ids == x_time_exclusions_ids_i, axis=1)
+
+        # of those pulses, select those that are after the time exclusion
+        # Only the CDF values of the pulses afterwards needs correction
         mask &= x_pulses[:, 1] > x_time_exclusions_i[0]
+
+        # return the excluded CDF time range up to the pulse time
+        # for each individual pulse
         return tf.where(
             mask,
-            tw_cdf_exclusion_reduced_i,
-            tf.zeros_like(tw_cdf_exclusion_reduced_i),
+            tw_cdf_exclusion_i,
+            tf.zeros_like(tw_cdf_exclusion_i),
         )
 
     # -------------------------
@@ -158,7 +249,7 @@ def get_pulse_cdf_exclusion(
     # -------------------------
     # pulse_cdf_exclusion = tf.map_fn(
     #     get_pulse_cdf_exclusion_per_tw,
-    #     elems=(x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion_reduced),
+    #     elems=(x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion),
     #     fn_output_signature=tf.TensorSpec(shape=x_pulses.shape[0], dtype=x_pulses.dtype),
     # )
     # pulse_cdf_exclusion = tf.reduce_sum(pulse_cdf_exclusion, axis=0)
@@ -169,7 +260,7 @@ def get_pulse_cdf_exclusion(
     # This implementation is faster than map_fn, but may require more memory
     pulse_cdf_exclusion = tf.vectorized_map(
         get_pulse_cdf_exclusion_per_tw,
-        (x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion_reduced),
+        (x_time_exclusions_ids, x_time_exclusions, tw_cdf_exclusion),
     )
     pulse_cdf_exclusion = tf.reduce_sum(pulse_cdf_exclusion, axis=0)
 
@@ -181,7 +272,7 @@ def get_pulse_cdf_exclusion(
     #     mask = tf.reduce_all(x_pulses_ids == tw_exclusion_id, axis=1)
     #     mask &= x_pulses[:, 1] > x_time_exclusions[i, 0]
     #     pulse_cdf_exclusion = tf.where(
-    #         mask, pulse_cdf_exclusion + tw_cdf_exclusion_reduced[i], pulse_cdf_exclusion
+    #         mask, pulse_cdf_exclusion + tw_cdf_exclusion[i], pulse_cdf_exclusion
     #     )
     # -------------------------------------------------
 

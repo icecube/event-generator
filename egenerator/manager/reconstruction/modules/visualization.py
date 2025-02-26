@@ -150,16 +150,16 @@ class Visualize1DLikelihoodScan:
             The tensorflow data batch from the tf.Dataset.
         result_trafo : np.array
             The best fit result in transformed and normalized coordinates.
-            Shape: [1, num_parameters]
+            Shape: [1, n_parameters]
         truth_trafo : np.array
             The true parameters in transformed and normalized coordinates.
-            Shape: [1, num_parameters]
+            Shape: [1, n_parameters]
         loss_function : tf.function
             The function which computes the llh loss for a given parameter
             tensor.
         covariance_list : list of array_like, optional
             A list of covariance matrices.
-            Shape of each matrix: [num_parameters, num_parameters]
+            Shape of each matrix: [n_parameters, n_parameters]
         covariance_names : list of str, optional
             A list of names for each of the provided covariance matrices.
         plot_file : str, optional

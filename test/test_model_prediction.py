@@ -109,7 +109,7 @@ class TestModelPrediction(unittest.TestCase):
     def check_keys(self, result_tensors):
         """Check keys in result_tensors."""
         keys = [
-            "dom_cdf_exclusion_sum",
+            "dom_cdf_exclusion",
             "dom_charges",
             "dom_charges_variance",
             "nested_results",
@@ -122,7 +122,7 @@ class TestModelPrediction(unittest.TestCase):
     ):
         """Check result_tensors against true values."""
         keys = [
-            "dom_cdf_exclusion_sum",
+            "dom_cdf_exclusion",
             "dom_charges",
             "dom_charges_variance",
             "pulse_pdf",
@@ -244,7 +244,7 @@ class TestModelPrediction(unittest.TestCase):
         self.assertEqual(
             result_tensors["dom_charges_variance"].shape, (1, 86, 60, 1)
         )
-        self.assertEqual(np.sum(result_tensors["dom_cdf_exclusion_sum"]), 0.0)
+        self.assertEqual(np.sum(result_tensors["dom_cdf_exclusion"]), 0.0)
 
     def test_model_prediction__tw_exclusions(self):
         """Test model prediction without exclusions."""
@@ -279,7 +279,7 @@ class TestModelPrediction(unittest.TestCase):
         self.assertEqual(
             result_tensors["dom_charges_variance"].shape, (1, 86, 60, 1)
         )
-        self.assertTrue(np.sum(result_tensors["dom_cdf_exclusion_sum"]) > 0.0)
+        self.assertTrue(np.sum(result_tensors["dom_cdf_exclusion"]) > 0.0)
 
 
 class TestModelPredictionMultiSource(TestModelPrediction):

@@ -653,7 +653,7 @@ class BiasedMuonWeighter(icetray.I3ConditionalModule):
                 cascade_distances = distances[:-1] + 0.5 * np.diff(distances)
 
                 parameters = np.empty(
-                    [len(cascade_energies), self.model.num_parameters],
+                    [len(cascade_energies), self.model.n_parameters],
                     dtype=self.param_dtype,
                 )
 

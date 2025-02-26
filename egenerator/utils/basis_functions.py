@@ -1,8 +1,11 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 from scipy import special
 from scipy import stats
 from scipy.integrate import quad
+
+from egenerator.utils import tf_helpers
 
 
 def cast(dtype, *args):
@@ -401,6 +404,552 @@ def asymmetric_gauss_ppf(q, mu, sigma, r, dtype=None):
     )
 
 
+def tf_asymmetric_gauss_expectation(mu, sigma, r, dtype=None):
+    """Asymmetric Gaussian: Expectation value
+
+    Parameters
+    ----------
+    mu : tf.Tensor
+        Mu parameter of Gaussian.
+    sigma : tf.Tensor
+        Sigma parameter of Gaussian.
+    r : tf.Tensor
+        The asymmetry of the Gaussian.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The expectation value of the asymmetric Gaussian
+    """
+    mu, sigma, r = tf_cast(dtype, mu, sigma, r)
+    expectation = mu + (2 * sigma * (r - 1)) / np.sqrt(2 * np.pi)
+
+    return expectation
+
+
+def asymmetric_gauss_expectation(mu, sigma, r, dtype=None):
+    """Asymmetric Gaussian: Expectation value
+
+    Parameters
+    ----------
+    mu : array_like
+        Mu parameter of Gaussian.
+    sigma : array_like
+        Sigma parameter of Gaussian.
+    r : array_like
+        The asymmetry of the Gaussian.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The expectation value of the asymmetric Gaussian
+    """
+    mu, sigma, r = cast(dtype, mu, sigma, r)
+    expectation = mu + (2 * sigma * (r - 1)) / np.sqrt(2 * np.pi)
+
+    return expectation
+
+
+def _tf_evaluate_gamma(func_name, x, alpha, beta, replacement_value=0.0):
+    """Evaluate the Gamma distribution function
+
+    Parameters
+    ----------
+    func_name : str
+        The name of the function to evaluate.
+    x : tf.tensor
+        The input tensor.
+    alpha : tf.tensor
+        Alpha tf.tensor of Gamma distribution.
+    beta : tf.tensor
+        Beta tf.tensor of Gamma distribution.
+    replacement_value : float, optional
+        The value to replace NaNs with, by default 0.0.
+
+    Returns
+    -------
+    tf.tensor
+        The evaluated function.
+    """
+    if alpha.dtype == tf.float32:
+        eps = 1e-37
+    elif alpha.dtype == tf.float64:
+        eps = 1e-307
+    else:
+        raise ValueError(f"Unknown dtype for alpha: {alpha.dtype}")
+
+    distribution = tfp.distributions.Gamma(concentration=alpha, rate=beta)
+    return tf_helpers.double_where_trick_greater_zero(
+        function=getattr(distribution, func_name),
+        x=x,
+        cut_x_min=tf.cast(eps, dtype=x.dtype),
+        replacement_value=replacement_value,
+    )
+
+
+def tf_gamma_log_pdf(x, alpha, beta, dtype=None):
+    """Gamma log PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Gamma log PDF evaluated at x
+    """
+    x, alpha, beta, inf = tf_cast(dtype, x, alpha, beta, np.inf)
+    return _tf_evaluate_gamma(
+        "log_prob", x, alpha, beta, replacement_value=-inf
+    )
+
+
+def tf_gamma_pdf(x, alpha, beta, dtype=None):
+    """Gamma PDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Gamma PDF evaluated at x
+    """
+    x, alpha, beta, zero = tf_cast(dtype, x, alpha, beta, 0.0)
+    return _tf_evaluate_gamma("prob", x, alpha, beta, replacement_value=zero)
+
+
+def gamma_pdf(x, alpha, beta, dtype=None):
+    """Gamma PDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Gamma PDF evaluated at x
+    """
+    x, alpha, beta = cast(dtype, x, alpha, beta)
+    return np.where(
+        x < 0,
+        0.0,
+        beta**alpha
+        / special.gamma(alpha)
+        * x ** (alpha - 1)
+        * np.exp(-beta * x),
+    )
+
+
+def gamma_log_pdf(x, alpha, beta, dtype=None):
+    """Gamma log PDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Gamma log PDF evaluated at x
+    """
+    x, alpha, beta = cast(dtype, x, alpha, beta)
+    return np.where(
+        x < 0,
+        -np.inf,
+        alpha * np.log(beta)
+        - special.gammaln(alpha)
+        + (alpha - 1) * np.log(x)
+        - beta * x,
+    )
+
+
+def tf_gamma_cdf(x, alpha, beta, dtype=None):
+    """Gamma CDF
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Gamma CDF evaluated at x
+    """
+    x, alpha, beta, zero = tf_cast(dtype, x, alpha, beta, 0.0)
+    return _tf_evaluate_gamma("cdf", x, alpha, beta, replacement_value=zero)
+
+
+def gamma_cdf(x, alpha, beta, dtype=None):
+    """Gamma CDF
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Gamma CDF evaluated at x
+    """
+    x, alpha, beta = cast(dtype, x, alpha, beta)
+    return np.where(x < 0, 0.0, special.gammainc(alpha, beta * x))
+
+
+def tf_gamma_ppf(q, alpha, beta, dtype=None):
+    """Gamma PPF
+
+    Parameters
+    ----------
+    q : tf.Tensor
+        The input tensor.
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Gamma PPF evaluated at q
+    """
+    q, alpha, beta = tf_cast(dtype, q, alpha, beta)
+    return tfp.math.igammainv(alpha, q) / beta
+
+
+def gamma_ppf(q, alpha, beta, dtype=None):
+    """Gamma PPF
+
+    Parameters
+    ----------
+    q : array_like
+        The input tensor.
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Gamma PPF evaluated at q
+    """
+    q, alpha, beta = cast(dtype, q, alpha, beta)
+    return special.gammaincinv(alpha, q) / beta
+
+
+def tf_gamma_expectation(alpha, beta, dtype=None):
+    """Gamma: Expectation value
+
+    Parameters
+    ----------
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    tf.Tensor
+        The expectation value of the Gamma distribution
+    """
+    alpha, beta = tf_cast(dtype, alpha, beta)
+    return alpha / beta
+
+
+def gamma_expectation(alpha, beta, dtype=None):
+    """Gamma: Expectation value
+
+    Parameters
+    ----------
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    array_like
+        The expectation value of the Gamma distribution
+    """
+    alpha, beta = cast(dtype, alpha, beta)
+    return alpha / beta
+
+
+def tf_gamma_variance(alpha, beta, dtype=None):
+    """Gamma: Variance
+
+    Parameters
+    ----------
+    alpha : tf.Tensor
+        Alpha parameter of Gamma distribution.
+    beta : tf.Tensor
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    tf.Tensor
+        The variance of the Gamma distribution
+    """
+    alpha, beta = tf_cast(dtype, alpha, beta)
+    return alpha / beta**2
+
+
+def gamma_variance(alpha, beta, dtype=None):
+    """Gamma: Variance
+
+    Parameters
+    ----------
+    alpha : array_like
+        Alpha parameter of Gamma distribution.
+    beta : array_like
+        Beta parameter of Gamma distribution.
+
+    Returns
+    -------
+    array_like
+        The variance of the Gamma distribution
+    """
+    alpha, beta = cast(dtype, alpha, beta)
+    return alpha / beta**2
+
+
+def tf_log_faculty(x):
+    """Continuous log faculty approximation via gamma distribution
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The tensor for which to compute the log faculty approximation.
+
+    Returns
+    -------
+    tf.Tensor
+        The log faculty approximation assuming x is a continuous variable.
+    """
+    return tf.math.lgamma(tf.clip_by_value(x + 1, 1, float("inf")))
+
+
+def log_faculty(x):
+    """Continuous log faculty approximation via gamma distribution
+
+    Parameters
+    ----------
+    x : array_like
+        The tensor for which to compute the log faculty approximation.
+
+    Returns
+    -------
+    array_like
+        The log faculty approximation assuming x is a continuous variable.
+    """
+    return special.gammaln(np.clip(x + 1, 1, np.inf))
+
+
+def tf_poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson PDF
+
+    Note that this is an approximation for continuous values of x.
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Poisson PDF evaluated at x
+    """
+    x, mu = tf_cast(dtype, x, mu)
+
+    def function(x):
+        result = tf.exp(-mu) * mu**x
+        if add_normalization_term:
+            result /= tf.exp(tf_log_faculty(x))
+        return result
+
+    # avoid non-finite values in the gradient
+    result = tf_helpers.double_where_trick_greater_zero(
+        function=function,
+        x=x,
+        cut_x_min=tf.cast(0, dtype=x.dtype),
+        replacement_value=0.0,
+    )
+    return result
+
+
+def poisson_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson PDF
+
+    Note that this is an approximation for continuous values of x.
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    mu : array_like
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Poisson PDF evaluated at x
+    """
+    x, mu = cast(dtype, x, mu)
+    result = np.exp(-mu) * mu**x
+    if add_normalization_term:
+        result /= np.exp(log_faculty(x))
+
+    result = np.where(x < 0, 0.0, result)
+    return result
+
+
+def tf_poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson log PDF
+
+    Note that this is an approximation for continuous values of x.
+
+    Parameters
+    ----------
+    x : tf.Tensor
+        The input tensor.
+    mu : tf.Tensor
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    tf.Tensor
+        The Poisson log PDF evaluated at x
+    """
+    x, mu = tf_cast(dtype, x, mu)
+
+    def function(x):
+        result = -mu + x * tf.math.log(mu)
+        if add_normalization_term:
+            result -= tf_log_faculty(x)
+        return result
+
+    result = tf_helpers.double_where_trick_greater_zero(
+        function=function,
+        x=x,
+        cut_x_min=tf.cast(0, dtype=x.dtype),
+        replacement_value=-np.inf,
+    )
+    return result
+
+
+def poisson_log_pdf(x, mu, add_normalization_term=False, dtype=None):
+    """Poisson log PDF
+
+    Note that this is an approximation for continuous values of x.
+
+    Parameters
+    ----------
+    x : array_like
+        The input tensor.
+    mu : array_like
+        Mu parameter of Poisson distribution.
+    add_normalization_term : bool, optional
+        If True, the normalization term is computed and added.
+    dtype : str, optional
+        The data type of the output tensor, by default None.
+        If provided, the inputs are cast to this data type.
+
+    Returns
+    -------
+    array_like
+        The Poisson log PDF evaluated at x
+    """
+    x, mu = cast(dtype, x, mu)
+    result = -mu + x * np.log(mu)
+    if add_normalization_term:
+        result -= log_faculty(x)
+
+    result = np.where(x < 0, -np.inf, result)
+    return result
+
+
 def tf_log_negative_binomial(
     x, mu, alpha, add_normalization_term=False, dtype=None
 ):
@@ -449,12 +998,14 @@ def tf_log_negative_binomial(
     gamma_terms = tf.math.lgamma(x + inv_alpha) - tf.math.lgamma(inv_alpha)
 
     if add_normalization_term:
-        gamma_terms -= tf.math.lgamma(x + 1.0)
+        gamma_terms -= tf_log_faculty(x)
 
     term1 = -inv_alpha * tf.math.log(1.0 + alpha_mu)
     term2 = x * tf.math.log(alpha_mu / (1.0 + alpha_mu))
 
-    return gamma_terms + term1 + term2
+    result = tf.where(x < 0, -np.inf, gamma_terms + term1 + term2)
+
+    return result
 
 
 def log_negative_binomial(
@@ -512,12 +1063,14 @@ def log_negative_binomial(
     gamma_terms = special.gammaln(x + inv_alpha) - special.gammaln(inv_alpha)
 
     if add_normalization_term:
-        gamma_terms -= special.gammaln(x + 1.0)
+        gamma_terms -= log_faculty(x)
 
     term1 = -inv_alpha * np.log(1.0 + alpha_mu)
     term2 = x * np.log(alpha_mu / (1.0 + alpha_mu))
 
-    return gamma_terms + term1 + term2
+    result = np.where(x < 0, -np.inf, gamma_terms + term1 + term2)
+
+    return result
 
 
 def convert_neg_binomial_params(mu, alpha_or_var, param_is_alpha):

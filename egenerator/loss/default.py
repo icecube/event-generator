@@ -145,7 +145,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         tensors : DataTensorList
@@ -254,21 +254,6 @@ class DefaultLossModule(BaseComponent):
         else:
             return loss_terms
 
-    def log_faculty(self, x):
-        """Get continuous log faculty approximation via gamma distribution
-
-        Parameters
-        ----------
-        x : tf.Tensor
-            The tensor for which to compute the log faculty approximation.
-
-        Returns
-        -------
-        tf.Tensor
-            Description
-        """
-        return tf.math.lgamma(tf.clip_by_value(x + 1, 2, float("inf")))
-
     def unbinned_extended_pulse_llh(
         self, data_batch_dict, result_tensors, tensors, sort_loss_terms
     ):
@@ -298,7 +283,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         tensors : DataTensorList
@@ -337,7 +322,7 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         dom_charges_true = tf.squeeze(hits_true, axis=-1)
-        dom_charges_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
+        dom_charges_pred = result_tensors["dom_charges"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -347,7 +332,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -389,7 +374,7 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config["config"]["add_normalization_term"]:
-            norm_doms = self.log_faculty(dom_charges_true)
+            norm_doms = basis_functions.log_faculty(dom_charges_true)
             if sort_loss_terms:
                 loss_terms[2] += norm_doms
             else:
@@ -465,7 +450,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # prevent log(zeros) issues
@@ -569,7 +554,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # shape: [n_pulses]
@@ -580,6 +565,15 @@ class DefaultLossModule(BaseComponent):
         # get the index of the first pulse at each DOM
         # Shape: [n_pulses, 4] # [batch, string, dom, pulse_number]
         mask_first = data_batch_dict["x_pulses_ids"][:, 3] == 0
+
+        # add pulses up to the defined quantile
+        if "mpe_quantile" in self.configuration.config["config"]:
+            mpe_quantile = self.configuration.config["config"]["mpe_quantile"]
+            pulse_quantiles = data_batch_dict["x_pulses"][:, 2]
+            mask_first = tf.math.logical_or(
+                mask_first, pulse_quantiles <= mpe_quantile
+            )
+            print(f"Using quantile {mpe_quantile} for MPE loss")
 
         # Shape: [n_pulses_first]
         pulses_ids_first = data_batch_dict["x_pulses_ids"][:, :3][mask_first]
@@ -611,16 +605,38 @@ class DefaultLossModule(BaseComponent):
         )
 
         # compute MPE log-likelihood
-        # Contribution at DOM i:
-        #   charge_i * pdf_i(t_0)^c_0 * (1 - cdf_i(t_0))^(charge_i - c_0)
-        #   with t_0 and c_0 the first pulse time and charge at DOM i
         # Shape: [n_pulses_first]
-        mpe_log_llh = (
-            tf_helpers.safe_log(dom_charges_true_pulses)
-            + pulse_charge_first * tf_helpers.safe_log(pulse_pdf_value_first)
-            + (dom_charges_true_pulses - pulse_charge_first)
-            * tf_helpers.safe_log(1 - pulse_cdf_value_first)
-        )
+        if "mpe_quantile" in self.configuration.config["config"]:
+            # Contribution at DOM i:
+            #   charge_i * pdf_i(t_i)^c_i  * (1 - cdf_i(t_i))^(charge_i * (1 - quantile_i))
+            #   with t_0 and c_0 the first pulse time and charge at DOM i
+            # Note: The cdf term should really only be applied for the
+            #       last pulse of the specified quantile. However, finding
+            #       the last pulse at the given quantile for each hit DOM
+            #       is more expensive than simply applying the cdf to all
+            #       pulses in the quantile. Let's see how this works out...
+            pulse_quantiles_first = pulse_quantiles[mask_first]
+            mpe_log_llh = (
+                tf_helpers.safe_log(dom_charges_true_pulses)
+                + pulse_charge_first
+                * tf_helpers.safe_log(pulse_pdf_value_first)
+                + (
+                    dom_charges_true_pulses
+                    * tf.clip_by_value(1 - pulse_quantiles_first, 0, 1)
+                )
+                * tf_helpers.safe_log(1 - pulse_cdf_value_first)
+            )
+        else:
+            # Contribution at DOM i:
+            #   charge_i * pdf_i(t_0)^c_0 * (1 - cdf_i(t_0))^(charge_i - c_0)
+            #   with t_0 and c_0 the first pulse time and charge at DOM i
+            mpe_log_llh = (
+                tf_helpers.safe_log(dom_charges_true_pulses)
+                + pulse_charge_first
+                * tf_helpers.safe_log(pulse_pdf_value_first)
+                + (dom_charges_true_pulses - pulse_charge_first)
+                * tf_helpers.safe_log(1 - pulse_cdf_value_first)
+            )
         time_loss = -mpe_log_llh
 
         if sort_loss_terms:
@@ -679,9 +695,9 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
-                'dom_charges_pdf_values': the likelihood evaluated for each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
+                'dom_charges_pdf': charge likelihood evaluated for each DOM
+                               Shape: [-1, 86, 60]
                 'pulse_pdf': The likelihood evaluated for each pulse
                              Shape: [-1]
         tensors : DataTensorList
@@ -715,14 +731,9 @@ class DefaultLossModule(BaseComponent):
         pulse_charges = data_batch_dict["x_pulses"][:, 0]
         pulse_pdf_values = result_tensors["pulse_pdf"]
 
-        # shape: [n_batch, 86, 60, 1]
-        hits_true = data_batch_dict["x_dom_charge"]
-
         # get charge likelihood over total charge at a DOM for extendended LLH
         # shape: [n_batch, 86, 60]
-        llh_charge = tf.squeeze(
-            result_tensors["dom_charges_log_pdf_values"], axis=-1
-        )
+        llh_charge = tf_helpers.safe_log(result_tensors["dom_charges_pdf"])
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -732,7 +743,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -767,11 +778,8 @@ class DefaultLossModule(BaseComponent):
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config["config"]["add_normalization_term"]:
-            norm_doms = self.log_faculty(hits_true)
-            if sort_loss_terms:
-                loss_terms[2] += norm_doms
-            else:
-                loss_terms.append(norm_doms)
+            # the carge PDF should already be normalized
+            pass
 
         return loss_terms
 
@@ -849,7 +857,7 @@ class DefaultLossModule(BaseComponent):
                 "already been removed!"
             )
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -909,18 +917,15 @@ class DefaultLossModule(BaseComponent):
 
         return loss_terms
 
-    def dom_and_event_charge_pdf(
+    def dom_charge_pdf(
         self, data_batch_dict, result_tensors, tensors, sort_loss_terms
     ):
         """Charge PDF (estimated by Model)
 
-        This is a likelihood over the total event charge in addition to the
-        charge measured at each DOM. The PDF and likelihood used is defined
-        by the model which must provide the computed log likelihood values
-        for the DOMs: `dom_charges_log_pdf_values`.
-        The uncertainty on the total event charge is computed by accumulating
-        the uncertainties in quadrature.
-        Note: this likelihood double-counts the charge information.
+        This is a likelihood over charge measured at each DOM.
+        The PDF and likelihood used is defined
+        by the model which must provide the computed charge likelihood
+        values for the DOMs: `dom_charges_pdf`.
 
         Parameters
         ----------
@@ -940,15 +945,9 @@ class DefaultLossModule(BaseComponent):
         result_tensors : dict of tf.Tensor
             A dictionary of output tensors.
             This  dictionary must at least contain:
-
-                'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
-                'dom_charges_log_pdf_values':
+                'dom_charges_pdf':
                     The likelihood evaluated for each DOM.
-                    Shape: [-1, 86, 60, 1]
-                'dom_charges_gaussian_unc':
-                    The (Gaussian) uncertainty on the predicted DOM charge
-                    Shape: [-1, 86, 60, 1]
+                    Shape: [-1, 86, 60]
         tensors : DataTensorList
             The data tensor list describing the input data
         sort_loss_terms : bool, optional
@@ -971,21 +970,9 @@ class DefaultLossModule(BaseComponent):
             tf, self.configuration.config["config"]["float_precision"]
         )
 
-        # shape: [n_batch, 86, 60, 1]
-        hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
-        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
-
         # get charge likelihood over total charge at a DOM for extendended LLH
         # shape: [n_batch, 86, 60]
-        llh_charge = tf.squeeze(
-            result_tensors["dom_charges_log_pdf_values"], axis=-1
-        )
-
-        # get variance on DOM charges
-        # shape: [n_batch, 86, 60]
-        dom_charges_variance = tf.squeeze(
-            result_tensors["dom_charges_variance"], axis=-1
-        )
+        llh_charge = tf_helpers.safe_log(result_tensors["dom_charges_pdf"])
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -995,7 +982,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -1008,36 +995,21 @@ class DefaultLossModule(BaseComponent):
                 dtype=dtype,
             )
             llh_charge = llh_charge * mask_valid
-            hits_true = hits_true * mask_valid
-            hits_pred = hits_pred * mask_valid
-            dom_charges_variance = dom_charges_variance * mask_valid
-
-        # Compute Gaussian likelihood over total event charge
-        event_charges_true = tf.reduce_sum(hits_true, axis=[1, 2])
-        event_charges_pred = tf.reduce_sum(hits_pred, axis=[1, 2])
-        event_charges_unc = tf.sqrt(
-            tf.reduce_sum(dom_charges_variance, axis=[1, 2])
-        )
-        llh_event = basis_functions.tf_log_gauss(
-            x=event_charges_true,
-            mu=event_charges_pred,
-            sigma=event_charges_unc,
-        )
 
         if sort_loss_terms:
             loss_terms = [
                 None,
-                -llh_event,
+                None,
                 -llh_charge,
             ]
         else:
-            loss_terms = [-llh_charge, -llh_event]
+            loss_terms = [-llh_charge]
 
         # Add normalization terms if desired
         # Note: these are irrelevant for the minimization, but will make loss
         # curves more meaningful
         if self.configuration.config["config"]["add_normalization_term"]:
-            # total event charge is properly normalized due to the used gauss
+            # model should already normalize the charge PDF
             pass
 
         return loss_terms
@@ -1075,7 +1047,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'dom_charges_variance':
                     the predicted variance on the charge at each DOM.
                     This assumes the underlying distribution is a negative
@@ -1108,10 +1080,8 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
-        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
-        dom_charges_variance = tf.squeeze(
-            result_tensors["dom_charges_variance"], axis=-1
-        )
+        hits_pred = result_tensors["dom_charges"]
+        dom_charges_variance = result_tensors["dom_charges_variance"]
 
         # compute over-dispersion factor alpha
         # var = mu + alpha*mu**2
@@ -1143,7 +1113,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -1210,7 +1180,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
+                               Shape: [-1, 86, 60]
                 'dom_charges_variance':
                     the predicted variance on the charge at each DOM.
                     This assumes the underlying distribution is a negative
@@ -1243,10 +1213,8 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
-        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
-        dom_charges_variance = tf.squeeze(
-            result_tensors["dom_charges_variance"], axis=-1
-        )
+        hits_pred = result_tensors["dom_charges"]
+        dom_charges_variance = result_tensors["dom_charges_variance"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -1256,7 +1224,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions
@@ -1358,12 +1326,7 @@ class DefaultLossModule(BaseComponent):
             This  dictionary must at least contain:
 
                 'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
-                'dom_charges_variance':
-                    the predicted variance on the charge at each DOM.
-                    This assumes the underlying distribution is a negative
-                    binomial distribution.
-                    Shape: [-1, 86, 60]
+                               Shape: [-1, 86, 60]
         tensors : DataTensorList
             The data tensor list describing the input data
         sort_loss_terms : bool, optional
@@ -1390,7 +1353,7 @@ class DefaultLossModule(BaseComponent):
 
         # shape: [n_batch, 86, 60]
         hits_true = tf.squeeze(data_batch_dict["x_dom_charge"], axis=-1)
-        hits_pred = tf.squeeze(result_tensors["dom_charges"], axis=-1)
+        hits_pred = result_tensors["dom_charges"]
 
         # throw error if this is being used with time window exclusions
         # one needs to calculate cumulative pdf from exclusion window and
@@ -1400,7 +1363,7 @@ class DefaultLossModule(BaseComponent):
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
         ):
             assert (
-                "dom_cdf_exclusion_sum" in result_tensors
+                "dom_cdf_exclusion" in result_tensors
             ), "Model must deal with time exclusions!"
 
         # mask out dom exclusions

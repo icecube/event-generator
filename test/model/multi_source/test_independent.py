@@ -80,7 +80,7 @@ class TestIndependentMultiSource(unittest.TestCase):
             "cascade_setting": 1337,
             "float_precision": "float32",
         }
-        self.base_sources = {
+        self.base_models = {
             "cascade": self.get_cascade_source(
                 config=self.config_cascade, data_trafo=self.data_trafo
             )
@@ -91,18 +91,21 @@ class TestIndependentMultiSource(unittest.TestCase):
         }
         self.config = {
             "sources": self.sources,
+            "float_precision": "float32",
         }
-        self.sub_components = {"cascade": self.base_sources["cascade"]}
+        self.sub_components = {"cascade": self.base_models["cascade"]}
         self.source = self.get_muon(
             config=self.config,
-            base_sources=self.base_sources,
+            base_models=self.base_models,
         )
 
         class_string = "egenerator.model.multi_source.independent."
         class_string += "IndependentMultiSource"
         self.configuration = Configuration(
             class_string=class_string,
-            settings=dict(config=self.config),
+            settings=dict(
+                config=self.config, decoder=None, decoder_charge=None
+            ),
             mutable_settings=dict(name="egenerator.model.multi_source.base"),
         )
         self.configuration.add_sub_components(self.sub_components)
@@ -182,7 +185,7 @@ class TestIndependentMultiSource(unittest.TestCase):
         self.assertEqual(model.checkpoint, None)
         self.assertEqual(model.name, None)
         self.assertEqual(model.parameter_names, None)
-        self.assertEqual(model.num_parameters, None)
+        self.assertEqual(model.n_parameters, None)
 
     def test_configuration_of_abstract_class(self):
         """MultiSource is an abstract class with a pure virtual method.
@@ -191,13 +194,13 @@ class TestIndependentMultiSource(unittest.TestCase):
         model = MultiSource()
 
         with self.assertRaises(NotImplementedError):
-            model.configure(config=self.config, base_sources=self.base_sources)
+            model.configure(config=self.config, base_models=self.base_models)
 
     def test_correct_configuration_name(self):
         """Test if the name passed in to the configuration is properly saved"""
         model = IndependentMultiSource()
         model.configure(
-            config=self.config, base_sources=self.base_sources, name="dummy"
+            config=self.config, base_models=self.base_models, name="dummy"
         )
         self.assertEqual(model.name, "dummy")
 
@@ -235,10 +238,13 @@ class TestIndependentMultiSource(unittest.TestCase):
             self.source._untracked_data,
             {
                 "name": "egenerator.model.multi_source.base",
-                "num_parameters": 14,
+                "n_parameters": 14,
                 "checkpoint": self.source.checkpoint,
                 "step": self.source._untracked_data["step"],
                 "variables": self.source._untracked_data["variables"],
+                "variables_top_level": self.source._untracked_data[
+                    "variables_top_level"
+                ],
                 "parameter_index_dict": self.source._untracked_data[
                     "parameter_index_dict"
                 ],
@@ -246,7 +252,7 @@ class TestIndependentMultiSource(unittest.TestCase):
                     "parameter_name_dict"
                 ],
                 "parameter_names": self.parameter_names,
-                "sources": self.sources,
+                "models_mapping": self.sources,
             },
         )
         self.assertEqual(self.source._sub_components, self.sub_components)
@@ -510,17 +516,18 @@ class TestIndependentMultiSource(unittest.TestCase):
         """
         source = self.get_muon(
             config=self.config,
-            base_sources=self.base_sources,
+            base_models=self.base_models,
             data_trafo=self.data_trafo,
         )
 
         data_batch_dict = {
-            "x_parameters": tf.ones([1, source.num_parameters]),
+            "x_parameters": tf.ones([1, source.n_parameters]),
             "x_pulses": tf.ones([7, 2]),
             "x_pulses_ids": tf.zeros([7, 4], dtype=tf.int32),
+            "x_dom_charge": tf.ones([1, 86, 60, 1]),
         }
         result_tensors = self.source.get_tensors(data_batch_dict, True)
-        self.assertTrue(result_tensors["dom_charges"].shape == [1, 86, 60, 1])
+        self.assertTrue(result_tensors["dom_charges"].shape == [1, 86, 60])
         self.assertTrue(result_tensors["pulse_pdf"].shape == [7])
 
     # def test_chaining_of_multi_source_objects(self):
@@ -529,10 +536,10 @@ class TestIndependentMultiSource(unittest.TestCase):
     #     of multiple MultSource objects
     #     """
     #     multi_source1 = self.get_muon(config=self.config,
-    #                                   base_sources=self.base_sources,
+    #                                   base_models=self.base_models,
     #                                   name='Muon1')
     #     multi_source2 = self.get_muon(config=self.config,
-    #                                   base_sources=self.base_sources,
+    #                                   base_models=self.base_models,
     #                                   name='Muon2')
 
     #     model = MultiSource()
