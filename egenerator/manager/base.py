@@ -632,7 +632,6 @@ class BaseModelManager(Model):
             gradients = [
                 tf.where(tf.math.is_nan(grad), tf.zeros_like(grad), grad)
                 for grad in gradients
-                if grad is not None
             ]
 
         if "clip_gradients_value" in opt_config:

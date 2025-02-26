@@ -1,13 +1,13 @@
 ---
 ##############
-# Config for single cascade events
+# Config for tracks entering in a sphere around IceCube
 #
 # Detailed information on the parameters are given in the SetupManager
 # class located in egenerator.settings.setup_manager.py.
 ##############
 
 # Provide a unique name for the model
-unique_name: 'cascade_7param_noise_ftpv3m'
+unique_name: 'track_sphere_dist_10_ftpv3m__test'
 
 #------------------
 # Training settings
@@ -84,12 +84,13 @@ reconstruction_settings: {
     # define which tensor to use as parameter_tensor (default: x_parameters)
     'parameter_tensor_name': 'x_parameters',
     # define seed (to seed from MC truth choose: 'x_parameters')
-    'seed': 'MonopodFit4_PartialExclusion',
+    'seed': 'x_parameters',
     # these are only relevant for the SeedLoaderMiscModule. This specifies
     # from which column names in the data table the parameters will be loaded
-    'seed_parameter_names': ['x', 'y', 'z', 'zenith', 'azimuth',
-                             'energy', 'time',
-                         ],
+    'seed_parameter_names': [
+        'entry_zenith', 'entry_azimuth', 'entry_t',
+        'entry_energy', 'zenith', 'azimuth',
+    ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
     },
@@ -104,7 +105,7 @@ reconstruction_settings: {
         'method': 'BFGS',
         'options': {
             # 'ftol': !!float 1e-7,
-            'gtol': !!float 1e1,
+            'gtol': !!float 1e-3,
         }
     },
 
@@ -126,7 +127,12 @@ reconstruction_settings: {
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
-
+        "track_entry_zenith": True,
+        "track_entry_azimuth": True,
+        "track_entry_t": True,
+        "track_entry_energy": True,
+        "track_zenith": True,
+        "track_azimuth": True,
     },
 }
 
@@ -152,13 +158,13 @@ model_manager_settings: {
         # Define which model parameters to use for the I3Particle
         # [x, y, z, zenith, azimuth, energy, time]
         'I3ParticleMapping': {
-            'x': 'cascade_x',
-            'y': 'cascade_y',
-            'z': 'cascade_z',
-            'zenith': 'cascade_zenith',
-            'azimuth': 'cascade_azimuth',
-            'energy': 'cascade_energy',
-            'time': 'cascade_time',
+            # 'x': 'track_entry_x',
+            # 'y': 'track_entry_y',
+            # 'z': 'track_entry_z',
+            'zenith': 'track_zenith',
+            'azimuth': 'track_azimuth',
+            'energy': 'track_entry_energy',
+            'time': 'track_entry_t',
         },
     },
 }
@@ -172,7 +178,7 @@ data_iterator_settings: {
 
     # The training data iterator
     'training': {
-        'batch_size': 32,
+        'batch_size': 4,
         'num_splits': ,
         'file_capacity': 5,
         'batch_capacity': 500,
@@ -181,11 +187,15 @@ data_iterator_settings: {
         'num_add_files': 12,
         'num_repetitions': 5,
         'input_data': [
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*1.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*2.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*3.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*4.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*5.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*6.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*7.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*8.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*9.hdf5',
         ],
     },
 
@@ -200,17 +210,21 @@ data_iterator_settings: {
         'num_repetitions': 1,
         'pick_random_files_forever': False,
         'input_data': [
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*1.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*2.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*3.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*4.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*5.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*6.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*7.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*8.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*9.hdf5',
         ],
     },
 
     # The validation data iterator
     'validation': {
-        'batch_size': 32,
+        'batch_size': 4,
         'num_splits': ,
         'file_capacity': 1,
         'batch_capacity': 10,
@@ -221,11 +235,15 @@ data_iterator_settings: {
         'pick_random_files_forever': True,
         'input_data': [
             # Note: The validation data is the same as the training data. Do not pay attention to validation curve!
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*0.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*1.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*2.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*3.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*4.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*5.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*6.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*7.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*8.hdf5',
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*9.hdf5',
         ],
     },
 
@@ -242,21 +260,8 @@ data_iterator_settings: {
         'pick_random_files_forever': False,
         'input_data': [
 
-            # # validation data
-            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
-            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*00000.hdf5',
-
-            # FTPv3m baseline
-            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99915/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            # # FTPv3m SnowStorm
-            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99916/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            # # FTPv3m SnowStorm Absorption
-            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99917/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            # # FTPv3m SnowStorm Scattering
-            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99918/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-            # # FTPv3m SnowStorm HoleIce
-            # '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/99919/cascades/step_3_pass2_get_all_pulses/*/*.hdf5',
-
+            # validation data
+            '/data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/302*/tracks_sphere/step_3_pass2_get_all_pulses/*/*00000.hdf5',
         ],
     },
 }
@@ -267,6 +272,20 @@ data_iterator_settings: {
 
 # Settings for the loss module class
 loss_module_settings: [
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    #     'loss_module_weight': 1.0,
+
+    #     config: {
+    #         # the float precision to use
+    #         'float_precision': 'float32',
+    #         # Add normalization terms to llh if True
+    #         'add_normalization_term': True,
+    #         # choose the loss function to use
+    #         'loss_function_name': 'unbinned_pulse_time_mpe_llh',
+    #     },
+    # },
     {
         # The loss module class to use
         'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -295,20 +314,6 @@ loss_module_settings: [
             'loss_function_name': 'dom_charge_pdf',
         },
     },
-    # # {
-    # #     # The loss module class to use
-    # #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
-    # #     'loss_module_weight': 1.0,
-
-    # #     config: {
-    # #         # the float precision to use
-    # #         'float_precision': 'float32',
-    # #         # Add normalization terms to llh if True
-    # #         'add_normalization_term': True,
-    # #         # choose the loss function to use
-    # #         'loss_function_name': 'normalized_dom_charge_pdf',
-    # #     },
-    # # },
     # {
     #     # The loss module class to use
     #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -321,6 +326,20 @@ loss_module_settings: [
     #         'add_normalization_term': True,
     #         # choose the loss function to use
     #         'loss_function_name': 'negative_binomial_charge_pdf',
+    #     },
+    # },
+    # {
+    #     # The loss module class to use
+    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
+    #     'loss_module_weight': 1.0,
+
+    #     config: {
+    #         # the float precision to use
+    #         'float_precision': 'float32',
+    #         # Add normalization terms to llh if True
+    #         'add_normalization_term': True,
+    #         # choose the loss function to use
+    #         'loss_function_name': 'negative_binomial_event_charge_pdf',
     #     },
     # },
 ]
@@ -345,7 +364,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    'model_dir': '/data/user/mhuennefeld/data/egenerator/trafo_models/trafo_model_cascade_7param_noise_ftpv3m',
+    'model_dir': '/data/user/mhuennefeld/data/egenerator/trafo_models/trafo_model_track_sphere_dist_10_ftpv3m__test',
 }
 
 #----------------------
@@ -366,8 +385,8 @@ data_handler_settings: {
 
     # settings for the data module
     'data_settings':{
-        'pulse_key': 'MCPulses',
-        'event_id_key': 'LabelsMCCascade',
+        'pulse_key': 'InIceDSTPulses_masked_doms_only',
+        'event_id_key': 'LabelsMCTrackSphere',
         'dom_exclusions_key': BadDomsList,
         'time_exclusions_key': ,
         'float_precision': 'float32',
@@ -380,16 +399,16 @@ data_handler_settings: {
     # LabelModule Settings
     # --------------------
     # which label module to use
-    'label_module': 'snowstorm_cascades.SnowstormCascadeGeneratorLabelModule',
+    'label_module': 'snowstorm_track_equidistant_cascades.SnowstormTrackEquidistantCascadesLabelModule',
 
     # settings for the label module
     'label_settings':{
         # logarithm on labels:
-        # (x, y, z, zenith, azimuth, energy, time)?
-        'trafo_log': [False, False, False, False, False, True, False],
-        'label_key': 'LabelsMCCascade',
-        'additional_labels': [],
+        # (e_zenith, e_azimuth, e_time, e_energy, zenith, azimuth, E_losses)?
+        'trafo_log': [False, False, False, True, False, False, True],
+        'label_key': 'LabelsMCTrackSphere',
         'snowstorm_key': 'SnowstormParameterDict',
+        'num_cascades': 150,
         'snowstorm_parameters': [
             # "Absorption",
             # # "AnisotropyScale",
@@ -428,7 +447,7 @@ data_handler_settings: {
     # settings for the filter module
     'filter_settings':{
         'constraints': [
-            # ['LabelsMCCascade', 'cascade_z', '<', -250.],
+            # ['LabelsMCTrackSphere', 'entry_energy', '>', 1000.],
         ],
     },
 }
@@ -443,12 +462,12 @@ model_settings: {
     # The source class to use
     'model_class': 'egenerator.model.multi_source.independent.IndependentMultiSource',
 
-    # configuration settings for DefaultMultiCascadeModel object
+    # configuration settings for EnteringSphereInfTrack object
     config: {
         'float_precision': float32,
         'sources': {
             'noise': 'noise',
-            'cascade': 'cascade',
+            'track': 'track',
         },
     },
 
@@ -531,16 +550,15 @@ model_settings: {
             },
         },
 
-        cascade: {
-            # The cascade source model class to use
-            'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
+        track: {
+            # The track source model class to use
+            'model_class': 'egenerator.model.source.track.inf_multi_cascade_sphere.EnteringSphereInfTrackMultiCascade',
 
             config: {
                 'keep_prob':,
-                'shift_cascade_vertex': True,
+                'sphere_radius': 750.,
                 'add_anisotropy_angle': True,
-                'add_opening_angle': True,
-                'add_dom_angular_acceptance': False,
+                'add_dom_angular_acceptance': True,
                 'add_dom_coordinates': False,
                 'num_local_vars': 0,
                 'scale_charge': True,
@@ -548,6 +566,7 @@ model_settings: {
                 'scale_charge_by_global_dom_efficiency': False,
                 'scale_charge_by_angular_acceptance': True,
                 'scale_charge_by_relative_angular_acceptance': False,
+                'charge_distribution_type': 'negative_binomial',
                 'float_precision': float32,
                 'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
 
@@ -562,11 +581,6 @@ model_settings: {
                 'baseline_hole_ice_p0': 0.25,
                 'baseline_hole_ice_p1': -0.06,
 
-                # This is a list of labels in addition to
-                # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
-                'additional_label_names' : [
-                ],
-
                 # First convolutions
                 'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
                 'num_filters_list' : [50, 100, 100, 100, 100, 45],
@@ -577,7 +591,178 @@ model_settings: {
                 'use_dropout_list' : False,
                 'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
                 'use_batch_norm_list' : False,
-                'use_residual_list' : [True, True, True, True, True, False]
+                'use_residual_list' : [True, True, True, True, True, False],
+
+                # define the cascade setup
+                'cascade_spacing': 10.,
+                'num_cascades': 30,
+                'config_cascade': {
+
+                    config: {
+                        'keep_prob':,
+                        'shift_cascade_vertex': True,
+                        'add_anisotropy_angle': True,
+                        'add_opening_angle': True,
+                        'add_dom_angular_acceptance': False,
+                        'add_dom_coordinates': False,
+                        'num_local_vars': 0,
+                        'scale_charge': True,
+                        'scale_charge_by_relative_dom_efficiency': True,
+                        'scale_charge_by_global_dom_efficiency': False,
+                        'scale_charge_by_angular_acceptance': False,
+                        'scale_charge_by_relative_angular_acceptance': False,
+                        'float_precision': float32,
+                        'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, -20, -5],
+
+                        # define names of charge latent vars that should be
+                        # scaled internally by the model (e.g. by the energy, eff.)
+                        # Note: the decoder should not add additional value
+                        # range mapping for these tensors!
+                        'charge_scale_tensors': ["mu"],
+
+                        # Baseline DOM Angular acceptance
+                        'use_constant_baseline_hole_ice': True,
+                        'baseline_hole_ice_p0': 0.25,
+                        'baseline_hole_ice_p1': -0.06,
+
+                        # First convolutions
+                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1]],
+                        'num_filters_list' : [30, 100, 100, 28],
+                        'method_list' : ['locally_connected',
+                                        'convolution', 'convolution', 'convolution',
+                                        ],
+                        'use_dropout_list' : False,
+                        'activation_list' : ['elu', 'elu', 'elu', ''],
+                        'use_batch_norm_list' : False,
+                        'use_residual_list' : [True, True, True, False]
+                    },
+
+                    # configuration for the charge decoder to transform the latent
+                    # variables to the expected charge PDF.
+                    decoder_charge_settings: {
+                        # The decoder class to use
+                        decoder_class: "egenerator.model.decoder.NegativeBinomialDecoder",
+
+                        # configuration of the negative binomial model
+                        'config': {
+                            'float_precision': float32,
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "alpha": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": -5.0,
+                                        "min_value": 0.0001,
+                                    },
+                                },
+                            },
+                        },
+                    },
+
+                    # configuration of the decoder to transform the latent variables
+                    # to the time arrival PDF
+                    decoder_settings: {
+
+                        # The decoder class to use
+                        decoder_class: "egenerator.model.decoder.mixture.MixtureModel",
+
+                        # configuration of the mixture model
+                        config: {
+                            # Note that mapping here will just repeat the names,
+                            # but in other cases it could be used to reuse the
+                            # same base model multiple times (as for MultiSource objects)
+                            "decoder_mapping": {
+                                "AssymetricGaussian": ["AssymetricGaussian", 5, 1.0],
+                                "GammaFunction": ["GammaFunction", 2, 10.0],
+                            },
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "weight": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": 1.0,
+                                        "min_value": 0.00001
+                                    },
+                                },
+                            },
+                        },
+
+                        # Define the decoder types that are used as components of the mixture
+                        # model
+                        base_decoders: {
+                            AssymetricGaussian: {
+                                'decoder_class': 'egenerator.model.decoder.AsymmetricGaussianDecoder',
+                                'config': {
+                                    'float_precision': float32,
+
+                                    # Define a mapping of latent variable to value range functions
+                                    "value_range_mapping": {
+                                        "mu": {
+                                            "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                                            "config": {
+                                                "scale": 0.5,
+                                                "offset": 0.0,
+                                            },
+                                        },
+                                        "sigma": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 2.0,
+                                                "min_value": 0.0001,
+                                            },
+                                        },
+                                        "r": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 1.0,
+                                                "min_value": 0.0001,
+                                            },
+                                        },
+                                    },
+                                },
+
+                                # Define load_dir here if you want to load the model from a file
+                                # This does not make sense for a paremeter-less model, but it
+                                # could be used for a model that has been trained and saved
+                                # previously such as a normalizing flow model.
+                                # 'load_dir': 'path/to/model',
+                            },
+                            GammaFunction: {
+                                'decoder_class': 'egenerator.model.decoder.GammaFunctionDecoder',
+                                'config': {
+                                    'float_precision': float32,
+                                    'offset': 0.0, # note that offset is in model time units
+
+                                    # Define a mapping of latent variable to value range functions
+                                    "value_range_mapping": {
+                                        "alpha": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 0.3,
+                                                "offset": 2.5,
+                                                "min_value": 0.5,
+                                            },
+                                        },
+                                        "beta": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 10.0,
+                                                "min_value": 1.0,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
             },
 
             # configuration for the charge decoder to transform the latent
@@ -638,7 +823,7 @@ model_settings: {
                 # model
                 base_decoders: {
                     AssymetricGaussian: {
-                        'decoder_class': 'egenerator.model.decoder.AsymmetricGaussianDecoder',
+                        'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
                         'config': {
                             'float_precision': float32,
 
@@ -677,7 +862,7 @@ model_settings: {
                         # 'load_dir': 'path/to/model',
                     },
                     GammaFunction: {
-                        'decoder_class': 'egenerator.model.decoder.GammaFunctionDecoder',
+                        'decoder_class': 'egenerator.model.decoder.static.gamma.GammaFunctionDecoder',
                         'config': {
                             'float_precision': float32,
                             'offset': 0.0, # note that offset is in model time units

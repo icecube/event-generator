@@ -14,6 +14,110 @@ from egenerator.utils import (
 )
 
 
+def setup_cascade_model(config):
+    """Set up a cascade model.
+
+    Parameters
+    ----------
+    config : dict
+        A dictionary of settings that fully defines the architecture.
+
+    Returns
+    -------
+    tfscripts.Layers
+        The CNN layers of the cascade model.
+    tf.Variable
+        The local variables tensor.
+    list of str
+        A list of parameter names. These parameters fully describe the
+        source hypothesis. The model expects the hypothesis tensor input
+        to be in the same order as this returned list.
+    """
+    if (
+        config["scale_charge_by_angular_acceptance"]
+        and config["scale_charge_by_relative_angular_acceptance"]
+    ):
+        raise ValueError(
+            "Only one of 'scale_charge_by_angular_acceptance' "
+            "and 'scale_charge_by_relative_angular_acceptance' "
+            "can be set to True."
+        )
+
+    # ---------------------------------------------
+    # Define input parameters of cascade hypothesis
+    # ---------------------------------------------
+    parameter_names = [
+        "x",
+        "y",
+        "z",
+        "zenith",
+        "azimuth",
+        "energy",
+        "time",
+    ]
+    if "additional_label_names" in config:
+        parameter_names += config["additional_label_names"]
+        num_add_labels = len(config["additional_label_names"])
+    else:
+        num_add_labels = 0
+
+    num_snowstorm_params = 0
+    if "snowstorm_parameter_names" in config:
+        for param_name, num in config["snowstorm_parameter_names"]:
+            num_snowstorm_params += num
+            for i in range(num):
+                parameter_names.append(param_name.format(i))
+
+    num_inputs = 11 + num_add_labels + num_snowstorm_params
+
+    if config["add_anisotropy_angle"]:
+        num_inputs += 2
+
+    if config["add_opening_angle"]:
+        num_inputs += 1
+
+    if config["add_dom_angular_acceptance"]:
+        num_inputs += 1
+
+    if config["add_dom_coordinates"]:
+        num_inputs += 3
+
+    if config["num_local_vars"] > 0:
+        local_vars = new_weights(
+            shape=[1, 86, 60, config["num_local_vars"]],
+            float_precision=config["float_precision"],
+            name="local_dom_input_variables",
+        )
+        num_inputs += config["num_local_vars"]
+    else:
+        local_vars = None
+
+    # -------------------------------------------
+    # convolutional hex3d layers over X_IC86 data
+    # -------------------------------------------
+    cnn_layers = tfs.ConvNdLayers(
+        input_shape=[-1, 86, 60, num_inputs],
+        filter_size_list=config["filter_size_list"],
+        num_filters_list=config["num_filters_list"],
+        pooling_type_list=None,
+        pooling_strides_list=[1, 1, 1, 1],
+        pooling_ksize_list=[1, 1, 1, 1],
+        use_dropout_list=config["use_dropout_list"],
+        padding_list="SAME",
+        strides_list=[1, 1, 1, 1],
+        use_batch_normalisation_list=config["use_batch_norm_list"],
+        activation_list=config["activation_list"],
+        use_residual_list=config["use_residual_list"],
+        hex_zero_out_list=False,
+        dilation_rate_list=None,
+        hex_num_rotations_list=1,
+        method_list=config["method_list"],
+        float_precision=config["float_precision"],
+    )
+
+    return cnn_layers, local_vars, parameter_names
+
+
 class DefaultCascadeModel(Source):
 
     def _build_architecture(self, config, name=None):
@@ -39,85 +143,12 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(False)
 
-        if (
-            config["scale_charge_by_angular_acceptance"]
-            and config["scale_charge_by_relative_angular_acceptance"]
-        ):
-            raise ValueError(
-                "Only one of 'scale_charge_by_angular_acceptance' "
-                "and 'scale_charge_by_relative_angular_acceptance' "
-                "can be set to True."
-            )
+        cnn_layers, local_vars, parameter_names = setup_cascade_model(config)
 
-        # ---------------------------------------------
-        # Define input parameters of cascade hypothesis
-        # ---------------------------------------------
-        parameter_names = [
-            "x",
-            "y",
-            "z",
-            "zenith",
-            "azimuth",
-            "energy",
-            "time",
-        ]
-        if "additional_label_names" in config:
-            parameter_names += config["additional_label_names"]
-            num_add_labels = len(config["additional_label_names"])
-        else:
-            num_add_labels = 0
+        if local_vars is not None:
+            self._untracked_data["local_vars"] = local_vars
 
-        num_snowstorm_params = 0
-        if "snowstorm_parameter_names" in config:
-            for param_name, num in config["snowstorm_parameter_names"]:
-                num_snowstorm_params += num
-                for i in range(num):
-                    parameter_names.append(param_name.format(i))
-
-        num_inputs = 11 + num_add_labels + num_snowstorm_params
-
-        if config["add_anisotropy_angle"]:
-            num_inputs += 2
-
-        if config["add_opening_angle"]:
-            num_inputs += 1
-
-        if config["add_dom_angular_acceptance"]:
-            num_inputs += 1
-
-        if config["add_dom_coordinates"]:
-            num_inputs += 3
-
-        if config["num_local_vars"] > 0:
-            self._untracked_data["local_vars"] = new_weights(
-                shape=[1, 86, 60, config["num_local_vars"]],
-                float_precision=config["float_precision"],
-                name="local_dom_input_variables",
-            )
-            num_inputs += config["num_local_vars"]
-
-        # -------------------------------------------
-        # convolutional hex3d layers over X_IC86 data
-        # -------------------------------------------
-        self._untracked_data["conv_hex3d_layer"] = tfs.ConvNdLayers(
-            input_shape=[-1, 86, 60, num_inputs],
-            filter_size_list=config["filter_size_list"],
-            num_filters_list=config["num_filters_list"],
-            pooling_type_list=None,
-            pooling_strides_list=[1, 1, 1, 1],
-            pooling_ksize_list=[1, 1, 1, 1],
-            use_dropout_list=config["use_dropout_list"],
-            padding_list="SAME",
-            strides_list=[1, 1, 1, 1],
-            use_batch_normalisation_list=config["use_batch_norm_list"],
-            activation_list=config["activation_list"],
-            use_residual_list=config["use_residual_list"],
-            hex_zero_out_list=False,
-            dilation_rate_list=None,
-            hex_num_rotations_list=1,
-            method_list=config["method_list"],
-            float_precision=config["float_precision"],
-        )
+        self._untracked_data["conv_hex3d_layer"] = cnn_layers
 
         return parameter_names
 
@@ -709,7 +740,7 @@ class DefaultCascadeModel(Source):
                     )
                 else:
                     print(
-                        f"Applying charge scale to {param_name} at index {idx}"
+                        f"\t Applying charge scale to {param_name} at index {idx}"
                     )
 
                 # clip value range for more stability during training
@@ -735,19 +766,25 @@ class DefaultCascadeModel(Source):
         latent_vars_charge = tf.concat(latent_vars_charge_scaled, axis=-1)
         tensor_dict["latent_vars_charge"] = latent_vars_charge
 
-        tensor_dict["dom_charges_component"] = self.decoder_charge.expectation(
+        dom_charges_component = self.decoder_charge.expectation(
             latent_vars=latent_vars_charge,
             reduce_components=False,
         )
+        if dom_charges_component.shape[1:] == [86, 60]:
+            dom_charges_component = dom_charges_component[..., tf.newaxis]
+        tensor_dict["dom_charges_component"] = dom_charges_component
+
         tensor_dict["dom_charges"] = self.decoder_charge.expectation(
             latent_vars=latent_vars_charge,
             reduce_components=True,
         )
-        tensor_dict["dom_charges_variance_component"] = (
-            self.decoder_charge.variance(
-                latent_vars=latent_vars_charge, reduce_components=False
-            )
+        variance_component = self.decoder_charge.variance(
+            latent_vars=latent_vars_charge, reduce_components=False
         )
+        if variance_component.shape[1:] == [86, 60]:
+            variance_component = variance_component[..., tf.newaxis]
+        tensor_dict["dom_charges_variance_component"] = variance_component
+
         tensor_dict["dom_charges_variance"] = self.decoder_charge.variance(
             latent_vars=latent_vars_charge, reduce_components=True
         )
