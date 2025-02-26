@@ -566,6 +566,15 @@ class DefaultLossModule(BaseComponent):
         # Shape: [n_pulses, 4] # [batch, string, dom, pulse_number]
         mask_first = data_batch_dict["x_pulses_ids"][:, 3] == 0
 
+        # add pulses up to the defined quantile
+        if "mpe_quantile" in self.configuration.config["config"]:
+            mpe_quantile = self.configuration.config["config"]["mpe_quantile"]
+            pulse_quantiles = data_batch_dict["x_pulses"][:, 2]
+            mask_first = tf.math.logical_or(
+                mask_first, pulse_quantiles <= mpe_quantile
+            )
+            print(f"Using quantile {mpe_quantile} for MPE loss")
+
         # Shape: [n_pulses_first]
         pulses_ids_first = data_batch_dict["x_pulses_ids"][:, :3][mask_first]
         pulse_pdf_value_first = pulse_pdf_values[mask_first]
@@ -596,16 +605,38 @@ class DefaultLossModule(BaseComponent):
         )
 
         # compute MPE log-likelihood
-        # Contribution at DOM i:
-        #   charge_i * pdf_i(t_0)^c_0 * (1 - cdf_i(t_0))^(charge_i - c_0)
-        #   with t_0 and c_0 the first pulse time and charge at DOM i
         # Shape: [n_pulses_first]
-        mpe_log_llh = (
-            tf_helpers.safe_log(dom_charges_true_pulses)
-            + pulse_charge_first * tf_helpers.safe_log(pulse_pdf_value_first)
-            + (dom_charges_true_pulses - pulse_charge_first)
-            * tf_helpers.safe_log(1 - pulse_cdf_value_first)
-        )
+        if "mpe_quantile" in self.configuration.config["config"]:
+            # Contribution at DOM i:
+            #   charge_i * pdf_i(t_i)^c_i  * (1 - cdf_i(t_i))^(charge_i * (1 - quantile_i))
+            #   with t_0 and c_0 the first pulse time and charge at DOM i
+            # Note: The cdf term should really only be applied for the
+            #       last pulse of the specified quantile. However, finding
+            #       the last pulse at the given quantile for each hit DOM
+            #       is more expensive than simply applying the cdf to all
+            #       pulses in the quantile. Let's see how this works out...
+            pulse_quantiles_first = pulse_quantiles[mask_first]
+            mpe_log_llh = (
+                tf_helpers.safe_log(dom_charges_true_pulses)
+                + pulse_charge_first
+                * tf_helpers.safe_log(pulse_pdf_value_first)
+                + (
+                    dom_charges_true_pulses
+                    * tf.clip_by_value(1 - pulse_quantiles_first, 0, 1)
+                )
+                * tf_helpers.safe_log(1 - pulse_cdf_value_first)
+            )
+        else:
+            # Contribution at DOM i:
+            #   charge_i * pdf_i(t_0)^c_0 * (1 - cdf_i(t_0))^(charge_i - c_0)
+            #   with t_0 and c_0 the first pulse time and charge at DOM i
+            mpe_log_llh = (
+                tf_helpers.safe_log(dom_charges_true_pulses)
+                + pulse_charge_first
+                * tf_helpers.safe_log(pulse_pdf_value_first)
+                + (dom_charges_true_pulses - pulse_charge_first)
+                * tf_helpers.safe_log(1 - pulse_cdf_value_first)
+            )
         time_loss = -mpe_log_llh
 
         if sort_loss_terms:

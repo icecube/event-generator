@@ -445,7 +445,7 @@ model_settings: {
 
     config: {
         'keep_prob':,
-        'shift_cascade_vertex': False,
+        'shift_cascade_vertex': True,
         'add_anisotropy_angle': True,
         'add_opening_angle': True,
         'add_dom_angular_acceptance': False,
@@ -476,15 +476,16 @@ model_settings: {
         ],
 
         # First convolutions
-        'filter_size_list' : [[1, 1], [1, 1], [1, 1]],
-        'num_filters_list' : [100, 100, 20],
+        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1]],
+        'num_filters_list' : [20, 100, 100, 20],
         'method_list' : [
+            'locally_connected',
             'convolution', 'convolution', 'convolution',
         ],
         'use_dropout_list' : False,
-        'activation_list' : ['elu', 'elu', ''],
+        'activation_list' : ['elu', 'elu', 'elu', ''],
         'use_batch_norm_list' : False,
-        'use_residual_list' : [True, True, False]
+        'use_residual_list' : [True, True, True, False]
     },
 
     # configuration for the charge decoder to transform the latent
