@@ -7,7 +7,7 @@
 ##############
 
 # Provide a unique name for the model
-unique_name: 'track_sphere_6param_ftpv3m'
+unique_name: 'track_sphere_5cascades_ftpv3m'
 
 #------------------
 # Training settings
@@ -90,6 +90,11 @@ reconstruction_settings: {
     'seed_parameter_names': [
         'entry_zenith', 'entry_azimuth', 'entry_t',
         'entry_energy', 'zenith', 'azimuth',
+        'cascade_0000_energy', 'cascade_0000_distance',
+        'cascade_0001_energy', 'cascade_0001_distance',
+        'cascade_0002_energy', 'cascade_0002_distance',
+        'cascade_0003_energy', 'cascade_0003_distance',
+        'cascade_0004_energy', 'cascade_0004_distance',
     ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
@@ -127,7 +132,12 @@ reconstruction_settings: {
     # Settings defined here overwrite the default value
     # Entries must have the form: {parameter_name: value}
     'minimize_parameter_dict': {
-
+        "track_entry_zenith": True,
+        "track_entry_azimuth": True,
+        "track_entry_t": True,
+        "track_entry_energy": True,
+        "track_zenith": True,
+        "track_azimuth": True,
     },
 }
 
@@ -295,20 +305,20 @@ loss_module_settings: [
     #         'loss_function_name': 'unbinned_pulse_time_llh',
     #     },
     # },
-    # {
-    #     # The loss module class to use
-    #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
-    #     'loss_module_weight': 1.0,
+    {
+        # The loss module class to use
+        'loss_module': 'egenerator.loss.default.DefaultLossModule',
+        'loss_module_weight': 1.0,
 
-    #     config: {
-    #         # the float precision to use
-    #         'float_precision': 'float32',
-    #         # Add normalization terms to llh if True
-    #         'add_normalization_term': True,
-    #         # choose the loss function to use
-    #         'loss_function_name': 'dom_charge_pdf',
-    #     },
-    # },
+        config: {
+            # the float precision to use
+            'float_precision': 'float32',
+            # Add normalization terms to llh if True
+            'add_normalization_term': True,
+            # choose the loss function to use
+            'loss_function_name': 'dom_charge_pdf',
+        },
+    },
     # {
     #     # The loss module class to use
     #     'loss_module': 'egenerator.loss.default.DefaultLossModule',
@@ -359,7 +369,7 @@ data_trafo_settings: {
     'float_precision': 'float64',
     'norm_constant': !!float 1e-6,
     'num_batches': 5000,
-    'model_dir': '/data/user/mhuennefeld/data/egenerator/trafo_models/trafo_model_track_sphere_6param_ftpv3m',
+    'model_dir': '/data/user/mhuennefeld/data/egenerator/trafo_models/trafo_model_track_sphere_5cascades_ftpv3m',
 }
 
 #----------------------
@@ -399,8 +409,16 @@ data_handler_settings: {
     # settings for the label module
     'label_settings':{
         # logarithm on labels:
-        # (e_zenith, e_azimuth, e_time, e_energy, zenith, azimuth)?
-        'trafo_log': [False, False, False, True, False, False],
+        'trafo_log': [
+            # (e_zenith, e_azimuth, e_time, e_energy, zenith, azimuth)?
+            False, False, False, True, False, False,
+            # cascade_energy, cascade_distance
+            True, False,
+            True, False,
+            True, False,
+            True, False,
+            True, False,
+        ],
         'label_key': 'LabelsMCTrackSphere',
         'parameter_names': [
             "entry_zenith",
@@ -409,6 +427,11 @@ data_handler_settings: {
             "entry_energy",
             "zenith",
             "azimuth",
+            "cascade_0000_energy", "cascade_0000_distance",
+            "cascade_0001_energy", "cascade_0001_distance",
+            "cascade_0002_energy", "cascade_0002_distance",
+            "cascade_0003_energy", "cascade_0003_distance",
+            "cascade_0004_energy", "cascade_0004_distance",
         ],
         'snowstorm_key': 'SnowstormParameterDict',
         'snowstorm_parameters': [
@@ -553,167 +576,365 @@ model_settings: {
         },
 
         track: {
-            # The track source model class to use
-            'model_class': 'egenerator.model.source.track.inf_tracks_sphere.EnteringSphereInfTrack',
+            # The source class to use
+            'model_class': 'egenerator.model.multi_source.track.InfSphereTrackVariableMultiCascadeModel',
 
+            # configuration settings for EnteringSphereInfTrack object
             config: {
-                'keep_prob':,
-                'sphere_radius': 750.,
-                'add_anisotropy_angle': True,
-                'add_dom_angular_acceptance': True,
-                'add_dom_coordinates': False,
-                'num_local_vars': 0,
-                'scale_charge': True,
-                'scale_charge_by_relative_dom_efficiency': True,
-                'scale_charge_by_global_dom_efficiency': False,
-                'scale_charge_by_angular_acceptance': True,
-                'scale_charge_by_relative_angular_acceptance': False,
-                'charge_distribution_type': 'negative_binomial',
                 'float_precision': float32,
-                'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
-
-                # define names of charge latent vars that should be
-                # scaled internally by the model (e.g. by the energy, eff.)
-                # Note: the decoder should not add additional value
-                # range mapping for these tensors!
-                'charge_scale_tensors': ["mu"],
-
-                # Baseline DOM Angular acceptance
-                'use_constant_baseline_hole_ice': True,
-                'baseline_hole_ice_p0': 0.25,
-                'baseline_hole_ice_p1': -0.06,
-
-                # First convolutions
-                'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
-                'num_filters_list' : [50, 100, 100, 100, 100, 45],
-                'method_list' : ['locally_connected',
-                                 'convolution', 'convolution', 'convolution',
-                                 'convolution', 'convolution',
-                                 ],
-                'use_dropout_list' : False,
-                'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
-                'use_batch_norm_list' : False,
-                'use_residual_list' : [True, True, True, True, True, False]
+                'sphere_radius': 750.,
+                'num_cascades': 5,
             },
 
-            # configuration for the charge decoder to transform the latent
-            # variables to the expected charge PDF.
-            decoder_charge_settings: {
-                # The decoder class to use
-                decoder_class: "egenerator.model.decoder.NegativeBinomialDecoder",
+            # Base sources used by the multi-source class
+            multi_source_bases: {
 
-                # configuration of the negative binomial model
-                'config': {
-                    'float_precision': float32,
+                cascade: {
+                    # The cascade source model class to use
+                    'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
-                    # Define a mapping of latent variable to value range functions
-                    "value_range_mapping": {
-                        "alpha": {
-                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
-                            "config": {
-                                "scale": 1.0,
-                                "offset": -5.0,
-                                "min_value": 0.0001,
-                            },
-                        },
+                    # The directory from which this base source will be loaded
+                    'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/cascade_7param_noise_ftpv3m/manager/models_0000/cascade/',
+
+                    config: {
+                        'keep_prob':,
+                        'shift_cascade_vertex': True,
+                        'add_anisotropy_angle': True,
+                        'add_opening_angle': True,
+                        'add_dom_angular_acceptance': False,
+                        'add_dom_coordinates': False,
+                        'num_local_vars': 0,
+                        'scale_charge': True,
+                        'scale_charge_by_relative_dom_efficiency': True,
+                        'scale_charge_by_global_dom_efficiency': False,
+                        'scale_charge_by_angular_acceptance': True,
+                        'scale_charge_by_relative_angular_acceptance': False,
+                        'float_precision': float32,
+                        'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
+
+                        # define names of charge latent vars that should be
+                        # scaled internally by the model (e.g. by the energy, eff.)
+                        # Note: the decoder should not add additional value
+                        # range mapping for these tensors!
+                        'charge_scale_tensors': ["mu"],
+
+                        # Baseline DOM Angular acceptance
+                        'use_constant_baseline_hole_ice': True,
+                        'baseline_hole_ice_p0': 0.25,
+                        'baseline_hole_ice_p1': -0.06,
+
+                        # This is a list of labels in addition to
+                        # (x, y, z, zenith, azimuth, energy, time) and snowstorm parameters
+                        'additional_label_names' : [
+                        ],
+
+                        # First convolutions
+                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                        'num_filters_list' : [50, 100, 100, 100, 100, 45],
+                        'method_list' : ['locally_connected',
+                                        'convolution', 'convolution', 'convolution',
+                                        'convolution', 'convolution',
+                                        ],
+                        'use_dropout_list' : False,
+                        'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
+                        'use_batch_norm_list' : False,
+                        'use_residual_list' : [True, True, True, True, True, False]
                     },
-                },
-            },
 
-            # configuration of the decoder to transform the latent variables
-            # to the time arrival PDF
-            decoder_settings: {
+                    # configuration for the charge decoder to transform the latent
+                    # variables to the expected charge PDF.
+                    decoder_charge_settings: {
+                        # The decoder class to use
+                        decoder_class: "egenerator.model.decoder.NegativeBinomialDecoder",
 
-                # The decoder class to use
-                decoder_class: "egenerator.model.decoder.mixture.MixtureModel",
-
-                # configuration of the mixture model
-                config: {
-                    # Note that mapping here will just repeat the names,
-                    # but in other cases it could be used to reuse the
-                    # same base model multiple times (as for MultiSource objects)
-                    "decoder_mapping": {
-                        "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
-                        "GammaFunction": ["GammaFunction", 5, 10.0],
-                    },
-
-                    # Define a mapping of latent variable to value range functions
-                    "value_range_mapping": {
-                        "weight": {
-                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
-                            "config": {
-                                "scale": 1.0,
-                                "offset": 1.0,
-                                "min_value": 0.00001
-                            },
-                        },
-                    },
-                },
-
-                # Define the decoder types that are used as components of the mixture
-                # model
-                base_decoders: {
-                    AssymetricGaussian: {
-                        'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
+                        # configuration of the negative binomial model
                         'config': {
                             'float_precision': float32,
-
-                            # Define a mapping of latent variable to value range functions
-                            "value_range_mapping": {
-                                "mu": {
-                                    "value_range_class": "egenerator.utils.value_range.BaseValueRange",
-                                    "config": {
-                                        "scale": 0.5,
-                                        "offset": 0.0,
-                                    },
-                                },
-                                "sigma": {
-                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
-                                    "config": {
-                                        "scale": 1.0,
-                                        "offset": 2.0,
-                                        "min_value": 0.0001,
-                                    },
-                                },
-                                "r": {
-                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
-                                    "config": {
-                                        "scale": 1.0,
-                                        "offset": 1.0,
-                                        "min_value": 0.0001,
-                                    },
-                                },
-                            },
-                        },
-
-                        # Define load_dir here if you want to load the model from a file
-                        # This does not make sense for a paremeter-less model, but it
-                        # could be used for a model that has been trained and saved
-                        # previously such as a normalizing flow model.
-                        # 'load_dir': 'path/to/model',
-                    },
-                    GammaFunction: {
-                        'decoder_class': 'egenerator.model.decoder.static.gamma.GammaFunctionDecoder',
-                        'config': {
-                            'float_precision': float32,
-                            'offset': 0.0, # note that offset is in model time units
 
                             # Define a mapping of latent variable to value range functions
                             "value_range_mapping": {
                                 "alpha": {
                                     "value_range_class": "egenerator.utils.value_range.EluValueRange",
                                     "config": {
-                                        "scale": 0.3,
-                                        "offset": 2.5,
-                                        "min_value": 0.5,
+                                        "scale": 1.0,
+                                        "offset": -5.0,
+                                        "min_value": 0.0001,
                                     },
                                 },
-                                "beta": {
+                            },
+                        },
+                    },
+
+                    # configuration of the decoder to transform the latent variables
+                    # to the time arrival PDF
+                    decoder_settings: {
+
+                        # The decoder class to use
+                        decoder_class: "egenerator.model.decoder.mixture.MixtureModel",
+
+                        # configuration of the mixture model
+                        config: {
+                            # Note that mapping here will just repeat the names,
+                            # but in other cases it could be used to reuse the
+                            # same base model multiple times (as for MultiSource objects)
+                            "decoder_mapping": {
+                                "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
+                                "GammaFunction": ["GammaFunction", 5, 10.0],
+                            },
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "weight": {
                                     "value_range_class": "egenerator.utils.value_range.EluValueRange",
                                     "config": {
                                         "scale": 1.0,
-                                        "offset": 10.0,
-                                        "min_value": 1.0,
+                                        "offset": 1.0,
+                                        "min_value": 0.00001
+                                    },
+                                },
+                            },
+                        },
+
+                        # Define the decoder types that are used as components of the mixture
+                        # model
+                        base_decoders: {
+                            AssymetricGaussian: {
+                                'decoder_class': 'egenerator.model.decoder.AsymmetricGaussianDecoder',
+                                'config': {
+                                    'float_precision': float32,
+
+                                    # Define a mapping of latent variable to value range functions
+                                    "value_range_mapping": {
+                                        "mu": {
+                                            "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                                            "config": {
+                                                "scale": 0.5,
+                                                "offset": 0.0,
+                                            },
+                                        },
+                                        "sigma": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 2.0,
+                                                "min_value": 0.0001,
+                                            },
+                                        },
+                                        "r": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 1.0,
+                                                "min_value": 0.0001,
+                                            },
+                                        },
+                                    },
+                                },
+
+                                # Define load_dir here if you want to load the model from a file
+                                # This does not make sense for a paremeter-less model, but it
+                                # could be used for a model that has been trained and saved
+                                # previously such as a normalizing flow model.
+                                # 'load_dir': 'path/to/model',
+                            },
+                            GammaFunction: {
+                                'decoder_class': 'egenerator.model.decoder.GammaFunctionDecoder',
+                                'config': {
+                                    'float_precision': float32,
+                                    'offset': 0.0, # note that offset is in model time units
+
+                                    # Define a mapping of latent variable to value range functions
+                                    "value_range_mapping": {
+                                        "alpha": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 0.3,
+                                                "offset": 2.5,
+                                                "min_value": 0.5,
+                                            },
+                                        },
+                                        "beta": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 10.0,
+                                                "min_value": 1.0,
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+
+                track: {
+                    # The track source model class to use
+                    'model_class': 'egenerator.model.source.track.inf_tracks_sphere.EnteringSphereInfTrack',
+
+                    # The directory from which this base source will be loaded
+                    'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/track_sphere_6param_ftpv3m/manager/models_0000/track',
+
+                    config: {
+                        'keep_prob':,
+                        'sphere_radius': 750.,
+                        'add_anisotropy_angle': True,
+                        'add_dom_angular_acceptance': True,
+                        'add_dom_coordinates': False,
+                        'num_local_vars': 0,
+                        'scale_charge': True,
+                        'scale_charge_by_relative_dom_efficiency': True,
+                        'scale_charge_by_global_dom_efficiency': False,
+                        'scale_charge_by_angular_acceptance': True,
+                        'scale_charge_by_relative_angular_acceptance': False,
+                        'charge_distribution_type': 'negative_binomial',
+                        'float_precision': float32,
+                        'mixture_component_t_seeds': [0, -100, 100, 8000, 4000, 800, 300, -50, -20, -10, -5, 0],
+
+                        # define names of charge latent vars that should be
+                        # scaled internally by the model (e.g. by the energy, eff.)
+                        # Note: the decoder should not add additional value
+                        # range mapping for these tensors!
+                        'charge_scale_tensors': ["mu"],
+
+                        # Baseline DOM Angular acceptance
+                        'use_constant_baseline_hole_ice': True,
+                        'baseline_hole_ice_p0': 0.25,
+                        'baseline_hole_ice_p1': -0.06,
+
+                        # First convolutions
+                        'filter_size_list' : [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1], [1, 1]],
+                        'num_filters_list' : [50, 100, 100, 100, 100, 45],
+                        'method_list' : ['locally_connected',
+                                        'convolution', 'convolution', 'convolution',
+                                        'convolution', 'convolution',
+                                        ],
+                        'use_dropout_list' : False,
+                        'activation_list' : ['elu', 'elu', 'elu', 'elu', 'elu', ''],
+                        'use_batch_norm_list' : False,
+                        'use_residual_list' : [True, True, True, True, True, False]
+                    },
+
+                    # configuration for the charge decoder to transform the latent
+                    # variables to the expected charge PDF.
+                    decoder_charge_settings: {
+                        # The decoder class to use
+                        decoder_class: "egenerator.model.decoder.NegativeBinomialDecoder",
+
+                        # configuration of the negative binomial model
+                        'config': {
+                            'float_precision': float32,
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "alpha": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": -5.0,
+                                        "min_value": 0.0001,
+                                    },
+                                },
+                            },
+                        },
+                    },
+
+                    # configuration of the decoder to transform the latent variables
+                    # to the time arrival PDF
+                    decoder_settings: {
+
+                        # The decoder class to use
+                        decoder_class: "egenerator.model.decoder.mixture.MixtureModel",
+
+                        # configuration of the mixture model
+                        config: {
+                            # Note that mapping here will just repeat the names,
+                            # but in other cases it could be used to reuse the
+                            # same base model multiple times (as for MultiSource objects)
+                            "decoder_mapping": {
+                                "AssymetricGaussian": ["AssymetricGaussian", 7, 1.0],
+                                "GammaFunction": ["GammaFunction", 5, 10.0],
+                            },
+
+                            # Define a mapping of latent variable to value range functions
+                            "value_range_mapping": {
+                                "weight": {
+                                    "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                    "config": {
+                                        "scale": 1.0,
+                                        "offset": 1.0,
+                                        "min_value": 0.00001
+                                    },
+                                },
+                            },
+                        },
+
+                        # Define the decoder types that are used as components of the mixture
+                        # model
+                        base_decoders: {
+                            AssymetricGaussian: {
+                                'decoder_class': 'egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder',
+                                'config': {
+                                    'float_precision': float32,
+
+                                    # Define a mapping of latent variable to value range functions
+                                    "value_range_mapping": {
+                                        "mu": {
+                                            "value_range_class": "egenerator.utils.value_range.BaseValueRange",
+                                            "config": {
+                                                "scale": 0.5,
+                                                "offset": 0.0,
+                                            },
+                                        },
+                                        "sigma": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 2.0,
+                                                "min_value": 0.0001,
+                                            },
+                                        },
+                                        "r": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 1.0,
+                                                "min_value": 0.0001,
+                                            },
+                                        },
+                                    },
+                                },
+
+                                # Define load_dir here if you want to load the model from a file
+                                # This does not make sense for a paremeter-less model, but it
+                                # could be used for a model that has been trained and saved
+                                # previously such as a normalizing flow model.
+                                # 'load_dir': 'path/to/model',
+                            },
+                            GammaFunction: {
+                                'decoder_class': 'egenerator.model.decoder.static.gamma.GammaFunctionDecoder',
+                                'config': {
+                                    'float_precision': float32,
+                                    'offset': 0.0, # note that offset is in model time units
+
+                                    # Define a mapping of latent variable to value range functions
+                                    "value_range_mapping": {
+                                        "alpha": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 0.3,
+                                                "offset": 2.5,
+                                                "min_value": 0.5,
+                                            },
+                                        },
+                                        "beta": {
+                                            "value_range_class": "egenerator.utils.value_range.EluValueRange",
+                                            "config": {
+                                                "scale": 1.0,
+                                                "offset": 10.0,
+                                                "min_value": 1.0,
+                                            },
+                                        },
                                     },
                                 },
                             },

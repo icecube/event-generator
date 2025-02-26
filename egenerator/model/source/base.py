@@ -63,11 +63,22 @@ class Source(Model):
         else:
             return None
 
+    @property
+    def decoder_charge(self):
+        if (
+            self.sub_components is not None
+            and "decoder_charge" in self.sub_components
+        ):
+            return self.sub_components["decoder_charge"]
+        else:
+            return None
+
     def _configure_derived_class(
         self,
         config,
         data_trafo,
         decoder=None,
+        decoder_charge=None,
         name=None,
     ):
         """Setup and configure the Source's architecture.
@@ -83,8 +94,12 @@ class Source(Model):
         data_trafo : DataTrafo
             A data trafo object.
         decoder : LatentToPDFDecoder, optional
-            The decoder object. This is an optional object that can
-            be used to decode the latent variables into a PDF.
+            The decoder object. This is an optional object that is
+            used to decode the latent variables into a PDF.
+        decoder_charge : LatentToPDFDecoder, optional
+            The decoder object for the charge. This is an optional
+            object that is used to decode the latent variables
+            into a PDF for the charge expectation.
         name : str, optional
             The name of the source.
 
@@ -168,6 +183,11 @@ class Source(Model):
         else:
             # add empty decoder to config to keep track of it
             settings = dict(config=config, decoder=None)
+        if decoder_charge is not None:
+            sub_components["decoder_charge"] = decoder_charge
+        else:
+            # add empty decoder to config to keep track of it
+            settings["decoder_charge"] = None
 
         # create configuration object
         configuration = Configuration(

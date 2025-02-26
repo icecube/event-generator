@@ -2038,7 +2038,7 @@ class SourceManager(BaseModelManager):
                 msg = "\t{:6s} {:>10s} {:>10s} {:>10s} {:>10s}".format(
                     "Fitted", "True", "Seed", "Reco", "Diff"
                 )
-                pattern = "\n\t{:6s} {:10.2f} {:10.2f} {:10.2f} {:10.2f} [{}]"
+                pattern = "\n\t{:6s} {:10.2f} {:10.2f} {:10.2f} {:10.3f} [{}]"
                 msg += pattern.format(
                     "",
                     loss_true,

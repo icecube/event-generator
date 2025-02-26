@@ -29,6 +29,16 @@ class LatentToPDFDecoder(Model):
             Evaluate the percent point function at a given input tensor.
     """
 
+    def is_charge_decoder(self):
+        """Check if the decoder is a charge decoder.
+
+        Returns
+        -------
+        bool
+            True if the decoder is a charge decoder, False otherwise.
+        """
+        raise NotImplementedError
+
     @property
     def value_range_mapping(self):
         """Get the value range mapping.
@@ -40,6 +50,24 @@ class LatentToPDFDecoder(Model):
         """
         if self._untracked_data is not None:
             return self._untracked_data.get("value_range_mapping", None)
+        else:
+            return None
+
+    @property
+    def loc_parameters(self):
+        """Get the location parameters.
+
+        The location parameters are the names of the latent variables
+        that affect the expectation value of the PDF.
+        Not all decoders have location parameters.
+
+        Returns
+        -------
+        list of str
+            The location parameters.
+        """
+        if self._untracked_data is not None:
+            return self._untracked_data.get("loc_parameters", None)
         else:
             return None
 
@@ -108,11 +136,15 @@ class LatentToPDFDecoder(Model):
 
         # build architecture: create and save model weights (if any)
         # and return the names of the latent variables
-        latent_names = self._build_architecture(config, name=name)
+        latent_names, loc_parameters = self._build_architecture(
+            config,
+            name=name,
+        )
 
         # get names of latent variables
         self._untracked_data["name"] = name
         self._set_parameter_names(latent_names)
+        self._untracked_data["loc_parameters"] = loc_parameters
 
         # create value range object
         self._untracked_data["value_range_mapping"] = {}
@@ -188,6 +220,87 @@ class LatentToPDFDecoder(Model):
 
         return tf.stack(latent_vars_list, axis=-1)
 
+    def expectation(self, latent_vars, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...]
+        """
+        self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._expectation(latent_vars, **kwargs)
+
+    def _expectation(self, latent_vars, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...]
+        """
+        raise NotImplementedError
+
+    def variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._variance(latent_vars, **kwargs)
+
+    def _variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        raise NotImplementedError
+
     def pdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded PDF at x.
 
@@ -236,6 +349,54 @@ class LatentToPDFDecoder(Model):
             The PDF evaluated at x for the given latent variables.
         """
         raise NotImplementedError
+
+    def log_pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the logarithm of the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (n_parameters).
+            Shape: [...]
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
+        self.assert_configured(True)
+        latent_vars = self._apply_value_range(latent_vars)
+        return self._log_pdf(x, latent_vars, **kwargs)
+
+    def _log_pdf(self, x, latent_vars, **kwargs):
+        """Evaluate the logarithm of the decoded PDF at x.
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor at which to evaluate the PDF.
+            Broadcastable to the shape of the latent variables
+            without the last dimension (n_parameters).
+            Shape: [...]
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The PDF evaluated at x for the given latent variables.
+        """
+        return tf.math.log(self._pdf(x, latent_vars, **kwargs))
 
     def cdf(self, x, latent_vars, **kwargs):
         """Evaluate the decoded CDF at x.

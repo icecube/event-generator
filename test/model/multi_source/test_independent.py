@@ -103,7 +103,9 @@ class TestIndependentMultiSource(unittest.TestCase):
         class_string += "IndependentMultiSource"
         self.configuration = Configuration(
             class_string=class_string,
-            settings=dict(config=self.config, decoder=None),
+            settings=dict(
+                config=self.config, decoder=None, decoder_charge=None
+            ),
             mutable_settings=dict(name="egenerator.model.multi_source.base"),
         )
         self.configuration.add_sub_components(self.sub_components)
@@ -522,9 +524,10 @@ class TestIndependentMultiSource(unittest.TestCase):
             "x_parameters": tf.ones([1, source.n_parameters]),
             "x_pulses": tf.ones([7, 2]),
             "x_pulses_ids": tf.zeros([7, 4], dtype=tf.int32),
+            "x_dom_charge": tf.ones([1, 86, 60, 1]),
         }
         result_tensors = self.source.get_tensors(data_batch_dict, True)
-        self.assertTrue(result_tensors["dom_charges"].shape == [1, 86, 60, 1])
+        self.assertTrue(result_tensors["dom_charges"].shape == [1, 86, 60])
         self.assertTrue(result_tensors["pulse_pdf"].shape == [7])
 
     # def test_chaining_of_multi_source_objects(self):

@@ -143,7 +143,7 @@ class TestSourceBase(unittest.TestCase):
         class_string = misc.get_full_class_string_of_object(self.source)
         self.configuration = Configuration(
             class_string=class_string,
-            settings=dict(config=config, decoder=None),
+            settings=dict(config=config, decoder=None, decoder_charge=None),
             mutable_settings=dict(name="egenerator.model.source.base"),
         )
         self.configuration.add_sub_components({"data_trafo": self.data_trafo})

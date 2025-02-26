@@ -209,10 +209,77 @@ def build_decoder(decoder_settings, allow_rebuild_base_decoders=False):
     return decoder
 
 
+def get_base_model_objects(
+    settings,
+    data_transformer,
+    decoder,
+    decoder_charge,
+    allow_rebuild_base_decoders,
+):
+    """Get the base model objects
+
+    Parameters
+    ----------
+    settings : dict
+        The settings dictionary of the model.
+    data_transformer : DataTransformer object
+        The data transformer object to use for the model.
+    decoder : LatentToPDFDecoder object, optional
+        The decoder object to use for the model.
+        This is an optional argument, if the model does
+        not require a decoder.
+    decoder_charge : LatentToPDFDecoder object, optional
+        The decoder object to use for the charge model.
+        This is an optional argument, if the model does
+        not require a decoder.
+    allow_rebuild_base_decoders : bool, optional
+        If True, the base decoders are allowed to be rebuild,
+        otherwise an error will be raised if a base decoder is
+        not loaded, but attempted to be rebuild from scratch.
+
+    Returns
+    -------
+    DataTransformer object
+        The data transformer object.
+    LatentToPDFDecoder object
+        The decoder object.
+    LatentToPDFDecoder object
+        The decoder object for the charge model.
+    """
+
+    # check if the base model has its own data transformer defined
+    if "data_trafo_settings" in settings:
+        data_transformer_base = build_data_transformer(
+            settings["data_trafo_settings"],
+            modified_tensors=data_transformer.data["tensors"],
+        )
+    else:
+        data_transformer_base = data_transformer
+
+    # check if the base model has its own decoder defined
+    if "decoder_settings" in settings:
+        decoder_base = build_decoder(
+            decoder_settings=settings["decoder_settings"],
+            allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+        )
+    else:
+        decoder_base = decoder
+    if "decoder_charge_settings" in settings:
+        decoder_charge_base = build_decoder(
+            decoder_settings=settings["decoder_charge_settings"],
+            allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+        )
+    else:
+        decoder_charge_base = decoder_charge
+
+    return data_transformer_base, decoder_base, decoder_charge_base
+
+
 def build_model(
     model_settings,
     data_transformer,
     decoder=None,
+    decoder_charge=None,
     allow_rebuild_base_models=False,
     allow_rebuild_base_decoders=False,
 ):
@@ -228,6 +295,10 @@ def build_model(
         The data transformer object to use for the model.
     decoder : LatentToPDFDecoder object, optional
         The decoder object to use for the model.
+        This is an optional argument, if the model does
+        not require a decoder.
+    decoder_charge : LatentToPDFDecoder object, optional
+        The decoder object to use for the charge model.
         This is an optional argument, if the model does
         not require a decoder.
     allow_rebuild_base_models : bool, optional
@@ -281,36 +352,40 @@ def build_model(
                         model_settings=settings,
                         data_transformer=data_transformer,
                         decoder=decoder,
+                        decoder_charge=decoder_charge,
                         allow_rebuild_base_models=allow_rebuild_base_models,
                         allow_rebuild_base_decoders=allow_rebuild_base_decoders,
                     )
                 else:
 
-                    # check if the base model has its own data transformer defined
-                    if "data_trafo_settings" in settings:
-                        data_transformer_base = build_data_transformer(
-                            settings["data_trafo_settings"],
-                            modified_tensors=data_transformer.data["tensors"],
-                        )
-                    else:
-                        data_transformer_base = data_transformer
-
-                    # check if the base model has its own decoder defined
-                    if "decoder_settings" in settings:
-                        decoder_base = build_decoder(
-                            decoder_settings=settings["decoder_settings"],
-                            allow_rebuild_base_decoders=allow_rebuild_base_decoders,
-                        )
-                    else:
-                        decoder_base = decoder
+                    (
+                        data_transformer_base,
+                        decoder_base,
+                        decoder_charge_base,
+                    ) = get_base_model_objects(
+                        settings=settings,
+                        data_transformer=data_transformer,
+                        decoder=decoder,
+                        decoder_charge=decoder_charge,
+                        allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+                    )
 
                     base_source.configure(
                         config=settings["config"],
                         data_trafo=data_transformer_base,
                         decoder=decoder_base,
+                        decoder_charge=decoder_charge_base,
                     )
 
             base_models[name] = base_source
+
+    data_transformer, decoder, decoder_charge = get_base_model_objects(
+        settings=model_settings,
+        data_transformer=data_transformer,
+        decoder=decoder,
+        decoder_charge=decoder_charge,
+        allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+    )
 
     ModelClass = misc.load_class(model_settings["model_class"])
     model = ModelClass()
@@ -319,6 +394,7 @@ def build_model(
         config=model_settings["config"],
         data_trafo=data_transformer,
         decoder=decoder,
+        decoder_charge=decoder_charge,
     )
     if base_models != {}:
         arguments["base_models"] = base_models
@@ -333,6 +409,7 @@ def build_manager(
     data_handler=None,
     data_transformer=None,
     decoder=None,
+    decoder_charge=None,
     models=None,
     modified_sub_components={},
     allow_rebuild_base_models=False,
@@ -352,6 +429,9 @@ def build_manager(
         A data transformer object to use.
     decoder : LatentToPDFDecoder object, optional
         A decoder object to use to convert latent variables to PDFs.
+    decoder_charge : LatentToPDFDecoder object, optional
+        A decoder object to use to convert latent variables to the
+        PDFs for the expected charge.
     models : List of Model objects, optional
         The model objects to use. If more than one model object is provided,
         an ensemble of models is created. Models must be compatible, define
@@ -418,6 +498,12 @@ def build_manager(
                 allow_rebuild_base_decoders=allow_rebuild_base_decoders,
             )
 
+        if decoder_charge is None and "decoder_charge_settings" in config:
+            decoder_charge = build_decoder(
+                config["decoder_charge_settings"],
+                allow_rebuild_base_decoders=allow_rebuild_base_decoders,
+            )
+
         # -----------------------
         # create and Model object
         # -----------------------
@@ -426,6 +512,7 @@ def build_manager(
                 config["model_settings"],
                 data_transformer=data_transformer,
                 decoder=decoder,
+                decoder_charge=decoder_charge,
                 allow_rebuild_base_models=allow_rebuild_base_models,
                 allow_rebuild_base_decoders=allow_rebuild_base_decoders,
             )

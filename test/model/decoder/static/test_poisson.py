@@ -5,23 +5,20 @@ import tensorflow as tf
 from egenerator import misc
 from egenerator.utils import basis_functions
 from egenerator.manager.component import Configuration
-from egenerator.model.decoder import AsymmetricGaussianDecoder
+from egenerator.model.decoder import PoissonDecoder
 
 
-class TestAsymmetricGaussianDecoder(unittest.TestCase):
-    """Test AsymmetricGaussianDecoder class"""
+class TestPoissonDecoder(unittest.TestCase):
+    """Test PoissonDecoder class"""
 
     def setUp(self):
 
-        mu = np.array([1.0, 2.0, 3.0])
-        sigma = np.array([0.3, 3.0, 2.0])
-        r = np.array([1.0, 2.0, 3.0])
-        self.latent_vars = np.stack([mu, sigma, r], axis=-1)
+        self.offset = 3.0
+        mu = np.array([10.0, 20.0, 30.0])
+        self.latent_vars = np.stack([mu], axis=-1)
 
         self.parameter_names = [
             "mu",
-            "sigma",
-            "r",
         ]
 
         config = {"float_precision": "float64"}
@@ -34,31 +31,36 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
             mutable_settings=dict(name="egenerator.model.decoder.base"),
         )
 
+        config["offset"] = self.offset
+        self.decoder_offset = self.get_decoder(config=config)
+
     def get_decoder(self, **kwargs):
-        model = AsymmetricGaussianDecoder()
+        model = PoissonDecoder()
         model.configure(**kwargs)
         return model
 
     def test_correct_expectation(self):
         """Check if the expectation method is correctly implemented"""
 
-        expectation_np = basis_functions.asymmetric_gauss_expectation(
-            mu=self.latent_vars[..., 0],
-            sigma=self.latent_vars[..., 1],
-            r=self.latent_vars[..., 2],
-        )
+        mu = self.latent_vars[..., 0]
         expectation = self.decoder.expectation(self.latent_vars).numpy()
-        self.assertTrue(np.allclose(expectation, expectation_np))
+        self.assertTrue(np.allclose(expectation, mu))
+
+    def test_correct_variance(self):
+        """Check if the variance method is correctly implemented"""
+
+        variance_np = self.latent_vars[..., 0]
+        variance = self.decoder.variance(self.latent_vars).numpy()
+        self.assertTrue(np.allclose(variance, variance_np))
 
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 
-        x = np.array([-1.0, -0.36, 0.0, 0.56, 1.0]).reshape(-1, 1)
-        pdf_np = basis_functions.asymmetric_gauss(
+        x = np.array([-1.0, 0.0, 5.6, 10.0, 200]).reshape(-1, 1)
+        pdf_np = basis_functions.poisson_pdf(
             x=x,
             mu=self.latent_vars[..., 0],
-            sigma=self.latent_vars[..., 1],
-            r=self.latent_vars[..., 2],
+            add_normalization_term=True,
         )
         pdf = self.decoder.pdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(pdf, pdf_np))
@@ -66,37 +68,28 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
         exp_log_pdf = np.exp(self.decoder.log_pdf(x, self.latent_vars).numpy())
         self.assertTrue(np.allclose(pdf, exp_log_pdf))
 
-    def test_correct_cdf(self):
-        """Check if the cdf method is correctly implemented"""
+    def test_correct_pdf_offset(self):
+        """Check if the pdf with offset is correctly implemented"""
 
-        x = np.array([0.0, 0.56, 1.0]).reshape(-1, 1)
-        cdf_np = basis_functions.asymmetric_gauss_cdf(
-            x=x,
+        x = np.array([-1.0, 0.0, 5.6, 10.0, 200]).reshape(-1, 1)
+        pdf_np = basis_functions.poisson_pdf(
+            x=x - self.offset,
             mu=self.latent_vars[..., 0],
-            sigma=self.latent_vars[..., 1],
-            r=self.latent_vars[..., 2],
+            add_normalization_term=True,
         )
-        cdf = self.decoder.cdf(x, self.latent_vars).numpy()
-        self.assertTrue(np.allclose(cdf, cdf_np))
+        pdf = self.decoder_offset.pdf(x, self.latent_vars).numpy()
+        self.assertTrue(np.allclose(pdf, pdf_np))
 
-    def test_correct_ppf(self):
-        """Check if the ppf method is correctly implemented"""
-
-        q = np.array([0.0, 0.56, 1.0]).reshape(-1, 1)
-        cdf_np = basis_functions.asymmetric_gauss_ppf(
-            q=q,
-            mu=self.latent_vars[..., 0],
-            sigma=self.latent_vars[..., 1],
-            r=self.latent_vars[..., 2],
+        exp_log_pdf = np.exp(
+            self.decoder_offset.log_pdf(x, self.latent_vars).numpy()
         )
-        cdf = self.decoder.ppf(q, self.latent_vars).numpy()
-        self.assertTrue(np.allclose(cdf, cdf_np))
+        self.assertTrue(np.allclose(pdf, exp_log_pdf))
 
     def test_correct_initialization(self):
         """Check if member variables are correctly set when instantiating
         a Model object.
         """
-        model = AsymmetricGaussianDecoder()
+        model = PoissonDecoder()
         self.assertEqual(model._is_configured, False)
         self.assertEqual(model.data, None)
         self.assertEqual(model.configuration, None)
@@ -108,7 +101,7 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
 
     def test_correct_configuration_name(self):
         """Test if the name passed in to the configuration is properly saved"""
-        model = AsymmetricGaussianDecoder()
+        model = PoissonDecoder()
         model.configure(config={}, name="dummy")
         self.assertEqual(model.name, "dummy")
 
@@ -138,7 +131,7 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
                     "variables_top_level"
                 ],
                 "step": self.decoder._untracked_data["step"],
-                "n_parameters": 3,
+                "n_parameters": 1,
                 "parameter_index_dict": self.decoder._untracked_data[
                     "parameter_index_dict"
                 ],
@@ -147,8 +140,6 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
                 ],
                 "parameter_names": [
                     "mu",
-                    "sigma",
-                    "r",
                 ],
                 "loc_parameters": ["mu"],
                 "value_range_mapping": self.decoder._untracked_data[
@@ -160,7 +151,7 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
 
     def test_method_assert_configured(self):
         """Check the method assert_configured()"""
-        model = AsymmetricGaussianDecoder()
+        model = PoissonDecoder()
         model.assert_configured(False)
         with self.assertRaises(ValueError) as context:
             model.assert_configured(True)
@@ -185,7 +176,7 @@ class TestAsymmetricGaussianDecoder(unittest.TestCase):
     def test_parameter_indexing(self):
         tensor = tf.constant(self.parameter_names)
         self.decoder.add_parameter_indexing(tensor)
-        self.assertEqual(tensor.params.sigma, "sigma")
+        self.assertEqual(tensor.params.mu, "mu")
 
 
 if __name__ == "__main__":

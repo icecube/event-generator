@@ -4,7 +4,7 @@ from egenerator import misc
 from egenerator.model.nested import NestedModel, ConcreteFunctionCache
 from egenerator.manager.component import Configuration
 from egenerator.model.source.base import Source
-from egenerator.utils import tf_helpers
+from egenerator.utils import tf_helpers, basis_functions
 
 
 class MultiSource(NestedModel, Source):
@@ -75,7 +75,13 @@ class MultiSource(NestedModel, Source):
     """
 
     def _configure_derived_class(
-        self, base_models, config, data_trafo=None, decoder=None, name=None
+        self,
+        base_models,
+        config,
+        data_trafo=None,
+        decoder=None,
+        decoder_charge=None,
+        name=None,
     ):
         """Setup and configure the Source's architecture.
 
@@ -97,6 +103,10 @@ class MultiSource(NestedModel, Source):
         decoder : LatentToPDFDecoder, optional
             The decoder object. This is an optional object that can
             be used to decode the latent variables into a PDF.
+        decoder_charge : LatentToPDFDecoder, optional
+            The decoder object for the charge. This is an optional
+            object that is used to decode the latent variables
+            into a PDF for the charge expectation.
         name : str, optional
             The name of the source.
 
@@ -150,11 +160,26 @@ class MultiSource(NestedModel, Source):
             name=name,
         )
 
+        # check that all components have either Poisson or NegativeBinomial
+        # as their charge PDF
+        for base_model in base_models.values():
+            if base_model.decoder_charge is not None:
+                if not base_model.decoder_charge.is_charge_decoder():
+                    raise ValueError(
+                        f"Expected charge decoder of base model {base_model} "
+                        f"to be either Poisson or NegativeBinomial, or"
+                        f"mixture of these, but got "
+                        f"{base_model.decoder_charge}."
+                    )
+
         if decoder is None:
             # add empty decoder to config to keep track of it
             settings = dict(config=config, decoder=None)
         else:
             settings = dict(config=config)
+
+        if decoder_charge is None:
+            settings["decoder_charge"] = None
 
         # create configuration object
         configuration = Configuration(
@@ -168,6 +193,9 @@ class MultiSource(NestedModel, Source):
 
         if decoder is not None:
             sub_components["decoder"] = decoder
+
+        if decoder_charge is not None:
+            sub_components["decoder_charge"] = decoder_charge
 
         return configuration, data, sub_components
 
@@ -221,7 +249,20 @@ class MultiSource(NestedModel, Source):
 
                 'dom_charges':
                     The predicted charge at each DOM
-                    Shape: [n_events, 86, 60, 1]
+                    Shape: [n_events, 86, 60]
+                'dom_charges_component':
+                    The predicted charge at each DOM for each component
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_charges_variance':
+                    The predicted charge variance at each DOM
+                    Shape: [n_events, 86, 60]
+                'dom_charges_variance_component':
+                    The predicted charge variance at each DOM for each
+                    component of the mixture model.
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_charges_pdf':
+                    The charge likelihood evaluated for each DOM.
+                    Shape: [n_events, 86, 60]
                 'pulse_pdf':
                     The likelihood evaluated for each pulse
                     Shape: [n_pulses]
@@ -279,6 +320,9 @@ class MultiSource(NestedModel, Source):
         all_models_have_cdf_values = True
         pulse_pdf = None
         pulse_cdf = None
+        component_weights = None
+        component_mu = None
+        component_var = None
         nested_results = {}
         for name, base in sorted(
             self._untracked_data["models_mapping"].items()
@@ -307,26 +351,43 @@ class MultiSource(NestedModel, Source):
             dom_charges_i = result_tensors_i["dom_charges"]
             dom_charges_variance_i = result_tensors_i["dom_charges_variance"]
             pulse_pdf_i = result_tensors_i["pulse_pdf"]
+
+            mu_i = result_tensors_i["dom_charges_component"]
+            if mu_i.shape[1:] == [86, 60]:
+                mu_i = mu_i[..., tf.newaxis]
+            var_i = result_tensors_i["dom_charges_variance_component"]
+            if var_i.shape[1:] == [86, 60]:
+                var_i = var_i[..., tf.newaxis]
+
             if "pulse_cdf" in result_tensors_i:
                 pulse_cdf_i = result_tensors_i["pulse_cdf"]
             else:
                 all_models_have_cdf_values = False
 
-            if dom_charges_i.shape[1:] != [86, 60, 1]:
+            if len(mu_i.shape) != 4:
+                raise ValueError(
+                    f"Expected mu_i to have shape "
+                    f"[n_events, 86, 60, n_components], but got {mu_i.shape}."
+                )
+            if len(var_i.shape) != 4:
+                raise ValueError(
+                    f"Expected var_i to have shape "
+                    f"[n_events, 86, 60, n_components], but got {var_i.shape}."
+                )
+
+            if dom_charges_i.shape[1:] != [86, 60]:
                 msg = "DOM charges of source {!r} ({!r}) have an unexpected "
                 msg += "shape {!r}."
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
-            if dom_charges_variance_i.shape[1:] != [86, 60, 1]:
+            if dom_charges_variance_i.shape[1:] != [86, 60]:
                 msg = "DOM charge variances of source {!r} ({!r}) have an "
                 msg += "unexpected shape {!r}."
                 raise ValueError(msg.format(name, base, dom_charges_i.shape))
 
             if time_exclusions_exist:
-                dom_cdf_exclusion_i = result_tensors_i["dom_cdf_exclusion"][
-                    ..., tf.newaxis
-                ]
-                if dom_cdf_exclusion_i.shape[1:] != [86, 60, 1]:
+                dom_cdf_exclusion_i = result_tensors_i["dom_cdf_exclusion"]
+                if dom_cdf_exclusion_i.shape[1:] != [86, 60]:
                     msg = "DOM exclusions of source {!r} ({!r}) have an  "
                     msg += "unexpected shape {!r}."
                     raise ValueError(
@@ -338,7 +399,7 @@ class MultiSource(NestedModel, Source):
                 # from all sources is there at a particular DOM.
                 # Shape: [n_pulses]
                 pulse_cdf_exclusion = tf.gather_nd(
-                    tf.squeeze(dom_cdf_exclusion_i, axis=-1), pulses_ids
+                    dom_cdf_exclusion_i, pulses_ids
                 )
                 pulse_pdf_i *= 1.0 - pulse_cdf_exclusion + self.epsilon
                 if all_models_have_cdf_values:
@@ -360,9 +421,7 @@ class MultiSource(NestedModel, Source):
             # accumulate likelihood values
             # (reweight by fraction of charge of source i vs total DOM charge)
             # Shape: [n_pulses]
-            pulse_weight_i = tf.gather_nd(
-                tf.squeeze(dom_charges_i, axis=3), pulses_ids
-            )
+            pulse_weight_i = tf.gather_nd(dom_charges_i, pulses_ids)
             if pulse_pdf is None:
                 pulse_pdf = pulse_pdf_i * pulse_weight_i
             else:
@@ -374,10 +433,61 @@ class MultiSource(NestedModel, Source):
                 else:
                     pulse_cdf += pulse_cdf_i * pulse_weight_i
 
-        # normalize pulse_pdf values: divide by total charge at DOM
-        pulse_weight_total = tf.gather_nd(
-            tf.squeeze(dom_charges, axis=3), pulses_ids
+            # accumulate component weights, mu, and var
+            # Shape: [n_events, 86, 60, n_components_accumulated]
+            weights_i = mu_i / dom_charges_i[..., tf.newaxis]
+            if component_weights is None:
+                component_weights = weights_i
+                component_mu = mu_i
+                component_var = var_i
+            else:
+                n_total = component_weights.shape[-1] * mu_i.shape[-1]
+                # multiply out components
+                # Shape: [n_events, 86, 60, n_total * n_new] =
+                #           Reshape(
+                #               [n_events, 86, 60, n_total, 1] *
+                #               [n_events, 86, 60, 1, n_new]
+                #           )
+                component_weights = tf.reshape(
+                    component_weights[..., tf.newaxis]
+                    * tf.expand_dims(weights_i, axis=3),
+                    [-1, 86, 60, n_total],
+                )
+                component_mu = tf.reshape(
+                    component_mu[..., tf.newaxis]
+                    + tf.expand_dims(mu_i, axis=3),
+                    [-1, 86, 60, n_total],
+                )
+                component_var = tf.reshape(
+                    component_var[..., tf.newaxis]
+                    + tf.expand_dims(var_i, axis=3),
+                    [-1, 86, 60, n_total],
+                )
+
+        # re-compute PDF values for all sources
+        # Shape: [n_events, 86, 60, n_components_accumulated]
+        # should already be normalized, but just to be sure
+        component_weights /= tf.reduce_sum(
+            component_weights,
+            axis=3,
+            keepdims=True,
         )
+        component_alpha = (component_var - component_mu) / component_mu**2
+        component_alpha = tf.clip_by_value(component_alpha, 1e-6, float("inf"))
+        component_log_pdf = basis_functions.tf_log_negative_binomial(
+            x=data_batch_dict["x_dom_charge"],
+            mu=component_mu,
+            alpha=component_alpha,
+            add_normalization_term=True,
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
+        # Shape: [n_events, 86, 60]
+        dom_charges_pdf = tf.reduce_sum(
+            tf.math.exp(component_log_pdf) * component_weights, axis=3
+        )
+
+        # normalize pulse_pdf values: divide by total charge at DOM
+        pulse_weight_total = tf.gather_nd(dom_charges, pulses_ids)
 
         pulse_pdf /= pulse_weight_total + self.epsilon
         if all_models_have_cdf_values:
@@ -385,7 +495,10 @@ class MultiSource(NestedModel, Source):
 
         result_tensors = {
             "dom_charges": dom_charges,
+            "dom_charges_component": component_mu,
+            "dom_charges_pdf": dom_charges_pdf,
             "dom_charges_variance": dom_charges_variance,
+            "dom_charges_variance_component": component_var,
             "pulse_pdf": pulse_pdf,
             "nested_results": nested_results,
         }
@@ -398,14 +511,10 @@ class MultiSource(NestedModel, Source):
                 dom_cdf_exclusion / (dom_charges + self.epsilon)
             )
 
-            result_tensors["dom_cdf_exclusion"] = tf.squeeze(
-                dom_cdf_exclusion, axis=-1
-            )
+            result_tensors["dom_cdf_exclusion"] = dom_cdf_exclusion
 
             # Also re-normalize PDF for exclusions if present
-            pulse_cdf_exclusion = tf.gather_nd(
-                tf.squeeze(dom_cdf_exclusion, axis=-1), pulses_ids
-            )
+            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
             result_tensors["pulse_pdf"] /= (
                 1.0 - pulse_cdf_exclusion + self.epsilon
             )
@@ -498,7 +607,7 @@ class MultiSource(NestedModel, Source):
             If True, the PDFs of the nested sources will be returned as a
             dictionary:
             {
-                # str: ([n_events, 86, 60, 1], [n_events, 86, 60, n_points])
+                # str: ([n_events, 86, 60], [n_events, 86, 60, n_points])
                 source_name: (multi_source_fraction, pdf_values),
             }
             Note: that the PDFs need to be multiplied by
@@ -631,7 +740,7 @@ class MultiSource(NestedModel, Source):
             If True, the PDFs of the nested sources will be returned as a
             dictionary:
             {
-                # str: ([n_events, 86, 60, 1], [n_events, 86, 60, n_points])
+                # str: ([n_events, 86, 60], [n_events, 86, 60, n_points])
                 source_name: (multi_source_fraction, pdf_values),
             }
             Note: that the PDFs need to be multiplied by

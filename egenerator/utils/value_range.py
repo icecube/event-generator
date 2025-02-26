@@ -75,3 +75,42 @@ class EluValueRange(BaseValueRange):
         """
         x = super().__call__(x)
         return tf.nn.elu(x) + self.min_value
+
+
+class ExpValueRange(BaseValueRange):
+
+    def __init__(self, scale=1.0, offset=0.0, min_value=0.0):
+        """Initialize the ExpValueRange object
+
+        This object applies the exponential function to the input tensor
+        and adds an offset to the output to ensure that the output is always
+        greater than the specified `min_value`.
+
+        Parameters
+        ----------
+        scale : float
+            The scale factor to multiply the input by.
+        offset : float
+            The offset to add to the scaled input.
+        min_value : float
+            The minimum value for the output of the value range function.
+        """
+        super().__init__(scale=scale, offset=offset)
+        self.min_value = min_value
+
+    def __call__(self, x):
+        """Apply value range function to the input x
+
+        Parameters
+        ----------
+        x : tf.Tensor
+            The input tensor to apply the value range function to.
+
+        Returns
+        -------
+        tf.Tensor
+            The output tensor after applying the value range function.
+        """
+        x = super().__call__(x)
+        x = tf.clip_by_value(x, -20.0, 15.0)
+        return tf.exp(x) + self.min_value

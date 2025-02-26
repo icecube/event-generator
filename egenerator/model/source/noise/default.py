@@ -39,8 +39,8 @@ class DefaultNoiseModel(Source):
 
         # get weights for general scaling of mu and over-dispersion
         self._untracked_data["local_vars"] = new_weights(
-            shape=[2],
-            stddev=1e-5,
+            shape=[config["num_local_vars"]],
+            stddev=1e-3,
             float_precision=config["float_precision"],
             name="noise_scaling",
         )
@@ -98,6 +98,9 @@ class DefaultNoiseModel(Source):
                 'dom_charges':
                     The predicted charge at each DOM
                     Shape: [n_events, 86, 60, 1]
+                'dom_charges_pdf':
+                    The charge likelihood evaluated for each DOM.
+                    Shape: [n_events, 86, 60]
                 'pulse_pdf':
                     The likelihood evaluated for each pulse
                     Shape: [n_pulses]
@@ -121,6 +124,7 @@ class DefaultNoiseModel(Source):
         self.assert_configured(True)
         print("Applying Noise Model...")
 
+        config = self.configuration.config["config"]
         tensor_dict = {}
 
         # get time exclusions
@@ -156,20 +160,20 @@ class DefaultNoiseModel(Source):
         # shape: [n_batch]
         livetime = time_window[:, 1] - time_window[:, 0]
 
-        # shape: [n_batch, 1, 1, 1]
+        # shape: [n_batch, 1, 1]
         livetime_exp = tf.reshape(
-            time_window[:, 1] - time_window[:, 0], [-1, 1, 1, 1]
+            time_window[:, 1] - time_window[:, 0], [-1, 1, 1]
         )
 
         # compute the expected charge at each DOM based off of noise rate
-        # shape: [1, 86, 60, 1]
-        dom_noise_rates = tf.reshape(
+        # shape: [1, 86, 60]
+        dom_noise_rates = np.reshape(
             detector.dom_noise_rates.astype(param_dtype_np),
-            shape=[1, 86, 60, 1],
+            [1, 86, 60],
         )
 
-        # shape: [n_batch, 86, 60, 1]
-        dom_charges = dom_noise_rates * livetime_exp
+        # shape: [n_batch, 86, 60]
+        dom_charges_base = dom_noise_rates * livetime_exp
 
         # shape: [n_batch]
         dom_pdf_constant = 1.0 / livetime
@@ -213,36 +217,90 @@ class DefaultNoiseModel(Source):
             dom_cdf_exclusion = tf_helpers.safe_cdf_clip(dom_cdf_exclusion)
         # ----------------------------
 
-        # local scaling vars are initialized around zero with small std dev
-        local_vars = tf.nn.elu(self._untracked_data["local_vars"]) + 1.01
-
-        # scaling of expected noise hits: ensure positive values.
-        # shape: [1, 1, 1]
-        mean_scaling = tf.reshape(tf.nn.elu(local_vars[0]) + 1.01, [1, 1, 1])
-
-        # scaling of uncertainty. shape: [1, 1, 1]
-        # The over-dispersion parameterized by alpha must be greater zero
-        # Var(x) = mu + alpha*mu**2
-        dom_charges_alpha = tf.reshape(
-            tf.nn.elu(local_vars[1] - 5) + 1.000001, [1, 1, 1]
+        # get latent variables
+        # Shape: [1, 1, 1, n_latent]
+        local_vars = tf.reshape(
+            self._untracked_data["local_vars"],
+            [1, 1, 1, -1],
         )
 
-        # scale dom charge and uncertainty by learned scaling
-        dom_charges = dom_charges * mean_scaling
+        # check that things are spelled correctly
+        for param_name in config["charge_scale_tensors"]:
+            if param_name not in self.decoder_charge.loc_parameters:
+                raise ValueError(
+                    f"Charge scale tensor {param_name} not found in "
+                    f"decoder loc_parameters: {self.decoder_charge.loc_parameters}!"
+                )
 
-        # scale by time exclusions
-        if time_exclusions_exist:
-            dom_charges *= (
-                1.0 - dom_cdf_exclusion[..., tf.newaxis] + self.epsilon
-            )
+        latent_vars = []
+        for idx, param_name in enumerate(self.decoder_charge.parameter_names):
+            charge_tensor = local_vars[..., idx]
 
-        # add small constant to make sure dom charges are > 0:
-        dom_charges += self.epsilon
+            if param_name in self.decoder_charge.loc_parameters:
 
-        # compute standard deviation
-        # std = sqrt(var) = sqrt(mu + alpha*mu**2)
-        dom_charges_variance = dom_charges + dom_charges_alpha * dom_charges**2
-        dom_charges_unc = tf.sqrt(dom_charges_variance)
+                # ensure no value range mapping is not defined for this tensor
+                if param_name in self.decoder_charge.value_range_mapping:
+                    raise ValueError(
+                        f"Value range mapping for charge scale tensor "
+                        f"{param_name} at index {idx} not allowed since "
+                        f"manual mapping in model is done!"
+                    )
+                else:
+                    print(
+                        f"\t Applying charge scale to {param_name} at index {idx}"
+                    )
+
+                # clip value range for more stability during training
+                # apply exponential which also forces positive values
+                charge_tensor = tf.exp(
+                    tf.clip_by_value(charge_tensor, -20.0, 15)
+                )
+
+                if param_name in config["charge_scale_tensors"]:
+                    charge_tensor *= dom_charges_base
+
+                # apply time window exclusions if needed
+                if time_exclusions_exist:
+                    charge_tensor = charge_tensor * (
+                        1.0 - dom_cdf_exclusion + self.epsilon
+                    )
+
+                # add small constant to make sure dom charges are > 0:
+                charge_tensor += self.epsilon
+            else:
+                charge_tensor = tf.broadcast_to(
+                    charge_tensor, tf.shape(dom_charges_base)
+                )
+            latent_vars.append(charge_tensor)
+
+        latent_vars_charge = tf.stack(latent_vars, axis=-1)
+        tensor_dict["latent_vars_charge"] = latent_vars_charge
+
+        dom_charges_component = self.decoder_charge.expectation(
+            latent_vars=latent_vars_charge,
+            reduce_components=False,
+        )
+        if dom_charges_component.shape[1:] == [86, 60]:
+            dom_charges_component = dom_charges_component[..., tf.newaxis]
+
+        dom_charges_variance_component = self.decoder_charge.variance(
+            latent_vars=latent_vars_charge, reduce_components=False
+        )
+        if dom_charges_variance_component.shape[1:] == [86, 60]:
+            dom_charges_variance_component = dom_charges_variance_component[
+                ..., tf.newaxis
+            ]
+
+        tensor_dict["dom_charges_component"] = dom_charges_component
+        tensor_dict["dom_charges"] = tf.reduce_sum(
+            dom_charges_component, axis=-1
+        )
+        tensor_dict["dom_charges_variance_component"] = (
+            dom_charges_variance_component
+        )
+        tensor_dict["dom_charges_variance"] = tf.reduce_sum(
+            dom_charges_variance_component, axis=-1
+        )
 
         # Compute Log Likelihood for pulses
         # PDF is a uniform distribution in the specified time window.
@@ -282,10 +340,6 @@ class DefaultNoiseModel(Source):
 
         # add tensors to tensor dictionary
         tensor_dict["time_offsets"] = None
-        tensor_dict["dom_charges"] = dom_charges
-        tensor_dict["dom_charges_alpha"] = dom_charges_alpha
-        tensor_dict["dom_charges_unc"] = dom_charges_unc
-        tensor_dict["dom_charges_variance"] = dom_charges_variance
         tensor_dict["pdf_constant"] = dom_pdf_constant
         tensor_dict["pdf_time_window"] = time_window
         tensor_dict["pulse_pdf"] = pulse_pdf

@@ -21,7 +21,7 @@ class DummyDecoderModel(LatentToPDFDecoder):
 
         self._untracked_data["dummy_var"] = tf.Variable(1.0, name="dummy_var")
 
-        return parameter_names
+        return parameter_names, ["mu", "scale"]
 
     def pdf(self, x, latent_vars):
         self.assert_configured(True)
@@ -187,6 +187,7 @@ class TestDecoderBase(unittest.TestCase):
                     "r",
                     "scale",
                 ],
+                "loc_parameters": ["mu", "scale"],
                 "value_range_mapping": self.decoder._untracked_data[
                     "value_range_mapping"
                 ],

@@ -41,6 +41,26 @@ class TestGammaFunctionDecoder(unittest.TestCase):
         model.configure(**kwargs)
         return model
 
+    def test_correct_expectation(self):
+        """Check if the expectation method is correctly implemented"""
+
+        expectation_np = basis_functions.gamma_expectation(
+            alpha=self.latent_vars[..., 0],
+            beta=self.latent_vars[..., 1],
+        )
+        expectation = self.decoder.expectation(self.latent_vars).numpy()
+        self.assertTrue(np.allclose(expectation, expectation_np))
+
+    def test_correct_variance(self):
+        """Check if the variance method is correctly implemented"""
+
+        variance_np = basis_functions.gamma_variance(
+            alpha=self.latent_vars[..., 0],
+            beta=self.latent_vars[..., 1],
+        )
+        variance = self.decoder.variance(self.latent_vars).numpy()
+        self.assertTrue(np.allclose(variance, variance_np))
+
     def test_correct_pdf(self):
         """Check if the pdf method is correctly implemented"""
 
@@ -53,6 +73,9 @@ class TestGammaFunctionDecoder(unittest.TestCase):
         pdf = self.decoder.pdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(pdf, pdf_np))
 
+        exp_log_pdf = np.exp(self.decoder.log_pdf(x, self.latent_vars).numpy())
+        self.assertTrue(np.allclose(pdf, exp_log_pdf))
+
     def test_correct_pdf_offset(self):
         """Check if the pdf with offset is correctly implemented"""
 
@@ -64,6 +87,11 @@ class TestGammaFunctionDecoder(unittest.TestCase):
         )
         pdf = self.decoder_offset.pdf(x, self.latent_vars).numpy()
         self.assertTrue(np.allclose(pdf, pdf_np))
+
+        exp_log_pdf = np.exp(
+            self.decoder_offset.log_pdf(x, self.latent_vars).numpy()
+        )
+        self.assertTrue(np.allclose(pdf, exp_log_pdf))
 
     def test_correct_cdf(self):
         """Check if the cdf method is correctly implemented"""
@@ -184,6 +212,7 @@ class TestGammaFunctionDecoder(unittest.TestCase):
                     "alpha",
                     "beta",
                 ],
+                "loc_parameters": [],
                 "value_range_mapping": self.decoder._untracked_data[
                     "value_range_mapping"
                 ],

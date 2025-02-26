@@ -1,14 +1,16 @@
+import tensorflow as tf
+
 from egenerator.utils import basis_functions
 from egenerator.model.decoder.base import LatentToPDFDecoder
 
 
-class GammaFunctionDecoder(LatentToPDFDecoder):
-    """A decoder for a gamma function.
+class NegativeBinomialDecoder(LatentToPDFDecoder):
+    """Continuous Negative Binomial distribution.
 
-    A constant offset can be added to the gamma function by specifying
-    the "offset" key in the configuration. The offset is applied
-    to the input x of the gamma function, i.e. the pdf/cdf will be
-    evaluated at `x' = x - offset`.
+    The parameterization chosen here is defined by the mean mu and
+    the over-dispersion factor alpha.
+
+        Var(x) = mu + alpha*mu**2
     """
 
     def _build_architecture(self, config, name=None):
@@ -40,7 +42,7 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
             The charge scaling will be applied to these laten variables.
         """
         self.assert_configured(False)
-        return ["alpha", "beta"], []
+        return ["mu", "alpha"], ["mu"]
 
     def is_charge_decoder(self):
         """Check if the decoder is a charge decoder.
@@ -50,7 +52,7 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
         bool
             True if the decoder is a charge decoder, False otherwise.
         """
-        return False
+        return True
 
     def _expectation(self, latent_vars, **kwargs):
         """Calculate the expectation value of the PDF.
@@ -70,15 +72,12 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
             The expectation value of the PDF.
             Shape: [...]
         """
-        expectation = basis_functions.tf_gamma_expectation(
-            alpha=latent_vars[..., self.get_index("alpha")],
-            beta=latent_vars[..., self.get_index("beta")],
-            dtype=self.configuration.config["config"]["float_precision"],
+        expectation = tf.cast(
+            latent_vars[..., self.get_index("mu")],
+            self.configuration.config["config"]["float_precision"],
         )
-
         if "offset" in self.configuration.config["config"]:
             expectation += self.configuration.config["config"]["offset"]
-
         return expectation
 
     def _variance(self, latent_vars, **kwargs):
@@ -98,14 +97,15 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
             The variance of the PDF.
             Shape: [...]
         """
-        variance = basis_functions.tf_gamma_variance(
-            alpha=latent_vars[..., self.get_index("alpha")],
-            beta=latent_vars[..., self.get_index("beta")],
-            dtype=self.configuration.config["config"]["float_precision"],
+        mu = latent_vars[..., self.get_index("mu")]
+        alpha = latent_vars[..., self.get_index("alpha")]
+        variance = tf.cast(
+            mu + alpha * mu**2,
+            self.configuration.config["config"]["float_precision"],
         )
         return variance
 
-    def _pdf(self, x, latent_vars, **kwargs):
+    def _pdf(self, x, latent_vars, add_normalization_term=True, **kwargs):
         """Evaluate the decoded PDF at x.
 
         Parameters
@@ -119,6 +119,13 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
             The latent variables which have already been transformed
             by the value range mapping.
             Shape: [..., n_parameters]
+        add_normalization_term : bool, optional
+            If True, the normalization term is computed and added.
+            Note: this term is not required for minimization and the
+            negative binomial distribution only has a proper normalization
+            for integer x. For real-valued x the negative binomial is
+            not properly normalized and hence adding the normalization
+            term does not ensure normalization.
         **kwargs
             Additional keyword arguments.
 
@@ -130,15 +137,17 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
         """
         if "offset" in self.configuration.config["config"]:
             x = x - self.configuration.config["config"]["offset"]
-
-        return basis_functions.tf_gamma_pdf(
-            x=x,
-            alpha=latent_vars[..., self.get_index("alpha")],
-            beta=latent_vars[..., self.get_index("beta")],
-            dtype=self.configuration.config["config"]["float_precision"],
+        return tf.math.exp(
+            basis_functions.tf_log_negative_binomial(
+                x=x,
+                mu=latent_vars[..., self.get_index("mu")],
+                alpha=latent_vars[..., self.get_index("alpha")],
+                add_normalization_term=add_normalization_term,
+                dtype=self.configuration.config["config"]["float_precision"],
+            )
         )
 
-    def _log_pdf(self, x, latent_vars, **kwargs):
+    def _log_pdf(self, x, latent_vars, add_normalization_term=True, **kwargs):
         """Evaluate the logarithm of the decoded PDF at x.
 
         Parameters
@@ -151,6 +160,13 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., n_parameters]
+        add_normalization_term : bool, optional
+            If True, the normalization term is computed and added.
+            Note: this term is not required for minimization and the
+            negative binomial distribution only has a proper normalization
+            for integer x. For real-valued x the negative binomial is
+            not properly normalized and hence adding the normalization
+            term does not ensure normalization.
         **kwargs
             Additional keyword arguments.
 
@@ -161,85 +177,16 @@ class GammaFunctionDecoder(LatentToPDFDecoder):
         """
         if "offset" in self.configuration.config["config"]:
             x = x - self.configuration.config["config"]["offset"]
-
-        return basis_functions.tf_gamma_log_pdf(
+        return basis_functions.tf_log_negative_binomial(
             x=x,
+            mu=latent_vars[..., self.get_index("mu")],
             alpha=latent_vars[..., self.get_index("alpha")],
-            beta=latent_vars[..., self.get_index("beta")],
+            add_normalization_term=add_normalization_term,
             dtype=self.configuration.config["config"]["float_precision"],
         )
 
-    def _cdf(self, x, latent_vars, **kwargs):
-        """Evaluate the decoded CDF at x.
 
-        Parameters
-        ----------
-        x : tf.Tensor
-            The input tensor at which to evaluate the CDF.
-            Broadcastable to the shape of the latent variables
-            without the last dimension (n_parameters).
-            Shape: [...]
-        latent_vars : tf.Tensor
-            The latent variables which have already been transformed
-            by the value range mapping.
-            Shape: [..., n_parameters]
-        **kwargs
-            Additional keyword arguments.
-
-        Returns
-        -------
-        tf.Tensor
-            The CDF evaluated at x for the given latent variables.
-        """
-        if "offset" in self.configuration.config["config"]:
-            x = x - self.configuration.config["config"]["offset"]
-        return basis_functions.tf_gamma_cdf(
-            x=x,
-            alpha=latent_vars[..., self.get_index("alpha")],
-            beta=latent_vars[..., self.get_index("beta")],
-            dtype=self.configuration.config["config"]["float_precision"],
-        )
-
-    def _ppf(self, q, latent_vars, **kwargs):
-        """Evaluate the decoded PPF at q.
-
-        Parameters
-        ----------
-        q : tf.Tensor
-            The input tensor at which to evaluate the PPF.
-            Broadcastable to the shape of the latent variables
-            without the last dimension (n_parameters).
-            Shape: [...]
-        latent_vars : tf.Tensor
-            The latent variables which have already been transformed
-            by the value range mapping.
-            Shape: [..., n_parameters]
-        **kwargs
-            Additional keyword arguments.
-
-        Returns
-        -------
-        tf.Tensor
-            The PPF evaluated at q for the given latent variables.
-        """
-        x_values = basis_functions.tf_gamma_ppf(
-            q=q,
-            alpha=latent_vars[..., self.get_index("alpha")],
-            beta=latent_vars[..., self.get_index("beta")],
-            dtype=self.configuration.config["config"]["float_precision"],
-        )
-        if "offset" in self.configuration.config["config"]:
-            x_values += self.configuration.config["config"]["offset"]
-        return x_values
-
-
-class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
-    """A decoder for a shifted gamma function.
-
-    An additional latent variable "offset" is added to the gamma function.
-    The offset is applied to the input x of the gamma function, i.e.
-    the pdf/cdf will be evaluated at `x' = x - offset`.
-    """
+class PoissonDecoder(LatentToPDFDecoder):
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -270,9 +217,68 @@ class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
             The charge scaling will be applied to these laten variables.
         """
         self.assert_configured(False)
-        return ["alpha", "beta", "offset"], []
+        return ["mu"], ["mu"]
 
-    def _pdf(self, x, latent_vars, **kwargs):
+    def is_charge_decoder(self):
+        """Check if the decoder is a charge decoder.
+
+        Returns
+        -------
+        bool
+            True if the decoder is a charge decoder, False otherwise.
+        """
+        return True
+
+    def _expectation(self, latent_vars, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...]
+        """
+        expectation = tf.cast(
+            latent_vars[..., self.get_index("mu")],
+            self.configuration.config["config"]["float_precision"],
+        )
+        if "offset" in self.configuration.config["config"]:
+            expectation += self.configuration.config["config"]["offset"]
+        return expectation
+
+    def _variance(self, latent_vars, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        variance = tf.cast(
+            latent_vars[..., self.get_index("mu")],
+            self.configuration.config["config"]["float_precision"],
+        )
+        return variance
+
+    def _pdf(self, x, latent_vars, add_normalization_term=True, **kwargs):
         """Evaluate the decoded PDF at x.
 
         Parameters
@@ -286,6 +292,13 @@ class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
             The latent variables which have already been transformed
             by the value range mapping.
             Shape: [..., n_parameters]
+        add_normalization_term : bool, optional
+            If True, the normalization term is computed and added.
+            Note: this term is not required for minimization and the
+            negative binomial distribution only has a proper normalization
+            for integer x. For real-valued x the negative binomial is
+            not properly normalized and hence adding the normalization
+            term does not ensure normalization.
         **kwargs
             Additional keyword arguments.
 
@@ -295,10 +308,17 @@ class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
             The PDF evaluated at x for the given latent variables.
             Shape: [...]
         """
-        offset = latent_vars[..., self.get_index("offset")]
-        return super()._pdf(x - offset, latent_vars, **kwargs)
+        if "offset" in self.configuration.config["config"]:
+            x = x - self.configuration.config["config"]["offset"]
 
-    def _log_pdf(self, x, latent_vars, **kwargs):
+        return basis_functions.tf_poisson_pdf(
+            x=x,
+            mu=latent_vars[..., self.get_index("mu")],
+            add_normalization_term=add_normalization_term,
+            dtype=self.configuration.config["config"]["float_precision"],
+        )
+
+    def _log_pdf(self, x, latent_vars, add_normalization_term=True, **kwargs):
         """Evaluate the logarithm of the decoded PDF at x.
 
         Parameters
@@ -311,6 +331,13 @@ class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
         latent_vars : tf.Tensor
             The latent variables.
             Shape: [..., n_parameters]
+        add_normalization_term : bool, optional
+            If True, the normalization term is computed and added.
+            Note: this term is not required for minimization and the
+            negative binomial distribution only has a proper normalization
+            for integer x. For real-valued x the negative binomial is
+            not properly normalized and hence adding the normalization
+            term does not ensure normalization.
         **kwargs
             Additional keyword arguments.
 
@@ -319,57 +346,12 @@ class ShiftedGammaFunctionDecoder(GammaFunctionDecoder):
         tf.Tensor
             The PDF evaluated at x for the given latent variables.
         """
-        offset = latent_vars[..., self.get_index("offset")]
-        return super()._log_pdf(x - offset, latent_vars, **kwargs)
+        if "offset" in self.configuration.config["config"]:
+            x = x - self.configuration.config["config"]["offset"]
 
-    def _cdf(self, x, latent_vars, **kwargs):
-        """Evaluate the decoded CDF at x.
-
-        Parameters
-        ----------
-        x : tf.Tensor
-            The input tensor at which to evaluate the CDF.
-            Broadcastable to the shape of the latent variables
-            without the last dimension (n_parameters).
-            Shape: [...]
-        latent_vars : tf.Tensor
-            The latent variables which have already been transformed
-            by the value range mapping.
-            Shape: [..., n_parameters]
-        **kwargs
-            Additional keyword arguments.
-
-        Returns
-        -------
-        tf.Tensor
-            The CDF evaluated at x for the given latent variables.
-        """
-        offset = latent_vars[..., self.get_index("offset")]
-        return super()._cdf(x - offset, latent_vars, **kwargs)
-
-    def _ppf(self, q, latent_vars, **kwargs):
-        """Evaluate the decoded PPF at q.
-
-        Parameters
-        ----------
-        q : tf.Tensor
-            The input tensor at which to evaluate the PPF.
-            Broadcastable to the shape of the latent variables
-            without the last dimension (n_parameters).
-            Shape: [...]
-        latent_vars : tf.Tensor
-            The latent variables which have already been transformed
-            by the value range mapping.
-            Shape: [..., n_parameters]
-        **kwargs
-            Additional keyword arguments.
-
-        Returns
-        -------
-        tf.Tensor
-            The PPF evaluated at q for the given latent variables.
-        """
-        offset = latent_vars[..., self.get_index("offset")]
-        x_values = super()._ppf(q, latent_vars, **kwargs)
-        x_values += offset
-        return x_values
+        return basis_functions.tf_poisson_log_pdf(
+            x=x,
+            mu=latent_vars[..., self.get_index("mu")],
+            add_normalization_term=add_normalization_term,
+            dtype=self.configuration.config["config"]["float_precision"],
+        )

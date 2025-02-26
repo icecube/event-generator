@@ -13,6 +13,55 @@ def is_in(variable, variable_list):
     return False
 
 
+def double_where_trick_greater_zero(
+    function,
+    x,
+    cut_x_min,
+    replacement_value=0.0,
+):
+    """Apply a function to a tensor, but avoid NaNs in the gradient
+
+    This double where trick can be applied to functions which would
+    result in NaNs if the input is less than or equal to zero.
+
+    Parameters
+    ----------
+    function : callable
+        The function to apply to the tensor.
+    x : tf.tensor
+        The input tensor.
+    cut_x_min : float
+        The minimum value for x. Output values corresponding
+        to inputs of x below this threshold will be replaced
+        by the replacement value.
+    replacement_value : float, optional
+        The value to replace NaNs with, by default 0.0.
+
+    Returns
+    -------
+    tf.tensor
+        The evaluated function.
+    """
+    # If the inputs to a tf.where function contains NaNs,
+    # the gradient will always be NaN, regardless whether
+    # the input is actually used or not. Here, a workaround
+    # is implemented to prevent the inputs from ever containing
+    # NaNs. Here we assume this happens for
+    # `function` if x <= cut_x_min.
+    mask = x < cut_x_min
+
+    # ensure that all values computed by `function` are finite
+    x_zeros = tf.where(mask, tf.zeros_like(x) + cut_x_min, x)
+
+    # compute result values based on this modfiied x
+    # Note: the values computed for indices where x <= eps are incorrect
+    # here, but we will set them to the replacement value later
+    result_values = function(x_zeros)
+
+    # set pdf to zero for x <= 0, but avoid nan gradients
+    return tf.where(mask, replacement_value, result_values)
+
+
 def clip_logits(logits, eps=None):
     """Clip logits to avoid numerical instabilities
 

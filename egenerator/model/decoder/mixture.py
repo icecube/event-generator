@@ -183,6 +183,19 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
         else:
             return None
 
+    def is_charge_decoder(self):
+        """Check if the decoder is a charge decoder.
+
+        Returns
+        -------
+        bool or None
+            True if the decoder is a charge decoder, False otherwise.
+        """
+        for base_name in self._untracked_data["models_mapping"].values():
+            if not self.sub_components[base_name].is_charge_decoder:
+                return False
+        return True
+
     def get_parameters_and_mapping(self, config, base_models):
         """Get parameter names of the model input tensor models mapping.
 
@@ -508,7 +521,161 @@ class MixtureModel(NestedModel, LatentToPDFDecoder):
                         key
                     ] = value_range_object
 
+        # gather loc parameters
+        loc_parameters = []
+        for idx, decoder_name in enumerate(
+            self._untracked_data["decoder_names"]
+        ):
+
+            base = base_models[
+                self._untracked_data["models_mapping"][decoder_name]
+            ]
+            n_components = self._untracked_data["n_components_per_decoder"][
+                idx
+            ]
+
+            for i in range(n_components):
+                loc_parameters += [
+                    f"{decoder_name}_{loc_parameter}_{i:03d}"
+                    for loc_parameter in base.loc_parameters
+                ]
+        self._untracked_data["loc_parameters"] = loc_parameters
+
         return configuration, data, sub_components
+
+    def _component_sum(
+        self,
+        func_name,
+        latent_vars,
+        reduce_components=True,
+        **kwargs,
+    ):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        func_name : str
+            The name of the function to call. Values of this function
+            are reduced via "weighted sum" operation.
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        reduce_components : bool, optional
+            If True, the contributions of the individual components
+            to the overall variance are summed up and returned.
+            If False, the output shape will be [..., n_components] where
+            n_components is the number of components in the mixture model
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        parameter_dict = self.get_model_parameters(latent_vars)
+
+        values = []
+        total_weight = None
+        for name in self._untracked_data["decoder_names"]:
+
+            # shape: [..., n_components_per_base, n_parameters]
+            latent_vars_i = parameter_dict[name]
+
+            # shape: [..., n_components_per_base]
+            weight = latent_vars_i[..., -1]
+
+            # shape: [..., n_components_per_base]
+            base_name = self._untracked_data["models_mapping"][name]
+            func = getattr(self.sub_components[base_name], func_name)
+            values_i = (
+                func(latent_vars=latent_vars_i[..., :-1], **kwargs) * weight
+            )
+
+            # shape: [...]
+            if total_weight is None:
+                total_weight = tf.reduce_sum(weight, axis=-1)
+            else:
+                total_weight += tf.reduce_sum(weight, axis=-1)
+
+            if reduce_components:
+                # shape: [...]
+                values_i = tf.reduce_sum(values_i, axis=-1)
+
+            values.append(values_i)
+
+        # shape: [...]
+        total_weight += self.epsilon
+
+        if reduce_components:
+            values = tf.add_n(values)
+            values /= total_weight
+        else:
+            # shape: [..., n_components_total]
+            values = tf.concat(values, axis=-1)
+            values /= total_weight[..., tf.newaxis]
+
+        return values
+
+    def _expectation(self, latent_vars, reduce_components=True, **kwargs):
+        """Calculate the expectation value of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables which have already been transformed
+            by the value range mapping.
+            Shape: [..., n_parameters]
+        reduce_components : bool, optional
+            If True, the contributions of the individual components
+            to the overall expectation value are summed up and returned.
+            If False, the output shape will be [..., n_components] where
+            n_components is the number of components in the mixture model.
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The expectation value of the PDF.
+            Shape: [...] or [..., n_components]
+        """
+        return self._component_sum(
+            func_name="expectation",
+            latent_vars=latent_vars,
+            reduce_components=reduce_components,
+            **kwargs,
+        )
+
+    def _variance(self, latent_vars, reduce_components=True, **kwargs):
+        """Calculate the variance of the PDF.
+
+        Parameters
+        ----------
+        latent_vars : tf.Tensor
+            The latent variables.
+            Shape: [..., n_parameters]
+        reduce_components : bool, optional
+            If True, the contributions of the individual components
+            to the overall variance are summed up and returned.
+            If False, the output shape will be [..., n_components] where
+            n_components is the number of components in the mixture model
+        **kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        tf.Tensor
+            The variance of the PDF.
+            Shape: [...]
+        """
+        return self._component_sum(
+            func_name="variance",
+            latent_vars=latent_vars,
+            reduce_components=reduce_components,
+            **kwargs,
+        )
 
     def _pdf_or_cdf(
         self, x, latent_vars, func_name, reduce_components=True, **kwargs
