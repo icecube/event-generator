@@ -1,22 +1,9 @@
-from __future__ import division, print_function
-import logging
 import tensorflow as tf
 
 from egenerator.model.source.base import Source
 
 
 class DummyCascadeModel(Source):
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(DummyCascadeModel, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -98,10 +85,28 @@ class DummyCascadeModel(Source):
             A dictionary of output tensors.
             This  dictionary must at least contain:
 
-                'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60]
-                'pulse_pdf': The likelihood evaluated for each pulse
-                             Shape: [-1]
+                'dom_charges':
+                    The predicted charge at each DOM
+                    Shape: [n_events, 86, 60]
+                'dom_charges_component':
+                    The predicted charge at each DOM for each component
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_charges_variance':
+                    The predicted charge variance at each DOM
+                    Shape: [n_events, 86, 60]
+                'dom_charges_variance_component':
+                    The predicted charge variance at each DOM for each
+                    component of the mixture model.
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_charges_pdf':
+                    The charge likelihood evaluated for each DOM.
+                    Shape: [n_events, 86, 60]
+                'pulse_pdf':
+                    The likelihood evaluated for each pulse
+                    Shape: [n_pulses]
+                'time_offsets':
+                    The global time offsets for each event.
+                    Shape: [n_events]
         """
         self.assert_configured(True)
 
@@ -109,16 +114,19 @@ class DummyCascadeModel(Source):
         pulses = data_batch_dict["x_pulses"]
 
         temp_var_reshaped = tf.reshape(
-            tf.reduce_sum(parameters, axis=1), [-1, 1, 1, 1]
+            tf.reduce_sum(parameters, axis=1), [-1, 1, 1]
         )
-        dom_charges = tf.ones([1, 86, 60, 1]) * temp_var_reshaped
+        dom_charges = tf.ones([1, 86, 60]) * temp_var_reshaped
         pulse_pdf = (
             tf.reduce_sum(pulses, axis=1) * self._untracked_data["dummy_var"]
         )
 
         tensor_dict = {
+            "dom_charges_pdf": dom_charges,
             "dom_charges": dom_charges,
+            "dom_charges_component": dom_charges[..., tf.newaxis],
             "dom_charges_variance": dom_charges,
+            "dom_charges_variance_component": dom_charges[..., tf.newaxis],
             "pulse_pdf": pulse_pdf,
             "time_offsets": None,
         }

@@ -1,15 +1,11 @@
-from __future__ import division, print_function
-
 import logging
-import numpy as np
-import pandas as pd
 
 from egenerator import misc
-from egenerator.manager.component import BaseComponent, Configuration
-from egenerator.data.tensor import DataTensorList, DataTensor
+from egenerator.manager.component import Configuration
+from egenerator.data.modules.labels.general import GeneralLabelModule
 
 
-class SnowstormCascadeGeneratorLabelModule(BaseComponent):
+class SnowstormCascadeGeneratorLabelModule(GeneralLabelModule):
     """This is a label module that loads the snowstorm cascade labels."""
 
     def __init__(self, logger=None):
@@ -108,17 +104,11 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Description
         """
 
-        # extend trafo log for snowstorm parameters: fill with False
-        if isinstance(trafo_log, bool):
-            trafo_log_ext = [trafo_log] * 7
-        else:
-            trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False] * len(snowstorm_parameters))
-
         # create a list of label names to load
         if additional_labels is None:
             additional_labels = []
-        label_names = [
+
+        parameter_names = [
             "cascade_x",
             "cascade_y",
             "cascade_z",
@@ -128,26 +118,18 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             "cascade_t",
         ] + additional_labels
 
-        data = {"label_names": label_names}
-        data["label_tensors"] = DataTensorList(
-            [
-                DataTensor(
-                    name="x_parameters",
-                    shape=[None, len(label_names) + len(snowstorm_parameters)],
-                    tensor_type="label",
-                    dtype=float_precision,
-                    trafo=True,
-                    trafo_log=trafo_log_ext,
-                )
-            ]
+        _, data, _ = super(
+            SnowstormCascadeGeneratorLabelModule, self
+        )._configure(
+            config_data=config_data,
+            trafo_log=trafo_log,
+            float_precision=float_precision,
+            parameter_names=parameter_names,
+            label_key=label_key,
+            snowstorm_key=snowstorm_key,
+            snowstorm_parameters=snowstorm_parameters,
         )
 
-        if isinstance(config_data, DataTensorList):
-            if config_data != data["label_tensors"]:
-                msg = "Tensors are wrong: {!r} != {!r}"
-                raise ValueError(
-                    msg.format(config_data, data["label_tensors"])
-                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(
@@ -161,179 +143,3 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             ),
         )
         return configuration, data, {}
-
-    def get_data_from_hdf(self, file, *args, **kwargs):
-        """Get label data from hdf file.
-
-        Parameters
-        ----------
-        file : str
-            The path to the hdf file.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is loaded.
-
-        Raises
-        ------
-        ValueError
-            Description
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        # open file
-        f = pd.HDFStore(file, "r")
-
-        cascade_parameters = []
-        try:
-            _labels = f[self.configuration.config["label_key"]]
-            for label in self.data["label_names"]:
-                cascade_parameters.append(_labels[label])
-
-            snowstorm_key = self.configuration.config["snowstorm_key"]
-            snowstorm_params = self.configuration.config[
-                "snowstorm_parameters"
-            ]
-            num_events = len(cascade_parameters[0])
-
-            if len(snowstorm_params) > 0:
-                if snowstorm_key is not None:
-                    _snowstorm_params = f[snowstorm_key]
-                    for key in snowstorm_params:
-                        cascade_parameters.append(_snowstorm_params[key])
-                        assert len(_snowstorm_params[key]) == num_events
-                else:
-                    # No Snowstorm key is provided: add dummy values
-                    for key in snowstorm_params:
-                        cascade_parameters.append(np.ones(num_events))
-
-        except Exception as e:
-            self._logger.warning(e)
-            self._logger.warning("Skipping file: {}".format(file))
-            return None, None
-        finally:
-            f.close()
-
-        # format cascade parameters
-        dtype = getattr(np, self.configuration.config["float_precision"])
-        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
-        num_events = len(cascade_parameters)
-
-        return num_events, (cascade_parameters,)
-
-    def get_data_from_frame(self, frame, *args, **kwargs):
-        """Get label data from frame.
-
-        Parameters
-        ----------
-        frame : I3Frame
-            The I3Frame from which to get the data.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is loaded.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        cascade_parameters = []
-        try:
-            _labels = frame[self.configuration.config["label_key"]]
-            for label in self.data["label_names"]:
-                cascade_parameters.append(np.atleast_1d(_labels[label]))
-
-            snowstorm_key = self.configuration.config["snowstorm_key"]
-            snowstorm_params = self.configuration.config[
-                "snowstorm_parameters"
-            ]
-            num_events = len(cascade_parameters[0])
-
-            if len(snowstorm_params) > 0:
-                if snowstorm_key is not None:
-                    _snowstorm_params = frame[snowstorm_key]
-                    for key in snowstorm_params:
-                        snowstorm_param = np.atleast_1d(_snowstorm_params[key])
-                        assert len(snowstorm_param) == num_events
-                        cascade_parameters.append(snowstorm_param)
-
-                else:
-                    # No Snowstorm key is provided: add dummy values
-                    for key in snowstorm_params:
-                        cascade_parameters.append(np.ones(num_events))
-
-        except Exception as e:
-            self._logger.warning(e)
-            self._logger.warning("Skipping frame: {}".format(frame))
-            return None, None
-
-        # format cascade parameters
-        dtype = getattr(np, self.configuration.config["float_precision"])
-        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
-        num_events = len(cascade_parameters)
-
-        return num_events, (cascade_parameters,)
-
-    def create_data_from_frame(self, frame, *args, **kwargs):
-        """Create label data from frame.
-
-        Parameters
-        ----------
-        frame : I3Frame
-            The I3Frame from which to get the data.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is created.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        return self.get_data_from_frame(frame, *args, **kwargs)
-
-    def write_data_to_frame(self, data, frame, *args, **kwargs):
-        """Write label data to I3Frame.
-
-        Parameters
-        ----------
-        data : tuple of array-like tensors
-            The input data (array-like) as specified in the
-            DataTensorList (self.data['data_tensors']).
-        frame : I3Frame
-            The I3Frame to which the data is to be written to.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        pass

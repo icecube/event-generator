@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
 import os
 import logging
 import shutil
@@ -33,7 +32,7 @@ from egenerator.utils.build_components import build_manager
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="WARNING",
 )
-def main(config_files, output_dir, reco_config_file=None, log_level="INFO"):
+def main(config_files, output_dir, reco_config_file=None, log_level="WARNING"):
     """Script to export model manager.
 
     Parameters
@@ -97,7 +96,8 @@ def main(config_files, output_dir, reco_config_file=None, log_level="INFO"):
             SetupManager([config_file]).get_config(),
             restore=manager_config["restore_model"],
             modified_sub_components={},
-            allow_rebuild_base_sources=not manager_config["restore_model"],
+            allow_rebuild_base_models=not manager_config["restore_model"],
+            allow_rebuild_base_decoders=not manager_config["restore_model"],
         )
         models.extend(model_manger.models)
 
@@ -108,7 +108,8 @@ def main(config_files, output_dir, reco_config_file=None, log_level="INFO"):
         models=models,
         data_handler=data_handler,
         data_transformer=data_transformer,
-        allow_rebuild_base_sources=False,
+        allow_rebuild_base_models=False,
+        allow_rebuild_base_decoders=False,
     )
 
     # --------------

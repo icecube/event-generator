@@ -1,6 +1,4 @@
-from __future__ import division, print_function
 import os
-import logging
 import tensorflow as tf
 import numpy as np
 import glob
@@ -9,6 +7,28 @@ import time
 
 from egenerator.settings.yaml import yaml_loader, yaml_dumper
 from egenerator.manager.component import BaseComponent, Configuration
+from egenerator.utils import tf_helpers
+
+
+class InputTensorIndexer(dict):
+    """A simple wrapper to easily obtain named tensor slices"""
+
+    def __init__(self, tensor, names):
+
+        # sanity check
+        if tensor.shape[-1] != len(names):
+            raise ValueError(
+                "Shapes do not match up: {!r} != {!r}".format(
+                    tensor.shape[-1], len(names)
+                )
+            )
+
+        dictionary = {}
+        for i, name in enumerate(names):
+            dictionary[name] = tensor[..., i]
+
+        dict.__init__(self, dictionary)
+        self.__dict__ = self
 
 
 class Model(tf.Module, BaseComponent):
@@ -50,6 +70,125 @@ class Model(tf.Module, BaseComponent):
     def num_variables(self):
         return self._count_number_of_variables()
 
+    @property
+    def name(self):
+        if self.untracked_data is not None and "name" in self.untracked_data:
+            return self.untracked_data["name"]
+        else:
+            return None
+
+    @property
+    def parameter_names(self):
+        if (
+            self.untracked_data is not None
+            and "parameter_names" in self.untracked_data
+        ):
+            return self.untracked_data["parameter_names"]
+        else:
+            return None
+
+    @property
+    def n_parameters(self):
+        if (
+            self.untracked_data is not None
+            and "n_parameters" in self.untracked_data
+        ):
+            return self.untracked_data["n_parameters"]
+        else:
+            return None
+
+    def _set_parameter_names(self, parameter_names):
+        """Set the names of the input parameters of the model
+
+        Parameters
+        ----------
+        parameter_names : list of str
+            The names of the input parameters of the model.
+        """
+        self.assert_configured(False)
+
+        self._untracked_data["n_parameters"] = len(parameter_names)
+        self._untracked_data["parameter_names"] = parameter_names
+        self._untracked_data["parameter_name_dict"] = {
+            name: index for index, name in enumerate(parameter_names)
+        }
+        self._untracked_data["parameter_index_dict"] = {
+            index: name for index, name in enumerate(parameter_names)
+        }
+
+    def get_index(self, param_name):
+        """Returns the index of a parameter name
+
+        Parameters
+        ----------
+        param_name : str
+            The name of the input parameter for which to return the index
+        """
+        self.assert_configured(True)
+        self.assert_paramerters_set()
+        return self._untracked_data["parameter_name_dict"][param_name]
+
+    def get_name(self, index):
+        """Returns the name of the input parameter input_parameters[..., index].
+
+        Parameters
+        ----------
+        index : int
+            The parameter input index for which to return the name.
+
+        Raises
+        ------
+        NotImplementedError
+            Description
+        """
+        self.assert_configured(True)
+        self.assert_paramerters_set()
+        return self._untracked_data["parameter_index_dict"][index]
+
+    def add_parameter_indexing(self, tensor, parameter_names=None):
+        """Add meta data to a tensor and allow easy indexing via names.
+
+        Parameters
+        ----------
+        tensor : tf.Tensor
+            The input parameter tensor for the Source.
+        """
+        if parameter_names is None:
+            self.assert_paramerters_set()
+            parameter_names = self.parameter_names
+
+        setattr(
+            tensor,
+            "params",
+            InputTensorIndexer(tensor, parameter_names),
+        )
+        return tensor
+
+    @property
+    def float_precision(self):
+        model_precision = None
+        if "float_precision" in self.configuration.config:
+            model_precision = self.configuration.config["float_precision"]
+        elif "config" in self.configuration.config:
+            config = self.configuration.config["config"]
+            if "float_precision" in config:
+                model_precision = config["float_precision"]
+        return model_precision
+
+    @property
+    def epsilon(self):
+        if self.float_precision is None:
+            return None
+
+        if self.float_precision == "float32":
+            return 1e-7
+        elif self.float_precision == "float64":
+            return 1e-15
+        else:
+            raise ValueError(
+                f"Invalid float precision: {self.float_precision}"
+            )
+
     def __init__(self, name=None, logger=None):
         """Initializes Model object.
 
@@ -60,8 +199,9 @@ class Model(tf.Module, BaseComponent):
         logger : logging.logger, optional
             A logging instance.
         """
-        self._logger = logger or logging.getLogger(__name__)
-        BaseComponent.__init__(self, logger=self._logger)
+        if name is None:
+            name = self.__class__.__name__
+        BaseComponent.__init__(self, logger=logger)
         tf.Module.__init__(self, name=name)
 
     def _configure(self, **kwargs):
@@ -108,34 +248,60 @@ class Model(tf.Module, BaseComponent):
             when the component is saved and loaded.
             Return None if no dependent sub components exist.
         """
+        # get name of model
+        if "name" in self._untracked_data:
+            name = self._untracked_data["name"]
+        else:
+            name = self.__class__.__name__
 
-        # configure and setup model architecture
+        # collect variables of all sub components
+        variables_of_sub_components = list(self.variables)
+
+        # configure and setup model architecture [can add variables]
         configuration, component_data, sub_components = (
             self._configure_derived_class(**kwargs)
         )
 
-        # create a tensorflow checkpoint object and keep track of variables
-        self._untracked_data["step"] = tf.Variable(1, trainable=False)
-        self._untracked_data["checkpoint"] = tf.train.Checkpoint(
-            step=self._untracked_data["step"], model=self
-        )
-        self._untracked_data["variables"] = list(self.variables)
+        # get newly created variables
+        self._untracked_data["variables_top_level"] = [
+            v
+            for v in self.variables
+            if not tf_helpers.is_in(v, variables_of_sub_components)
+        ]
 
-        # collect any variables from sub_components as well
+        # create step counter for this object
+        self._untracked_data["step"] = tf.Variable(
+            0, trainable=False, dtype=tf.int64, name=name + "_step"
+        )
+
+        # create a tensorflow checkpoint object and keep track of variables
+        checkpoint_vars = {"step": self._untracked_data["step"]}
+        if len(self._untracked_data["variables_top_level"]) > 0:
+            checkpoint_vars["model"] = self._untracked_data[
+                "variables_top_level"
+            ]
+        self._untracked_data["checkpoint"] = tf.train.Checkpoint(
+            **checkpoint_vars
+        )
+
+        # collect any variables from sub_components if they aren't already
+        all_variables = list(self.variables)
         for name, sub_component in sorted(sub_components.items()):
             if issubclass(type(sub_component), tf.Module):
-                self._untracked_data["variables"].extend(
-                    sub_component.variables
+                all_variables.extend(
+                    [
+                        v
+                        for v in sub_component.variables
+                        if not tf_helpers.is_in(v, all_variables)
+                    ]
                 )
-        self._untracked_data["variables"] = tuple(
-            self._untracked_data["variables"]
-        )
+        self._untracked_data["variables"] = tuple(all_variables)
 
         num_vars, num_total_vars = self._count_number_of_variables()
-        msg = "\nNumber of Model Variables:\n"
-        msg = "\tFree: {}\n"
-        msg += "\tTotal: {}"
-        self._logger.info(msg.format(num_vars, num_total_vars))
+        msg = f"\nNumber of Model Variables for {name}:\n"
+        msg = f"\tFree: {num_vars}\n"
+        msg += f"\tTotal: {num_total_vars}"
+        self._logger.info(msg)
 
         return configuration, component_data, sub_components
 
@@ -262,6 +428,47 @@ class Model(tf.Module, BaseComponent):
         )
         return num_trainable, num_total
 
+    def _find_top_nodes(self, tensor, collect_name=None):
+        """Find top nodes of a tensor's computation graph.
+
+        Parameters
+        ----------
+        tensor : tf.Tensor
+            The tensor for which to return the top nodes.
+        collect_name : str, optional
+            Constant inputs are not collected, unless their names match this
+            string.
+
+        Returns
+        -------
+        set of tf.Tensor
+            A set of tensors which make up the top nodes of the tensor's
+            computation graph.
+        """
+        if len(tensor.op.inputs) == 0:
+
+            # ignore constant inputs unless they match the collect_name
+            if (
+                tensor.op.node_def.op == "Const"
+                and tensor.name == collect_name
+            ):
+                return set([tensor.name])
+            else:
+                return set()
+
+        tensor_list = set()
+        for in_tensor in tensor.op.inputs:
+            tensor_list = tensor_list.union(
+                self._find_top_nodes(in_tensor, collect_name=collect_name)
+            )
+
+        return tensor_list
+
+    def assert_paramerters_set(self):
+        """Check if the parameters of the model have been set."""
+        if "parameter_names" not in self._untracked_data:
+            raise ValueError("No parameter names have been set!")
+
     def assert_configured(self, configuration_state):
         """Checks the model's configuration state.
 
@@ -291,6 +498,14 @@ class Model(tf.Module, BaseComponent):
             if self.is_configured:
                 raise ValueError("Model is already set up!")
 
+    def increment_step(self):
+        """Increment the step counter of the model."""
+        self.step.assign_add(1)
+
+        for sub_component in self.sub_components.values():
+            if issubclass(type(sub_component), Model):
+                sub_component.increment_step()
+
     def save_weights(
         self,
         dir_path,
@@ -298,6 +513,7 @@ class Model(tf.Module, BaseComponent):
         protected=False,
         description=None,
         num_training_steps=None,
+        recursive=True,
     ):
         """Save the model weights.
 
@@ -344,6 +560,9 @@ class Model(tf.Module, BaseComponent):
             This will be used to update the training_steps.yaml file to
             account for the correct number of training steps for the most
             recent training step.
+        recursive : bool, optional
+            If True, the weights of all sub components will be saved
+            recursively.
 
         Raises
         ------
@@ -358,10 +577,11 @@ class Model(tf.Module, BaseComponent):
         # make sure that there weren't any additional changes to the model
         # after its configure() call.
         variable_names = [t.name for t in self.variables]
-        saved_variable_names = [
+        all_variable_names = [
             t.name for t in self._untracked_data["variables"]
         ]
-        if sorted(variable_names) != sorted(saved_variable_names):
+
+        if sorted(variable_names) != sorted(all_variable_names):
             msg = "Model has changed since configuration call: {!r} != {!r}"
             raise ValueError(
                 msg.format(self.variables, self._untracked_data["variables"])
@@ -404,7 +624,8 @@ class Model(tf.Module, BaseComponent):
         # update number of training steps
         if num_training_steps is not None:
             self.update_num_training_steps(
-                dir_path=dir_path, num_training_steps=num_training_steps
+                dir_path=dir_path,
+                num_training_steps=num_training_steps,
             )
 
         # update latest checkpoint index
@@ -430,6 +651,7 @@ class Model(tf.Module, BaseComponent):
             ] = checkpoint_meta_data
 
         # save checkpoint
+        self._logger.debug(f"[Model] Saving checkpoint: {checkpoint_file}")
         self._untracked_data["checkpoint"].write(checkpoint_file)
 
         # remove old checkpoints
@@ -457,6 +679,24 @@ class Model(tf.Module, BaseComponent):
         with open(yaml_file, "w") as stream:
             yaml_dumper.dump(meta_data, stream)
 
+        # also save weights of all sub components
+        if recursive:
+            for name, sub_component in self.sub_components.items():
+
+                # get directory of sub component
+                sub_dir_path = os.path.join(dir_path, name)
+
+                if issubclass(type(sub_component), Model):
+                    # save weights of Model sub component
+                    sub_component.save_weights(
+                        dir_path=sub_dir_path,
+                        max_keep=max_keep,
+                        protected=protected,
+                        description=description,
+                        num_training_steps=num_training_steps,
+                        recursive=recursive,
+                    )
+
     def update_num_training_steps(self, dir_path, num_training_steps):
         """Update the number of training iterations for current training step.
 
@@ -464,8 +704,11 @@ class Model(tf.Module, BaseComponent):
         ----------
         dir_path : str
             Path to the output directory.
-        num_training_steps : TYPE
-            Description
+        num_training_steps : int
+            The number of training steps with the current training settings.
+            This will be used to update the training_steps.yaml file to
+            account for the correct number of training steps for the most
+            recent training step.
         """
         training_dir = os.path.join(dir_path, "training")
         yaml_file = os.path.join(training_dir, "training_steps.yaml")
@@ -486,6 +729,9 @@ class Model(tf.Module, BaseComponent):
         meta_data["training_steps"][current_step][
             "num_training_steps"
         ] = num_training_steps
+        meta_data["training_steps"][current_step][
+            "num_total_training_steps"
+        ] = int(self.step.numpy())
 
         # save new meta data
         with open(yaml_file, "w") as stream:
@@ -558,6 +804,7 @@ class Model(tf.Module, BaseComponent):
             "creation_date": dt_string,
             "time_stamp": time.time(),
             "num_training_steps": 0,
+            "num_total_training_steps": int(self.step.numpy()),
         }
         meta_data["training_steps"][training_index] = training_meta_data
 
@@ -622,32 +869,29 @@ class Model(tf.Module, BaseComponent):
             self.save_training_settings(
                 dir_path=dir_path, new_training_settings=new_training_settings
             )
+
+        # Note: if we are saving weights via _save() (BaseComponent.save())
+        # then BaseComponent.save() and subsequently BaseComponent._save()
+        # is already called for all sub components and we don't need to
+        # save weights again. Hence, we set recursive=False.
         self.save_weights(
             dir_path=dir_path,
             max_keep=max_keep,
             protected=protected,
             description=description,
             num_training_steps=num_training_steps,
+            recursive=False,
         )
 
-    def load_weights(self, dir_path, checkpoint_number=None):
-        """Load the model weights.
+    def _rebuild_computation_graph(self):
+        """Rebuild the computation graph of the model.
 
-        Parameters
-        ----------
-        dir_path : str
-            Path to the input directory.
-        checkpoint_number : None, optional
-            Optionally specify a certain checkpoint number that should be
-            loaded. If checkpoint_number is None (default), then the latest
-            checkpoint will be loaded.
-
-        Raises
-        ------
-        IOError
-            If the checkpoint meta data cannot be found in the input directory.
+        When constructing the model via the BaseComponent.load() method,
+        the computation graph is not automatically created. This method
+        rebuilds the computation graph of the model.
+        It is therefore typically only needed when the model is loaded
+        via the BaseComponent.load() method.
         """
-
         # rebuild the tensorflow graph if it does not exist yet
         if not self.is_configured:
 
@@ -661,6 +905,9 @@ class Model(tf.Module, BaseComponent):
             # rebuild graph
             config_dict = self.configuration.config
             config_dict.update(self._sub_components)
+
+            self._logger.debug(f"[Model] Rebuilding {self.__class__.__name__}")
+
             self._configure(**config_dict)
 
             # make sure that no additional class attributes are created
@@ -677,6 +924,23 @@ class Model(tf.Module, BaseComponent):
             ):
                 raise ValueError("Tracked components were changed!")
 
+    def retrieve_weight_file_path(self, dir_path, checkpoint_number=None):
+        """Retrieve the file path of the model weights.
+
+        Parameters
+        ----------
+        dir_path : str
+            Path to the input directory.
+        checkpoint_number : None, optional
+            Optionally specify a certain checkpoint number that should be
+            loaded. If checkpoint_number is None (default), then the latest
+            checkpoint will be loaded.
+
+        Returns
+        -------
+        str
+            The file path of the model weights.
+        """
         # Load the model_checkpoints.yaml
         yaml_file = os.path.join(dir_path, "model_checkpoint.yaml")
         if os.path.exists(yaml_file):
@@ -699,8 +963,59 @@ class Model(tf.Module, BaseComponent):
             info = meta_data["protected_checkpoints"][checkpoint_number]
             file_basename = info["file_basename"]
 
-        file_path = os.path.join(dir_path, file_basename)
-        self._untracked_data["checkpoint"].read(file_path)
+        return os.path.join(dir_path, file_basename)
+
+    def load_weights(self, dir_path, checkpoint_number=None, recursive=True):
+        """Load the model weights.
+
+        Parameters
+        ----------
+        dir_path : str
+            Path to the input directory.
+        checkpoint_number : None, optional
+            Optionally specify a certain checkpoint number that should be
+            loaded. If checkpoint_number is None (default), then the latest
+            checkpoint will be loaded_load.
+        recursive : bool, optional
+            If True, the weights of all sub components will be loaded
+            recursively.
+
+        Raises
+        ------
+        IOError
+            If the checkpoint meta data cannot be found in the input directory.
+        """
+        # Sub-components need to be rebuilt first, as higher-level
+        # components need to know which variables exist when configuring
+        for name, sub_component in self.sub_components.items():
+
+            # get directory of sub component
+            sub_dir_path = os.path.join(dir_path, name)
+
+            if issubclass(type(sub_component), Model):
+                # load weights of Model sub component
+                if recursive:
+                    sub_component.load_weights(
+                        dir_path=sub_dir_path,
+                        checkpoint_number=checkpoint_number,
+                        recursive=recursive,
+                    )
+                else:
+                    # make sure that the sub component is configured,
+                    # i.e. has weights loaded or created from scratch
+                    sub_component.assert_configured(True)
+
+        # rebuild the tensorflow graph if it does not exist yet
+        # This is the case if the model is configured via the
+        # BaseComponent.load() method and not via the configure() method.
+        self._rebuild_computation_graph()
+
+        file_path = self.retrieve_weight_file_path(
+            dir_path=dir_path,
+            checkpoint_number=checkpoint_number,
+        )
+        self._logger.debug(f"[Model] Loading checkpoint: {file_path}")
+        self._untracked_data["checkpoint"].read(file_path).assert_consumed()
 
     def _load(self, dir_path, checkpoint_number=None):
         """Load the model weights.
@@ -714,7 +1029,12 @@ class Model(tf.Module, BaseComponent):
             loaded. If checkpoint_number is None (default), then the latest
             checkpoint will be loaded.
         """
-        # set counter of checkpoint to counter in file
+        # Note: if we are loading weights via _load() (BaseComponent.load())
+        # then BaseComponent.load() and subsequently BaseComponent._load()
+        # is already called for all sub components and we don't need to
+        # load weights again. Hence, we set recursive=False.
         self.load_weights(
-            dir_path=dir_path, checkpoint_number=checkpoint_number
+            dir_path=dir_path,
+            checkpoint_number=checkpoint_number,
+            recursive=False,
         )

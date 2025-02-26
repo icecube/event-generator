@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-import logging
 import tensorflow as tf
 import numpy as np
 
@@ -7,22 +5,120 @@ from tfscripts import layers as tfs
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector, basis_functions, angles, dom_acceptance
 from egenerator.utils.cascades import shift_to_maximum
+from egenerator.utils import (
+    detector,
+    angles,
+    dom_acceptance,
+    tf_helpers,
+)
+
+
+def setup_cascade_model(config):
+    """Set up a cascade model.
+
+    Parameters
+    ----------
+    config : dict
+        A dictionary of settings that fully defines the architecture.
+
+    Returns
+    -------
+    tfscripts.Layers
+        The CNN layers of the cascade model.
+    tf.Variable
+        The local variables tensor.
+    list of str
+        A list of parameter names. These parameters fully describe the
+        source hypothesis. The model expects the hypothesis tensor input
+        to be in the same order as this returned list.
+    """
+    if (
+        config["scale_charge_by_angular_acceptance"]
+        and config["scale_charge_by_relative_angular_acceptance"]
+    ):
+        raise ValueError(
+            "Only one of 'scale_charge_by_angular_acceptance' "
+            "and 'scale_charge_by_relative_angular_acceptance' "
+            "can be set to True."
+        )
+
+    # ---------------------------------------------
+    # Define input parameters of cascade hypothesis
+    # ---------------------------------------------
+    parameter_names = [
+        "x",
+        "y",
+        "z",
+        "zenith",
+        "azimuth",
+        "energy",
+        "time",
+    ]
+    if "additional_label_names" in config:
+        parameter_names += config["additional_label_names"]
+        num_add_labels = len(config["additional_label_names"])
+    else:
+        num_add_labels = 0
+
+    num_snowstorm_params = 0
+    if "snowstorm_parameter_names" in config:
+        for param_name, num in config["snowstorm_parameter_names"]:
+            num_snowstorm_params += num
+            for i in range(num):
+                parameter_names.append(param_name.format(i))
+
+    num_inputs = 11 + num_add_labels + num_snowstorm_params
+
+    if config["add_anisotropy_angle"]:
+        num_inputs += 2
+
+    if config["add_opening_angle"]:
+        num_inputs += 1
+
+    if config["add_dom_angular_acceptance"]:
+        num_inputs += 1
+
+    if config["add_dom_coordinates"]:
+        num_inputs += 3
+
+    if config["num_local_vars"] > 0:
+        local_vars = new_weights(
+            shape=[1, 86, 60, config["num_local_vars"]],
+            float_precision=config["float_precision"],
+            name="local_dom_input_variables",
+        )
+        num_inputs += config["num_local_vars"]
+    else:
+        local_vars = None
+
+    # -------------------------------------------
+    # convolutional hex3d layers over X_IC86 data
+    # -------------------------------------------
+    cnn_layers = tfs.ConvNdLayers(
+        input_shape=[-1, 86, 60, num_inputs],
+        filter_size_list=config["filter_size_list"],
+        num_filters_list=config["num_filters_list"],
+        pooling_type_list=None,
+        pooling_strides_list=[1, 1, 1, 1],
+        pooling_ksize_list=[1, 1, 1, 1],
+        use_dropout_list=config["use_dropout_list"],
+        padding_list="SAME",
+        strides_list=[1, 1, 1, 1],
+        use_batch_normalisation_list=config["use_batch_norm_list"],
+        activation_list=config["activation_list"],
+        use_residual_list=config["use_residual_list"],
+        hex_zero_out_list=False,
+        dilation_rate_list=None,
+        hex_num_rotations_list=1,
+        method_list=config["method_list"],
+        float_precision=config["float_precision"],
+    )
+
+    return cnn_layers, local_vars, parameter_names
 
 
 class DefaultCascadeModel(Source):
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(DefaultCascadeModel, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -47,85 +143,12 @@ class DefaultCascadeModel(Source):
         """
         self.assert_configured(False)
 
-        if (
-            config["scale_charge_by_angular_acceptance"]
-            and config["scale_charge_by_relative_angular_acceptance"]
-        ):
-            raise ValueError(
-                "Only one of 'scale_charge_by_angular_acceptance' "
-                "and 'scale_charge_by_relative_angular_acceptance' "
-                "can be set to True."
-            )
+        cnn_layers, local_vars, parameter_names = setup_cascade_model(config)
 
-        # ---------------------------------------------
-        # Define input parameters of cascade hypothesis
-        # ---------------------------------------------
-        parameter_names = [
-            "x",
-            "y",
-            "z",
-            "zenith",
-            "azimuth",
-            "energy",
-            "time",
-        ]
-        if "additional_label_names" in config:
-            parameter_names += config["additional_label_names"]
-            num_add_labels = len(config["additional_label_names"])
-        else:
-            num_add_labels = 0
+        if local_vars is not None:
+            self._untracked_data["local_vars"] = local_vars
 
-        num_snowstorm_params = 0
-        if "snowstorm_parameter_names" in config:
-            for param_name, num in config["snowstorm_parameter_names"]:
-                num_snowstorm_params += num
-                for i in range(num):
-                    parameter_names.append(param_name.format(i))
-
-        num_inputs = 11 + num_add_labels + num_snowstorm_params
-
-        if config["add_anisotropy_angle"]:
-            num_inputs += 2
-
-        if config["add_opening_angle"]:
-            num_inputs += 1
-
-        if config["add_dom_angular_acceptance"]:
-            num_inputs += 1
-
-        if config["add_dom_coordinates"]:
-            num_inputs += 3
-
-        if config["num_local_vars"] > 0:
-            self._untracked_data["local_vars"] = new_weights(
-                shape=[1, 86, 60, config["num_local_vars"]],
-                float_precision=config["float_precision"],
-                name="local_dom_input_variables",
-            )
-            num_inputs += config["num_local_vars"]
-
-        # -------------------------------------------
-        # convolutional hex3d layers over X_IC86 data
-        # -------------------------------------------
-        self._untracked_data["conv_hex3d_layer"] = tfs.ConvNdLayers(
-            input_shape=[-1, 86, 60, num_inputs],
-            filter_size_list=config["filter_size_list"],
-            num_filters_list=config["num_filters_list"],
-            pooling_type_list=None,
-            pooling_strides_list=[1, 1, 1, 1],
-            pooling_ksize_list=[1, 1, 1, 1],
-            use_dropout_list=config["use_dropout_list"],
-            padding_list="SAME",
-            strides_list=[1, 1, 1, 1],
-            use_batch_normalisation_list=config["use_batch_norm_list"],
-            activation_list=config["activation_list"],
-            use_residual_list=config["use_residual_list"],
-            hex_zero_out_list=False,
-            dilation_rate_list=None,
-            hex_num_rotations_list=1,
-            method_list=config["method_list"],
-            float_precision=config["float_precision"],
-        )
+        self._untracked_data["conv_hex3d_layer"] = cnn_layers
 
         return parameter_names
 
@@ -155,9 +178,9 @@ class DefaultCascadeModel(Source):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
@@ -177,13 +200,41 @@ class DefaultCascadeModel(Source):
             A dictionary of output tensors.
             This  dictionary must at least contain:
 
-                'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60]
+                'dom_charges':
+                    The predicted charge at each DOM
+                    Shape: [n_events, 86, 60]
+                'dom_charges_component':
+                    The predicted charge at each DOM for each component
+                    Shape: [n_events, 86, 60, n_components]
                 'dom_charges_variance':
-                    the predicted variance on the charge at each DOM.
-                    Shape: [-1, 86, 60]
-                'pulse_pdf': The likelihood evaluated for each pulse
-                             Shape: [-1]
+                    The predicted charge variance at each DOM
+                    Shape: [n_events, 86, 60]
+                'dom_charges_variance_component':
+                    The predicted charge variance at each DOM for each
+                    component of the mixture model.
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_charges_pdf':
+                    The charge likelihood evaluated for each DOM.
+                    Shape: [n_events, 86, 60]
+                'pulse_pdf':
+                    The likelihood evaluated for each pulse
+                    Shape: [n_pulses]
+                'time_offsets':
+                    The global time offsets for each event.
+                    Shape: [n_events]
+
+            Other relevant optional tensors are:
+                'latent_vars_time':
+                    Shape: [n_events, 86, 60, n_latent]
+                'latent_vars_charge':
+                    Shape: [n_events, 86, 60, n_charge]
+                'time_offsets_per_dom':
+                    The time offsets per DOM (includes global offset).
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_cdf_exclusion':
+                    Shape: [n_events, 86, 60]
+                'pulse_cdf':
+                    Shape: [n_pulses]
         """
         self.assert_configured(True)
 
@@ -192,8 +243,14 @@ class DefaultCascadeModel(Source):
 
         config = self.configuration.config["config"]
         parameters = data_batch_dict[parameter_tensor_name]
+
+        # ensure energy is greater or equal zero
+        parameters = tf.unstack(parameters, axis=-1)
+        parameters[5] = tf.clip_by_value(parameters[5], 0.0, float("inf"))
+        parameters = tf.stack(parameters, axis=-1)
+
         pulses = data_batch_dict["x_pulses"]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
+        pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
         tensors = self.data_trafo.data["tensors"]
         if (
@@ -253,7 +310,7 @@ class DefaultCascadeModel(Source):
         # beta (zenith angle to DOM)
 
         # calculate displacement vector
-        # Shape: [n_batch, 86, 60] = [1, 86, 60] - [n_batch, 1, 1]
+        # Shape: [n_batch, 86, 60] = [86, 60] - [n_batch, 1, 1]
         dx = detector.x_coords[..., 0] - parameter_list[0]
         dy = detector.x_coords[..., 1] - parameter_list[1]
         dz = detector.x_coords[..., 2] - parameter_list[2]
@@ -363,7 +420,7 @@ class DefaultCascadeModel(Source):
                 # Shape: [n_batch, 86, 60, 1]
                 angular_acceptance_base = dom_acceptance.get_acceptance(
                     x=x_base,
-                    dtype=config["float_precision"],
+                    dtype=self.float_precision,
                 )[..., tf.newaxis]
 
             if config["use_constant_baseline_hole_ice"]:
@@ -389,7 +446,7 @@ class DefaultCascadeModel(Source):
                 # Shape: [n_batch, 86, 60, 1]
                 angular_acceptance = dom_acceptance.get_acceptance(
                     x=x,
-                    dtype=config["float_precision"],
+                    dtype=self.float_precision,
                 )[..., tf.newaxis]
 
             if config["scale_charge_by_relative_angular_acceptance"]:
@@ -412,8 +469,6 @@ class DefaultCascadeModel(Source):
 
             # extend to correct batch shape:
             dom_coords = tf.ones_like(dx_normed) * dom_coords
-
-            print("\t dom_coords", dom_coords)
             input_list.append(dom_coords)
 
         if config["num_local_vars"] > 0:
@@ -422,8 +477,6 @@ class DefaultCascadeModel(Source):
             local_vars = (
                 tf.ones_like(dx_normed) * self._untracked_data["local_vars"]
             )
-            print("\t local_vars", local_vars)
-
             input_list.append(local_vars)
 
         x_doms_input = tf.concat(input_list, axis=-1)
@@ -437,152 +490,141 @@ class DefaultCascadeModel(Source):
             is_training=is_training,
             keep_prob=config["keep_prob"],
         )
+        n_components = self.decoder.n_components_total
+        n_latent_time = self.decoder.n_parameters
+        n_latent_charge = self.decoder_charge.n_parameters
+        n_latent = n_latent_time + n_latent_charge
 
         # -------------------------------------------
         # Get times at which to evaluate DOM PDF
         # -------------------------------------------
 
+        # special handling for placements of mixture model compeonents:
+        # these will be placed relative to t_geometry,
+        # which is the earliest possible time for a DOM to be hit from photons
+        # originating from the cherenkov point. Once waveforms are defined
+        # relative to t_geometry, their overall features are similar to each
+        # other. In particular, there is a peak around 8000ns arising form
+        # after pulses and a smaller one at slightly negative times from
+        # pre-pulses. We will place the components around these features.
+        if "mixture_component_t_seeds" in config:
+            t_seed = config["mixture_component_t_seeds"]
+            if len(t_seed) != n_components:
+                raise ValueError(
+                    f"Number of t_seeds {t_seed} does not match number of "
+                    f"components {n_components}"
+                )
+        else:
+            t_seed = np.zeros(n_components)
+        t_seed = np.reshape(t_seed, [1, 1, 1, n_components])
+
+        # per DOM offset to shift to t_geometry
+        # Note that the pulse times are already offset by the cascade vertex
+        # time. So we now only need to add dt_geometry.
+        # shape: [n_batch, 86, 60, n_components] =
+        #       [n_batch, 86, 60, 1] + [1, 1, 1, n_components]
+        tensor_dict["time_offsets_per_dom"] = dt_geometry + t_seed
+
+        # shape: [n_events]
+        cascade_time = parameters[:, 6]
+        tensor_dict["time_offsets"] = cascade_time
+
         # offset PDF evaluation times with cascade vertex time
-        tensor_dict["time_offsets"] = parameters[:, 6]
-        t_pdf = pulse_times - tf.gather(
-            parameters[:, 6], indices=pulse_batch_id
+        # shape: [n_pulses]
+        t_pdf = pulse_times - tf.gather(cascade_time, indices=pulse_batch_id)
+
+        # offset PDF evaluation times additionally with per DOM offset
+        # shape: [n_pulses, n_components] =
+        #       [n_pulses, 1] - [n_pulses, n_components]
+        t_pdf_at_dom = t_pdf[:, tf.newaxis] - tf.gather_nd(
+            tensor_dict["time_offsets_per_dom"], pulses_ids
         )
+        t_pdf_at_dom = tf.ensure_shape(t_pdf_at_dom, [None, n_components])
+
         if time_exclusions_exist:
             # offset time exclusions
 
             # shape: [n_events]
             tw_cascade_t = tf.gather(
-                parameters[:, 6], indices=x_time_exclusions_ids[:, 0]
+                cascade_time, indices=x_time_exclusions_ids[:, 0]
             )
 
-            # shape: [n_events, 2, 1]
-            t_exclusions = tf.expand_dims(
-                x_time_exclusions - tf.expand_dims(tw_cascade_t, axis=-1),
-                axis=-1,
+            # shape: [n_events, n_components]
+            tw_cascade_t = tw_cascade_t[:, tf.newaxis] + tf.gather_nd(
+                tensor_dict["time_offsets_per_dom"], x_time_exclusions_ids
             )
-            t_exclusions = tf.ensure_shape(t_exclusions, [None, 2, 1])
 
-        # new shape: [None, 1]
-        t_pdf = tf.expand_dims(t_pdf, axis=-1)
-        t_pdf = tf.ensure_shape(t_pdf, [None, 1])
+            # shape: [n_events, 2, n_components]
+            #      = [n_events, 2, 1] - [n_events, 1, n_components]
+            t_exclusions = x_time_exclusions[..., tf.newaxis] - tf.expand_dims(
+                tw_cascade_t, axis=1
+            )
+            t_exclusions = tf.ensure_shape(
+                t_exclusions, [None, 2, n_components]
+            )
+
+        # new shape: [n_pulses]
+        t_pdf = tf.ensure_shape(t_pdf, [None])
+        t_pdf_at_dom = tf.ensure_shape(t_pdf_at_dom, [None, n_components])
 
         # scale time range down to avoid big numbers:
         t_scale = 1.0 / self.time_unit_in_ns  # [1./ns]
-        t_pdf = t_pdf * t_scale
-        dt_geometry = dt_geometry * t_scale
+        t_pdf *= t_scale
+        t_pdf_at_dom *= t_scale
+        dt_geometry *= t_scale
         if time_exclusions_exist:
-            t_exclusions = t_exclusions * t_scale
+            t_exclusions *= t_scale
 
         # -------------------------------------------
         # Gather latent vars of mixture model
         # -------------------------------------------
-        if config["charge_distribution_type"] == "asymmetric_gaussian":
-            n_charge = 3
-        elif config["charge_distribution_type"] == "negative_binomial":
-            n_charge = 2
-        elif config["charge_distribution_type"] == "poisson":
-            n_charge = 1
-        else:
-            raise ValueError(
-                "Unknown charge distribution type: {!r}".format(
-                    config["charge_distribution_type"]
-                )
-            )
 
         # check if we have the right amount of filters in the latent dimension
-        n_models = config["num_latent_models"]
-        if n_models * 4 + n_charge != config["num_filters_list"][-1]:
+        if n_latent != config["num_filters_list"][-1]:
             raise ValueError(
-                "{!r} != {!r}".format(
-                    n_models * 4 + n_charge, config["num_filters_list"][-1]
-                )
+                "{!r} != {!r}".format(n_latent, config["num_filters_list"][-1])
             )
-        if n_models <= 1:
-            raise ValueError("{!r} !> 1".format(n_models))
+        if n_components < 1:
+            raise ValueError("{!r} !> 0".format(n_components))
 
-        print("\t Charge method:", config["charge_distribution_type"])
-        print("\t Number of Asymmetric Gaussian Components:", n_models)
+        # print out information about the mixture model components
+        print("\t Charge PDF mixture model components:")
+        decoder_config = self.decoder_charge.configuration.config["config"]
+        if "decoder_names" in self.decoder_charge._untracked_data:
+            counter = 0
+            for name in self.decoder_charge._untracked_data["decoder_names"]:
+                base_name, num, weight = decoder_config["decoder_mapping"][
+                    name
+                ]
+                print(f"\t\t {base_name}: {num} [w={weight}]")
+        else:
+            print(f"\t\t Decoder name: {self.decoder_charge.name}")
 
-        # shape: [n_batch, 86, 60, n_models * 4 + n_charge]
-        out_layer = conv_hex3d_layers[-1]
-        latent_mu = out_layer[
-            ..., n_charge + 0 * n_models : n_charge + 1 * n_models
-        ]
-        latent_sigma = out_layer[
-            ..., n_charge + 1 * n_models : n_charge + 2 * n_models
-        ]
-        latent_r = out_layer[
-            ..., n_charge + 2 * n_models : n_charge + 3 * n_models
-        ]
-        latent_scale = out_layer[
-            ..., n_charge + 3 * n_models : n_charge + 4 * n_models
-        ]
+        print("\t Time PDF mixture model components:")
+        decoder_config = self.decoder.configuration.config["config"]
+        counter = 0
+        for name in self.decoder._untracked_data["decoder_names"]:
+            base_name, num, weight = decoder_config["decoder_mapping"][name]
+            if "mixture_component_t_seeds" in config:
+                t_seed_i = config["mixture_component_t_seeds"][
+                    counter : counter + num
+                ]
+            else:
+                t_seed_i = np.zeros(num)
+            counter += num
+            print(f"\t\t {base_name}: {num} [w={weight}, t_seeds={t_seed_i}]")
 
-        # add reasonable scaling for parameters assuming the latent vars
-        # are distributed normally around zero
-        factor_sigma = 1000 * t_scale  # ns
-        factor_mu = 500 * t_scale  # ns
-        factor_r = 1.0
-        factor_scale = 1.0
+        # shape: [n_batch, 86, 60, n_latent_charge + n_latent_time]
+        latent_vars = conv_hex3d_layers[-1]
 
-        # create correct offset and scaling
-        latent_sigma = 2 + factor_sigma * latent_sigma
-        latent_r = 1 + factor_r * latent_r
-        latent_scale = 1 + factor_scale * latent_scale
+        # shape: [n_batch, 86, 60, n_latent_time]
+        latent_vars_time = latent_vars[..., n_latent_charge:]
 
-        # special handling for placements of asymmetric Gaussians via mu:
-        # these will be placed relative to t_geometry,
-        # which is the earliest possible time for a DOM to be hit from photons
-        # originating from the cascade vertex. Once waveforms are defined
-        # relative to t_geometry, their overall features are similar to each
-        # other. In particular, there is a peak around 8000ns arising form
-        # after pulses. We will place the asymmetric Gaussians around these
-        # features.
-        t_seed = (
-            np.r_[
-                [0, 100, 8000, 14000, 4000, 800, 300, 1000, 400, 2000],
-                np.random.RandomState(42).uniform(0, 14000, max(1, n_models)),
-            ][:n_models]
-            * t_scale
-        )
-        t_seed = np.reshape(t_seed, [1, 1, 1, n_models])
+        # shape: [n_batch, 86, 60, n_latent_charge]
+        latent_vars_charge = latent_vars[..., :n_latent_charge]
 
-        # per DOM offset to shift to t_geometry
-        # Note that the pulse times are already offset by the cascade vertex
-        # time. So we now only need to  add dt_geometry.
-        # shape: [n_batch, 86, 60, n_models] =
-        #       [n_batch, 86, 60, 1] + [1, 1, 1, n_models]
-        #       + [n_batch, 86, 60, n_models]
-        latent_mu = dt_geometry + t_seed + factor_mu * latent_mu
-
-        # force positive and min values
-        latent_scale = tf.nn.elu(latent_scale) + 1.00001
-        latent_r = tf.nn.elu(latent_r) + 1.001
-        latent_sigma = tf.nn.elu(latent_sigma) + 1.001
-
-        # normalize scale to sum to 1
-        latent_scale /= tf.reduce_sum(latent_scale, axis=-1, keepdims=True)
-
-        # Sort mixture model components in time if desired
-        if (
-            "prevent_mixture_component_swapping" in config
-            and config["prevent_mixture_component_swapping"]
-        ):
-
-            # swap latent variables of components, such that these are ordered
-            # in time. This puts a constrained on the model and reduces
-            # the permutation options and should thus facilitate training.
-            # We could keep the latent_mu in place and sort the other
-            # components accordingly. An equivalent alternative is to keep
-            # the other components in place and to simply sort the latent_mu.
-            latent_mu = tf.ensure_shape(
-                tf.sort(latent_mu, axis=-1), shape=[None, 86, 60, n_models]
-            )
-
-        tensor_dict["latent_var_mu"] = latent_mu
-        tensor_dict["latent_var_sigma"] = latent_sigma
-        tensor_dict["latent_var_r"] = latent_r
-        tensor_dict["latent_var_scale"] = latent_scale
+        tensor_dict["latent_vars"] = latent_vars
+        tensor_dict["latent_vars_time"] = latent_vars_time
 
         # -------------------------
         # Calculate Time Exclusions
@@ -590,182 +632,69 @@ class DefaultCascadeModel(Source):
         if time_exclusions_exist:
 
             # get latent vars for each time window
-            tw_latent_mu = tf.gather_nd(latent_mu, x_time_exclusions_ids)
-            tw_latent_sigma = tf.gather_nd(latent_sigma, x_time_exclusions_ids)
-            tw_latent_r = tf.gather_nd(latent_r, x_time_exclusions_ids)
-
-            # ensure shapes
-            tw_latent_mu = tf.ensure_shape(tw_latent_mu, [None, n_models])
-            tw_latent_sigma = tf.ensure_shape(
-                tw_latent_sigma, [None, n_models]
+            # Shape: [n_tw, n_latent_time]
+            tw_latent_vars = tf.gather_nd(
+                latent_vars_time, x_time_exclusions_ids
             )
-            tw_latent_r = tf.ensure_shape(tw_latent_r, [None, n_models])
 
-            # [n_tw, 1] * [n_tw, n_models] = [n_tw, n_models]
-            tw_cdf_start = basis_functions.tf_asymmetric_gauss_cdf(
+            # ensure shape
+            tw_latent_vars = tf.ensure_shape(
+                tw_latent_vars, [None, n_latent_time]
+            )
+
+            # x: [n_tw, n_components], latent_vars: [n_tw, n_latent_time]
+            #   --> [n_tw]
+            tw_cdf_start = self.decoder.cdf(
                 x=t_exclusions[:, 0],
-                mu=tw_latent_mu,
-                sigma=tw_latent_sigma,
-                r=tw_latent_r,
+                latent_vars=tw_latent_vars,
+                reduce_components=True,
             )
-            tw_cdf_stop = basis_functions.tf_asymmetric_gauss_cdf(
+            tw_cdf_stop = self.decoder.cdf(
                 x=t_exclusions[:, 1],
-                mu=tw_latent_mu,
-                sigma=tw_latent_sigma,
-                r=tw_latent_r,
+                latent_vars=tw_latent_vars,
+                reduce_components=True,
             )
 
-            tw_cdf_exclusion = tw_cdf_stop - tw_cdf_start
-
-            # some safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            tw_cdf_exclusion > -1e-4,
-                            ~tf.math.is_finite(tw_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade TW CDF < 0!", tf.reduce_min(tw_cdf_exclusion)],
-                )
+            # shape: [n_tw]
+            tw_cdf_exclusion = tf_helpers.safe_cdf_clip(
+                tw_cdf_stop - tw_cdf_start
             )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            tw_cdf_exclusion < 1.0001,
-                            ~tf.math.is_finite(tw_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade TW CDF > 1!", tf.reduce_max(tw_cdf_exclusion)],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                tw_cdf_exclusion = tf.clip_by_value(tw_cdf_exclusion, 0.0, 1.0)
+            tw_cdf_exclusion = tf.cast(tw_cdf_exclusion, self.float_precision)
 
             # accumulate time window exclusions for each DOM and MM component
-            # shape: [None, 86, 60, n_models]
-            dom_cdf_exclusion = tf.zeros_like(latent_mu)
+            # shape: [None, 86, 60]
+            dom_cdf_exclusion = tf.zeros_like(latent_vars[..., 0])
 
             dom_cdf_exclusion = tf.tensor_scatter_nd_add(
                 dom_cdf_exclusion,
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
-            # limit to range [0., 1.]
-            # Note: we loose gradients if clipping is applied. Maybe
-            # tfp.math.clip_value_value_preserve_gradient is a better idea?
-            # these values should be close to 0 and 1, keeping gradients
-            # for values slightly outside should therefore be more correct
-            # add safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion > -1e-4,
-                            ~tf.math.is_finite(dom_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade DOM CDF < 0!", tf.reduce_min(dom_cdf_exclusion)],
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion < 1.0001,
-                            ~tf.math.is_finite(dom_cdf_exclusion),
-                        )
-                    ),
-                    ["Cascade DOM CDF > 1!", tf.reduce_max(dom_cdf_exclusion)],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion = tf.clip_by_value(
-                    dom_cdf_exclusion, 0.0, 1.0
-                )
+            dom_cdf_exclusion = tf_helpers.safe_cdf_clip(dom_cdf_exclusion)
 
-            # Shape: [None, 86, 60, 1]
-            dom_cdf_exclusion_sum = tf.reduce_sum(
-                dom_cdf_exclusion * latent_scale, axis=-1, keepdims=True
-            )
-
-            # add safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion_sum > -1e-4,
-                            ~tf.math.is_finite(dom_cdf_exclusion_sum),
-                        )
-                    ),
-                    [
-                        "Cascade DOM CDF sum < 0!",
-                        tf.reduce_min(dom_cdf_exclusion_sum),
-                    ],
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_all(
-                        tf.math.logical_or(
-                            dom_cdf_exclusion_sum < 1.0001,
-                            ~tf.math.is_finite(dom_cdf_exclusion_sum),
-                        )
-                    ),
-                    [
-                        "Cascade DOM CDF sum > 1!",
-                        tf.reduce_max(dom_cdf_exclusion_sum),
-                    ],
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion_sum = tf.clip_by_value(
-                    dom_cdf_exclusion_sum, 0.0, 1.0
-                )
-
-            tensor_dict["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
+            tensor_dict["dom_cdf_exclusion"] = dom_cdf_exclusion
 
         # -------------------------------------------
         # Get expected charge at DOM
         # -------------------------------------------
 
-        # the result of the convolution layers are the latent variables
-        dom_charges_trafo = tf.expand_dims(
-            conv_hex3d_layers[-1][..., 0], axis=-1
-        )
-
-        # clip value range for more stability during training
-        dom_charges_trafo = tf.clip_by_value(
-            dom_charges_trafo,
-            -20.0,
-            15,
-        )
-
-        # apply exponential which also forces positive values
-        dom_charges = tf.exp(dom_charges_trafo)
+        # get charge scale to apply
+        charge_scale = 1.0
 
         # scale charges by cascade energy
         if config["scale_charge"]:
             # make sure cascade energy does not turn negative
-            cascade_energy = tf.clip_by_value(
-                parameter_list[5], 0.0, float("inf")
-            )
-            scale_factor = tf.expand_dims(cascade_energy, axis=-1) / 1000.0
-            dom_charges *= scale_factor
+            charge_scale *= tf.expand_dims(parameter_list[5], axis=-1) / 1000.0
 
         # scale charges by relative DOM efficiency
         if config["scale_charge_by_relative_dom_efficiency"]:
-            dom_charges *= tf.expand_dims(
+            charge_scale *= tf.expand_dims(
                 detector.rel_dom_eff.astype(param_dtype_np), axis=-1
             )
 
         # scale charges by global DOM efficiency
         if config["scale_charge_by_global_dom_efficiency"]:
-            dom_charges *= tf.expand_dims(
+            charge_scale *= tf.expand_dims(
                 parameter_list[self.get_index("DOMEfficiency")], axis=-1
             )
 
@@ -773,203 +702,164 @@ class DefaultCascadeModel(Source):
             # do not let charge scaling go down to zero
             # Even if cascade is coming from directly above, the photons
             # will scatter and arrive from vaying angles.
-            dom_charges *= (
+            charge_scale *= (
                 tf.clip_by_value(angular_acceptance, 0, float("inf")) + 1e-2
             )
 
         if config["scale_charge_by_relative_angular_acceptance"]:
-            dom_charges *= tf.clip_by_value(
+            charge_scale *= tf.clip_by_value(
                 relative_angular_acceptance,
                 1e-2,
                 100,
             )
 
-        # apply time window exclusions if needed
-        if time_exclusions_exist:
-            dom_charges = dom_charges * (1.0 - dom_cdf_exclusion_sum + 1e-3)
-
-        # add small constant to make sure dom charges are > 0:
-        dom_charges += 1e-7
-
-        tensor_dict["dom_charges"] = dom_charges
-
-        # -------------------------------------
-        # get charge distribution uncertainties
-        # -------------------------------------
-        if config["charge_distribution_type"] == "asymmetric_gaussian":
-            sigma_scale_trafo = tf.expand_dims(
-                conv_hex3d_layers[-1][..., 1], axis=-1
-            )
-            dom_charges_r_trafo = tf.expand_dims(
-                conv_hex3d_layers[-1][..., 2], axis=-1
-            )
-
-            # create correct offset and scaling
-            sigma_scale_trafo = 0.1 * sigma_scale_trafo - 2
-            dom_charges_r_trafo = 0.01 * dom_charges_r_trafo - 2
-
-            # force positive and min values
-            # The uncertainty can't be smaller than Poissonian error.
-            # However, we are approximating the distribution with an
-            # asymmetric Gaussian which might result in slightly different
-            # sigmas at low values.
-            # We will limit Gaussian sigma to a minimum value of 90% of the
-            # Poisson expectation.
-            # The Gaussian approximation will not hold for low charge DOMs.
-            # We will use a standard poisson likelihood for DOMs with a true
-            # detected charge of less than 5.
-            # Since the normalization is not correct for these likelihoods
-            # we need to keep the choice of llh fixed for an event, e.g.
-            # base the decision on the true measured charge.
-            # Note: this is not a correct and proper PDF description!
-            sigma_scale = tf.nn.elu(sigma_scale_trafo) + 1.9
-            dom_charges_r = tf.nn.elu(dom_charges_r_trafo) + 1.9
-
-            # set default value to poisson uncertainty
-            dom_charges_sigma = (
-                tf.sqrt(tf.clip_by_value(dom_charges, 0.0001, float("inf")))
-                * sigma_scale
-            )
-
-            # set threshold under which a Poisson Likelihood is used
-            charge_threshold = 5
-
-            # Apply Asymmetric Gaussian and/or Poisson Likelihood
-            # shape: [n_batch, 86, 60, 1]
-            eps = 1e-7
-            dom_charges_llh = tf.where(
-                dom_charges_true > charge_threshold,
-                tf.math.log(
-                    basis_functions.tf_asymmetric_gauss(
-                        x=dom_charges_true,
-                        mu=dom_charges,
-                        sigma=dom_charges_sigma,
-                        r=dom_charges_r,
-                    )
-                    + eps
-                ),
-                dom_charges_true * tf.math.log(dom_charges + eps)
-                - dom_charges,
-            )
-
-            # compute (Gaussian) uncertainty on predicted dom charge
-            dom_charges_unc = tf.where(
-                dom_charges_true > charge_threshold,
-                # take mean of left and right side uncertainty
-                # Note: this might not be correct
-                dom_charges_sigma * ((1 + dom_charges_r) / 2.0),
-                tf.math.sqrt(dom_charges + eps),
-            )
-
-            # add tensors to tensor dictionary
-            tensor_dict["dom_charges_sigma"] = dom_charges_sigma
-            tensor_dict["dom_charges_r"] = dom_charges_r
-            tensor_dict["dom_charges_unc"] = dom_charges_unc
-            tensor_dict["dom_charges_variance"] = dom_charges_unc**2
-            tensor_dict["dom_charges_log_pdf_values"] = dom_charges_llh
-
-        elif config["charge_distribution_type"] == "negative_binomial":
-            """
-            Use negative binomial PDF instead of Poisson to account for
-            over-dispersion induces by systematic variations.
-
-            The parameterization chosen here is defined by the mean mu and
-            the over-dispersion factor alpha.
-
-                Var(x) = mu + alpha*mu**2
-
-            Alpha must be greater than zero.
-            """
-            alpha_trafo = tf.expand_dims(
-                conv_hex3d_layers[-1][..., 1], axis=-1
-            )
-
-            # create correct offset and force positive and min values
-            # The over-dispersion parameterized by alpha must be greater zero
-            dom_charges_alpha = tf.nn.elu(alpha_trafo - 5) + 1.000001
-
-            # compute log pdf
-            dom_charges_llh = basis_functions.tf_log_negative_binomial(
-                x=dom_charges_true,
-                mu=dom_charges,
-                alpha=dom_charges_alpha,
-            )
-
-            # compute standard deviation
-            # std = sqrt(var) = sqrt(mu + alpha*mu**2)
-            dom_charges_variance = (
-                dom_charges + dom_charges_alpha * dom_charges**2
-            )
-            dom_charges_unc = tf.sqrt(dom_charges_variance)
-
-            # add tensors to tensor dictionary
-            tensor_dict["dom_charges_alpha"] = dom_charges_alpha
-            tensor_dict["dom_charges_unc"] = dom_charges_unc
-            tensor_dict["dom_charges_variance"] = dom_charges_variance
-            tensor_dict["dom_charges_log_pdf_values"] = dom_charges_llh
-
-        elif config["charge_distribution_type"] == "poisson":
-            # Poisson Distribution: variance is equal to expected charge
-            tensor_dict["dom_charges_unc"] = tf.sqrt(dom_charges)
-            tensor_dict["dom_charges_variance"] = dom_charges
-
-        else:
-            raise ValueError(
-                "Unknown charge distribution type: {!r}".format(
-                    config["charge_distribution_type"]
+        # check that things are spelled correctly
+        for param_name in config["charge_scale_tensors"]:
+            if param_name not in self.decoder_charge.loc_parameters:
+                raise ValueError(
+                    f"Charge scale tensor {param_name} not found in "
+                    f"decoder loc_parameters: {self.decoder_charge.loc_parameters}!"
                 )
+
+        # transform charge scale tensors
+        latent_vars_charge_scaled = []
+        for idx, param_name in enumerate(self.decoder_charge.parameter_names):
+
+            charge_tensor = tf.expand_dims(
+                latent_vars_charge[..., idx], axis=-1
             )
+
+            if param_name in self.decoder_charge.loc_parameters:
+
+                # make sure no value range mapping is not defined for this tensor
+                if param_name in self.decoder_charge.value_range_mapping:
+                    raise ValueError(
+                        f"Value range mapping for charge scale tensor "
+                        f"{param_name} at index {idx} not allowed since "
+                        f"manual mapping in model is done!"
+                    )
+                else:
+                    print(
+                        f"\t Applying charge scale to {param_name} at index {idx}"
+                    )
+
+                # clip value range for more stability during training
+                # apply exponential which also forces positive values
+                charge_tensor = tf.exp(
+                    tf.clip_by_value(charge_tensor, -20.0, 15)
+                )
+
+                if param_name in config["charge_scale_tensors"]:
+                    charge_tensor *= charge_scale
+
+                # apply time window exclusions if needed
+                if time_exclusions_exist:
+                    charge_tensor = charge_tensor * (
+                        1.0 - dom_cdf_exclusion[..., tf.newaxis] + self.epsilon
+                    )
+
+                # add small constant to make sure dom charges are > 0:
+                charge_tensor += self.epsilon
+
+            latent_vars_charge_scaled.append(charge_tensor)
+
+        latent_vars_charge = tf.concat(latent_vars_charge_scaled, axis=-1)
+        tensor_dict["latent_vars_charge"] = latent_vars_charge
+
+        dom_charges_component = self.decoder_charge.expectation(
+            latent_vars=latent_vars_charge,
+            reduce_components=False,
+        )
+        if dom_charges_component.shape[1:] == [86, 60]:
+            dom_charges_component = dom_charges_component[..., tf.newaxis]
+        tensor_dict["dom_charges_component"] = dom_charges_component
+
+        tensor_dict["dom_charges"] = self.decoder_charge.expectation(
+            latent_vars=latent_vars_charge,
+            reduce_components=True,
+        )
+        variance_component = self.decoder_charge.variance(
+            latent_vars=latent_vars_charge, reduce_components=False
+        )
+        if variance_component.shape[1:] == [86, 60]:
+            variance_component = variance_component[..., tf.newaxis]
+        tensor_dict["dom_charges_variance_component"] = variance_component
+
+        tensor_dict["dom_charges_variance"] = self.decoder_charge.variance(
+            latent_vars=latent_vars_charge, reduce_components=True
+        )
+
+        # -------------------------
+        # Compute charge PDF values
+        # -------------------------
+        dom_charges_pdf = self.decoder_charge.pdf(
+            x=tf.squeeze(dom_charges_true, axis=3),
+            latent_vars=latent_vars_charge,
+            reduce_components=True,
+        )
+        # cast back to specified float precision
+        dom_charges_pdf = tf.cast(dom_charges_pdf, self.float_precision)
+        tensor_dict["dom_charges_pdf"] = dom_charges_pdf
 
         # --------------------------
         # Calculate Pulse PDF Values
         # --------------------------
 
         # get latent vars for each pulse
-        pulse_latent_mu = tf.gather_nd(latent_mu, pulses_ids)
-        pulse_latent_sigma = tf.gather_nd(latent_sigma, pulses_ids)
-        pulse_latent_r = tf.gather_nd(latent_r, pulses_ids)
-        pulse_latent_scale = tf.gather_nd(latent_scale, pulses_ids)
+        # Shape: [n_pulses, n_latent_time]
+        pulse_latent_vars = tf.gather_nd(latent_vars_time, pulses_ids)
 
         # ensure shapes
-        pulse_latent_mu = tf.ensure_shape(pulse_latent_mu, [None, n_models])
-        pulse_latent_sigma = tf.ensure_shape(
-            pulse_latent_sigma, [None, n_models]
-        )
-        pulse_latent_r = tf.ensure_shape(pulse_latent_r, [None, n_models])
-        pulse_latent_scale = tf.ensure_shape(
-            pulse_latent_scale, [None, n_models]
+        pulse_latent_vars = tf.ensure_shape(
+            pulse_latent_vars, [None, n_latent_time]
         )
 
-        # -------------------------------------------
-        # Apply Asymmetric Gaussian Mixture Model
-        # -------------------------------------------
+        # ------------------------
+        # Apply Time Mixture Model
+        # ------------------------
 
-        # [n_pulses, 1] * [n_pulses, n_models] = [n_pulses, n_models]
-        pulse_pdf_values = (
-            basis_functions.tf_asymmetric_gauss(
-                x=t_pdf,
-                mu=pulse_latent_mu,
-                sigma=pulse_latent_sigma,
-                r=pulse_latent_r,
-            )
-            * pulse_latent_scale
+        # t_pdf_at_dom: [n_events, n_components]
+        # Shape: [n_pulses]
+        pulse_pdf_values = self.decoder.pdf(
+            x=t_pdf_at_dom,
+            latent_vars=pulse_latent_vars,
+            reduce_components=True,
+        )
+        pulse_cdf_values = self.decoder.cdf(
+            x=t_pdf_at_dom,
+            latent_vars=pulse_latent_vars,
+            reduce_components=True,
         )
 
-        # new shape: [n_pulses]
-        pulse_pdf_values = tf.reduce_sum(pulse_pdf_values, axis=-1)
+        # cast back to specified float precision
+        pulse_pdf_values = tf.cast(pulse_pdf_values, self.float_precision)
+        pulse_cdf_values = tf.cast(pulse_cdf_values, self.float_precision)
 
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
 
-            # Shape: [n_pulses, 1] -> squeeze -> [n_pulses]
-            pulse_cdf_exclusion = tf.squeeze(
-                tf.gather_nd(dom_cdf_exclusion_sum, pulses_ids), axis=1
+            # Shape: [n_pulses]
+            pulse_cdf_exclusion_total = tf.gather_nd(
+                dom_cdf_exclusion,
+                pulses_ids,
             )
 
+            # subtract excluded regions from cdf values
+            pulse_cdf_exclusion = tf_helpers.get_prior_pulse_cdf_exclusion(
+                x_pulses=pulses,
+                x_pulses_ids=pulses_ids,
+                x_time_exclusions=x_time_exclusions,
+                x_time_exclusions_ids=x_time_exclusions_ids,
+                tw_cdf_exclusion=tw_cdf_exclusion,
+            )
+            pulse_cdf_values -= pulse_cdf_exclusion
+
             # Shape: [n_pulses]
-            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion + 1e-3
+            pulse_pdf_values /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
+            pulse_cdf_values /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
 
         tensor_dict["pulse_pdf"] = pulse_pdf_values
+        tensor_dict["pulse_cdf"] = pulse_cdf_values
         # ---------------------
 
         return tensor_dict

@@ -1,33 +1,9 @@
-from __future__ import division, print_function
-import logging
 import numpy as np
 import tensorflow as tf
 
 from egenerator import misc
-from egenerator.utils import basis_functions
 from egenerator.model.base import Model
 from egenerator.manager.component import Configuration
-
-
-class InputTensorIndexer(dict):
-    """A simple wrapper to easily obtain named tensor slices"""
-
-    def __init__(self, tensor, names):
-
-        # sanity check
-        if tensor.shape[-1] != len(names):
-            raise ValueError(
-                "Shapes do not match up: {!r} != {!r}".format(
-                    tensor.shape[-1], len(names)
-                )
-            )
-
-        dictionary = {}
-        for i, name in enumerate(names):
-            dictionary[name] = tensor[..., i]
-
-        dict.__init__(self, dictionary)
-        self.__dict__ = self
 
 
 class Source(Model):
@@ -49,12 +25,7 @@ class Source(Model):
         Parameters are the hypothesis tensor of the source with
         shape [-1, n_params]. The get_tensors method must compute all tensors
         that are to be used in later steps. It returns these as a dictionary
-        of output tensors. This  dictionary must at least contain:
-
-            'dom_charges': the predicted charge at each DOM
-                           Shape: [-1, 86, 60, 1]
-            'pulse_pdf': The likelihood evaluated for each pulse
-                         Shape: [-1]
+        of output tensors.
 
     Attributes
     ----------
@@ -83,44 +54,33 @@ class Source(Model):
             return None
 
     @property
-    def name(self):
-        if self.untracked_data is not None and "name" in self.untracked_data:
-            return self.untracked_data["name"]
+    def decoder(self):
+        if (
+            self.sub_components is not None
+            and "decoder" in self.sub_components
+        ):
+            return self.sub_components["decoder"]
         else:
             return None
 
     @property
-    def parameter_names(self):
+    def decoder_charge(self):
         if (
-            self.untracked_data is not None
-            and "parameter_names" in self.untracked_data
+            self.sub_components is not None
+            and "decoder_charge" in self.sub_components
         ):
-            return self.untracked_data["parameter_names"]
+            return self.sub_components["decoder_charge"]
         else:
             return None
 
-    @property
-    def num_parameters(self):
-        if (
-            self.untracked_data is not None
-            and "num_parameters" in self.untracked_data
-        ):
-            return self.untracked_data["num_parameters"]
-        else:
-            return None
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(Source, self).__init__(logger=self._logger)
-
-    def _configure_derived_class(self, config, data_trafo, name=None):
+    def _configure_derived_class(
+        self,
+        config,
+        data_trafo,
+        decoder=None,
+        decoder_charge=None,
+        name=None,
+    ):
         """Setup and configure the Source's architecture.
 
         After this function call, the sources's architecture (weights) must
@@ -133,6 +93,13 @@ class Source(Model):
             architecture and weights.
         data_trafo : DataTrafo
             A data trafo object.
+        decoder : LatentToPDFDecoder, optional
+            The decoder object. This is an optional object that is
+            used to decode the latent variables into a PDF.
+        decoder_charge : LatentToPDFDecoder, optional
+            The decoder object for the charge. This is an optional
+            object that is used to decode the latent variables
+            into a PDF for the charge expectation.
         name : str, optional
             The name of the source.
 
@@ -181,20 +148,9 @@ class Source(Model):
             tf.Module:
                 - Must contain all tensorflow variables as class attributes,
                     so that they are found by tf.Module.variables
-                - Must implement:
-                     __call__(self, input_params)
-                    which returns a dictionary with output tensors. This
-                    dictionary must at least contain
-                        'dom_charges': the predicted charge at each DOM
-                                       Shape: [-1, 86, 60, 1]
-                        'latent_var_mu': Shape: [-1, 86, 60, n_models]
-                        'latent_var_sigma': Shape: [-1, 86, 60, n_models]
-                        'latent_var_r': Shape: [-1, 86, 60, n_models]
-                        'latent_var_scale': Shape: [-1, 86, 60, n_models]
-
         """
         if name is None:
-            name = __name__
+            name = self.__class__.__name__
 
         # # collect all tensorflow variables before creation
         # variables_before = set([
@@ -217,69 +173,30 @@ class Source(Model):
 
         # get names of parameters
         self._untracked_data["name"] = name
-        self._untracked_data["num_parameters"] = len(parameter_names)
-        self._untracked_data["parameter_names"] = parameter_names
-        self._untracked_data["parameter_name_dict"] = {
-            name: index for index, name in enumerate(parameter_names)
-        }
-        self._untracked_data["parameter_index_dict"] = {
-            index: name for index, name in enumerate(parameter_names)
-        }
+        self._set_parameter_names(parameter_names)
 
-        # Add parameter names to __dict__?
+        # create sub components
+        sub_components = {"data_trafo": data_trafo}
+        if decoder is not None:
+            sub_components["decoder"] = decoder
+            settings = dict(config=config)
+        else:
+            # add empty decoder to config to keep track of it
+            settings = dict(config=config, decoder=None)
+        if decoder_charge is not None:
+            sub_components["decoder_charge"] = decoder_charge
+        else:
+            # add empty decoder to config to keep track of it
+            settings["decoder_charge"] = None
 
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
-            settings=dict(config=config),
+            settings=settings,
             mutable_settings=dict(name=name),
         )
 
-        return configuration, {}, {"data_trafo": data_trafo}
-
-    def get_index(self, param_name):
-        """Returns the index of a parameter name
-
-        Parameters
-        ----------
-        param_name : str
-            The name of the input parameter for which to return the index
-        """
-        self.assert_configured(True)
-        return self._untracked_data["parameter_name_dict"][param_name]
-
-    def get_name(self, index):
-        """Returns the name of the input parameter input_parameters[:, index].
-
-        Parameters
-        ----------
-        index : int
-            The parameter input index for which to return the name.
-
-        Raises
-        ------
-        NotImplementedError
-            Description
-        """
-        self.assert_configured(True)
-        return self._untracked_data["parameter_index_dict"][index]
-
-    def add_parameter_indexing(self, tensor):
-        """Add meta data to a tensor and allow easy indexing via names.
-
-        Parameters
-        ----------
-        tensor : tf.Tensor
-            The input parameter tensor for the Source.
-        """
-        setattr(
-            tensor,
-            "params",
-            InputTensorIndexer(
-                tensor, self._untracked_data["parameter_names"]
-            ),
-        )
-        return tensor
+        return configuration, {}, sub_components
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -353,13 +270,66 @@ class Source(Model):
             A dictionary of output tensors.
             This  dictionary must at least contain:
 
-                'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60, 1]
-                'pulse_pdf': The likelihood evaluated for each pulse
-                             Shape: [-1]
+                'dom_charges':
+                    The predicted charge at each DOM
+                    Shape: [n_events, 86, 60, 1]
+                'pulse_pdf':
+                    The likelihood evaluated for each pulse
+                    Shape: [n_pulses]
+                'time_offsets':
+                    The global time offsets for each event.
+                    Shape: [n_events]
+
+            Other relevant optional tensors are:
+                'latent_vars_time':
+                    Shape: [n_events, 86, 60, n_latent]
+                'latent_vars_charge':
+                    Shape: [n_events, 86, 60, n_charge]
+                'time_offsets_per_dom':
+                    The time offsets per DOM (includes global offset).
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_cdf_exclusion':
+                    Shape: [n_events, 86, 60]
+                'pulse_cdf':
+                    Shape: [n_pulses]
         """
         self.assert_configured(True)
         raise NotImplementedError()
+
+    def _select_slice(self, values, strings, doms):
+        """Select subset of strings and doms from tensor
+
+        Parameters
+        ----------
+        values : np.array
+            The varlues to slice.
+            Shape: [n_events, 86, 60, ...]
+        strings : list of int
+            The strings to slice the tensor for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int
+            The doms to slice the tensor for.
+            If None, all doms are used.
+            Shape: [n_doms]
+
+        Returns
+        -------
+        np.array
+            The sliced values.
+            Shape: [n_events, n_strings, n_doms, ...]
+        """
+        # check if strings in a slice
+        if not isinstance(strings, slice):
+            strings = np.atleast_1d(strings)
+
+        values = values[:, strings, ...]
+
+        if not isinstance(doms, slice):
+            doms = np.atleast_1d(doms)
+
+        values = values[:, :, doms, ...]
+        return values
 
     def cdf(
         self,
@@ -377,14 +347,14 @@ class Source(Model):
         on a provided `result_tensors`. This can be used to investigate
         the generated PDFs.
 
-        Note: this function only works for sources that use asymmetric
-        Gaussians to parameterize the PDF. The latent values of the AG
-        must be included in the `result_tensors`.
-
         Note: the PDF does not set values inside excluded time windows to zero,
         but it does adjust the normalization. It is assumed that pulses will
         already be masked before evaluated by Event-Generator. Therefore, an
         extra check for exclusions is not performed due to performance issues.
+
+        Important: if time window exclusions are provided, the exact same
+        exclusions must have been used to compute the `result_tensors`.
+        If this is not the case, the CDF values will be incorrect!
 
         Parameters
         ----------
@@ -438,20 +408,26 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
         n_points = len(x_orig)
 
-        # shape: [1, 1, 1, 1, n_points]
-        x = np.reshape(x_orig, (1, 1, 1, 1, -1))
+        # shape: [1, 1, 1, n_points, 1]
+        x = np.reshape(x_orig, (1, 1, 1, -1, 1))
 
         if result_tensors["time_offsets"] is not None:
             # shape: [n_events]
             t_offsets = result_tensors["time_offsets"].numpy()
             # shape: [n_events, 1, 1, 1, 1]
             t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
-            # shape: [n_events, 1, 1, 1, n_points]
+            # shape: [n_events, 86, 60, 1, n_components_total]
+            #       = [n_events, 1, 1, 1, 1]
+            #           + [n_events, 86, 60, 1, n_components_total]
+            t_offsets = t_offsets + np.reshape(
+                result_tensors["time_offsets_per_dom"].numpy(),
+                [-1, 86, 60, 1, self.decoder.n_components_total],
+            )
+            # shape: [n_events, 86, 60, n_points, n_components_total]
             x = x - t_offsets
         else:
             t_offsets = 0.0
@@ -459,53 +435,72 @@ class Source(Model):
         # internally we are working with different time units
         x = x / self.time_unit_in_ns
 
-        # Check if the asymmetric Gaussian latent variables exist
-        for latent_name in ["mu", "scale", "sigma", "r"]:
-            if "latent_var_" + latent_name not in result_tensors:
-                msg = "PDF evaluation is not supported for this model: {}"
-                raise NotImplementedError(
-                    msg.format(self._untracked_data["name"])
-                )
-
-        # extract values
-        # shape: [n_events, n_strings, n_doms, n_components, 1]
-        mu = result_tensors["latent_var_mu"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-        scale = result_tensors["latent_var_scale"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-        sigma = result_tensors["latent_var_sigma"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-        r = result_tensors["latent_var_r"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-
-        # shape: [n_events, n_strings, n_doms, n_components, n_points]
-        mixture_cdf = basis_functions.asymmetric_gauss_cdf(
-            x=x, mu=mu, sigma=sigma, r=r
-        )
-
-        # uniformly scale up pdf values due to excluded regions
-        if "dom_cdf_exclusion_sum" in result_tensors:
-
-            # shape: [n_events, n_strings, n_doms, 1, 1]
-            dom_cdf_exclusion_sum = result_tensors[
-                "dom_cdf_exclusion_sum"
-            ].numpy()[:, strings, doms, ..., np.newaxis]
-
-            # shape: [n_events, n_strings, n_doms, 1, 1]
-            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
-
+        # select subset of strings and doms
         # shape: [n_events, n_strings, n_doms, n_points]
-        cdf_values = np.sum(mixture_cdf * scale, axis=3)
+        x = self._select_slice(x, strings, doms)
+        # shape: [n_events, 86, 60, n_latent]
+        latent_vars_time = result_tensors["latent_vars_time"].numpy()
+        # shape: [n_events, n_strings, n_doms, 1, n_latent]
+        latent_vars_time = self._select_slice(latent_vars_time, strings, doms)[
+            :, :, :, np.newaxis, :
+        ]
+
+        # evaluate the PDF
+        # shape: [n_events, n_strings, n_doms, n_points]
+        cdf_values = self.decoder.cdf(
+            x=x,
+            latent_vars=latent_vars_time,
+            reduce_components=True,
+        ).numpy()
+
+        # uniformly scale up cdf values due to excluded regions
+        if "dom_cdf_exclusion" in result_tensors:
+
+            # shape: [n_events, n_strings, n_doms, 1]
+            dom_cdf_exclusion = self._select_slice(
+                result_tensors["dom_cdf_exclusion"].numpy(), strings, doms
+            )[:, :, :, np.newaxis]
+
+            # shape: [n_events, n_strings, n_doms, 1]
+            cdf_values /= 1.0 - dom_cdf_exclusion + self.epsilon
 
         # apply time window exclusions:
         if tw_exclusions is not None:
             assert tw_exclusions_ids is not None, "Both tw and ids needed!"
 
+            # # The helper function expects the pulses to have to
+            # # values in second dimension: (charge, time)
+            # # We will create dummy charge values for the pulses
+            # x_pulses = np.tile(x_orig[:, np.newaxis], [1, 2])
+            # assert x_pulses.shape == (n_points, 2)
+
+            # cdf_excluded = tf_helpers.get_prior_pulse_cdf_exclusion(
+            #     x_pulses=x_pulses,
+            #     x_pulses_ids=pulses_ids,
+            #     x_time_exclusions=x_time_exclusions,
+            #     x_time_exclusions_ids=x_time_exclusions_ids,
+            #     tw_cdf_exclusion=tw_cdf_exclusion,
+            # )
+
             for tw, ids in zip(tw_exclusions, tw_exclusions_ids):
+
+                # get indices in reduced subset of strings and doms
+                if doms != slice(None):
+                    if isinstance(doms, (list, tuple)):
+                        dom_sub_id = np.where(ids[2] == doms)
+                    else:
+                        raise NotImplementedError(
+                            "Only list or tuple supported for doms, "
+                            f"not {type(doms)}"
+                        )
+                if strings != slice(None):
+                    if isinstance(strings, (list, tuple)):
+                        string_sub_id = np.where(ids[1] == strings)
+                    else:
+                        raise NotImplementedError(
+                            "Only list or tuple supported for strings, "
+                            f"not {type(strings)}"
+                        )
 
                 # get time points after exclusion window begin
                 t_after_start = x_orig >= tw[0]
@@ -522,33 +517,46 @@ class Source(Model):
 
                 # t_eval now defines the ranges of excluded region for each
                 # time point. We now need to subtract the CDF in this region
-                # Shape: [n_points, 2]
+                # shape: [1, 1, 1, n_points, 2, 1]
+                t_eval = np.reshape(t_eval, (1, 1, 1, -1, 2, 1))
+
+                # shape: [n_events, 86, 60, n_points, 2, n_components_total]
+                #       = [1, 1, 1, n_points, 2, 1] -
+                #           [n_events, 86, 60, 1, 1, n_components_total]
                 t_eval_trafo = (
-                    t_eval - np.reshape(t_offsets, [-1, 1])
-                ) / self.time_unit_in_ns
-                # Shape: [n_points, 2]
-                cdf_exclusion_values = np.sum(
-                    # Shape: [n_points, 2, n_components]
-                    basis_functions.asymmetric_gauss_cdf(
-                        x=np.reshape(t_eval_trafo, [n_points, 2, 1]),
-                        mu=np.reshape(mu[ids[0], ids[1], ids[2]], [1, 1, -1]),
-                        sigma=np.reshape(
-                            sigma[ids[0], ids[1], ids[2]], [1, 1, -1]
-                        ),
-                        r=np.reshape(r[ids[0], ids[1], ids[2]], [1, 1, -1]),
+                    t_eval
+                    - np.reshape(
+                        t_offsets,
+                        [-1, 86, 60, 1, 1, self.decoder.n_components_total],
                     )
-                    * np.reshape(scale[ids[0], ids[1], ids[2]], [1, 1, -1]),
-                    axis=2,
-                )
+                ) / self.time_unit_in_ns
 
-                # Shape: [n_points]
+                # select subset of strings and doms based on exclusion ids
+                # shape: [n_points, 2, n_components_total]
+                t_eval_trafo = t_eval_trafo[ids[0], ids[1], ids[2], ...]
+                # shape: [n_events, 86, 60, n_latent]
+                latent_vars_time = result_tensors["latent_vars_time"].numpy()
+                # shape: [1, n_latent]
+                latent_vars_time = latent_vars_time[
+                    ids[0], ids[1], ids[2], np.newaxis, :
+                ]
+
+                # shape: [n_points, 2]
+                cdf_exclusion_values = self.decoder.cdf(
+                    x=t_eval_trafo,
+                    latent_vars=latent_vars_time,
+                    reduce_components=True,
+                ).numpy()
+
+                # shape: [n_points]
                 cdf_excluded = (
-                    cdf_exclusion_values[:, 1] - cdf_exclusion_values[:, 0]
+                    cdf_exclusion_values[..., 1] - cdf_exclusion_values[..., 0]
                 )
 
-                cdf_values[ids[0], ids[1], ids[2]] -= cdf_excluded
+                # update cdf values
+                cdf_values[ids[0], dom_sub_id, string_sub_id] -= cdf_excluded
 
-            eps = 1e-3
+            eps = 1e-6
             if (cdf_values < 0 - eps).any():
                 self._logger.warning(
                     "CDF values below zero: {}".format(
@@ -580,14 +588,14 @@ class Source(Model):
         on a provided `result_tensors`. This can be used to investigate
         the generated PDFs.
 
-        Note: this function only works for sources that use asymmetric
-        Gaussians to parameterize the PDF. The latent values of the AG
-        must be included in the `result_tensors`.
-
         Note: the PDF does not set values inside excluded time windows to zero,
         but it does adjust the normalization. It is assumed that pulses will
         already be masked before evaluated by Event-Generator. Therefore, an
         extra check for exclusions is not performed due to performance issues.
+
+        Important: if time window exclusions are provided, the exact same
+        exclusions must have been used to compute the `result_tensors`.
+        If this is not the case, the PDF values will be incorrect!
 
         Parameters
         ----------
@@ -633,7 +641,7 @@ class Source(Model):
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
             Shape: [n_events, 86, 60, n_points] if all DOMs returned
-            Shape: [n_events, n_strings, n_doms] if DOMs specified
+            Shape: [n_events, n_strings, n_doms, n_points] if DOMs specified
 
         Raises
         ------
@@ -641,65 +649,55 @@ class Source(Model):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
 
-        # shape: [1, 1, 1, 1, n_points]
-        x = np.reshape(x_orig, (1, 1, 1, 1, -1))
+        # shape: [1, 1, 1, n_points, 1]
+        x = np.reshape(x_orig, (1, 1, 1, -1, 1))
 
         if result_tensors["time_offsets"] is not None:
             # shape: [n_events]
             t_offsets = result_tensors["time_offsets"].numpy()
             # shape: [n_events, 1, 1, 1, 1]
             t_offsets = np.reshape(t_offsets, [-1, 1, 1, 1, 1])
-            # shape: [n_events, 1, 1, 1, n_points]
+            # shape: [n_events, 86, 60, 1, n_components_total]
+            #       = [n_events, 1, 1, 1, 1]
+            #           + [n_events, 86, 60, 1, n_components_total]
+            t_offsets = t_offsets + np.reshape(
+                result_tensors["time_offsets_per_dom"].numpy(),
+                [-1, 86, 60, 1, self.decoder.n_components_total],
+            )
+            # shape: [n_events, 86, 60, n_points, n_components_total]
             x = x - t_offsets
 
         # internally we are working with different time units
         x = x / self.time_unit_in_ns
 
-        # Check if the asymmetric Gaussian latent variables exist
-        for latent_name in ["mu", "scale", "sigma", "r"]:
-            if "latent_var_" + latent_name not in result_tensors:
-                msg = "PDF evaluation is not supported for this model: {}"
-                raise NotImplementedError(
-                    msg.format(self._untracked_data["name"])
-                )
-
-        # extract values
-        # shape: [n_events, n_strings, n_doms, n_components, 1]
-        mu = result_tensors["latent_var_mu"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-        scale = result_tensors["latent_var_scale"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-        sigma = result_tensors["latent_var_sigma"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-        r = result_tensors["latent_var_r"].numpy()[
-            :, strings, doms, ..., np.newaxis
-        ]
-
-        # shape: [n_events, n_strings, n_doms, n_components, n_points]
-        mixture_pdf = basis_functions.asymmetric_gauss(
-            x=x, mu=mu, sigma=sigma, r=r
-        )
+        # select subset of strings and doms
+        # shape: [n_events, n_strings, n_doms, n_points, n_components_total]
+        x = self._select_slice(x, strings, doms)
+        # shape: [n_events, 86, 60, 1, n_latent]
+        latent_vars_time = self._select_slice(
+            result_tensors["latent_vars_time"].numpy(), strings, doms
+        )[:, :, :, np.newaxis, :]
+        # evaluate the PDF
+        # shape: [n_events, n_strings, n_doms, n_points]
+        pdf_values = self.decoder.pdf(
+            x=x,
+            latent_vars=latent_vars_time,
+            reduce_components=True,
+        ).numpy()
 
         # uniformly scale up pdf values due to excluded regions
-        if "dom_cdf_exclusion_sum" in result_tensors:
+        if "dom_cdf_exclusion" in result_tensors:
 
-            # shape: [n_events, n_strings, n_doms, 1, 1]
-            dom_cdf_exclusion_sum = result_tensors[
-                "dom_cdf_exclusion_sum"
-            ].numpy()[:, strings, doms, ..., np.newaxis]
+            # shape: [n_events, n_strings, n_doms, 1]
+            dom_cdf_exclusion = self._select_slice(
+                result_tensors["dom_cdf_exclusion"].numpy(), strings, doms
+            )[:, :, :, np.newaxis]
 
-            # shape: [n_events, n_strings, n_doms, 1, 1]
-            scale /= 1.0 - dom_cdf_exclusion_sum + 1e-3
-
-        # shape: [n_events, n_strings, n_doms, n_points]
-        pdf_values = np.sum(mixture_pdf * scale, axis=3)
+            # shape: [n_events, n_strings, n_doms, 1]
+            pdf_values /= 1.0 - dom_cdf_exclusion + self.epsilon
 
         # apply time window exclusions:
         pdf_values = self._apply_pdf_time_window_exclusions(
@@ -770,7 +768,7 @@ class Source(Model):
     #     TYPE
     #         Description
     #     """
-    #     parent_node = tf.constant(np.ones(shape=[1, self.num_parameters]))
+    #     parent_node = tf.constant(np.ones(shape=[1, self.n_parameters]))
     #     output = self._untracked_data['module'](parent_node)
     #     return _find_top_nodes(output)
 

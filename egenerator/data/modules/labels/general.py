@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 import logging
 import numpy as np
 import pandas as pd
@@ -9,11 +7,11 @@ from egenerator.manager.component import BaseComponent, Configuration
 from egenerator.data.tensor import DataTensorList, DataTensor
 
 
-class SnowstormTrackGeneratorLabelModule(BaseComponent):
-    """This is a label module that loads the snowstorm track labels."""
+class GeneralLabelModule(BaseComponent):
+    """This is a label module that loads general snowstorm labels."""
 
     def __init__(self, logger=None):
-        """Initialize track module
+        """Initialize cascade module
 
         Parameters
         ----------
@@ -22,15 +20,15 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         """
 
         logger = logger or logging.getLogger(__name__)
-        super(SnowstormTrackGeneratorLabelModule, self).__init__(logger=logger)
+        super(GeneralLabelModule, self).__init__(logger=logger)
 
     def _configure(
         self,
         config_data,
         trafo_log,
         float_precision,
-        num_cascades=5,
-        label_key="EventGeneratorMuonTrackLabels",
+        parameter_names,
+        label_key="LabelsDeepLearning",
         snowstorm_key="SnowstormParameterDict",
         snowstorm_parameters=[],
     ):
@@ -43,22 +41,17 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
         trafo_log : None or bool or list of bool
-            Whether or not to apply logarithm on parameters.
+            Whether or not to apply logarithm on cascade parameters.
             If a single bool is given, this applies to all labels. Otherwise
             a list of bools corresponds to the labels in the order:
-                zenith, azimuth,
-                track_anchor_x, track_anchor_y, track_anchor_z,
-                track_anchor_time, track_energy,
-                track_distance_start, track_distance_end,
-                track_stochasticity,
-                cascade_0000_energy,
-                cascade_{i:04d}_energy, cascade_{i:04d}_distance,
+                x, y, z, zenith, azimuth, energy, time
             Snowstorm parameters must not be defined here. No logarithm will be
             applied to the snowstorm parameters.
         float_precision : str
             The float precision as a str.
-        num_cascades : int, optional
-            Number of cascades along the track.
+        parameter_names : list[str]
+            A list of labels to load from the label_key.
+            These labels are added before the snowstorm keys if provided.
         label_key : str, optional
             The name of the key under which the labels are saved.
         snowstorm_key : str, optional
@@ -111,61 +104,32 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
             Description
         """
 
-        # sanity checks:
-        if num_cascades < 0:
-            raise ValueError(
-                "Num cascades {} must be positive!".format(num_cascades)
-            )
-
-        # compute number of parameters
-        if num_cascades == 0:
-            num_params = 10
-        elif num_cascades == 1:
-            num_params = 11
+        # extend trafo log for snowstorm parameters: fill with False
+        if trafo_log is None:
+            trafo_log_ext = None
         else:
-            num_params = 11 + (num_cascades - 1) * 2
-
-        # create list of parameter names which is needed for data loading
-        parameter_names = [
-            "zenith",
-            "azimuth",
-            "track_anchor_x",
-            "track_anchor_y",
-            "track_anchor_z",
-            "track_anchor_time",
-            "track_energy",
-            "track_distance_start",
-            "track_distance_end",
-            "track_stochasticity",
-        ]
-        if num_cascades >= 1:
-            parameter_names.append("cascade_0000_energy")
-
-            if num_cascades > 1:
-                for i in range(1, num_cascades):
-                    parameter_names.append("cascade_{:04d}_energy".format(i))
-                    parameter_names.append("cascade_{:04d}_distance".format(i))
+            if isinstance(trafo_log, bool):
+                trafo_log_ext = [trafo_log] * len(parameter_names)
+            else:
+                trafo_log_ext = list(trafo_log)
+            trafo_log_ext.extend([False] * len(snowstorm_parameters))
 
         parameter_dict = {}
         for i, parameter_name in enumerate(parameter_names):
             parameter_dict[parameter_name] = i
 
-        # extend trafo log for snowstorm parameters: fill with False
-        if isinstance(trafo_log, bool):
-            trafo_log_ext = [trafo_log] * num_params
-        else:
-            trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False] * len(snowstorm_parameters))
-
         data = {
-            "parameter_dict": parameter_dict,
             "parameter_names": parameter_names,
+            "parameter_dict": parameter_dict,
         }
         data["label_tensors"] = DataTensorList(
             [
                 DataTensor(
                     name="x_parameters",
-                    shape=[None, num_params + len(snowstorm_parameters)],
+                    shape=[
+                        None,
+                        len(parameter_names) + len(snowstorm_parameters),
+                    ],
                     tensor_type="label",
                     dtype=float_precision,
                     trafo=True,
@@ -186,7 +150,7 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                 config_data=config_data,
                 trafo_log=trafo_log,
                 float_precision=float_precision,
-                num_cascades=num_cascades,
+                parameter_names=parameter_names,
                 label_key=label_key,
                 snowstorm_key=snowstorm_key,
                 snowstorm_parameters=snowstorm_parameters,
@@ -226,28 +190,28 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         # open file
         f = pd.HDFStore(file, "r")
 
-        track_parameters = []
+        parameters = []
         try:
             _labels = f[self.configuration.config["label_key"]]
             for label in self.data["parameter_names"]:
-                track_parameters.append(_labels[label])
+                parameters.append(_labels[label])
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
             snowstorm_params = self.configuration.config[
                 "snowstorm_parameters"
             ]
-            num_events = len(track_parameters[0])
+            num_events = len(parameters[0])
 
             if len(snowstorm_params) > 0:
                 if snowstorm_key is not None:
                     _snowstorm_params = f[snowstorm_key]
                     for key in snowstorm_params:
-                        track_parameters.append(_snowstorm_params[key])
+                        parameters.append(_snowstorm_params[key])
                         assert len(_snowstorm_params[key]) == num_events
                 else:
                     # No Snowstorm key is provided: add dummy values
                     for key in snowstorm_params:
-                        track_parameters.append(np.ones(num_events))
+                        parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
@@ -256,12 +220,12 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         finally:
             f.close()
 
-        # format track parameters
+        # format cascade parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
-        track_parameters = np.array(track_parameters, dtype=dtype).T
-        num_events = len(track_parameters)
+        parameters = np.array(parameters, dtype=dtype).T
+        num_events = len(parameters)
 
-        return num_events, (track_parameters,)
+        return num_events, (parameters,)
 
     def get_data_from_frame(self, frame, *args, **kwargs):
         """Get label data from frame.
@@ -287,17 +251,17 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         if not self.is_configured:
             raise ValueError("Module not configured yet!")
 
-        track_parameters = []
+        parameters = []
         try:
             _labels = frame[self.configuration.config["label_key"]]
             for label in self.data["parameter_names"]:
-                track_parameters.append(np.atleast_1d(_labels[label]))
+                parameters.append(np.atleast_1d(_labels[label]))
 
             snowstorm_key = self.configuration.config["snowstorm_key"]
             snowstorm_params = self.configuration.config[
                 "snowstorm_parameters"
             ]
-            num_events = len(track_parameters[0])
+            num_events = len(parameters[0])
 
             if len(snowstorm_params) > 0:
                 if snowstorm_key is not None:
@@ -305,23 +269,24 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
                     for key in snowstorm_params:
                         snowstorm_param = np.atleast_1d(_snowstorm_params[key])
                         assert len(snowstorm_param) == num_events
-                        track_parameters.append(snowstorm_param)
+                        parameters.append(snowstorm_param)
+
                 else:
                     # No Snowstorm key is provided: add dummy values
                     for key in snowstorm_params:
-                        track_parameters.append(np.ones(num_events))
+                        parameters.append(np.ones(num_events))
 
         except Exception as e:
             self._logger.warning(e)
             self._logger.warning("Skipping frame: {}".format(frame))
             return None, None
 
-        # format track parameters
+        # format cascade parameters
         dtype = getattr(np, self.configuration.config["float_precision"])
-        track_parameters = np.array(track_parameters, dtype=dtype).T
-        num_events = len(track_parameters)
+        parameters = np.array(parameters, dtype=dtype).T
+        num_events = len(parameters)
 
-        return num_events, (track_parameters,)
+        return num_events, (parameters,)
 
     def create_data_from_frame(self, frame, *args, **kwargs):
         """Create label data from frame.
@@ -367,40 +332,4 @@ class SnowstormTrackGeneratorLabelModule(BaseComponent):
         if not self.is_configured:
             raise ValueError("Module not configured yet!")
 
-        raise not NotImplementedError("This module is read-only!")
-
-    def _get_cascade_extension(self, ref_energy, eps=1e-6):
-        """
-        PPC does its own cascade extension, leaving the showers at the
-        production vertex. Reapply the parametrization to find the
-        position of the shower maximum, which is also the best approximate
-        position for a point cascade.
-
-        Parameters
-        ----------
-        ref_energy : array_like
-            Energy of cascade in GeV.
-        eps : float, optional
-            Small constant float.
-
-        Returns
-        -------
-        array_like
-            Distance of shower maximum to cascade vertex in meter.
-        """
-
-        # Radiation length in meters, assuming an ice density of 0.9216 g/cm^3
-        l_rad = 0.358 / 0.9216  # in meter
-
-        """
-        Parameters taken from I3SimConstants (for particle e-):
-        https://code.icecube.wisc.edu/projects/icecube/browser/IceCube/
-        meta-projects/combo/trunk/sim-services/private/
-        sim-services/I3SimConstants.cxx
-        """
-        a = 2.01849 + 0.63176 * np.log(ref_energy + eps)
-        b = l_rad / 0.63207
-
-        # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
-        length_to_maximum = np.clip(((a - 1.0) / b) * l_rad, 0.0, float("inf"))
-        return length_to_maximum
+        pass

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
 import os
 import logging
 import click
@@ -17,7 +16,7 @@ from egenerator.data.trafo import DataTransformer
     type=click.Choice(["DEBUG", "INFO", "WARNING"]),
     default="WARNING",
 )
-def main(config_files, log_level="INFO"):
+def main(config_files, log_level="WARNING"):
     """Script to generate trafo model.
 
     Creates the desired trafo model as defined in the yaml configuration files

@@ -166,11 +166,17 @@ class Reconstruction:
         # choose reconstruction method depending on the optimizer interface
         if reco_optimizer_interface.lower() == "scipy":
 
+            # choose function according to jac (default: True)
+            scipy_loss_function = loss_and_gradients_function
+            if "jac" in scipy_optimizer_settings:
+                if not scipy_optimizer_settings["jac"]:
+                    scipy_loss_function = self.parameter_loss_function
+
             def reconstruction_method(data_batch, seed_tensor):
                 return manager.reconstruct_events(
                     data_batch,
                     loss_module,
-                    loss_and_gradients_function=loss_and_gradients_function,
+                    loss_and_gradients_function=scipy_loss_function,
                     fit_parameter_list=fit_parameter_list,
                     minimize_in_trafo_space=minimize_in_trafo_space,
                     seed=seed_tensor,
@@ -284,28 +290,37 @@ class Reconstruction:
             #     )
             # ].numpy()
 
-            x0[:, :3] = np.random.normal(loc=x0[:, :3], scale=5)
-            x0[:, 3] = np.random.uniform(low=0.0, high=np.pi)
-            x0[:, 4] = np.random.uniform(low=0.0, high=2 * np.pi)
-            x0[:, 6] = np.random.normal(loc=x0[:, 6], scale=20)
-            x0[:, 7] = np.random.uniform(low=0.91, high=1.09)  # Absorption
-            x0[:, 8] = np.random.uniform(
-                low=0.01, high=1.99
-            )  # AnisotropyScale
-            x0[:, 9] = np.random.uniform(low=0.91, high=1.09)  # DOMEfficiency
-            x0[:, 10] = np.random.uniform(
-                low=-0.99, high=0.99
-            )  # HoleIceForward_Unified_00
-            x0[:, 11] = np.random.uniform(
-                low=-0.19, high=0.19
-            )  # HoleIceForward_Unified_01
-            x0[:, 12] = np.random.uniform(low=0.91, high=1.09)  # Scattering
+            x0[:, :2] = np.random.normal(loc=x0[:, :2], scale=0.02)
+            x0[:, 2] = np.random.normal(loc=x0[:, 2], scale=10)
+            x0[:, 4:6] = np.random.normal(loc=x0[:, 4:6], scale=0.02)
+            x0[:, 6:] = np.clip(
+                np.random.normal(loc=x0[:, 6:], scale=10),
+                0,
+                float("inf"),
+            )
 
-            # # set vertex to MC truth
-            # x0[:, :3] = x_true[:, :3]
-            # x0[:, 6] = x_true[:, 6]
+            # x0[:, :3] = np.random.normal(loc=x0[:, :3], scale=5)
+            # x0[:, 3] = np.random.uniform(low=0.0, high=np.pi)
+            # x0[:, 4] = np.random.uniform(low=0.0, high=2 * np.pi)
+            # x0[:, 6] = np.random.normal(loc=x0[:, 6], scale=20)
+            # x0[:, 7] = np.random.uniform(low=0.91, high=1.09)  # Absorption
+            # x0[:, 8] = np.random.uniform(
+            #     low=0.01, high=1.99
+            # )  # AnisotropyScale
+            # x0[:, 9] = np.random.uniform(low=0.91, high=1.09)  # DOMEfficiency
+            # x0[:, 10] = np.random.uniform(
+            #     low=-0.99, high=0.99
+            # )  # HoleIceForward_Unified_00
+            # x0[:, 11] = np.random.uniform(
+            #     low=-0.19, high=0.19
+            # )  # HoleIceForward_Unified_01
+            # x0[:, 12] = np.random.uniform(low=0.91, high=1.09)  # Scattering
+
+            # # # set vertex to MC truth
+            # # x0[:, :3] = x_true[:, :3]
+            # # x0[:, 6] = x_true[:, 6]
             if self.verbose:
-                print("New Seed:", x0)
+                print("New Seed:", x0, x0 - seed_tensor)
 
             seed_tensor = x0
         # -------------------
