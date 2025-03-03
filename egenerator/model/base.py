@@ -1015,7 +1015,9 @@ class Model(tf.Module, BaseComponent):
             checkpoint_number=checkpoint_number,
         )
         self._logger.debug(f"[Model] Loading checkpoint: {file_path}")
-        self._untracked_data["checkpoint"].read(file_path).assert_consumed()
+        self._untracked_data["checkpoint"].read(
+            file_path
+        ).assert_existing_objects_matched()
 
     def _load(self, dir_path, checkpoint_number=None):
         """Load the model weights.

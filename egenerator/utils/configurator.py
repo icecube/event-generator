@@ -320,6 +320,7 @@ class ManagerConfigurator:
                 modified_sub_components=modified_sub_components,
                 allow_rebuild_base_models=False,
                 allow_rebuild_base_decoders=False,
+                compile_optimizer=False,
             )
             models.extend(model_manger.models)
 

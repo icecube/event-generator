@@ -117,7 +117,11 @@ class BaseModelManager(Model):
         )(**optimizer_settings)
 
         # run optimizer with zero gradients to create optimizer variables
-        if self.models is not None:
+        if "compile_optimizer" in self._untracked_data:
+            compile_optimizer = self._untracked_data["compile_optimizer"]
+        else:
+            compile_optimizer = True
+        if self.models is not None and compile_optimizer:
             self._compile_optimizer()
 
         # create a tensorflow checkpoint object and keep track of variables

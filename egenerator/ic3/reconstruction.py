@@ -352,7 +352,7 @@ class EventGeneratorReconstruction(icetray.I3ConditionalModule):
                     "config": {
                         "sigmas": [],
                         "uniform_parameters": self.parameter_boundaries,
-                        "float_precision": "float64",
+                        "float_precision": "float32",
                     },
                 }
             ]

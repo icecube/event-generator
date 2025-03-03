@@ -414,6 +414,7 @@ def build_manager(
     modified_sub_components={},
     allow_rebuild_base_models=False,
     allow_rebuild_base_decoders=False,
+    compile_optimizer=None,
 ):
     """Build the Manager Component.
 
@@ -446,6 +447,11 @@ def build_manager(
         If True, the base decoders are allowed to be rebuild,
         otherwise an error will be raised if a base decoder is
         not loaded, but attempted to be rebuild from scratch.
+    compile_optimizer : bool, optional
+        If True, the optimizer will be compiled, i.e. it will applied
+        with zero gradients to all trainable variables to generate the
+        computational graph.
+        If False, the optimizer will not be compiled.
 
     Returns
     -------
@@ -467,6 +473,9 @@ def build_manager(
     # ---------------------------------------
     ModelManagerClass = misc.load_class(manager_config["model_manager_class"])
     manager = ModelManagerClass()
+
+    if compile_optimizer is not None:
+        manager._untracked_data["compile_optimizer"] = compile_optimizer
 
     if restore:
         manager.load(
