@@ -21,4 +21,6 @@ exported, they can be used in a typical maximum likelihood setting via the provi
 
 * `ICRC 2021 <https://pos.sissa.it/395/1065>`_
 
-* (PHD thesis coming soon)
+* `Dissertation <http://dx.doi.org/10.17877/DE290R-24043>`_
+
+* `Galactic Plane Science Paper <https://www.science.org/doi/10.1126/science.adc9818>`_
