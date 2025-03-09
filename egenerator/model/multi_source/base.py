@@ -296,7 +296,7 @@ class MultiSource(NestedModel, Source):
         source_parameters = self.get_model_parameters(parameters)
 
         # check if time exclusions exist
-        tensors = self.data_handler.tensors
+        tensors = self.data_trafo.data["tensors"]
         if (
             "x_time_exclusions" in tensors.names
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
