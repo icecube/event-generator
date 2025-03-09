@@ -104,7 +104,10 @@ class TestIndependentMultiSource(unittest.TestCase):
         self.configuration = Configuration(
             class_string=class_string,
             settings=dict(
-                config=self.config, decoder=None, decoder_charge=None
+                config=self.config,
+                decoder=None,
+                decoder_charge=None,
+                data_trafo=None,
             ),
             mutable_settings=dict(name="egenerator.model.multi_source.base"),
         )

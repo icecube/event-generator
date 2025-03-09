@@ -1,0 +1,13 @@
+check_values: {}
+class_string: egenerator.data.modules.data.pulse_data.PulseDataModule
+dependent_sub_components: []
+event_generator_git_sha: baf4d89b4b64256d0bc12ef60933d7ceba58692c
+event_generator_origin: git@github.com:mhuen/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 2.0.0
+mutable_settings: {discard_pulses_from_excluded_doms: false, dom_exclusions_key: BadDomsList,
+  event_id_key: LabelsMCCascade, pulse_key: MCPulses, time_exclusions_key: null}
+mutable_sub_components: []
+settings: {add_charge_quantiles: false, config_data: null, float_precision: float32,
+  time_window_buffer: 100.0}
+sub_component_configurations: {}

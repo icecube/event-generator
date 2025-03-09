@@ -1,0 +1,11 @@
+check_values: {}
+class_string: egenerator.data.modules.weights.dummy.DummyWeightModule
+dependent_sub_components: []
+event_generator_git_sha: baf4d89b4b64256d0bc12ef60933d7ceba58692c
+event_generator_origin: git@github.com:mhuen/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 2.0.0
+mutable_settings: {}
+mutable_sub_components: []
+settings: {config_data: null}
+sub_component_configurations: {}

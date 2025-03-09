@@ -1,0 +1,23 @@
+check_values: {}
+class_string: egenerator.model.decoder.static.asymmetric_gaussian.AsymmetricGaussianDecoder
+dependent_sub_components: []
+event_generator_git_sha: baf4d89b4b64256d0bc12ef60933d7ceba58692c
+event_generator_origin: git@github.com:mhuen/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 2.0.0
+mutable_settings: {name: egenerator.model.decoder.base}
+mutable_sub_components: []
+settings:
+  config:
+    float_precision: float32
+    value_range_mapping:
+      mu:
+        config: {offset: 0.0, scale: 0.5}
+        value_range_class: egenerator.utils.value_range.BaseValueRange
+      r:
+        config: {min_value: 0.0001, offset: 1.0, scale: 1.0}
+        value_range_class: egenerator.utils.value_range.EluValueRange
+      sigma:
+        config: {min_value: 0.0001, offset: 2.0, scale: 1.0}
+        value_range_class: egenerator.utils.value_range.EluValueRange
+sub_component_configurations: {}

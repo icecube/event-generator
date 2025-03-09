@@ -503,6 +503,9 @@ model_settings: {
             # The noise source model class to use
             'model_class': 'egenerator.model.source.noise.default.DefaultNoiseModel',
 
+            # The directory from which this base source will be loaded
+            'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/track_sphere_6param_ftpv3m/manager/models_0000/noise',
+
             config: {
                 'float_precision': float32,
                 'num_local_vars': 9,
@@ -594,7 +597,7 @@ model_settings: {
                     'model_class': 'egenerator.model.source.cascade.default.DefaultCascadeModel',
 
                     # The directory from which this base source will be loaded
-                    'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/cascade_7param_noise_ftpv3m/manager/models_0000/cascade/',
+                    'load_dir': '/data/user/mhuennefeld/software/repositories/event-generator/data/training/cascade_7param_noise_ftpv3m__big/manager/models_0000/cascade/',
 
                     config: {
                         'keep_prob':,

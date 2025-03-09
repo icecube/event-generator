@@ -51,12 +51,12 @@ keys_warning = [
 
 keys_error = [
     # event-generator results
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_I3Particle",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_I3Particle",
 ]
 
 dir_original = os.path.join(
-    SCRIPT_DIR, "test_data/egenerator_test_01_base_v1_0_3_dev"
+    SCRIPT_DIR, "test_data/egenerator_test_01_base_v2_0_0"
 )
 test_dirs = glob.glob(os.path.join(SCRIPT_DIR, "test_data/*"))
 test_dirs.remove(dir_original)
