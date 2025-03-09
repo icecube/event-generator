@@ -379,24 +379,33 @@ class BaseModelManager(Model):
             # check compatibility of data_handler configurations of
             # data_trafo (model) and the data_handler component
             model_config = model.configuration
-            trafo_config = Configuration(
-                **model_config.sub_component_configurations["data_trafo"]
-            )
-            data_handler_config = Configuration(
-                **trafo_config.sub_component_configurations["data_handler"]
-            )
+            if "data_trafo" in model_config.sub_component_configurations:
 
-            if not sub_components["data_handler"].configuration.is_compatible(
-                data_handler_config
-            ):
-                msg = "Model {} and data handler are not compatible: {}, {}"
-                raise ValueError(
-                    msg.format(
-                        name,
-                        sub_components["data_handler"].configuration.dict,
-                        data_handler_config.dict,
-                    )
+                trafo_config = Configuration(
+                    **model_config.sub_component_configurations["data_trafo"]
                 )
+                data_handler_config = Configuration(
+                    **trafo_config.sub_component_configurations["data_handler"]
+                )
+
+                if not sub_components[
+                    "data_handler"
+                ].configuration.is_compatible(data_handler_config):
+                    msg = (
+                        "Model {} and data handler are not compatible: {}, {}"
+                    )
+                    raise ValueError(
+                        msg.format(
+                            name,
+                            sub_components["data_handler"].configuration.dict,
+                            data_handler_config.dict,
+                        )
+                    )
+
+            # top-level sub-component does not have a data_trafo, so
+            # we recursively check the sub-components
+            else:
+                self._check_sub_component_compatibility(model.sub_components)
 
     def _update_sub_components(self, names):
         """Update settings which are based on the modified sub component.
