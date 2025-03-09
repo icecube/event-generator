@@ -181,6 +181,9 @@ class MultiSource(NestedModel, Source):
         if decoder_charge is None:
             settings["decoder_charge"] = None
 
+        if data_trafo is None:
+            settings["data_trafo"] = None
+
         # create configuration object
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
