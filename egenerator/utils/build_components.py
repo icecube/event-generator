@@ -493,10 +493,11 @@ def build_manager(
         # create and load TrafoModel
         # --------------------------
         if data_transformer is None:
-            data_transformer = build_data_transformer(
-                config["data_trafo_settings"],
-                modified_tensors=data_handler.tensors,
-            )
+            if "data_trafo_settings" in config:
+                data_transformer = build_data_transformer(
+                    config["data_trafo_settings"],
+                    modified_tensors=data_handler.tensors,
+                )
 
         # -----------------------
         # create and load Decoder

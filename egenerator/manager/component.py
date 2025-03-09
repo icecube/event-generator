@@ -392,7 +392,7 @@ class Configuration(object):
         keys_changed = set(keys_changed)
         if keys_changed:
             msg = "The following mutable settings have changed: {!r}"
-            self._logger.warning(msg.format(keys_changed))
+            self._logger.info(msg.format(keys_changed))
 
         return True
 

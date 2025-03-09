@@ -197,7 +197,10 @@ class BaseModelManager(Model):
             sub_components["models_{:04d}".format(i)] = m
 
         # check for compatibilities of sub components
-        self._check_sub_component_compatibility(sub_components)
+        self._check_sub_component_compatibility(
+            sub_components,
+            data_handler=sub_components["data_handler"],
+        )
 
         # check if all models define the same hypothesis and use the same
         # data transformation object
@@ -317,47 +320,64 @@ class BaseModelManager(Model):
 
             # check data trafo object
             data_trafo_i = models[i].data_trafo
-            if not data_trafo.configuration.is_compatible(
-                data_trafo_i.configuration
-            ):
-                msg = "Data Trafo of model {:04d} is not compatible: {}, {}"
-                raise ValueError(
-                    msg.format(
-                        i, data_trafo_i.configuration, data_trafo.configuration
+            if data_trafo is None:
+                if data_trafo_i is not None:
+                    msg = (
+                        "Data Trafo of model {:04d} is not compatible: {}, {}"
                     )
-                )
-
-            # (The following are probably unnecessary, since it should already
-            #  be checked in the compatibility check.)
-            if set(data_trafo.data.keys()) != set(data_trafo_i.data.keys()):
-                msg = "Data Trafo keys of model {:04d} do not match: {} != {}"
-                raise ValueError(
-                    msg.format(
-                        i, set(data_trafo_i.keys()), set(data_trafo.keys())
+                    raise ValueError(
+                        msg.format(i, data_trafo_i.configuration, None)
                     )
-                )
-
-            for key in data_trafo.data.keys():
-                if np.any(data_trafo.data[key] != data_trafo_i.data[key]):
-                    msg = "Data trafo key {} of model {:04d} does not match: "
-                    msg += "{} != {}"
+            else:
+                if not data_trafo.configuration.is_compatible(
+                    data_trafo_i.configuration
+                ):
+                    msg = (
+                        "Data Trafo of model {:04d} is not compatible: {}, {}"
+                    )
                     raise ValueError(
                         msg.format(
-                            key,
                             i,
-                            data_trafo.data[key],
-                            data_trafo_i.data[key],
+                            data_trafo_i.configuration,
+                            data_trafo.configuration,
                         )
                     )
 
-    def _check_sub_component_compatibility(self, sub_components):
+                # (The following are probably unnecessary, since it should already
+                #  be checked in the compatibility check.)
+                if set(data_trafo.data.keys()) != set(
+                    data_trafo_i.data.keys()
+                ):
+                    msg = "Data Trafo keys of model {:04d} do not match: {} != {}"
+                    raise ValueError(
+                        msg.format(
+                            i, set(data_trafo_i.keys()), set(data_trafo.keys())
+                        )
+                    )
+
+                for key in data_trafo.data.keys():
+                    if np.any(data_trafo.data[key] != data_trafo_i.data[key]):
+                        msg = "Data trafo key {} of model {:04d} does not match: "
+                        msg += "{} != {}"
+                        raise ValueError(
+                            msg.format(
+                                key,
+                                i,
+                                data_trafo.data[key],
+                                data_trafo_i.data[key],
+                            )
+                        )
+
+    def _check_sub_component_compatibility(self, sub_components, data_handler):
         """Check compatibility of sub components.
 
         The model manager class takes care of handling and putting together
         multiple sub components such as the data_handler,
         data_trafo (part of model), and model components.
         Before using these components together, they must be checked for
-        compatibility.
+        compatibility. Here we will check that all nested data_handler
+        configurations are compatible with the data_handler configuration
+        of the model manager.
 
         Parameters
         ----------
@@ -368,34 +388,33 @@ class BaseModelManager(Model):
                 'data_handler': data_handler,
                 'model': model,
             }
+        data_handler : DataHandler object
+            The data handler object of the model manager to which
+            the sub components are checked.
         """
-        for name, model in sub_components.items():
-
-            # skip data handler sub component, since that is what we are
-            # checking compatibility against
-            if name == "data_handler":
-                continue
-
+        for name, comp in sub_components.items():
             # check compatibility of data_handler configurations of
-            # data_trafo (model) and the data_handler component
-            model_config = model.configuration
-            trafo_config = Configuration(
-                **model_config.sub_component_configurations["data_trafo"]
-            )
-            data_handler_config = Configuration(
-                **trafo_config.sub_component_configurations["data_handler"]
-            )
+            # data_trafo (comp) and the data_handler component
+            comp_config = comp.configuration
+            if "data_handler" in comp_config.sub_component_configurations:
+                data_handler_config = Configuration(
+                    **comp_config.sub_component_configurations["data_handler"]
+                )
 
-            if not sub_components["data_handler"].configuration.is_compatible(
-                data_handler_config
-            ):
-                msg = "Model {} and data handler are not compatible: {}, {}"
-                raise ValueError(
-                    msg.format(
-                        name,
-                        sub_components["data_handler"].configuration.dict,
-                        data_handler_config.dict,
+                if not data_handler.configuration.is_compatible(
+                    data_handler_config
+                ):
+                    raise ValueError(
+                        f"Component {name} and data handler of manager are "
+                        f"not compatible: {data_handler.configuration.dict}, "
+                        f"{data_handler_config.dict}"
                     )
+
+            # recursively check sub components
+            else:
+                self._check_sub_component_compatibility(
+                    sub_components=comp.sub_components,
+                    data_handler=data_handler,
                 )
 
     def _update_sub_components(self, names):
@@ -431,7 +450,10 @@ class BaseModelManager(Model):
                 msg = "Can not update {!r}."
                 raise ValueError(msg.format(name))
 
-        self._check_sub_component_compatibility(self.sub_components)
+        self._check_sub_component_compatibility(
+            self.sub_components,
+            data_handler=self.sub_components["data_handler"],
+        )
 
     def _load(self, dir_path, **kwargs):
         """Virtual method for additional load tasks by derived class
@@ -455,7 +477,10 @@ class BaseModelManager(Model):
         """
 
         # check for compatibilities of sub components
-        self._check_sub_component_compatibility(self.sub_components)
+        self._check_sub_component_compatibility(
+            self.sub_components,
+            data_handler=self.sub_components["data_handler"],
+        )
 
         super()._load(dir_path, **kwargs)
 
