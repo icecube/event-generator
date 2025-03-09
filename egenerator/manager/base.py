@@ -393,8 +393,6 @@ class BaseModelManager(Model):
             the sub components are checked.
         """
         for name, comp in sub_components.items():
-            print(f"Checking {name}")
-
             # check compatibility of data_handler configurations of
             # data_trafo (comp) and the data_handler component
             comp_config = comp.configuration
