@@ -81,9 +81,7 @@ class VisualizePulseLikelihood:
 
         self.reco_index = manager.data_handler.tensors.get_index(self.reco_key)
 
-        param_tensor = manager.data_trafo.data["tensors"][
-            parameter_tensor_name
-        ]
+        param_tensor = manager.data_handler.tensors[parameter_tensor_name]
         param_dtype = param_tensor.dtype_tf
         param_signature = tf.TensorSpec(
             shape=param_tensor.shape, dtype=param_dtype

@@ -254,7 +254,7 @@ class EventGeneratorSimulation(icetray.I3ConditionalModule):
 
         # Create concrete tensorflow function to obtain DOM expectations
         self.param_dtype = getattr(
-            tf, self.manager.data_trafo.data["tensors"]["x_parameters"].dtype
+            tf, self.manager.data_handler.tensors["x_parameters"].dtype
         )
         self.get_model_tensors = self.manager.get_model_tensors_function()
 

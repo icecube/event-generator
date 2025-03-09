@@ -60,7 +60,7 @@ class Visualize1DLikelihoodScan:
             parameter_tensor_name
         )
 
-        param_dtype = manager.data_trafo.data["tensors"][
+        param_dtype = manager.data_handler.tensors[
             parameter_tensor_name
         ].dtype_tf
         param_signature = tf.TensorSpec(

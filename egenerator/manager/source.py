@@ -589,14 +589,14 @@ class SourceManager(BaseModelManager):
         """
         model = self.models[model_index]
 
-        pulse_dtype = self.data_trafo.data["tensors"]["x_pulses"].dtype_tf
-        param_dtype = self.data_trafo.data["tensors"]["x_parameters"].dtype_tf
-        tw_dtype = self.data_trafo.data["tensors"]["x_time_window"].dtype_tf
-        t_exclusions_dtype = self.data_trafo.data["tensors"][
+        pulse_dtype = self.data_handler.tensors["x_pulses"].dtype_tf
+        param_dtype = self.data_handler.tensors["x_parameters"].dtype_tf
+        tw_dtype = self.data_handler.tensors["x_time_window"].dtype_tf
+        t_exclusions_dtype = self.data_handler.tensors[
             "x_time_exclusions"
         ].dtype_tf
 
-        x_pulses_shape = self.data_trafo.data["tensors"]["x_pulses"].shape
+        x_pulses_shape = self.data_handler.tensors["x_pulses"].shape
         assert len(x_pulses_shape) == 2
 
         tensor_names = [
@@ -611,7 +611,7 @@ class SourceManager(BaseModelManager):
         ]
         input_signature = []
         for tensor_name in tensor_names:
-            tensor = self.data_trafo.data["tensors"][tensor_name]
+            tensor = self.data_handler.tensors[tensor_name]
             input_signature.append(
                 tf.TensorSpec(shape=tensor.shape, dtype=tensor.dtype_tf)
             )
@@ -776,7 +776,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
@@ -956,7 +956,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
@@ -1113,7 +1113,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
@@ -1253,7 +1253,7 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
 
         if len(fit_parameter_list) != param_tensor.shape[1]:
             raise ValueError(
@@ -1469,7 +1469,7 @@ class SourceManager(BaseModelManager):
 
         step_size = np.array(step_size)
 
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         parameter_dtype = param_tensor.dtype_tf
 
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)

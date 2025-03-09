@@ -419,7 +419,7 @@ class EnteringSphereInfTrackMultiCascade(Source):
         pulses = data_batch_dict["x_pulses"]
         pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
-        tensors = self.data_trafo.data["tensors"]
+        tensors = self.data_handler.tensors
         if (
             "x_time_exclusions" in tensors.names
             and tensors.list[tensors.get_index("x_time_exclusions")].exists
@@ -1136,7 +1136,7 @@ class EnteringSphereInfTrackMultiCascade(Source):
         pulses = data_batch_dict["x_pulses"]
         pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
 
-        tensors = self.data_trafo.data["tensors"]
+        tensors = self.data_handler.tensors
         if (
             "x_time_exclusions" in tensors.names
             and tensors.list[tensors.get_index("x_time_exclusions")].exists

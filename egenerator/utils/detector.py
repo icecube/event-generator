@@ -230,7 +230,7 @@ rel_dom_eff_without_bad_doms = np.array([
 # BadDomsList based off of:
 # /cvmfs/icecube.opensciencegrid.org/data/GCD/
 # GeoCalibDetectorStatus_AVG_55697-57531_PASS2_SPE_withScaledNoise.i3.gz
-# which was used to create most of the egenerator simulation
+# which was used to create most of the initial egenerator simulation
 # Note: ideally the simulation should be created without exclusions
 # and then this hardcoding of specific bad DOMs should be removed
 bad_doms_mask = rel_dom_eff_without_bad_doms != 0.0
