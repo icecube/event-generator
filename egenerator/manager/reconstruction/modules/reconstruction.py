@@ -103,7 +103,7 @@ class Reconstruction:
             )
 
         # parameter input signature
-        param_dtype = manager.data_handler.tensors[
+        param_dtype = manager.data_trafo.data["tensors"][
             parameter_tensor_name
         ].dtype_tf
         param_signature = tf.TensorSpec(

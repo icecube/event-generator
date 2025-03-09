@@ -106,7 +106,7 @@ class GoodnessOfFit:
         self.normalize_by_total_charge = normalize_by_total_charge
 
         # get a list of parameters which are transformed in log-space
-        param_tensor = self.manager.data_handler.tensors["x_parameters"]
+        param_tensor = self.manager.data_trafo.data["tensors"]["x_parameters"]
         self.log_params = np.array(param_tensor.trafo_log)
 
         # specify a random number generator for reproducibility
@@ -127,7 +127,7 @@ class GoodnessOfFit:
         self.param_time_index = self.manager.models[0].get_index("time")
 
         # parameter input signature
-        self.param_dtype = self.manager.data_handler.tensors[
+        self.param_dtype = self.manager.data_trafo.data["tensors"][
             parameter_tensor_name
         ].dtype_tf
         param_signature = tf.TensorSpec(
