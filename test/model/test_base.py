@@ -145,6 +145,9 @@ class TestModel(unittest.TestCase):
 
         untracked_data = {
             "checkpoint": self.model.checkpoint,
+            "variables_top_level": self.model._untracked_data[
+                "variables_top_level"
+            ],
             "variables": self.model.variables,
             "step": self.model._untracked_data["step"],
             "var": self.model._untracked_data["var"],

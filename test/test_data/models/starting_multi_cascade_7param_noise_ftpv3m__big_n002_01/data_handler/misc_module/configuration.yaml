@@ -1,0 +1,11 @@
+check_values: {}
+class_string: egenerator.data.modules.misc.dummy.DummyMiscModule
+dependent_sub_components: []
+event_generator_git_sha: 9e61988264ea70043c5fac143f4eb451dc55fde1
+event_generator_origin: git@github.com:mhuen/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 2.0.0
+mutable_settings: {}
+mutable_sub_components: []
+settings: {config_data: null}
+sub_component_configurations: {}

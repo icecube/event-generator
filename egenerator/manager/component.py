@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 import os
 import pickle
 import logging
@@ -188,7 +186,9 @@ class Configuration(object):
         if event_generator_uncommitted_changes is None:
             event_generator_uncommitted_changes = uncommitted_changes
 
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or logging.getLogger(
+            misc.get_full_class_string_of_object(self)
+        )
         self._dict = {
             "event_generator_version": egenerator.__version__,
             "event_generator_git_sha": event_generator_git_sha,
@@ -392,7 +392,7 @@ class Configuration(object):
         keys_changed = set(keys_changed)
         if keys_changed:
             msg = "The following mutable settings have changed: {!r}"
-            self._logger.warning(msg.format(keys_changed))
+            self._logger.info(msg.format(keys_changed))
 
         return True
 
@@ -524,7 +524,9 @@ class BaseComponent(object):
         logger : logging.logger, optional
             The logger instance to use.
         """
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = logger or logging.getLogger(
+            misc.get_full_class_string_of_object(self)
+        )
         self._is_configured = False
         self._configuration = None
         self._data = None
@@ -982,6 +984,66 @@ class BaseComponent(object):
                     egenerator.__version__,
                 )
             )
+
+            # check if the saved component was made with a newer version
+            # than the one currently used
+            if version_control.is_newer_version(
+                version_base=egenerator.__version__,
+                version_test=config_dict["event_generator_version"],
+            ):
+                msg = (
+                    "The saved component was created with a newer version of "
+                    "Event-Generator. Make sure the component is still "
+                    "compatible with this version!"
+                )
+                self._logger.error(msg)
+
+            # go through compatibility changes since the saved version
+            for (
+                version,
+                info_list,
+            ) in egenerator.__version_compatibility__.items():
+                is_newer = version_control.is_newer_version(
+                    version_base=config_dict["event_generator_version"],
+                    version_test=version,
+                )
+
+                # check if this version is compatible
+                if is_newer:
+                    for info in info_list:
+                        if info["type"] == "global":
+                            msg = (
+                                "A global change was made in "
+                                "Event-Generator version {!r} leading to "
+                                "incompatibility with the version of this model {!r}."
+                            ).format(
+                                version,
+                                config_dict["event_generator_version"],
+                            )
+                            self._logger.fatal(msg)
+                            raise ValueError(msg)
+                        elif info["type"] == "local":
+                            if (
+                                self.configuration.class_string
+                                in info["affected_components"]
+                            ):
+                                msg = (
+                                    "A local change was made to the component {!r} in "
+                                    "Event-Generator version {!r} leading to "
+                                    "incompatibility with the version of this model {!r}."
+                                ).format(
+                                    self.configuration.class_string,
+                                    version,
+                                    config_dict["event_generator_version"],
+                                )
+                                self._logger.fatal(msg)
+                                raise ValueError(msg)
+                        else:
+                            raise KeyError(
+                                "Unknown type of compatibility change: {}.".format(
+                                    info["type"]
+                                )
+                            )
 
         # check if this is the correct class
         if (

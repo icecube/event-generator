@@ -9,6 +9,46 @@ from egenerator.utils.build_components import build_loss_module
 from egenerator.data.modules.misc.seed_loader import SeedLoaderMiscModule
 
 
+def find_dependent_structure(config, name, fill_value="Object"):
+    """Finds a nested structure for dependent objects
+
+    Recursion stops at found object, i.e. additional objects
+    nested deeper within the found object are not considered.
+
+    Parameters
+    ----------
+    config : dict
+        The configuration dictionary
+    name : str
+        The name of the object to find
+    fill_value : str, optional
+        The value to fill the found object with
+        in the nested structure.
+
+    Returns
+    -------
+    dict
+        The nested structure of the dependent objects.
+    """
+    if len(config["dependent_sub_components"]) == 0:
+        return {}
+
+    structure = {}
+    for sub_component in config["dependent_sub_components"]:
+        if sub_component == name:
+            structure[sub_component] = fill_value
+        else:
+            structure_sub = find_dependent_structure(
+                config["sub_component_configurations"][sub_component],
+                name=name,
+                fill_value=fill_value,
+            )
+            if structure_sub:
+                structure[sub_component] = structure_sub
+
+    return structure
+
+
 class ManagerConfigurator:
 
     def __init__(
@@ -228,7 +268,9 @@ class ManagerConfigurator:
                 config_i,
                 restore=True,
                 modified_sub_components=modified_sub_components,
-                allow_rebuild_base_sources=False,
+                allow_rebuild_base_models=False,
+                allow_rebuild_base_decoders=False,
+                compile_optimizer=False,
             )
             models.extend(model_manger.models)
 
@@ -239,7 +281,8 @@ class ManagerConfigurator:
             models=models,
             data_handler=data_handler,
             data_transformer=data_transformer,
-            allow_rebuild_base_sources=False,
+            allow_rebuild_base_models=False,
+            allow_rebuild_base_decoders=False,
         )
 
         # save manager

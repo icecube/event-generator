@@ -135,7 +135,7 @@ def combine_skymaps(*skymaps):
         The combined skymap. This skymap will have an nside equal to
         the highest nside of any of the provided skymaps.
     """
-    skymaps = np.asarray(skymaps)
+    skymaps = [np.asarray(skymap) for skymap in skymaps]
 
     # find out highest nside and sort maps
     nsides = []
@@ -147,7 +147,7 @@ def combine_skymaps(*skymaps):
             max_nside = nside
 
     # sort maps
-    skymaps_sorted = skymaps[np.argsort(nsides)]
+    skymaps_sorted = [skymaps[idx] for idx in np.argsort(nsides)]
 
     # now up-scale all skymaps to highest nside
     skymaps_upscaled = []

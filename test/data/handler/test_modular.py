@@ -6,7 +6,9 @@ from copy import deepcopy
 
 from egenerator.data.handler.modular import ModuleDataHandler
 from egenerator.data.modules.data.pulse_data import PulseDataModule
-from egenerator.data.modules.labels.cascades import CascadeGeneratorLabelModule
+from egenerator.data.modules.labels.snowstorm_cascades import (
+    SnowstormCascadeGeneratorLabelModule,
+)
 from egenerator.data.modules.weights.dummy import DummyWeightModule
 from egenerator.data.modules.misc.dummy import DummyMiscModule
 from egenerator.data.modules.filters.dummy import DummyFilterModule
@@ -24,16 +26,17 @@ class TestModuleDataHandler(unittest.TestCase):
                 "data_module": "pulse_data.PulseDataModule",
                 "data_settings": {
                     "pulse_key": "AggregatedPulses_combined",
+                    "event_id_key": "LabelsDeepLearning",
                     "dom_exclusions_key": None,
                     "time_exclusions_key": None,
                     "float_precision": "float32",
                     "add_charge_quantiles": False,
                     "discard_pulses_from_excluded_doms": False,
+                    "time_window_buffer": 0.0,
                 },
                 # settings for the label module
-                "label_module": "cascades.CascadeGeneratorLabelModule",
+                "label_module": "snowstorm_cascades.SnowstormCascadeGeneratorLabelModule",
                 "label_settings": {
-                    "shift_cascade_vertex": False,
                     # logarithm on labels
                     # (x, y, z, zenith, azimuth, energy, time)?
                     "trafo_log": [
@@ -92,7 +95,8 @@ class TestModuleDataHandler(unittest.TestCase):
         )
         self.assertTrue(
             isinstance(
-                sub_components["label_module"], CascadeGeneratorLabelModule
+                sub_components["label_module"],
+                SnowstormCascadeGeneratorLabelModule,
             )
         )
         self.assertTrue(
@@ -228,16 +232,17 @@ class TestModuleDataHandlerOnTestData(unittest.TestCase):
             "data_module": "pulse_data.PulseDataModule",
             "data_settings": {
                 "pulse_key": "InIceDSTPulses",
+                "event_id_key": "LabelsDeepLearning",
                 "dom_exclusions_key": "BrightDOMs",
                 "time_exclusions_key": None,
                 "float_precision": "float32",
                 "add_charge_quantiles": False,
                 "discard_pulses_from_excluded_doms": False,
+                "time_window_buffer": 0.0,
             },
             # settings for the label module
-            "label_module": "cascades.CascadeGeneratorLabelModule",
+            "label_module": "snowstorm_cascades.SnowstormCascadeGeneratorLabelModule",
             "label_settings": {
-                "shift_cascade_vertex": False,
                 # logarithm on labels (x, y, z, zenith, azimuth, energy, time)?
                 "trafo_log": [False, False, False, False, False, True, False],
                 "label_key": "LabelsDeepLearning",

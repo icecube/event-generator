@@ -1,0 +1,190 @@
+check_values: {}
+class_string: egenerator.model.source.noise.default.DefaultNoiseModel
+dependent_sub_components: [data_trafo, decoder_charge]
+event_generator_git_sha: baf4d89b4b64256d0bc12ef60933d7ceba58692c
+event_generator_origin: git@github.com:mhuen/event-generator.git
+event_generator_uncommitted_changes: true
+event_generator_version: 2.0.0
+mutable_settings: {name: DefaultNoiseModel}
+mutable_sub_components: []
+settings:
+  config:
+    charge_scale_tensors: [NegativeBinomial_mu_000, NegativeBinomial_mu_001, NegativeBinomial_mu_002]
+    float_precision: float32
+    num_local_vars: 9
+  decoder: null
+sub_component_configurations:
+  data_trafo:
+    check_values: {x_dom_charge_mean: 0.07400473984333414, x_dom_charge_std: 0.4572682843164868,
+      x_parameters_mean: 1380.8877567849602, x_parameters_std: 223.38843114652818}
+    class_string: egenerator.data.trafo.DataTransformer
+    dependent_sub_components: []
+    event_generator_git_sha: e2f6532803184e777636c5eed2496abeda10e75a
+    event_generator_origin: git@github.com:mhuen/event-generator.git
+    event_generator_uncommitted_changes: true
+    event_generator_version: 2.0.0
+    mutable_settings: {}
+    mutable_sub_components: []
+    settings:
+      data_iterator_settings:
+        batch_capacity: 2
+        batch_size: 32
+        file_capacity: 1
+        input_data: [
+            /data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30248/cascades/step_3_pass2_get_all_pulses/*/*.hdf5,
+          /data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30249/cascades/step_3_pass2_get_all_pulses/*/*.hdf5,
+          /data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30250/cascades/step_3_pass2_get_all_pulses/*/*.hdf5,
+          /data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30251/cascades/step_3_pass2_get_all_pulses/*/*.hdf5,
+          /data/ana/reconstruction/2018/gnn/training_data/egenerator-v1.1.0/datasets/30252/cascades/step_3_pass2_get_all_pulses/*/*.hdf5]
+        num_add_files: 0
+        num_jobs: 20
+        num_repetitions: 1
+        num_splits: null
+        pick_random_files_forever: false
+      float_precision: float64
+      norm_constant: 1e-06
+      num_batches: 5000
+    sub_component_configurations:
+      data_handler:
+        check_values: {}
+        class_string: egenerator.data.handler.modular.ModuleDataHandler
+        dependent_sub_components: [data_module, label_module, weight_module, misc_module,
+          filter_module]
+        event_generator_git_sha: e2f6532803184e777636c5eed2496abeda10e75a
+        event_generator_origin: git@github.com:mhuen/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 2.0.0
+        mutable_settings:
+          config:
+            data_handler: modular.ModuleDataHandler
+            data_module: pulse_data.PulseDataModule
+            data_settings: {add_charge_quantiles: false, discard_pulses_from_excluded_doms: false,
+              dom_exclusions_key: BadDomsList, event_id_key: LabelsMCCascade, float_precision: float32,
+              pulse_key: MCPulses, time_exclusions_key: null, time_window_buffer: 100.0}
+            filter_module: general_filter.GeneralFilterModule
+            filter_settings:
+              constraints: []
+            label_module: snowstorm_cascades.SnowstormCascadeGeneratorLabelModule
+            label_settings:
+              additional_labels: []
+              float_precision: float32
+              label_key: LabelsMCCascade
+              snowstorm_key: SnowstormParameterDict
+              snowstorm_parameters: []
+              trafo_log: [false, false, false, false, false, true, false]
+            misc_module: dummy.DummyMiscModule
+            misc_settings: {}
+            weight_module: dummy.DummyWeightModule
+            weight_settings: {}
+        mutable_sub_components: [weight_module, misc_module, filter_module, label_module]
+        settings: {}
+        sub_component_configurations:
+          data_module:
+            check_values: {}
+            class_string: egenerator.data.modules.data.pulse_data.PulseDataModule
+            dependent_sub_components: []
+            event_generator_git_sha: e2f6532803184e777636c5eed2496abeda10e75a
+            event_generator_origin: git@github.com:mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 2.0.0
+            mutable_settings: {discard_pulses_from_excluded_doms: false, dom_exclusions_key: BadDomsList,
+              event_id_key: LabelsMCCascade, pulse_key: MCPulses, time_exclusions_key: null}
+            mutable_sub_components: []
+            settings: {add_charge_quantiles: false, config_data: null, float_precision: float32,
+              time_window_buffer: 100.0}
+            sub_component_configurations: {}
+          filter_module:
+            check_values: {}
+            class_string: egenerator.data.modules.filters.general_filter.GeneralFilterModule
+            dependent_sub_components: []
+            event_generator_git_sha: e2f6532803184e777636c5eed2496abeda10e75a
+            event_generator_origin: git@github.com:mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 2.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings:
+              config_data: null
+              constraints: []
+            sub_component_configurations: {}
+          label_module:
+            check_values: {}
+            class_string: 
+              egenerator.data.modules.labels.snowstorm_cascades.SnowstormCascadeGeneratorLabelModule
+            dependent_sub_components: []
+            event_generator_git_sha: e2f6532803184e777636c5eed2496abeda10e75a
+            event_generator_origin: git@github.com:mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 2.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings:
+              additional_labels: []
+              config_data: null
+              float_precision: float32
+              label_key: LabelsMCCascade
+              snowstorm_key: SnowstormParameterDict
+              snowstorm_parameters: []
+              trafo_log: [false, false, false, false, false, true, false]
+            sub_component_configurations: {}
+          misc_module:
+            check_values: {}
+            class_string: egenerator.data.modules.misc.dummy.DummyMiscModule
+            dependent_sub_components: []
+            event_generator_git_sha: e2f6532803184e777636c5eed2496abeda10e75a
+            event_generator_origin: git@github.com:mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 2.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings: {config_data: null}
+            sub_component_configurations: {}
+          weight_module:
+            check_values: {}
+            class_string: egenerator.data.modules.weights.dummy.DummyWeightModule
+            dependent_sub_components: []
+            event_generator_git_sha: e2f6532803184e777636c5eed2496abeda10e75a
+            event_generator_origin: git@github.com:mhuen/event-generator.git
+            event_generator_uncommitted_changes: true
+            event_generator_version: 2.0.0
+            mutable_settings: {}
+            mutable_sub_components: []
+            settings: {config_data: null}
+            sub_component_configurations: {}
+  decoder_charge:
+    check_values: {}
+    class_string: egenerator.model.decoder.mixture.MixtureModel
+    dependent_sub_components: [NegativeBinomial]
+    event_generator_git_sha: baf4d89b4b64256d0bc12ef60933d7ceba58692c
+    event_generator_origin: git@github.com:mhuen/event-generator.git
+    event_generator_uncommitted_changes: true
+    event_generator_version: 2.0.0
+    mutable_settings: {name: egenerator.model.decoder.mixture}
+    mutable_sub_components: []
+    settings:
+      config:
+        decoder_mapping:
+          NegativeBinomial: [NegativeBinomial, 3, 1.0]
+        value_range_mapping:
+          weight:
+            config: {min_value: 1e-06, offset: 1.0, scale: 1.0}
+            value_range_class: egenerator.utils.value_range.EluValueRange
+    sub_component_configurations:
+      NegativeBinomial:
+        check_values: {}
+        class_string: egenerator.model.decoder.static.poisson.NegativeBinomialDecoder
+        dependent_sub_components: []
+        event_generator_git_sha: baf4d89b4b64256d0bc12ef60933d7ceba58692c
+        event_generator_origin: git@github.com:mhuen/event-generator.git
+        event_generator_uncommitted_changes: true
+        event_generator_version: 2.0.0
+        mutable_settings: {name: egenerator.model.decoder.base}
+        mutable_sub_components: []
+        settings:
+          config:
+            float_precision: float32
+            value_range_mapping:
+              alpha:
+                config: {min_value: 0.0001, offset: -5.0, scale: 1.0}
+                value_range_class: egenerator.utils.value_range.EluValueRange
+        sub_component_configurations: {}

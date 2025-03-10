@@ -1,4 +1,3 @@
-from __future__ import print_function, division
 import os
 import glob
 import pandas as pd
@@ -40,24 +39,24 @@ keys_warning = [
     "MCCascade",
     # covariance matrices are very sensitive to small changes and thus not
     # always reproducible
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit_trafo",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit_trafo",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_trafo",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_fit",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_fit_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand_fit",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand_fit_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_trafo",
 ]
 
 keys_error = [
     # event-generator results
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs",
-    "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_I3Particle",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_I3Particle",
 ]
 
 dir_original = os.path.join(
-    SCRIPT_DIR, "test_data/egenerator_test_01_base_v1_0_3_dev"
+    SCRIPT_DIR, "test_data/egenerator_test_01_base_v2_0_0"
 )
 test_dirs = glob.glob(os.path.join(SCRIPT_DIR, "test_data/*"))
 test_dirs.remove(dir_original)

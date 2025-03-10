@@ -1,16 +1,11 @@
-from __future__ import division, print_function
-
 import logging
-import numpy as np
-import pandas as pd
 
 from egenerator import misc
-from egenerator.manager.component import BaseComponent, Configuration
-from egenerator.data.tensor import DataTensorList, DataTensor
-from egenerator.utils.cascades import shift_to_maximum
+from egenerator.manager.component import Configuration
+from egenerator.data.modules.labels.general import GeneralLabelModule
 
 
-class SnowstormCascadeGeneratorLabelModule(BaseComponent):
+class SnowstormCascadeGeneratorLabelModule(GeneralLabelModule):
     """This is a label module that loads the snowstorm cascade labels."""
 
     def __init__(self, logger=None):
@@ -30,13 +25,12 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
     def _configure(
         self,
         config_data,
-        shift_cascade_vertex,
         trafo_log,
         float_precision,
         label_key="LabelsDeepLearning",
         additional_labels=None,
-        snowstorm_key="SnowstormParameters",
-        num_snowstorm_params=30,
+        snowstorm_key="SnowstormParameterDict",
+        snowstorm_parameters=[],
     ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
@@ -46,9 +40,6 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
         config_data : None, str, or DataTensorList
             This is either the path to a test file or a data tensor list
             object. The module will be configured with this.
-        shift_cascade_vertex : bool
-            Shift cascade vertex to shower maximum instead of interaction
-            point.
         trafo_log : None or bool or list of bool
             Whether or not to apply logarithm on cascade parameters.
             If a single bool is given, this applies to all labels. Otherwise
@@ -67,9 +58,10 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             The name of the key under which the snowstorm parameters are saved.
             If `snowstorm_key` is None, no snowstorm parameters will be loaded.
             Instead a default value of 1. will be assigned to each of the
-            `num_snowstorm_params` number of snowstorm parameters.
-        num_snowstorm_params : int, optional
-            The number of varied snowstorm parameters.
+            `snowstorm_parameters` defined.
+        snowstorm_parameters : list[str], optional
+            The names of the snowstorm parameters. These must exist in the
+            SnowStormParameter dict specified in `snowstorm_key`.
 
         Returns
         -------
@@ -112,23 +104,11 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             Description
         """
 
-        # sanity checks:
-        if not isinstance(shift_cascade_vertex, bool):
-            raise TypeError(
-                "{!r} is not a boolean value!".format(shift_cascade_vertex)
-            )
-
-        # extend trafo log for snowstorm parameters: fill with False
-        if isinstance(trafo_log, bool):
-            trafo_log_ext = [trafo_log] * 7
-        else:
-            trafo_log_ext = list(trafo_log)
-        trafo_log_ext.extend([False] * num_snowstorm_params)
-
         # create a list of label names to load
         if additional_labels is None:
             additional_labels = []
-        label_names = [
+
+        parameter_names = [
             "cascade_x",
             "cascade_y",
             "cascade_z",
@@ -138,283 +118,28 @@ class SnowstormCascadeGeneratorLabelModule(BaseComponent):
             "cascade_t",
         ] + additional_labels
 
-        data = {"label_names": label_names}
-        data["label_tensors"] = DataTensorList(
-            [
-                DataTensor(
-                    name="x_parameters",
-                    shape=[None, len(label_names) + num_snowstorm_params],
-                    tensor_type="label",
-                    dtype=float_precision,
-                    trafo=True,
-                    trafo_log=trafo_log_ext,
-                )
-            ]
+        _, data, _ = super(
+            SnowstormCascadeGeneratorLabelModule, self
+        )._configure(
+            config_data=config_data,
+            trafo_log=trafo_log,
+            float_precision=float_precision,
+            parameter_names=parameter_names,
+            label_key=label_key,
+            snowstorm_key=snowstorm_key,
+            snowstorm_parameters=snowstorm_parameters,
         )
 
-        if isinstance(config_data, DataTensorList):
-            if config_data != data["label_tensors"]:
-                msg = "Tensors are wrong: {!r} != {!r}"
-                raise ValueError(
-                    msg.format(config_data, data["label_tensors"])
-                )
         configuration = Configuration(
             class_string=misc.get_full_class_string_of_object(self),
             settings=dict(
                 config_data=config_data,
-                shift_cascade_vertex=shift_cascade_vertex,
                 trafo_log=trafo_log,
                 float_precision=float_precision,
                 label_key=label_key,
                 additional_labels=additional_labels,
                 snowstorm_key=snowstorm_key,
-                num_snowstorm_params=num_snowstorm_params,
+                snowstorm_parameters=snowstorm_parameters,
             ),
         )
         return configuration, data, {}
-
-    def get_data_from_hdf(self, file, *args, **kwargs):
-        """Get label data from hdf file.
-
-        Parameters
-        ----------
-        file : str
-            The path to the hdf file.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is loaded.
-
-        Raises
-        ------
-        ValueError
-            Description
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        # open file
-        f = pd.HDFStore(file, "r")
-
-        cascade_parameters = []
-        try:
-            _labels = f[self.configuration.config["label_key"]]
-            for label in self.data["label_names"]:
-                cascade_parameters.append(_labels[label])
-
-            snowstorm_key = self.configuration.config["snowstorm_key"]
-            num_params = self.configuration.config["num_snowstorm_params"]
-            num_events = len(cascade_parameters[0])
-
-            if num_params > 0:
-                if snowstorm_key is not None:
-                    _snowstorm_params = f[snowstorm_key]
-                    params = _snowstorm_params["item"]
-                    index = _snowstorm_params["vector_index"]
-                    assert max(index) == num_params - 1
-                    assert min(index) == 0
-
-                    for i in range(num_params):
-
-                        snowstorm_param = params[index == i]
-                        assert len(snowstorm_param) == num_events
-                        cascade_parameters.append(snowstorm_param)
-
-                else:
-                    # No Snowstorm key is provided: add dummy values
-                    for i in range(num_params):
-                        cascade_parameters.append(np.ones(num_events))
-
-        except Exception as e:
-            self._logger.warning(e)
-            self._logger.warning("Skipping file: {}".format(file))
-            return None, None
-        finally:
-            f.close()
-
-        # shift cascade vertex to shower maximum?
-        if self.configuration.config["shift_cascade_vertex"]:
-            x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
-            cascade_parameters[0] = x
-            cascade_parameters[1] = y
-            cascade_parameters[2] = z
-            cascade_parameters[6] = t
-
-        # format cascade parameters
-        dtype = getattr(np, self.configuration.config["float_precision"])
-        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
-        num_events = len(cascade_parameters)
-
-        return num_events, (cascade_parameters,)
-
-    def get_data_from_frame(self, frame, *args, **kwargs):
-        """Get label data from frame.
-
-        Parameters
-        ----------
-        frame : I3Frame
-            The I3Frame from which to get the data.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is loaded.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        cascade_parameters = []
-        try:
-            _labels = frame[self.configuration.config["label_key"]]
-            for label in self.data["label_names"]:
-                cascade_parameters.append(np.atleast_1d(_labels[label]))
-
-            snowstorm_key = self.configuration.config["snowstorm_key"]
-            num_params = self.configuration.config["num_snowstorm_params"]
-            num_events = len(cascade_parameters[0])
-
-            if num_params > 0:
-                if snowstorm_key is not None:
-                    _snowstorm_params = frame[snowstorm_key]
-                    assert len(_snowstorm_params) == num_params
-
-                    for i in range(num_params):
-
-                        snowstorm_param = np.atleast_1d(_snowstorm_params[i])
-                        assert len(snowstorm_param) == num_events
-                        cascade_parameters.append(snowstorm_param)
-
-                else:
-                    # No Snowstorm key is provided: add dummy values
-                    for i in range(num_params):
-                        cascade_parameters.append(np.ones(num_events))
-
-        except Exception as e:
-            self._logger.warning(e)
-            self._logger.warning("Skipping frame: {}".format(frame))
-            return None, None
-
-        # shift cascade vertex to shower maximum?
-        if self.configuration.config["shift_cascade_vertex"]:
-            x, y, z, t = self._shift_to_maximum(*cascade_parameters[:7])
-            cascade_parameters[0] = x
-            cascade_parameters[1] = y
-            cascade_parameters[2] = z
-            cascade_parameters[6] = t
-
-        # format cascade parameters
-        dtype = getattr(np, self.configuration.config["float_precision"])
-        cascade_parameters = np.array(cascade_parameters, dtype=dtype).T
-        num_events = len(cascade_parameters)
-
-        return num_events, (cascade_parameters,)
-
-    def create_data_from_frame(self, frame, *args, **kwargs):
-        """Create label data from frame.
-
-        Parameters
-        ----------
-        frame : I3Frame
-            The I3Frame from which to get the data.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-
-        Returns
-        -------
-        int
-            Number of events.
-        tuple of array-like tensors or None
-            The input data (array-like) as specified in the
-            DataTensorList (self.tensors).
-            Returns None if no label data is created.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        return self.get_data_from_frame(frame, *args, **kwargs)
-
-    def write_data_to_frame(self, data, frame, *args, **kwargs):
-        """Write label data to I3Frame.
-
-        Parameters
-        ----------
-        data : tuple of array-like tensors
-            The input data (array-like) as specified in the
-            DataTensorList (self.data['data_tensors']).
-        frame : I3Frame
-            The I3Frame to which the data is to be written to.
-        *args
-            Variable length argument list.
-        **kwargs
-            Arbitrary keyword arguments.
-        """
-        if not self.is_configured:
-            raise ValueError("Module not configured yet!")
-
-        pass
-
-    def _shift_to_maximum(
-        self, x, y, z, zenith, azimuth, ref_energy, t, eps=1e-6
-    ):
-        """
-        PPC does its own cascade extension, leaving the showers at the
-        production vertex. Reapply the parametrization to find the
-        position of the shower maximum, which is also the best approximate
-        position for a point cascade.
-
-        Parameters
-        ----------
-        x : float or np.ndarray of floats
-            Cascade interaction vertex x (unshifted) in meters.
-        y : float or np.ndarray of floats
-            Cascade interaction vertex y (unshifted) in meters.
-        z : float or np.ndarray of floats
-            Cascade interaction vertex z (unshifted) in meters.
-        zenith : float or np.ndarray of floats
-            Cascade zenith direction in rad.
-        azimuth : float or np.ndarray of floats
-            Cascade azimuth direction in rad.
-        ref_energy : float or np.ndarray of floats
-            Energy of cascade in GeV.
-        t : float or np.ndarray of floats
-            Cascade interaction vertex time (unshifted) in ns.
-        eps : float, optional
-            Small constant float.
-
-        Returns
-        -------
-        Tuple of float or tuple of np.ndarray
-            Shifted vertex position (position of shower maximum) in meter and
-            shifted vertex time in nano seconds.
-        """
-
-        return shift_to_maximum(
-            x=x,
-            y=y,
-            z=z,
-            zenith=zenith,
-            azimuth=azimuth,
-            ref_energy=ref_energy,
-            t=t,
-            eps=eps,
-            reverse=False,
-        )

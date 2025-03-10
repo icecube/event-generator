@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 import logging
 import numpy as np
 import pandas as pd
@@ -40,11 +38,13 @@ class PulseDataModule(BaseComponent):
         self,
         config_data,
         pulse_key,
+        event_id_key,
         dom_exclusions_key,
         time_exclusions_key,
         float_precision,
         add_charge_quantiles,
         discard_pulses_from_excluded_doms,
+        time_window_buffer,
     ):
         """Configure Module Class
         This is an abstract method and must be implemented by derived class.
@@ -56,6 +56,10 @@ class PulseDataModule(BaseComponent):
             object. The module will be configured with this.
         pulse_key : str
             The key in which the pulse series are saved to.
+        event_id_key : str
+            A key in which the event ids are saved to. This frame
+            keys must be in table structure where each row corresponds
+            to exactly one event, i.e. this may not be a vector.
         dom_exclusions_key : str, optional
             The key in which the dom exclusions are saved to.
         time_exclusions_key : str, optional
@@ -72,6 +76,11 @@ class PulseDataModule(BaseComponent):
         discard_pulses_from_excluded_doms : bool, optional
             If True, pulses on excluded DOMs are discarded. The pulses are
             discarded after the charge at the DOM is collected.
+        time_window_buffer : float
+            The additional buffer time to add to the time window
+            on either side. The time window is defined as
+            [min(pulse_times) - buffer, max(pulse_times) + buffer].
+
 
         Returns
         -------
@@ -117,6 +126,9 @@ class PulseDataModule(BaseComponent):
             msg = "Pulse key type: {!r} != str"
             raise TypeError(msg.format(type(pulse_key)))
 
+        if time_window_buffer < 0:
+            raise ValueError("Time window buffer must be >= 0")
+
         time_exclusions_exist = time_exclusions_key is not None
         dom_exclusions_exist = dom_exclusions_key is not None
 
@@ -151,7 +163,7 @@ class PulseDataModule(BaseComponent):
         )
         x_pulses_ids = DataTensor(
             name="x_pulses_ids",
-            shape=[None, 3],
+            shape=[None, 4],
             tensor_type="data",
             vector_info={"type": "index", "reference": "x_pulses"},
             dtype="int32",
@@ -211,9 +223,11 @@ class PulseDataModule(BaseComponent):
                 config_data=config_data,
                 float_precision=float_precision,
                 add_charge_quantiles=add_charge_quantiles,
+                time_window_buffer=time_window_buffer,
             ),
             mutable_settings=dict(
                 pulse_key=pulse_key,
+                event_id_key=event_id_key,
                 dom_exclusions_key=dom_exclusions_key,
                 time_exclusions_key=time_exclusions_key,
                 discard_pulses_from_excluded_doms=(
@@ -252,7 +266,7 @@ class PulseDataModule(BaseComponent):
 
         try:
             pulses = f[self.configuration.config["pulse_key"]]
-            _labels = f["LabelsDeepLearning"]
+            _event_ids = f[self.configuration.config["event_id_key"]]
             if self.data["dom_exclusions_exist"]:
                 try:
                     dom_exclusions = f[
@@ -292,9 +306,9 @@ class PulseDataModule(BaseComponent):
             f.close()
 
         # create Dictionary with event IDs
-        size = len(_labels["Event"])
+        size = len(_event_ids["Event"])
         event_dict = {}
-        for idx, row in _labels.iterrows():
+        for idx, row in _event_ids.iterrows():
             event_dict[
                 (row.iloc[0], row.iloc[1], row.iloc[2], row.iloc[3])
             ] = idx
@@ -331,7 +345,10 @@ class PulseDataModule(BaseComponent):
         x_pulses = np.empty(
             (num_pulses, pulse_dim), dtype=self.data["np_float_precision"]
         )
-        x_pulses_ids = np.empty((num_pulses, 3), dtype=np.int32)
+        x_pulses_ids = np.empty((num_pulses, 4), dtype=np.int32)
+
+        # create pulse counter for each DOM
+        pulse_counter = np.zeros([size, 86, 60], dtype=np.int32)
 
         # create array for time data
         x_time_window = np.empty(
@@ -360,6 +377,7 @@ class PulseDataModule(BaseComponent):
             if add_charge_quantiles:
 
                 # (charge, time, quantile)
+                # Note: assumes pulses are sorted in time
                 cum_charge = float(x_dom_charge[index, string - 1, dom - 1, 0])
                 x_pulses[pulse_index] = [row.charge, row.time, cum_charge]
 
@@ -367,14 +385,37 @@ class PulseDataModule(BaseComponent):
                 # (charge, time)
                 x_pulses[pulse_index] = [row.charge, row.time]
 
-            # gather pulse ids (batch index, string, dom)
-            x_pulses_ids[pulse_index] = [index, string - 1, dom - 1]
+            # gather pulse ids (batch index, string, dom, pulse number)
+            pulse_number = pulse_counter[index, string - 1, dom - 1]
+            x_pulses_ids[pulse_index] = [
+                index,
+                string - 1,
+                dom - 1,
+                pulse_number,
+            ]
+
+            # increment pulse counter
+            pulse_counter[index, string - 1, dom - 1] += 1
 
             # update time window
             if row.time > x_time_window[index, 1]:
                 x_time_window[index, 1] = row.time
             if row.time < x_time_window[index, 0]:
                 x_time_window[index, 0] = row.time
+
+        # increase time window by buffer
+        buffer = self.configuration.config["time_window_buffer"]
+
+        # non-finite values should only happen if there are no pulses
+        mask_infinite1 = ~np.isfinite(x_time_window[:, 0])
+        mask_infinite2 = ~np.isfinite(x_time_window[:, 1])
+        assert np.all(mask_infinite1 == mask_infinite2)
+        x_time_window[mask_infinite1, 0] = 0
+        x_time_window[mask_infinite2, 1] = 0
+
+        if buffer > 0:
+            x_time_window[:, 0] -= buffer
+            x_time_window[:, 1] += buffer
 
         # convert cumulative charge to fraction of total charge, e.g. quantile
         if add_charge_quantiles:
@@ -424,8 +465,6 @@ class PulseDataModule(BaseComponent):
                 string = row.string
                 dom = row.om
                 if dom > 60:
-                    msg = "skipping exclusion DOM: {!r} {!r}"
-                    self._logger.info(msg.format(string, dom))
                     continue
                 index = event_dict[(row[1:5])]
                 x_dom_exclusions[index, string - 1, dom - 1, 0] = False
@@ -534,6 +573,9 @@ class PulseDataModule(BaseComponent):
             [size, 86, 60, 1], dtype=self.data["np_float_precision"]
         )
 
+        # create pulse counter for each DOM
+        pulse_counter = np.zeros([size, 86, 60], dtype=np.int32)
+
         if self.data["dom_exclusions_exist"]:
             x_dom_exclusions = (np.ones_like(x_dom_charge)).astype(bool)
         else:
@@ -594,14 +636,32 @@ class PulseDataModule(BaseComponent):
                     # (charge, time)
                     x_pulses.append([pulse.charge, pulse.time])
 
-                # gather pulse ids (batch index, string, dom)
-                x_pulses_ids.append([index, string - 1, dom - 1])
+                # gather pulse ids (batch index, string, dom, pulse number)
+                pulse_number = pulse_counter[index, string - 1, dom - 1]
+                x_pulses_ids.append([index, string - 1, dom - 1, pulse_number])
+
+                # increment pulse counter
+                pulse_counter[index, string - 1, dom - 1] += 1
 
                 # update time window
                 if pulse.time > x_time_window[index, 1]:
                     x_time_window[index, 1] = pulse.time
                 if pulse.time < x_time_window[index, 0]:
                     x_time_window[index, 0] = pulse.time
+
+        # increase time window by buffer
+        buffer = self.configuration.config["time_window_buffer"]
+
+        # non-finite values should only happen if there are no pulses
+        mask_infinite1 = ~np.isfinite(x_time_window[:, 0])
+        mask_infinite2 = ~np.isfinite(x_time_window[:, 1])
+        assert np.all(mask_infinite1 == mask_infinite2)
+        x_time_window[mask_infinite1, 0] = 0
+        x_time_window[mask_infinite2, 1] = 0
+
+        if buffer > 0:
+            x_time_window[:, 0] -= buffer
+            x_time_window[:, 1] += buffer
 
         x_pulses = np.array(x_pulses, dtype=self.data["np_float_precision"])
         x_pulses_ids = np.array(x_pulses_ids, dtype=np.int32)
@@ -670,8 +730,6 @@ class PulseDataModule(BaseComponent):
                 dom = omkey.om
 
                 if dom > 60:
-                    msg = "skipping exclusion DOM: {!r} {!r}"
-                    self._logger.info(msg.format(string, dom))
                     continue
 
                 index = 0

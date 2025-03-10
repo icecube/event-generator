@@ -1,27 +1,13 @@
-from __future__ import division, print_function
-import logging
 import tensorflow as tf
-import tensorflow_probability as tfp
 import numpy as np
 
 from tfscripts.weights import new_weights
 
 from egenerator.model.source.base import Source
-from egenerator.utils import detector
+from egenerator.utils import detector, tf_helpers
 
 
 class DefaultNoiseModel(Source):
-
-    def __init__(self, logger=None):
-        """Instantiate Source class
-
-        Parameters
-        ----------
-        logger : logging.logger, optional
-            The logger to use.
-        """
-        self._logger = logger or logging.getLogger(__name__)
-        super(DefaultNoiseModel, self).__init__(logger=self._logger)
 
     def _build_architecture(self, config, name=None):
         """Set up and build architecture: create and save all model weights.
@@ -46,12 +32,6 @@ class DefaultNoiseModel(Source):
         """
         self.assert_configured(False)
 
-        # backwards compatibility for models that didn't define precision
-        if "float_precision" in config:
-            float_precision = config["float_precision"]
-        else:
-            float_precision = "float32"
-
         # ---------------------------------------
         # Define input parameters of noise source
         # ---------------------------------------
@@ -59,9 +39,9 @@ class DefaultNoiseModel(Source):
 
         # get weights for general scaling of mu and over-dispersion
         self._untracked_data["local_vars"] = new_weights(
-            shape=[2],
-            stddev=1e-5,
-            float_precision=float_precision,
+            shape=[config["num_local_vars"]],
+            stddev=1e-3,
+            float_precision=config["float_precision"],
             name="noise_scaling",
         )
 
@@ -93,9 +73,9 @@ class DefaultNoiseModel(Source):
                 The input pulses (charge, time) of all events in a batch.
                 Shape: [-1, 2]
             pulses_ids : tf.Tensor
-                The pulse indices (batch_index, string, dom) of all pulses in
-                the batch of events.
-                Shape: [-1, 3]
+                The pulse indices (batch_index, string, dom, pulse_number)
+                of all pulses in the batch of events.
+                Shape: [-1, 4]
         is_training : bool, optional
             Indicates whether currently in training or inference mode.
             Must be provided if batch normalisation is used.
@@ -115,24 +95,43 @@ class DefaultNoiseModel(Source):
             A dictionary of output tensors.
             This  dictionary must at least contain:
 
-                'dom_charges': the predicted charge at each DOM
-                               Shape: [-1, 86, 60]
-                'dom_charges_variance':
-                    the predicted variance on the charge at each DOM.
-                    Shape: [-1, 86, 60]
-                'pulse_pdf': The likelihood evaluated for each pulse
-                             Shape: [-1]
+                'dom_charges':
+                    The predicted charge at each DOM
+                    Shape: [n_events, 86, 60, 1]
+                'dom_charges_pdf':
+                    The charge likelihood evaluated for each DOM.
+                    Shape: [n_events, 86, 60]
+                'pulse_pdf':
+                    The likelihood evaluated for each pulse
+                    Shape: [n_pulses]
+                'time_offsets':
+                    The global time offsets for each event.
+                    Shape: [n_events]
+
+            Other relevant optional tensors are:
+                'latent_vars_time':
+                    Shape: [n_events, 86, 60, n_latent]
+                'latent_vars_charge':
+                    Shape: [n_events, 86, 60, n_charge]
+                'time_offsets_per_dom':
+                    The time offsets per DOM (includes global offset).
+                    Shape: [n_events, 86, 60, n_components]
+                'dom_cdf_exclusion':
+                    Shape: [n_events, 86, 60]
+                'pulse_cdf':
+                    Shape: [n_pulses]
         """
         self.assert_configured(True)
         print("Applying Noise Model...")
 
+        config = self.configuration.config["config"]
         tensor_dict = {}
 
         # get time exclusions
         tensors = self.data_trafo.data["tensors"]
         if (
-            "x_time_exclusions" in tensors.names
-            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+            "x_time_exclusions" in data_batch_dict
+            and data_batch_dict["x_time_exclusions"] is not None
         ):
             time_exclusions_exist = True
 
@@ -150,7 +149,10 @@ class DefaultNoiseModel(Source):
         param_dtype_np = tensors[parameter_tensor_name].dtype_np
 
         # shape: [n_pulses, 3]
-        pulses_ids = data_batch_dict["x_pulses_ids"]
+        pulses_ids = data_batch_dict["x_pulses_ids"][:, :3]
+
+        # Shape: [n_pulses, 2] [charge, time]
+        pulses = data_batch_dict["x_pulses"]
 
         # shape: [n_batch, 2]
         time_window = data_batch_dict["x_time_window"]
@@ -158,20 +160,20 @@ class DefaultNoiseModel(Source):
         # shape: [n_batch]
         livetime = time_window[:, 1] - time_window[:, 0]
 
-        # shape: [n_batch, 1, 1, 1]
+        # shape: [n_batch, 1, 1]
         livetime_exp = tf.reshape(
-            time_window[:, 1] - time_window[:, 0], [-1, 1, 1, 1]
+            time_window[:, 1] - time_window[:, 0], [-1, 1, 1]
         )
 
         # compute the expected charge at each DOM based off of noise rate
-        # shape: [1, 86, 60, 1]
-        dom_noise_rates = tf.reshape(
+        # shape: [1, 86, 60]
+        dom_noise_rates = np.reshape(
             detector.dom_noise_rates.astype(param_dtype_np),
-            shape=[1, 86, 60, 1],
+            [1, 86, 60],
         )
 
-        # shape: [n_batch, 86, 60, 1]
-        dom_charges = dom_noise_rates * livetime_exp
+        # shape: [n_batch, 86, 60]
+        dom_charges_base = dom_noise_rates * livetime_exp
 
         # shape: [n_batch]
         dom_pdf_constant = 1.0 / livetime
@@ -193,123 +195,112 @@ class DefaultNoiseModel(Source):
             )
 
             # now calculate exclusions cdf
-            # shape: [n_tw, 1]
-            tw_cdf_exclusion = tf.expand_dims(
-                (tw_reduced[:, 1] - tw_reduced[:, 0]) / tw_livetime, axis=-1
-            )
+            # shape: [n_tw]
+            tw_cdf_exclusion = (
+                tw_reduced[:, 1] - tw_reduced[:, 0]
+            ) / tw_livetime
 
             # some safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_min(tw_cdf_exclusion) > -1e-4,
-                    [
-                        "Noise TW CDF < 0!",
-                        tf.reduce_min(tw_cdf_exclusion),
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                        x_time_exclusions,
-                        tw_reduced,
-                    ],
-                    summarize=100000,
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_max(tw_cdf_exclusion) < 1.0001,
-                    [
-                        "Noise TW CDF > 1!",
-                        tf.reduce_max(tw_cdf_exclusion),
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                        x_time_exclusions,
-                        tw_reduced,
-                    ],
-                    summarize=100000,
-                )
-            )
-            with tf.control_dependencies(asserts):
-                tw_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
-                    tw_cdf_exclusion, 0.0, 1.0
-                )
+            tw_cdf_exclusion = tf_helpers.safe_cdf_clip(tw_cdf_exclusion)
 
             # accumulate time window exclusions for each event
-            # shape: [n_batch, 86, 60, 1]
+            # shape: [n_batch, 86, 60]
             dom_cdf_exclusion = tf.tensor_scatter_nd_add(
-                tf.zeros_like(data_batch_dict["x_dom_charge"]),
+                tf.zeros_like(
+                    tf.squeeze(data_batch_dict["x_dom_charge"], axis=3)
+                ),
                 indices=x_time_exclusions_ids,
                 updates=tw_cdf_exclusion,
             )
 
             # some safety checks to make sure we aren't clipping too much
-            asserts = []
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_min(dom_cdf_exclusion) > -1e-4,
-                    [
-                        "Noise DOM CDF < 0!",
-                        tf.reduce_min(dom_cdf_exclusion),
-                        dom_cdf_exclusion,
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                    ],
-                    summarize=1000000,
-                )
-            )
-            asserts.append(
-                tf.debugging.Assert(
-                    tf.reduce_max(dom_cdf_exclusion) < 1.0001,
-                    [
-                        "Noise DOM CDF > 1!",
-                        tf.reduce_max(dom_cdf_exclusion),
-                        dom_cdf_exclusion,
-                        tw_cdf_exclusion,
-                        x_time_exclusions_ids,
-                    ],
-                    summarize=1000000,
-                )
-            )
-            with tf.control_dependencies(asserts):
-                dom_cdf_exclusion = tfp.math.clip_by_value_preserve_gradient(
-                    dom_cdf_exclusion, 0.0, 1.0
-                )
-
-            # we only have one model, so no need to actually sum up components
-            # shape: [n_batch, 86, 60, 1]
-            dom_cdf_exclusion_sum = dom_cdf_exclusion
-
+            dom_cdf_exclusion = tf_helpers.safe_cdf_clip(dom_cdf_exclusion)
         # ----------------------------
 
-        # local scaling vars are initialized around zero with small std dev
-        local_vars = tf.nn.elu(self._untracked_data["local_vars"]) + 1.01
-
-        # scaling of expected noise hits: ensure positive values.
-        # shape: [1, 1, 1, 1]
-        mean_scaling = tf.reshape(
-            tf.nn.elu(local_vars[0]) + 1.01, [1, 1, 1, 1]
+        # get latent variables
+        # Shape: [1, 1, 1, n_latent]
+        local_vars = tf.reshape(
+            self._untracked_data["local_vars"],
+            [1, 1, 1, -1],
         )
 
-        # scaling of uncertainty. shape: [1, 1, 1, 1]
-        # The over-dispersion parameterized by alpha must be greater zero
-        # Var(x) = mu + alpha*mu**2
-        dom_charges_alpha = tf.reshape(
-            tf.nn.elu(local_vars[1] - 5) + 1.000001, [1, 1, 1, 1]
+        # check that things are spelled correctly
+        for param_name in config["charge_scale_tensors"]:
+            if param_name not in self.decoder_charge.loc_parameters:
+                raise ValueError(
+                    f"Charge scale tensor {param_name} not found in "
+                    f"decoder loc_parameters: {self.decoder_charge.loc_parameters}!"
+                )
+
+        latent_vars = []
+        for idx, param_name in enumerate(self.decoder_charge.parameter_names):
+            charge_tensor = local_vars[..., idx]
+
+            if param_name in self.decoder_charge.loc_parameters:
+
+                # ensure no value range mapping is not defined for this tensor
+                if param_name in self.decoder_charge.value_range_mapping:
+                    raise ValueError(
+                        f"Value range mapping for charge scale tensor "
+                        f"{param_name} at index {idx} not allowed since "
+                        f"manual mapping in model is done!"
+                    )
+                else:
+                    print(
+                        f"\t Applying charge scale to {param_name} at index {idx}"
+                    )
+
+                # clip value range for more stability during training
+                # apply exponential which also forces positive values
+                charge_tensor = tf.exp(
+                    tf.clip_by_value(charge_tensor, -20.0, 15)
+                )
+
+                if param_name in config["charge_scale_tensors"]:
+                    charge_tensor *= dom_charges_base
+
+                # apply time window exclusions if needed
+                if time_exclusions_exist:
+                    charge_tensor = charge_tensor * (
+                        1.0 - dom_cdf_exclusion + self.epsilon
+                    )
+
+                # add small constant to make sure dom charges are > 0:
+                charge_tensor += self.epsilon
+            else:
+                charge_tensor = tf.broadcast_to(
+                    charge_tensor, tf.shape(dom_charges_base)
+                )
+            latent_vars.append(charge_tensor)
+
+        latent_vars_charge = tf.stack(latent_vars, axis=-1)
+        tensor_dict["latent_vars_charge"] = latent_vars_charge
+
+        dom_charges_component = self.decoder_charge.expectation(
+            latent_vars=latent_vars_charge,
+            reduce_components=False,
         )
+        if dom_charges_component.shape[1:] == [86, 60]:
+            dom_charges_component = dom_charges_component[..., tf.newaxis]
 
-        # scale dom charge and uncertainty by learned scaling
-        dom_charges = dom_charges * mean_scaling
+        dom_charges_variance_component = self.decoder_charge.variance(
+            latent_vars=latent_vars_charge, reduce_components=False
+        )
+        if dom_charges_variance_component.shape[1:] == [86, 60]:
+            dom_charges_variance_component = dom_charges_variance_component[
+                ..., tf.newaxis
+            ]
 
-        # scale by time exclusions
-        if time_exclusions_exist:
-            dom_charges *= 1.0 - dom_cdf_exclusion_sum + 1e-3
-
-        # add small constant to make sure dom charges are > 0:
-        dom_charges += 1e-7
-
-        # compute standard deviation
-        # std = sqrt(var) = sqrt(mu + alpha*mu**2)
-        dom_charges_variance = dom_charges + dom_charges_alpha * dom_charges**2
-        dom_charges_unc = tf.sqrt(dom_charges_variance)
+        tensor_dict["dom_charges_component"] = dom_charges_component
+        tensor_dict["dom_charges"] = tf.reduce_sum(
+            dom_charges_component, axis=-1
+        )
+        tensor_dict["dom_charges_variance_component"] = (
+            dom_charges_variance_component
+        )
+        tensor_dict["dom_charges_variance"] = tf.reduce_sum(
+            dom_charges_variance_component, axis=-1
+        )
 
         # Compute Log Likelihood for pulses
         # PDF is a uniform distribution in the specified time window.
@@ -318,24 +309,44 @@ class DefaultNoiseModel(Source):
         # shape: [n_pulses]
         pulse_pdf = tf.gather(dom_pdf_constant, indices=pulses_ids[:, 0])
 
+        # compute pulse cdf values
+        # shape: [n_pulses, 2]
+        pulse_tw = tf.gather(time_window, indices=pulses_ids[:, 0])
+        # shape: [n_pulses]
+        pulse_cdf = (pulses[:, 1] - pulse_tw[:, 0]) / (
+            pulse_tw[:, 1] - pulse_tw[:, 0]
+        )
+
         # scale up pulse pdf by time exclusions if needed
         if time_exclusions_exist:
-            pulse_cdf_exclusion = tf.gather_nd(dom_cdf_exclusion, pulses_ids)
-            pulse_pdf /= tf.squeeze(1.0 - pulse_cdf_exclusion + 1e-3, axis=-1)
+            # shape: [n_pulses]
+            pulse_cdf_exclusion_total = tf.gather_nd(
+                dom_cdf_exclusion, pulses_ids
+            )
+
+            # subtract excluded regions from cdf values
+            # shape: [n_pulses]
+            pulse_cdf_exclusion = tf_helpers.get_prior_pulse_cdf_exclusion(
+                x_pulses=pulses,
+                x_pulses_ids=pulses_ids,
+                x_time_exclusions=x_time_exclusions,
+                x_time_exclusions_ids=x_time_exclusions_ids,
+                tw_cdf_exclusion=tw_cdf_exclusion,
+            )
+            pulse_cdf -= pulse_cdf_exclusion
+
+            pulse_pdf /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
+            pulse_cdf /= 1.0 - pulse_cdf_exclusion_total + self.epsilon
 
         # add tensors to tensor dictionary
         tensor_dict["time_offsets"] = None
-        tensor_dict["dom_charges"] = dom_charges
-        tensor_dict["dom_charges_alpha"] = dom_charges_alpha
-        tensor_dict["dom_charges_unc"] = dom_charges_unc
-        tensor_dict["dom_charges_variance"] = dom_charges_variance
         tensor_dict["pdf_constant"] = dom_pdf_constant
         tensor_dict["pdf_time_window"] = time_window
         tensor_dict["pulse_pdf"] = pulse_pdf
+        tensor_dict["pulse_cdf"] = pulse_cdf
 
         if time_exclusions_exist:
             tensor_dict["dom_cdf_exclusion"] = dom_cdf_exclusion
-            tensor_dict["dom_cdf_exclusion_sum"] = dom_cdf_exclusion_sum
         # -------------------------------------------
 
         return tensor_dict
@@ -346,6 +357,8 @@ class DefaultNoiseModel(Source):
         result_tensors,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute CDF values at x for given result_tensors
@@ -386,6 +399,14 @@ class DefaultNoiseModel(Source):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -394,7 +415,8 @@ class DefaultNoiseModel(Source):
         array_like
             The CDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms, n_points] if DOMs specified
 
         No Longer Raises
         ----------------
@@ -402,7 +424,6 @@ class DefaultNoiseModel(Source):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -423,8 +444,11 @@ class DefaultNoiseModel(Source):
         # Shape: [n_events, 86, 60, 1]
         if "dom_cdf_exclusion" in result_tensors:
             dom_cdf_exclusion = result_tensors["dom_cdf_exclusion"].numpy()
+            dom_cdf_exclusion = dom_cdf_exclusion[..., np.newaxis]
         else:
             dom_cdf_exclusion = np.zeros((len(time_window), 86, 60, 1))
+
+        dom_cdf_exclusion = dom_cdf_exclusion[:, strings, doms]
 
         # shape: [n_events, 1, 1, n_points]
         t_end = np.where(
@@ -433,11 +457,11 @@ class DefaultNoiseModel(Source):
             x,
         )
 
-        # Shape: [n_events, 86, 60, n_points]
+        # Shape: [n_events, n_strings, n_doms, n_points]
         cdf_values = (
             (t_end - time_window[..., 0])
             / livetime
-            / (1.0 - dom_cdf_exclusion + 1e-3)
+            / (1.0 - dom_cdf_exclusion + self.epsilon)
         )
 
         # apply time window exclusions:
@@ -476,7 +500,11 @@ class DefaultNoiseModel(Source):
                 cdf_excluded = (
                     (t_eval[:, 1] - t_eval[:, 0])
                     / livetime[ids[0], 0, 0, 0]
-                    / (1.0 - dom_cdf_exclusion[ids[0], ids[1], ids[2]] + 1e-3)
+                    / (
+                        1.0
+                        - dom_cdf_exclusion[ids[0], ids[1], ids[2]]
+                        + self.epsilon
+                    )
                 )
 
                 # subtract excluded region
@@ -504,6 +532,8 @@ class DefaultNoiseModel(Source):
         result_tensors,
         tw_exclusions=None,
         tw_exclusions_ids=None,
+        strings=slice(None),
+        doms=slice(None),
         **kwargs
     ):
         """Compute PDF values at x for given result_tensors
@@ -544,6 +574,14 @@ class DefaultNoiseModel(Source):
             as a list of:
             [(event1, string1, dom1), ..., (eventN, stringN, domN)]
             Shape: [n_exclusions, 3]
+        strings : list of int, optional
+            The strings to slice the PDF for.
+            If None, all strings are used.
+            Shape: [n_strings]
+        doms : list of int, optional
+            The doms to slice the PDF for.
+            If None, all doms are used.
+            Shape: [n_doms]
         **kwargs
             Keyword arguments.
 
@@ -552,7 +590,8 @@ class DefaultNoiseModel(Source):
         array_like
             The PDF values at times x for the given event hypothesis and
             exclusions that were used to compute `result_tensors`.
-            Shape: [n_events, 86, 60, n_points]
+            Shape: [n_events, 86, 60, n_points] if all DOMs returned
+            Shape: [n_events, n_strings, n_doms] if DOMs specified
 
         No Longer Raises
         ----------------
@@ -560,7 +599,6 @@ class DefaultNoiseModel(Source):
             If asymmetric Gaussian latent variables are not present in
             `result_tensors` dictionary.
         """
-
         # shape: [n_points]
         x_orig = np.atleast_1d(x)
         assert len(x_orig.shape) == 1, x_orig.shape
@@ -584,13 +622,16 @@ class DefaultNoiseModel(Source):
         # Shape: [n_events, 86, 60, 1]
         if "dom_cdf_exclusion" in result_tensors:
             dom_cdf_exclusion = result_tensors["dom_cdf_exclusion"].numpy()
+            dom_cdf_exclusion = dom_cdf_exclusion[..., np.newaxis]
         else:
             dom_cdf_exclusion = np.zeros((len(time_window), 86, 60, 1))
 
-        # Shape: [n_events, 86, 60, 1]
-        pdf_values = pdf_constant / (1.0 - dom_cdf_exclusion + 1e-3)
+        dom_cdf_exclusion = dom_cdf_exclusion[:, strings, doms]
 
-        # Shape: [n_events, 86, 60, n_points]
+        # Shape: [n_events, n_strings, n_doms, 1]
+        pdf_values = pdf_constant / (1.0 - dom_cdf_exclusion + self.epsilon)
+
+        # Shape: [n_events, n_strings, n_doms, n_points]
         pdf_values = np.tile(pdf_values, reps=(1, 1, 1, n_points))
 
         pdf_values = np.where(

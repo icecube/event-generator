@@ -1,4 +1,5 @@
 import numpy as np
+import tensorflow as tf
 
 
 def get_dist_to_shower_max(ref_energy, eps=1e-6):
@@ -6,7 +7,7 @@ def get_dist_to_shower_max(ref_energy, eps=1e-6):
 
     Parameters
     ----------
-    ref_energy : float or np.ndarray of floats
+    ref_energy : float or array_like
         Energy of cascade in GeV.
     eps : float, optional
         Small constant float.
@@ -26,11 +27,18 @@ def get_dist_to_shower_max(ref_energy, eps=1e-6):
     meta-projects/combo/trunk/sim-services/private/
     sim-services/I3SimConstants.cxx
     """
-    a = 2.01849 + 0.63176 * np.log(ref_energy + eps)
+    if tf.is_tensor(ref_energy):
+        log_func = tf.math.log
+        clip_func = tf.clip_by_value
+    else:
+        log_func = np.log
+        clip_func = np.clip
+
+    a = 2.01849 + 0.63176 * log_func(ref_energy + eps)
     b = l_rad / 0.63207
 
     # Mode of the gamma distribution gamma_dist(a, b) is: (a-1.)/b
-    length_to_maximum = np.clip(((a - 1.0) / b) * l_rad, 0.0, float("inf"))
+    length_to_maximum = clip_func(((a - 1.0) / b) * l_rad, 0.0, float("inf"))
     return length_to_maximum
 
 
@@ -46,19 +54,19 @@ def shift_to_maximum(
 
     Parameters
     ----------
-    x : float or np.ndarray of floats
+    x : float or array_like
         Cascade interaction vertex x (unshifted) in meters.
-    y : float or np.ndarray of floats
+    y : float or array_like
         Cascade interaction vertex y (unshifted) in meters.
-    z : float or np.ndarray of floats
+    z : float or array_like
         Cascade interaction vertex z (unshifted) in meters.
-    zenith : float or np.ndarray of floats
+    zenith : float or array_like
         Cascade zenith direction in rad.
-    azimuth : float or np.ndarray of floats
+    azimuth : float or array_like
         Cascade azimuth direction in rad.
-    ref_energy : float or np.ndarray of floats
+    ref_energy : float or array_like
         Energy of cascade in GeV.
-    t : float or np.ndarray of floats
+    t : float or array_like
         Cascade interaction vertex time (unshifted) in ns.
     eps : float, optional
         Small constant float.
@@ -69,18 +77,25 @@ def shift_to_maximum(
 
     Returns
     -------
-    Tuple of float or tuple of np.ndarray
+    Tuple of float or tuple of array_like
         Shifted vertex position (position of shower maximum) in meter and
         shifted vertex time in nano seconds.
     """
+    if tf.is_tensor(ref_energy):
+        sin_func = tf.math.sin
+        cos_func = tf.math.cos
+    else:
+        sin_func = np.sin
+        cos_func = np.cos
+
     length_to_maximum = get_dist_to_shower_max(ref_energy=ref_energy, eps=eps)
     if reverse:
         length_to_maximum *= -1
 
     c = 0.299792458  # meter / ns
-    dir_x = -np.sin(zenith) * np.cos(azimuth)
-    dir_y = -np.sin(zenith) * np.sin(azimuth)
-    dir_z = -np.cos(zenith)
+    dir_x = -sin_func(zenith) * cos_func(azimuth)
+    dir_y = -sin_func(zenith) * sin_func(azimuth)
+    dir_z = -cos_func(zenith)
 
     x_shifted = x + dir_x * length_to_maximum
     y_shifted = y + dir_y * length_to_maximum

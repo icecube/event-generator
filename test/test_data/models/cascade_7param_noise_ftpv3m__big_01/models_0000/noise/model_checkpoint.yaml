@@ -1,0 +1,5 @@
+latest_checkpoint: 1
+protected_checkpoints: {}
+unprotected_checkpoints:
+  1: {creation_date: '2025-03-08 13:54:19', description: null, file_basename: model_checkpoint_00000001,
+    time_stamp: 1741442059.9907434}

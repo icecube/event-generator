@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pickle
 
+from egenerator.utils.detector import bad_doms_mask
 from egenerator.utils.configurator import ManagerConfigurator
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +16,7 @@ class TestModelPrediction(unittest.TestCase):
     """
 
     def definte_settings(self):
-        self.model_name = "cascade_7param_noise_tw_BFRv1Spice321_01"
+        self.model_name = "cascade_7param_noise_ftpv3m__big_01"
         self.params_dict = {
             "cascade_x": 100,
             "cascade_y": -100,
@@ -43,14 +44,17 @@ class TestModelPrediction(unittest.TestCase):
         self.dom_list = []
         for s in range(1, 87):
             for d in range(1, 61):
-                self.dom_list.append((s, d))
+                if not bad_doms_mask[s - 1, d - 1]:
+                    self.dom_list.append((s, d))
 
+        self.t_min_window = -10000.0
+        self.t_max_window = 15000.0
         self.t_min = 0.0
         self.t_max = 8000.0
         self.t_width = self.t_max - self.t_min
         self.x_time_exclusions = [
-            [-50000, self.t_min],
-            [self.t_max, 50000],
+            [self.t_min_window, self.t_min],
+            [self.t_max, self.t_max_window],
         ] * len(self.dom_list)
 
         n_pulses = 2
@@ -58,8 +62,8 @@ class TestModelPrediction(unittest.TestCase):
             np.transpose(
                 [
                     np.linspace(
-                        self.t_min - self.t_width,
-                        self.t_max + self.t_width,
+                        self.t_min + 1,
+                        self.t_max - 1,
                         n_pulses,
                     ),
                     [1.0] * n_pulses,
@@ -77,8 +81,8 @@ class TestModelPrediction(unittest.TestCase):
             self.x_time_exclusions_ids.append([0, s - 1, d - 1])
 
             for i in range(n_pulses):
-                self.x_pulses_ids.append([0, s - 1, d - 1])
-        self.x_time_window = np.array([[self.t_min, self.t_max]])
+                self.x_pulses_ids.append([0, s - 1, d - 1, i])
+        self.x_time_window = np.array([[self.t_min_window, self.t_max_window]])
 
         # ----------
         # load model
@@ -106,13 +110,17 @@ class TestModelPrediction(unittest.TestCase):
         # trace Model
         self.get_dom_expectation = self.manager.get_model_tensors_function()
 
-    def check_keys(self, result_tensors):
+    def check_keys(self, result_tensors, with_exclusions=False):
         """Check keys in result_tensors."""
         keys = [
-            "dom_cdf_exclusion_sum",
+            "dom_cdf_exclusion",
             "dom_charges",
+            "dom_charges_component",
+            "dom_charges_pdf",
             "dom_charges_variance",
+            "dom_charges_variance_component",
             "nested_results",
+            "pulse_cdf",
             "pulse_pdf",
         ]
         self.assertEqual(sorted(list(result_tensors.keys())), keys)
@@ -122,10 +130,10 @@ class TestModelPrediction(unittest.TestCase):
     ):
         """Check result_tensors against true values."""
         keys = [
-            "dom_cdf_exclusion_sum",
             "dom_charges",
             "dom_charges_variance",
             "pulse_pdf",
+            "dom_cdf_exclusion",
         ]
 
         for key in keys:
@@ -228,7 +236,7 @@ class TestModelPrediction(unittest.TestCase):
         )
 
         # check keys in result_tensors
-        self.check_keys(result_tensors)
+        self.check_keys(result_tensors, with_exclusions=False)
 
         # # save result_tensors to file
         # self.write_test_data(result_tensors, tw_exclusions=False)
@@ -240,11 +248,11 @@ class TestModelPrediction(unittest.TestCase):
         self.check_result_tensors(result_tensors, result_tensors_true)
 
         # check correct values
-        self.assertEqual(result_tensors["dom_charges"].shape, (1, 86, 60, 1))
+        self.assertEqual(result_tensors["dom_charges"].shape, (1, 86, 60))
         self.assertEqual(
-            result_tensors["dom_charges_variance"].shape, (1, 86, 60, 1)
+            result_tensors["dom_charges_variance"].shape, (1, 86, 60)
         )
-        self.assertEqual(np.sum(result_tensors["dom_cdf_exclusion_sum"]), 0.0)
+        self.assertEqual(np.sum(result_tensors["dom_cdf_exclusion"]), 0.0)
 
     def test_model_prediction__tw_exclusions(self):
         """Test model prediction without exclusions."""
@@ -263,7 +271,7 @@ class TestModelPrediction(unittest.TestCase):
         )
 
         # check keys in result_tensors
-        self.check_keys(result_tensors)
+        self.check_keys(result_tensors, with_exclusions=False)
 
         # # save result_tensors to file
         # self.write_test_data(result_tensors, tw_exclusions=True)
@@ -275,11 +283,11 @@ class TestModelPrediction(unittest.TestCase):
         self.check_result_tensors(result_tensors, result_tensors_true)
 
         # check correct values
-        self.assertEqual(result_tensors["dom_charges"].shape, (1, 86, 60, 1))
+        self.assertEqual(result_tensors["dom_charges"].shape, (1, 86, 60))
         self.assertEqual(
-            result_tensors["dom_charges_variance"].shape, (1, 86, 60, 1)
+            result_tensors["dom_charges_variance"].shape, (1, 86, 60)
         )
-        self.assertTrue(np.sum(result_tensors["dom_cdf_exclusion_sum"]) > 0.0)
+        self.assertTrue(np.sum(result_tensors["dom_cdf_exclusion"]) > 0.0)
 
 
 class TestModelPredictionMultiSource(TestModelPrediction):
@@ -289,7 +297,9 @@ class TestModelPredictionMultiSource(TestModelPrediction):
     """
 
     def definte_settings(self):
-        self.model_name = "starting_multi_cascade_7param_noise_tw_BFRv1Spice321_low_mem_n002_01"
+        self.model_name = (
+            "starting_multi_cascade_7param_noise_ftpv3m__big_n002_01"
+        )
         self.params_dict = {
             "cascade_x": 100,
             "cascade_y": -100,

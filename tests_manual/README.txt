@@ -2,8 +2,8 @@
 
 # ---------------------------------------
 # Test:
-#       - reconstruction via 1-cascade model
-#       - covariance matrix via 1-cascade model
+#       - reconstruction via tiny 1-cascade model
+#       - covariance matrix via tiny 1-cascade model
 # Note: the tests here use the processing framework `ic3_processing` from
 https://github.com/mhuen/ic3-processing
 # and the config located in this directory:

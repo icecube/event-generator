@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import division, print_function
 import os
+import logging
 import shutil
 import click
 import tensorflow as tf
@@ -27,7 +27,12 @@ from egenerator.utils.build_components import build_manager
     help="The reconstruction config file to use. If None, "
     "then the first provided config file will be used.",
 )
-def main(config_files, output_dir, reco_config_file=None):
+@click.option(
+    "--log_level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING"]),
+    default="WARNING",
+)
+def main(config_files, output_dir, reco_config_file=None, log_level="WARNING"):
     """Script to export model manager.
 
     Parameters
@@ -38,12 +43,18 @@ def main(config_files, output_dir, reco_config_file=None):
         passed, an ensemble of models will be used.
     reco_config_file : str, optional
         Name of config file which defines the reconstruction settings.
+        If None, then the first provided config file will be used.
+    log_level : str, optional
+        The logging level.
 
     Raises
     ------
     ValueError
         Description
     """
+
+    # set up logging
+    logging.basicConfig(level=log_level)
 
     if os.path.exists(output_dir):
         if not click.confirm(
@@ -85,7 +96,8 @@ def main(config_files, output_dir, reco_config_file=None):
             SetupManager([config_file]).get_config(),
             restore=manager_config["restore_model"],
             modified_sub_components={},
-            allow_rebuild_base_sources=not manager_config["restore_model"],
+            allow_rebuild_base_models=not manager_config["restore_model"],
+            allow_rebuild_base_decoders=not manager_config["restore_model"],
         )
         models.extend(model_manger.models)
 
@@ -96,7 +108,8 @@ def main(config_files, output_dir, reco_config_file=None):
         models=models,
         data_handler=data_handler,
         data_transformer=data_transformer,
-        allow_rebuild_base_sources=False,
+        allow_rebuild_base_models=False,
+        allow_rebuild_base_decoders=False,
     )
 
     # --------------
