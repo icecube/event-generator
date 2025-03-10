@@ -128,10 +128,10 @@ class DefaultNoiseModel(Source):
         tensor_dict = {}
 
         # get time exclusions
-        tensors = self.data_handler.tensors
+        tensors = self.data_trafo.data["tensors"]
         if (
-            "x_time_exclusions" in tensors.names
-            and tensors.list[tensors.get_index("x_time_exclusions")].exists
+            "x_time_exclusions" in data_batch_dict
+            and data_batch_dict["x_time_exclusions"] is not None
         ):
             time_exclusions_exist = True
 
