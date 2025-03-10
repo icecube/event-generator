@@ -95,7 +95,7 @@ class CircularizedAngularUncertainty:
         self.unc_fit_parameter_list[self.azimuth_index] = False
 
         # parameter input signature
-        self.param_dtype = manager.data_handler.tensors[
+        self.param_dtype = manager.data_trafo.data["tensors"][
             parameter_tensor_name
         ].dtype_tf
 
