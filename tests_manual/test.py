@@ -39,14 +39,14 @@ keys_warning = [
     "MCCascade",
     # covariance matrices are very sensitive to small changes and thus not
     # always reproducible
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_fit_trafo",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_fit_trafo",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_sand_trafo",
-    # "EventGenerator_cascade_7param_noise_tw_BFRv1Spice321__small_01__bfgs_cov_matrix_cov_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_fit",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_fit_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand_fit",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand_fit_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_sand_trafo",
+    "EventGenerator_cascade_7param_noise_ftpv3m__big_01_cov_matrix_cov_trafo",
 ]
 
 keys_error = [

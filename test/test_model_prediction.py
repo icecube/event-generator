@@ -112,29 +112,17 @@ class TestModelPrediction(unittest.TestCase):
 
     def check_keys(self, result_tensors, with_exclusions=False):
         """Check keys in result_tensors."""
-        if with_exclusions:
-            keys = [
-                "dom_cdf_exclusion",
-                "dom_charges",
-                "dom_charges_component",
-                "dom_charges_pdf",
-                "dom_charges_variance",
-                "dom_charges_variance_component",
-                "nested_results",
-                "pulse_cdf",
-                "pulse_pdf",
-            ]
-        else:
-            keys = [
-                "dom_charges",
-                "dom_charges_component",
-                "dom_charges_pdf",
-                "dom_charges_variance",
-                "dom_charges_variance_component",
-                "nested_results",
-                "pulse_cdf",
-                "pulse_pdf",
-            ]
+        keys = [
+            "dom_cdf_exclusion",
+            "dom_charges",
+            "dom_charges_component",
+            "dom_charges_pdf",
+            "dom_charges_variance",
+            "dom_charges_variance_component",
+            "nested_results",
+            "pulse_cdf",
+            "pulse_pdf",
+        ]
         self.assertEqual(sorted(list(result_tensors.keys())), keys)
 
     def check_result_tensors(
@@ -145,9 +133,8 @@ class TestModelPrediction(unittest.TestCase):
             "dom_charges",
             "dom_charges_variance",
             "pulse_pdf",
+            "dom_cdf_exclusion",
         ]
-        if "dom_cdf_exclusion" in result_tensors:
-            keys.append("dom_cdf_exclusion")
 
         for key in keys:
             self.assertTrue(
@@ -265,8 +252,7 @@ class TestModelPrediction(unittest.TestCase):
         self.assertEqual(
             result_tensors["dom_charges_variance"].shape, (1, 86, 60)
         )
-        if "dom_cdf_exclusion" in result_tensors:
-            self.assertEqual(np.sum(result_tensors["dom_cdf_exclusion"]), 0.0)
+        self.assertEqual(np.sum(result_tensors["dom_cdf_exclusion"]), 0.0)
 
     def test_model_prediction__tw_exclusions(self):
         """Test model prediction without exclusions."""
@@ -301,8 +287,7 @@ class TestModelPrediction(unittest.TestCase):
         self.assertEqual(
             result_tensors["dom_charges_variance"].shape, (1, 86, 60)
         )
-        if "dom_cdf_exclusion" in result_tensors:
-            self.assertTrue(np.sum(result_tensors["dom_cdf_exclusion"]) > 0.0)
+        self.assertTrue(np.sum(result_tensors["dom_cdf_exclusion"]) > 0.0)
 
 
 class TestModelPredictionMultiSource(TestModelPrediction):
