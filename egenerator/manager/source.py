@@ -776,7 +776,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
@@ -956,7 +956,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
@@ -1113,7 +1113,7 @@ class SourceManager(BaseModelManager):
             Description
         """
         num_fit_params = np.sum(fit_parameter_list, dtype=int)
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         param_dtype = param_tensor.dtype_np
         param_shape = [-1, num_fit_params]
         param_shape_full = [-1, len(fit_parameter_list)]
@@ -1253,7 +1253,7 @@ class SourceManager(BaseModelManager):
         ValueError
             Description
         """
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
 
         if len(fit_parameter_list) != param_tensor.shape[1]:
             raise ValueError(
@@ -1469,7 +1469,7 @@ class SourceManager(BaseModelManager):
 
         step_size = np.array(step_size)
 
-        param_tensor = self.data_trafo.data["tensors"][parameter_tensor_name]
+        param_tensor = self.data_handler.tensors[parameter_tensor_name]
         parameter_dtype = param_tensor.dtype_tf
 
         step_size = tf.convert_to_tensor(step_size, dtype=parameter_dtype)
