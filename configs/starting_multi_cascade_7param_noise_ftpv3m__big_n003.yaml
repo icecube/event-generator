@@ -367,8 +367,10 @@ data_handler_settings: {
     'label_settings':{
         # logarithm on labels:
         # (x, y, z, zenith, azimuth, energy, time)?
-        'trafo_log': [False, False, False, False, False, True, False,
-                      True, False],
+        'trafo_log': [
+            False, False, False, False, False, True, False,
+            True, False, True, False, True, False,
+        ],
         'label_key': 'EventGeneratorMultiCascadeLabels',
         'additional_labels': [
             'cascade_00001_energy', 'cascade_00001_distance',
