@@ -716,6 +716,7 @@ class SourceManager(BaseModelManager):
         jac=True,
         method="L-BFGS-B",
         hessian_function=None,
+        raise_exception=False,
         **kwargs
     ):
         """Reconstruct events with scipy.optimize.minimize interface.
@@ -760,6 +761,10 @@ class SourceManager(BaseModelManager):
         hessian_function : tf.function, optional
             The tensorflow function:
                 f(parameters, data_batch) -> hessian
+        raise_exception : bool, optional
+            If True, an exception from the loss_and_gradients_function will
+            be thrown. If False, the exception will be caught and the
+            result will be set to np.nan.
         **kwargs
             Keyword arguments that will be passed on to scipy.optimize.minimize
 
@@ -829,11 +834,18 @@ class SourceManager(BaseModelManager):
                 seed = np.reshape(seed_array, param_shape_full).astype(
                     param_dtype
                 )
-                loss, grad = loss_and_gradients_function(
-                    x, data_batch, seed=seed
-                )
-                loss = loss.numpy().astype("float64")
-                grad = grad.numpy().astype("float64")
+                try:
+                    loss, grad = loss_and_gradients_function(
+                        x, data_batch, seed=seed
+                    )
+                    loss = loss.numpy().astype("float64")
+                    grad = grad.numpy().astype("float64")
+                except Exception as e:
+                    if raise_exception:
+                        raise e
+                    else:
+                        print(e)
+                        return np.nan, np.ones_like(x) * np.nan
 
                 grad_flat = np.reshape(grad, [-1])
                 return loss, grad_flat
@@ -846,8 +858,17 @@ class SourceManager(BaseModelManager):
                 seed = np.reshape(seed_array, param_shape_full).astype(
                     param_dtype
                 )
-                loss = loss_and_gradients_function(x, data_batch, seed=seed)
-                loss = loss.numpy().astype("float64")
+                try:
+                    loss = loss_and_gradients_function(
+                        x, data_batch, seed=seed
+                    )
+                    loss = loss.numpy().astype("float64")
+                except Exception as e:
+                    if raise_exception:
+                        raise e
+                    else:
+                        print(e)
+                        return np.nan
                 return loss
 
         if hessian_function is not None:
