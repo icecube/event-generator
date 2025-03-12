@@ -91,7 +91,6 @@ reconstruction_settings: {
                              'energy', 'time',
                              'cascade_00001_energy', 'cascade_00001_distance',
                              'cascade_00002_energy', 'cascade_00002_distance',
-                             'cascade_00003_energy', 'cascade_00003_distance',
                          ],
     'seed_missing_value': 1.,
     'seed_missing_value_dict': {
@@ -99,8 +98,6 @@ reconstruction_settings: {
         'cascade_00001_distance': 10,
         'cascade_00002_energy': !!float 1e4,
         'cascade_00002_distance': 100,
-        'cascade_00003_energy': !!float 1e4,
-        'cascade_00003_distance': 500,
     },
     'seed_float_precision': 'float32',
 
@@ -369,13 +366,12 @@ data_handler_settings: {
         # (x, y, z, zenith, azimuth, energy, time)?
         'trafo_log': [
             False, False, False, False, False, True, False,
-            True, False, True, False, True, False,
+            True, False, True, False,
         ],
         'label_key': 'EventGeneratorMultiCascadeLabels',
         'additional_labels': [
             'cascade_00001_energy', 'cascade_00001_distance',
             'cascade_00002_energy', 'cascade_00002_distance',
-            'cascade_00003_energy', 'cascade_00003_distance',
         ],
         'snowstorm_key': 'SnowstormParameterDict',
         'snowstorm_parameters': [
