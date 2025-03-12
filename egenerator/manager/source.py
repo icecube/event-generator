@@ -845,7 +845,7 @@ class SourceManager(BaseModelManager):
                         raise e
                     else:
                         print(e)
-                        return np.nan, np.ones_like(x) * np.nan
+                        return np.inf, np.ones_like(x) * np.inf
 
                 grad_flat = np.reshape(grad, [-1])
                 return loss, grad_flat
@@ -868,7 +868,7 @@ class SourceManager(BaseModelManager):
                         raise e
                     else:
                         print(e)
-                        return np.nan
+                        return np.inf
                 return loss
 
         if hessian_function is not None:
