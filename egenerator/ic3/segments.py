@@ -21,6 +21,7 @@ def ApplyEventGeneratorReconstruction(
     bright_doms_threshold_charge=100.0,
     merge_pulses_time_threshold=None,
     clean_up=True,
+    If=lambda _:True,
     **egenerator_kwargs
 ):
     """Convenice I3TraySegment to apply Event-Generator reconstruction
@@ -83,6 +84,7 @@ def ApplyEventGeneratorReconstruction(
         bright_doms_threshold_fraction=bright_doms_threshold_fraction,
         bright_doms_threshold_charge=bright_doms_threshold_charge,
         merge_pulses_time_threshold=merge_pulses_time_threshold,
+        If=If
     )
 
     # apply event-generator reconstruction
@@ -92,12 +94,13 @@ def ApplyEventGeneratorReconstruction(
         pulse_key=masked_pulses,
         dom_exclusions_key=excluded_dom_k,
         time_exclusions_key=excluded_tw_k,
+        If=If,
         **egenerator_kwargs
     )
 
     # clean up
     if clean_up:
-        tray.AddModule("Delete", name + "CleanUp", Keys=added_keys)
+        tray.AddModule("Delete", name + "CleanUp", Keys=added_keys,If=If)
 
 
 @icetray.traysegment
@@ -210,6 +213,7 @@ def CombineAndApplyExclusions(
     bright_doms_threshold_fraction=0.4,
     bright_doms_threshold_charge=100.0,
     merge_pulses_time_threshold=None,
+    If=lambda _:True
 ):
     """Combine and Apply DOM and TimeWindow exclusions
 
@@ -286,6 +290,7 @@ def CombineAndApplyExclusions(
             BrightThresholdFraction=bright_doms_threshold_fraction,
             BrightThresholdCharge=bright_doms_threshold_charge,
             OutputKey=bright_dom_key,
+            If=If
         )
 
     # combine exclusions in a single key for DOMs and TWs
@@ -295,6 +300,7 @@ def CombineAndApplyExclusions(
         dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
         output_key=combined_exclusion_key,
+        If=If
     )
 
     # mask pulses
@@ -306,6 +312,8 @@ def CombineAndApplyExclusions(
         dom_and_tw_exclusions=dom_and_tw_exclusions,
         partial_exclusion=partial_exclusion,
         verbose=False,
+        If=If
+
     )
 
     if merge_pulses_time_threshold is not None:
@@ -316,6 +324,8 @@ def CombineAndApplyExclusions(
             pulse_key=masked_pulses_key,
             time_threshold=merge_pulses_time_threshold,
             output_key=masked_pulses_key + "Merged",
+            If=If
+
         )
         masked_pulses_key = masked_pulses_key + "Merged"
         added_keys.append(masked_pulses_key)
