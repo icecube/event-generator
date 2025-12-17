@@ -94,7 +94,7 @@ class FlagSLCDeadTimeWindows(icetray.I3ConditionalModule):
         deadtime_map = dataclasses.I3TimeWindowSeriesMap()
 
         # compute charge for each DOM
-        for omkey, pulses in pulse_series:
+        for omkey, pulses in pulse_series.items():
             tws = dataclasses.I3TimeWindowSeries()
             for i, p in enumerate(pulses):
                 # Pulse Flags:

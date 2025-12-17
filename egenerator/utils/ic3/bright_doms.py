@@ -69,7 +69,7 @@ class AddBrightDOMs(icetray.I3ConditionalModule):
         dom_charges_list = []
 
         # compute charge for each DOM
-        for omkey, pulses in pulse_series:
+        for omkey, pulses in pulse_series.items():
             dom_charge = np.sum([p.charge for p in pulses])
             dom_charges_list.append(dom_charge)
             dom_charges[omkey] = dom_charge

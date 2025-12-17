@@ -8,7 +8,6 @@ from egenerator.utils.configurator import ManagerConfigurator
 from egenerator.manager.reconstruction.tray import ReconstructionTray
 from egenerator.utils import angles
 
-
 class EventGeneratorReconstruction(icetray.I3ConditionalModule):
     """Class to apply Event-Generator model."""
 
